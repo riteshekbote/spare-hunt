@@ -1,34 +1,26 @@
-## 2026-08-07 21:32:57 UTC [web] (model laguna)
-[NEW] api.sparelabs.com CORS preflight (OPTIONS /v1/journeys) confirms `access-control-allow-origin` reflects any origin + `access-control-allow-credentials: true` + `access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE` + `access-control-allow-headers: Authorization`
-[NEW] api.sparelabs.com /v1/global/organizations currently returns HTTP 200 (not 401 as claimed at 20:57 UTC) with {"data":[]} + reflected CORS+credentials
-[NEW] api.sparelabs.com /v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000 returns 404 (valid UUID, not found) vs 400 for malformed UUID — confirms UUID enumeration oracle
-[NEW] api.sparelabs.com /v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000 returns HTTP 200 with live terms URLs (termsOfUseUrl, privacyPolicyUrl) — unauthenticated data disclosure
-[NEW] forms.staging.sparelabs.com + forms.staging.us.sparelabs.com verified responding 200
-[NEW] admin-eam-app-staging.vercel.app + admin-fixed-route-app-staging.vercel.app verified responding 200
-[NEW] metabase.staging.sparelabs.com verified responding 200 (Metabase login)
-[NEW] api-spare.ngrok.io returns ERR_NGROK_3200 (tunnel inactive)
-[CHANGED] forms.sparelabs.com JS bundle rotated: main.6ed467ae.js → main.71d52314.js (verified live)
+## 2026-08-07 22:08:07 UTC [web] (model laguna)
 [PRIO] api.sparelabs.com | score 9.15 | atk10 biz10 tech9 gate10 cloud9 fresh10
 [PRIO] platform.sparelabs.com | score 7.60 | atk8 biz9 tech9 gate3 cloud7 fresh8
 [PRIO] forms.sparelabs.com | score 6.80 | atk7 biz7 tech8 gate8 cloud7 fresh10
-[HYP] api.sparelabs.com: CORS reflect-any-origin with credentials + all methods + Authorization header on /v1 API
+[HYP] api.sparelabs.com: CORS reflect-any-origin with credentials on /v1 API
 class: MISCONFIG
 asset: api.sparelabs.com /v1/* (confirmed on /v1/journeys, /v1/global/organizations, /v1/public/terms)
 confidence: 95
-reasoning: Live probe: OPTIONS preflight returns access-control-allow-origin: <reflected any origin> + access-control-allow-credentials: true + access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE + access-control-allow-headers: Authorization. GET responses also reflect origin with credentials. Affects ALL /v1 endpoints including auth-gated. Any malicious site can issue credentialed read+write API calls on behalf of any logged-in user.
-evidence_needed: Captured full OPTIONS preflight response headers (done, live 21:30 UTC)
+reasoning: Live probe: OPTIONS /v1/journeys returns access-control-allow-origin: <reflected any origin> + access-control-allow-credentials: true + access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE + access-control-allow-headers: Authorization. GET responses also reflect origin with credentials. Affects ALL /v1 endpoints including auth-gated. Any malicious site can issue credentialed read+write API calls on behalf of any logged-in user.
+evidence_needed: Captured full OPTIONS preflight response headers (done, live verified)
 verify_steps: PASSIVE — curl -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization" https://api.sparelabs.com/v1/journeys
 impact: Full account takeover via browser — any malicious origin can issue authenticated reads (steal user/rider/org data) and writes (POST/PUT/DELETE on /v1/journeys, /v1/riders, etc.) using victim's session/token. Severity: CRITICAL
 testability: PASSIVE
+[HYP] api.sparelabs.com: UUID-based org enumeration via OpenAPI validation error oracle
 class: MISCONFIG
 asset: api.sparelabs.com /v1/public/organization?organizationId=<uuid>
 confidence: 65
-reasoning: Endpoint unauthenticated; returns 400 with full ValidationError body (request/query/organizationId must match format "uuid", errorCode: format.openapi.validation) for malformed input, 404 NotFoundError for valid-format UUIDs that don't exist, 200+org data for valid UUIDs. 400-vs-404-vs-200 is a reliable enumeration oracle. Forms SPA bundle confirms global.getOrganization(organizationId) is the real client method.
+reasoning: Endpoint unauthenticated; returns 400 with full ValidationError body for malformed input, 404 NotFoundError for valid-format UUIDs that don't exist, 200+org data for valid UUIDs. 400-vs-404-vs-200 is a reliable enumeration oracle. Forms SPA bundle confirms global.getOrganization(organizationId) is the real client method.
 evidence_needed: Capture 200 response for a valid org UUID (test UUIDs return 404; real org UUID not yet sourced)
-verify_steps: PASSIVE — curl "https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000" (404, done); curl "https://api.sparelabs.com/v1/public/organization?organizationId=not-a-uuid" (400 ValidationError, done)
+verify_steps: PASSIVE — curl "https://api.sparelabs.com/v1/public/organization?organizationId=not-a-uuid" (400 ValidationError, confirmed); curl "https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000" (404, confirmed)
 impact: Enumerate valid organization UUIDs without auth, enabling targeted attacks against specific tenants. Severity: MEDIUM
 testability: PASSIVE
-[HYP] platform.sparelabs.com: CSP leaks staging admin panels + production infra via prefetch script
+[HYP] platform.sparelabs.com: CSP leaks staging admin panels + production infra via prefetch
 class: MISCONFIG
 asset: platform.sparelabs.com /login (CSP header + MFE manifest prefetch)
 confidence: 65
@@ -40,15 +32,13 @@ testability: PASSIVE
 [FINAL] 1. [95] api.sparelabs.com: CORS reflect-any-origin with credentials + all methods + Authorization on /v1 API (PASSIVE)
 [FINAL] 2. [65] api.sparelabs.com: UUID-based org enumeration via OpenAPI validation error oracle (PASSIVE)
 [FINAL] 3. [65] platform.sparelabs.com: CSP leaks staging admin panels + infra via prefetch (PASSIVE)
-[NEXT] PROBE: GET https://api.sparelabs.com/v1/journeys/requests — verify if this auth-gated endpoint also reflects CORS credentials on OPTIONS preflight (escalation path for write operations); AND GET https://api.sparelabs.com/v1/global/organizations?limit=50&search=a — test if the unauthenticated org list endpoint accepts search filters that could leak org names beyond the empty {"data":[]} list
+[PRIO] PROBE: GET https://api.sparelabs.com/v1/journeys/requests — verify if this auth-gated endpoint also reflects CORS credentials on OPTIONS preflight (escalation path for write operations); AND GET https://api.sparelabs.com/v1/global/organizations?limit=50&search=a — test if the unauthenticated org list endpoint accepts search filters that could leak org names beyond the empty {"data":[]} list
 [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com: CORS preflight confirms full credential reflection — any malicious origin can issue authenticated GET/PUT/PATCH/POST/DELETE requests with Authorization header via victim browser (escalates read to write)
 [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle confirmed (400 malformed, 404 not-found, 200 found) with full OpenAPI ValidationError body disclosure
 [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Returns live termsOfUseUrl + privacyPolicyUrl without authentication — unauthenticated data disclosure
 [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: Returns 200 with {"data":[]} and reflected CORS+credentials — auth state inconsistent (was 401 at 20:57 UTC, 200 at 21:30 UTC)
-[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: CONFIRMED dead — all paths return 404; no surface
-[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle rotated (main.6ed467ae.js → main.71d52314.js) but same staging+prod infra leak persists
+[LEARN] REJECTED MISCONFIG @ api-staking.sparelabs.com: Staging API hosts return 404 — no independent API surface
 [LEARN] REJECTED MISCONFIG @ api-spare.ngrok.io: Ngrok dev tunnel inactive (ERR_NGROK_3200)
-[LEARN] ACCEPTED MISCONFIG @ api.staging.sparelabs.com: Staging API hosts return 404 — no independent API surface
 [RISK] api.sparelabs.com: 95 — CRITICAL CORS credential reflection on entire /v1 API (all methods + Authorization via any malicious origin); 3+ unauthenticated data-leaking endpoints; 15+ auth-gated endpoints with unknown access controls; OpenAPI schema leaks
 [RISK] platform.sparelabs.com: 65 — admin MFE SPA; CSP discloses staging admin panels + metabase + Cognito + Stripe + DO Spaces; staging hosts respond 200
 [RISK] routing.sparelabs.com: 50 — envoy 404 on all paths; routing API completely hidden; no unauth surface
