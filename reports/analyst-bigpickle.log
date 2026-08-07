@@ -1251,3 +1251,90 @@ STEP 7 — RISK SCORE
 [RISK] forms.sparelabs.com: 42 — bundle leaks staging API hosts + JIRA + ngrok tunnel; SPA catch-all; shares /v1 API (IDOR unproven).
 [RISK] web (spare.com/sparelabs.com): 18 — Cloudflare-fronted marketing site, HSTS max-age=0, no exposed surface.
 ```
+===== ANALYST bigpickle 2026-08-07 23:27:19 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mcurl -sS -o /dev/null -w "GET /v1/journeys/requests -> %{http_code}\n" --max-time 20 https://api.sparelabs.com/v1/journeys/requests; sleep 1.2; curl -sS -o /dev/null -w "GET /v1/global/organizations -> %{http_code}\n" --max-time 20 https://api.sparelabs.com/v1/global/organizations
+GET /v1/journeys/requests -> 401
+GET /v1/global/organizations -> 200
+[0m
+[0m$ [0mcurl -sS -o /dev/null -w "GET /v1/global/settings -> %{http_code}\n" --max-time 20 https://api.sparelabs.com/v1/global/settings; sleep 1.2; curl -sS -o /dev/null -w "GET /v1/global/regions -> %{http_code}\n" --max-time 20 https://api.sparelabs.com/v1/global/regions
+GET /v1/global/settings -> 401
+GET /v1/global/regions -> 400
+[0m
+[0m$ [0mcurl -sS --max-time 20 https://api.sparelabs.com/v1/global/regions; echo; sleep 1.2; curl -sS --max-time 20 https://api.sparelabs.com/v1/global/settings; echo
+{"name":"ValidationError","message":"Authorization header required","metadata":{"errors":[{"path":"/v1/global/regions","message":"Authorization header required"}],"correlationId":"cc9e1620-3676-45f2-bbbd-5bdc6f45295d"}}
+{"name":"InvalidTokenError","message":"Request lacks Authorization header","metadata":{"correlationId":"1497cc23-6145-4575-a2f5-62330e79b205"}}
+[0m
+[0m$ [0mcurl -sS --max-time 20 -H "Authorization: Bearer xxxxxxxxxx" https://api.sparelabs.com/v1/global/regions; echo; sleep 1.2; curl -sS -o /dev/null -w "regions+dummyAuth -> %{http_code}\n" --max-time 20 -H "Authorization: Bearer xxxxxxxxxx" https://api.sparelabs.com/v1/global/regions
+[{"name":"CA","apiUrl":"https://api.sparelabs.com","routingHost":"https://routing.sparelabs.com"},{"name":"US","apiUrl":"https://api.us.sparelabs.com","routingHost":"https://routing.us.sparelabs.com"},{"name":"US2","apiUrl":"https://api.us2.sparelabs.com","routingHost":"https://routing.us2.sparelabs.com"},{"name":"US3","apiUrl":"https://api.us3.sparelabs.com","routingHost":"https://routing.us3.sparelabs.com"},{"name":"JP","apiUrl":"https://api.jp.sparelabs.com","routingHost":"https://routing.jp.sparelabs.com"},{"name":"EU","apiUrl":"https://api.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]
+regions+dummyAuth -> 200
+[0m
+[0m$ [0mcurl -sS --max-time 20 -H "Authorization: Bearer xxxxxxxxxx" https://api.sparelabs.com/v1/global/organizations; echo; sleep 1.2; curl -sS --max-time 20 -H "Authorization: gaaaaaaaaaarbag" https://api.sparelabs.com/v1/global/regions; echo
+{"data":[]}
+{"name":"ValidationError","message":"Authorization header with scheme 'Bearer' required","metadata":{"errors":[{"path":"/v1/global/regions","message":"Authorization header with scheme 'Bearer' required"}],"correlationId":"b81110af-3dd2-4b62-a250-e16b224d4c2a"}}
+[0m
+Confirmed a data-bearing fail-open on `/v1/global/regions` — a fabricated `Authorization: Bearer <any>` token returns the full regional topology (7 regions, apiUrl+routingHost each), while `/v1/global/settings` stays properly gated (401) and `organizations` stays 200 with a dummy token too.
+
+---
+
+STEP 1 — DELTA
+- [NEW] api.sparelabs.com /v1/global/regions: returns HTTP 200 with full regional/environment map (CA, US, US2, US3, JP, EU, UAT + apiUrl/routingHost each) when ANY fabricated `Authorization: Bearer <garbage>` is sent — header-presence + scheme check only, no token validation (400 ValidationError "Authorization header with scheme 'Bearer' required" if absent/malformed).
+- [NEW] api.sparelabs.com /v1/global/settings: properly edge-gated (401 InvalidTokenError) — differential control proving /v1/global/* auth is implemented differently per-route.
+- [CHANGED] api.sparelabs.com /v1/global/organizations: still 200 `{"data":[]}` both bare and with dummy Bearer — hardcoded empty, not token-dependent.
+- [NEW] api.sparelabs.com leaked host set (excluded subdomains, topology only): api.us2.sparelabs.com, api.us3.sparelabs.com, api.jp.sparelabs.com, api.eu.sparelabs.com, api.uat.sparelabs.com + routing.us2/us3/jp/eu/uat.sparelabs.com — confirms multi-region deployment and a UAT environment.
+
+STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com: score 8.15 (attack 8, business 8, tech 8, gate 9, cloud 6, fresh 10)
+- [PRIO] platform.sparelabs.com: score 6.30 (attack 6, business 7, tech 8, gate 5, cloud 6, fresh 5)
+- [PRIO] forms.sparelabs.com: score 6.05 (attack 5, business 6, tech 6, gate 8, cloud 7, fresh 5)
+
+STEP 3 — HYPOTHESES
+- [HYP] /v1/global/* auth fragmentation is data-bearing, not just status-code noise
+  class: AUTH
+  asset: api.sparelabs.com/v1/global/regions (+ /v1/global/* namespace)
+  confidence: 80
+  reasoning: /v1/global/regions returns 200 with real region/env topology under a fabricated Bearer token (presence+scheme check only); /v1/global/organizations needs no auth at all (hardcoded empty); /v1/global/settings is properly 401-gated — three different auth models on one namespace, proving the confirmed route-level omission extends past organizations to a data-bearing route.
+  evidence_needed: another /v1/global/* (or sibling low-sensitivity) route returning non-empty data under the same fabricated-token or no-auth conditions.
+  verify_steps: PASSIVE. GET /v1/global/{candidates} with `Authorization: Bearer <random>` spaced ≥1.2s against controls (regions=200-with-data, settings=401): e.g. /v1/global/taxonomies, /v1/global/serviceTypes, /v1/global/countries. No live payloads, dummy token only.
+  impact: unauth/fabricated-token read of environment+regional config (deployment topology, UAT presence); for any route with customer data it becomes cross-tenant read; medium-high (capped while data is infra-config, not PII).
+  testability: PASSIVE
+- [HYP] MFE-manifest / dynamic org-host injection in platform SPA
+  class: XSS
+  asset: platform.sparelabs.com
+  confidence: 50
+  reasoning: index.html feeds prod/staging/localhost manifest URLs into `window.__MFE_MANIFESTS__`; org settings expose user-influenced host fields; dynamic remote-host selection is a DOM/URL-injection surface; consumer logic in captured index-DHUgT6Ph.js.
+  evidence_needed: a manifest URL reaching a script/DOM sink without allowlist, or a postMessage handler injecting HTML.
+  verify_steps: PASSIVE static review of captured bundle — __MFE_MANIFESTS__ consumers, message listeners, innerHTML/dangerouslySetInnerHTML sinks, host allowlist. No live payloads.
+  impact: client-side XSS in admin console, token theft; high.
+  testability: PASSIVE
+- [HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+  class: IDOR
+  asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+  confidence: 45
+  reasoning: auth-less Engage SPA calls the same /v1 Bearer API; per-route 401 guards confirmed on /v1/journeys but object-level authorization on ID-keyed resources unproven; fabricated-token acceptance now proven on /v1/global/regions raises the chance ID-keyed routes share the weak check.
+  evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+  verify_steps: AUTH_HELPED: cross-tenant read on a low-risk ID-keyed endpoint with a program-obtained token (no self-signup).
+  impact: cross-tenant read of passenger/journey PII; high.
+  testability: AUTH_HELPED
+
+STEP 4 — SELF-CRITIQUE
+- /v1/global/regions hyp: now evidence-backed (data-bearing 200) → keep, raise to 80.
+- platform MFE XSS (50) and forms IDOR (45): retained; both ≥40 with concrete verify_steps, no new rejections.
+- No hypotheses dropped this round.
+- [FINAL] 1) /v1/global/* auth fragmentation w/ data-bearing regions fail-open (80, PASSIVE) 2) platform MFE-manifest XSS (50, PASSIVE) 3) forms /v1 IDOR (45, AUTH_HELPED)
+
+STEP 5 — NEXT ACTION
+- [NEXT] PROBE: GET https://api.sparelabs.com/v1/global/taxonomies, /v1/global/serviceTypes, /v1/global/countries (3 req, each with dummy `Authorization: Bearer <random>`, spaced ≥1.2s, ≤1 rps) — 200-with-data vs 401 vs regions-200 controls to map the extent of the header-presence-only auth hole; any non-empty body under fabricated token escalates /v1/global/* from "topology leak" to "generalized unauth read".
+
+STEP 6 — LEARNING
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: fabricated `Authorization: Bearer <any>` returns 200 with full regional topology (CA/US/US2/US3/JP/EU/UAT + apiUrl/routingHost) — header-presence+scheme check only, no token validation; first data-bearing fail-open on /v1/global/*.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/*: auth model fragmented per-route (regions=presence-only, organizations=none, settings=proper 401) — route-level auth omission is a confirmed namespace-wide pattern, not a single-route anomaly.
+
+STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 78 — data-bearing fabricated-token fail-open on /v1/global/regions (env topology, UAT exposure), stacked on reflect-any-origin CORS+credentials, UUID enumeration oracle, unauth data-on-401; all passive-confirmed.
+- [RISK] platform.sparelabs.com: 48 — MFE shell leaks staging admin apps + Metabase; DOM-injection surface unproven.
+- [RISK] routing.sparelabs.com: 12 — surface dead (all paths 404 behind envoy), gateway only.
+- [RISK] forms.sparelabs.com: 42 — bundle leaks staging API hosts + JIRA + ngrok tunnel; SPA catch-all; shares /v1 API (IDOR unproven, weak-auth pattern adjacent).
+- [RISK] web (spare.com/sparelabs.com): 18 — Cloudflare-fronted marketing site, HSTS max-age=0, no exposed surface.

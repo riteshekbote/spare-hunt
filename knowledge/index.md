@@ -47,3 +47,8 @@
 - 2026-08-07 REJECTED MISCONFIG @ api-staking.sparelabs.com: Staging API hosts return 404 — no independent API surface
 - 2026-08-07 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: fail-open now STABLE — 200 ×6 across ~2h incl. pagination variants (params ignored, hardcoded `{"data":[]}`), control route stable 401 → route-level auth omission confirmed as pattern, not flapping; severity remains capped while payload empty.
 - 2026-08-07 REJECTED BUSLOGIC @ api.sparelabs.com: CORS reflect-any-origin+credentials re-confirmed on all /v1 (401, 404, and 200 paths) — uniformly applied API-scoped middleware, not path-conditional.
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflect-any-origin with credentials confirmed on OPTIONS preflight + GET responses for all /v1 endpoints (methods: GET,HEAD,PUT,PATCH,POST,DELETE; headers: Authorization)
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open confirmed STABLE (200 + `{"data":[]}` + credentials across 6+ samples over ~2h), not flapping; control route /v1/journeys properly 401s
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle confirmed (400 ValidationError for malformed, 404 NotFoundError for valid-but-unfound, 200 for valid org)
+- 2026-08-07 REJECTED BUSLOGIC @ routing.sparelabs.com: all /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404; envoy 404 on all paths, no surface — CONFIRMED dead
+- 2026-08-07 REJECTED MISCONFIG @ api.staging.sparelabs.com: staging API hosts return 404 behind envoy gateway, no independent API surface

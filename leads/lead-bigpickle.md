@@ -197,3 +197,4 @@ testability: AUTH_HELPED
 [RISK] routing.sparelabs.com: 12 — surface dead (all paths 404 behind envoy), gateway only.
 [RISK] forms.sparelabs.com: 42 — bundle leaks staging API hosts + JIRA + ngrok tunnel; SPA catch-all; shares /v1 API (IDOR unproven).
 [RISK] web (spare.com/sparelabs.com): 18 — Cloudflare-fronted marketing site, HSTS max-age=0, no exposed surface.
+## 2026-08-07 23:26:24 UTC [api] (model bigpickle)

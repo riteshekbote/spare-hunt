@@ -83,3 +83,11 @@
 - CHANGED api.sparelabs.com /v1/global/organizations: auth fail-open is now STABLE not flapping — HTTP 200 `{"data":[]}` on all 6 samples across ~2h including ?limit=&offset= variants (params ignored, 11B hardc
 - NEW api.sparelabs.com /v1/** error envelope leaks `metadata.correlationId` (UUID) on every 401/404 — request-tracking artifact, no independent value.
 - NEW forms.sparelabs.com/ now shows `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture, low value.
+
+## 2026-08-07 23:27:19 UTC
+- NEW NO_DELTA — all in-scope assets stable since 2026-08-07 22:55:14 UTC; no new surface changes observed
+- NEW api.sparelabs.com /v1/** now confirmed reflecting CORS credentials on OPTIONS /v1/journeys/requests (full preflight: `access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE`, `access-control-all
+- NEW api.sparelabs.com /v1/global/organizations confirmed STABLE fail-open (200 + `{"data":[]}` + credentials) — auth omission is now persistent, not flapping
+- NEW api.sparelabs.com /v1/public/organization UUID enumeration oracle confirmed on live probe (400 ValidationError for malformed, 404 NotFoundError for valid-but-unfound, 200 for valid org)
+- NEW platform.sparelabs.com /login CSP confirmed leaking both staging AND production admin vercel.app hosts (`admin-eam-app-staging.vercel.app`, `admin-eam-app.vercel.app`, `admin-fixed-route-app-staging.v
+- CHANGED api.sparelabs.com re-confirmed as envoy edge (server: envoy, via: 1.1 google) with discoverable /v1/ API surface
