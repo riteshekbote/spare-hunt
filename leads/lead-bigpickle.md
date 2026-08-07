@@ -29,3 +29,40 @@ verify_steps: PASSIVE first (extract id-params + ID shape from forms bundle), th
 impact: cross-tenant read of passenger/journey PII; high.
 testability: AUTH_HELPED
 [NEXT] PROBE: bound no-auth GET sweep on api.sparelabs.com: /v1/config, /v1/health, /v1/journeyNotifications + /v1/nonexistent control, classify 401/200/404/500, ≤1 rps.
+## 2026-08-07 18:47:54 UTC [api] (model bigpickle)
+[HYP] API gateway reflects any Origin with credentials — CORS misconfig
+class: MISCONFIG
+asset: api.sparelabs.com/v1/journeys
+confidence: 50
+reasoning: Preflight with Origin https://evil.example.com returned 204 with access-control-allow-origin echoing the origin + allow-credentials true + authorization allowed in one hop (envoy/Google LB). This is classic reflect-any-origin CORS; needs checking whether it's gateway-wide (all /v1/*) and present on actual GET responses.
+evidence_needed: a GET (not just preflight) on an existing /v1 route returning access-control-allow-origin echoing attacker origin with credentials true; or a route failing to reflect (showing inconsistent enforcement).
+verify_steps: PASSIVE. GET (no Authorization) /v1/journeys with Origin: https://evil.example.com and check ACAO/ACAC; repeat Origin on /v1/organizations; repeat on a 404 path (gateway-wide?) — ≤3 requests, ≤1 rps.
+impact: if any victim session can be made to carry credentials, cross-origin read of API responses (Bearer tokens are not auto-attached, so needs cookie/JWT-in-cookie auth on some route or client-side token holder); medium.
+testability: PASSIVE
+[HYP] Unauthenticated /v1/ route among large auth-gated surface (route oracle assist)
+class: AUTH
+asset: api.sparelabs.com/v1/**
+confidence: 45
+reasoning: Route oracle proves many real /v1 routes exist (journeys, users, organizations, vehicles) all behind one guard; a 9-path no-auth sweep found no 2xx, but the surface is far larger than sampled. Custom InvalidTokenError suggests hand-rolled guard that may be inconsistent across routes.
+evidence_needed: any /v1/* route returning 200/2xx (or 500/stacktrace) without Authorization.
+verify_steps: PASSIVE. Use 401-vs-404 oracle to enumerate a wider /v1 route set from bundle/OpenAPI hints, then single no-auth GET on each candidate — ≤1 rps, no payloads. No more than ~10 requests this cycle.
+impact: unauthenticated read of journey/org/vehicle data if a route misses the guard; medium-high.
+testability: PASSIVE
+[HYP] MFE-manifest / dynamic org-host client-side config injection
+class: XSS
+asset: platform.sparelabs.com
+confidence: 50
+reasoning: index.html loads production/staging/localhost manifest URLs into window.__MFE_MANIFESTS__; org settings expose user-influenced host fields (organizationApiHost, organizationRoutingHost). Dynamic remote-host selection is a classic DOM-XSS/URL-injection surface (from prior bundle analysis).
+evidence_needed: a manifest URL reaching a script/DOM sink without allowlist, or postMessage handler injecting HTML (static review of captured 6.0MB bundle).
+verify_steps: PASSIVE static review of index-DHUgT6Ph.js: __MFE_MANIFESTS__ consumers, message listeners, innerHTML/dangerouslySetInnerHTML sinks, host allowlist. No live payloads.
+impact: client-side XSS in admin console, token theft; high.
+testability: PASSIVE
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: Public auth-less Engage SPA calls the same /v1 Bearer API; portal routes embed journey/booking IDs; per-route guards exist (401 confirmed) but object-level authorization is unproven.
+evidence_needed: an ID whose resource is returned for a token that doesn't own it.
+verify_steps: PASSIVE first (extract id-params + ID shape from forms bundle), then AUTH_HELPED: obtain a test token via program channel (no self-signup per rules) and test cross-tenant read on a low-risk endpoint.
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
