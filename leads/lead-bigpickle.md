@@ -66,3 +66,31 @@ evidence_needed: an ID whose resource is returned for a token that doesn't own i
 verify_steps: PASSIVE first (extract id-params + ID shape from forms bundle), then AUTH_HELPED: obtain a test token via program channel (no self-signup per rules) and test cross-tenant read on a low-risk endpoint.
 impact: cross-tenant read of passenger/journey PII; high.
 testability: AUTH_HELPED
+## 2026-08-07 19:13:57 UTC [api] (model bigpickle)
+[HYP] API reflects any Origin with credentials on live auth-gated routes
+class: MISCONFIG
+asset: api.sparelabs.com/v1/journeys, /v1/organizations
+confidence: 60
+reasoning: GET (no auth) with `Origin: https://evil.example.com` on two real routes returns 401 but with `access-control-allow-origin: evil.example.com`, `access-control-allow-credentials: true`, `vary: Origin`. Same Origin on a 404 path returns no ACAO → reflection is applied to the real API surface only, consistent with a route-level CORS middleware misconfig.
+evidence_needed: a cookie-based session on any /v1 route (Bearer-only observed, no Set-Cookie at edge), or `access-control-allow-methods/headers` preflight that would let a cross-origin page drive authenticated reads.
+verify_steps: PASSIVE. OPTIONS /v1/journeys with `Origin: https://evil.example.com` + `Access-Control-Request-Headers: authorization` and capture ACAM/ACAH/ACAC (1 req). If a cookie session is ever found → AUTH_HELPED cross-origin read test.
+impact: cross-origin read of API responses only if credentials can be auto-attached; with Bearer-only auth the standalone impact is limited → medium (reportable misconfig per OWASP A05:2021; escalates if any cookie-auth route appears).
+testability: PASSIVE
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: Public auth-less Engage SPA calls the same /v1 Bearer API (hosts leaked in `main.6ed467ae.js`); per-route 401 guards confirmed, but object-level authorization on ID-keyed resources is unproven; portal routes typically embed journey/booking IDs in URLs.
+evidence_needed: an ID in a portal URL whose resource returns data for a token that doesn't own it.
+verify_steps: PASSIVE first (extract id params + UUID shape from forms bundle), then AUTH_HELPED: obtain test token via program channel (no self-signup) and test cross-tenant read on a low-risk endpoint.
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[HYP] MFE-manifest / dynamic org-host client-side config injection
+class: XSS
+asset: platform.sparelabs.com
+confidence: 50
+reasoning: index.html loads production/staging/localhost manifest URLs into `window.__MFE_MANIFESTS__`; org settings expose user-influenced hosts (organizationApiHost, organizationRoutingHost); dynamic remote-host selection is a classic DOM/URL-injection surface (prior bundle analysis).
+evidence_needed: a manifest URL reaching a script/DOM sink without allowlist, or a postMessage handler injecting HTML (static review of captured 6.0MB `index-DHUgT6Ph.js`).
+verify_steps: PASSIVE static review: `__MFE_MANIFESTS__` consumers, message listeners, innerHTML/dangerouslySetInnerHTML sinks, host allowlist. No live payloads.
+impact: client-side XSS in admin console, token theft; high.
+testability: PASSIVE
