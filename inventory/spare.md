@@ -64,3 +64,15 @@
 - NEW `admin-eam-app-staging.vercel.app` and `admin-fixed-route-app-staging.vercel.app` **respond 200** (Vercel, CORS `*`, minimal HTML)
 - NEW `metabase.staging.sparelabs.com` **responds 200** (envoy gateway, Metabase login page, frame-ancestors 'none')
 - NEW `api-spare.ngrok.io` returns **ngrok 404 (ERR_NGROK_3200)** — tunnel inactive
+
+## 2026-08-07 21:47:25 UTC
+- NEW None — all in-scope assets respond identically to 2026-08-07 20:57:44 UTC baseline (api CORS reflect-any-origin+creds on /v1/**, /v1/public/* data-on-401, platform CSP leaks staging admin/Metabase, fo
+- NEW api.sparelabs.com CORS preflight (OPTIONS /v1/journeys) confirms `access-control-allow-origin` reflects any origin + `access-control-allow-credentials: true` + `access-control-allow-methods: GET,HEAD,
+- NEW api.sparelabs.com /v1/global/organizations currently returns HTTP 200 (not 401 as claimed at 20:57 UTC) with {"data":[]} + reflected CORS+credentials
+- NEW api.sparelabs.com /v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000 returns 404 (valid UUID, not found) vs 400 for malformed UUID — confirms UUID enumeration oracle
+- NEW api.sparelabs.com /v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000 returns HTTP 200 with live terms URLs (termsOfUseUrl, privacyPolicyUrl) — unauthenticated data disclosure
+- NEW forms.staging.sparelabs.com + forms.staging.us.sparelabs.com verified responding 200
+- NEW admin-eam-app-staging.vercel.app + admin-fixed-route-app-staging.vercel.app verified responding 200
+- NEW metabase.staging.sparelabs.com verified responding 200 (Metabase login)
+- NEW api-spare.ngrok.io returns ERR_NGROK_3200 (tunnel inactive)
+- CHANGED forms.sparelabs.com JS bundle rotated: main.6ed467ae.js → main.71d52314.js (verified live)

@@ -124,3 +124,4 @@ impact: cross-tenant read of passenger/journey PII; high.
 testability: AUTH_HELPED
 [NEXT] PROBE: GET https://api.sparelabs.com/v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000 and capture the response body — the new 200 contradicts the earlier 400/404-only note; body determines whether the unauth public surface returns org/legal PII or static text (1 request).
 ## 2026-08-07 20:53:07 UTC [api] (model bigpickle)
+## 2026-08-07 21:47:17 UTC [api] (model bigpickle)
