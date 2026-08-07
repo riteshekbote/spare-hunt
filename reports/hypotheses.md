@@ -153,3 +153,18 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle confirmed (400 ValidationError for malformed, 404 NotFoundError for valid
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: all /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404; envoy 404 on all paths, n
 - LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com: staging API hosts return 404 behind envoy gateway, no independent API surface
+
+## RANKED HYPOTHESES 2026-08-07 23:59:36 UTC
+- [95] api.sparelabs.com/v1/**: api.sparelabs.com CORS reflect-any-origin with credentials enables cross-origin authenticated requests (from reports/hypotheses-nemotron3.txt)
+- [95] api.sparelabs.com: api.sparelabs.com /v1/** CORS credential reflection enables cross-origin authenticated reads/writes (from reports/hypotheses-laguna.txt)
+- [75] api.sparelabs.com/v1/global/organizations: Organizations controller-wide auth omission on /v1/global/organizations (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): AUTH_HELPED: Obtain a valid session token/cookie for api.sparelabs.com (via authorized test account) and verify whether the reflected CORS with access-control-a
+- NEXT(hypotheses-laguna.txt): PROBE: Enumerate additional /v1/ endpoints (GET /v1/riders, GET /v1/organizations, GET /v1/global/settings, GET /v1/global/regions) at ≤1 rps — each with `Origi
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflect-any-origin with credentials confirmed on OPTIONS preflight + GET responses for all /v1 endpoints (met
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + /login MFE manifest confirmed leaking production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-rou
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle confirmed (400 ValidationError for malformed, 404 NotFoundError for valid
+- LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com: staging API hosts return 404 behind envoy gateway, no independent API surface
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: all /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404; envoy 404 on all paths, n
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP now confirmed leaking production admin app hosts (admin-eam-app.vercel.app, admin-fixed-route-app.vercel
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com /v1/**: CORS credential reflection confirmed stable across all scan intervals (OPTIONS preflight + GET on 401/404/200 pat
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: All /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404 — envoy gateway, no surfac

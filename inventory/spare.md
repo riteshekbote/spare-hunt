@@ -91,3 +91,8 @@
 - NEW api.sparelabs.com /v1/public/organization UUID enumeration oracle confirmed on live probe (400 ValidationError for malformed, 404 NotFoundError for valid-but-unfound, 200 for valid org)
 - NEW platform.sparelabs.com /login CSP confirmed leaking both staging AND production admin vercel.app hosts (`admin-eam-app-staging.vercel.app`, `admin-eam-app.vercel.app`, `admin-fixed-route-app-staging.v
 - CHANGED api.sparelabs.com re-confirmed as envoy edge (server: envoy, via: 1.1 google) with discoverable /v1/ API surface
+
+## 2026-08-07 23:59:36 UTC
+- NEW api.sparelabs.com /v1/** CORS reflect-any-origin with credentials confirmed on OPTIONS preflight for all methods (GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS) + Authorization header
+- NEW platform.sparelabs.com /login CSP now leaks production admin Vercel hosts (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app) in addition to staging
+- CHANGED platform.sparelabs.com /login CSP: Now confirmed leaking **production** admin app hosts (`admin-eam-app.vercel.app`, `admin-fixed-route-app.vercel.app`) in addition to the previously-known staging hos
