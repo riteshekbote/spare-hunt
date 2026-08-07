@@ -381,3 +381,57 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 40 reason — Envoy gateway returning 404; no discoverable routing API surface; low visible exposure
 [RISK] forms.sparelabs.com: 50 reason — Public SPA on object store/CDN; JS bundle leaks staging infra (forms.staging.* live, api.staging.* 404, ngrok dead, JIRA OOS); IDOR risk only if shared /v1 API has cross-tenant flaws
 [RISK] web (spare.com/sparelabs.com): 35 reason — Webflow marketing site behind Cloudflare; sparelabs.com 301→spare.com; static exposure only
+## 2026-08-07 22:52:54 UTC [platform] (model nemotron3)
+[PRIO] api.sparelabs.com/v1/**, 8.95, attack=10 business=9 tech=10 gate=10 cloud=7 fresh=9
+[PRIO] platform.sparelabs.com, 7.30, attack=8 business=9 tech=8 gate=5 cloud=7 fresh=9
+[PRIO] admin-eam-app-staging.vercel.app, 5.80, attack=7 business=7 tech=6 gate=9 cloud=5 fresh=9
+[PRIO] admin-fixed-route-app-staging.vercel.app, 5.80, attack=7 business=7 tech=6 gate=9 cloud=5 fresh=9
+[PRIO] metabase.staging.sparelabs.com, 5.65, attack=6 business=8 tech=6 gate=7 cloud=6 fresh=9
+[PRIO] forms.sparelabs.com, 5.10, attack=5 business=6 tech=5 gate=8 cloud=6 fresh=8
+[PRIO] forms.staging.sparelabs.com, 4.95, attack=4 business=5 tech=4 gate=8 cloud=5 fresh=8
+[PRIO] routing.sparelabs.com, 4.50, attack=4 business=6 tech=4 gate=5 cloud=4 fresh=6
+[PRIO] sparelabs.com, 3.85, attack=3 business=4 tech=2 gate=9 cloud=2 fresh=5
+[PRIO] spare.com, 3.60, attack=2 business=3 tech=2 gate=9 cloud=2 fresh=4
+[HYP] api.sparelabs.com CORS reflect-any-origin with credentials enables cross-origin authenticated requests
+class: MISCONFIG
+asset: api.sparelabs.com/v1/**
+confidence: 95
+reasoning: Live probe confirms `access-control-allow-origin` reflects arbitrary Origin + `access-control-allow-credentials: true` on all /v1 endpoints including auth-gated `/v1/journeys`. Envoy gateway reflects unconditionally. Preflight allows GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS + Authorization header.
+evidence_needed: Victim with valid session visits attacker page → attacker reads/writes authenticated responses via `fetch('https://api.sparelabs.com/v1/journeys', {credentials: 'include'})`
+verify_steps: AUTH_HELPED: With authorized test account, obtain session cookie/token; host attacker page calling `fetch('https://api.sparelabs.com/v1/journeys', {credentials: 'include'})` and `fetch('https://api.sparelabs.com/v1/journeys', {method:'POST', credentials:'include', headers:{Authorization:'Bearer <token>'}})`; observe if response data is readable/writable cross-origin
+impact: Full account takeover if any auto-attached credential exists (cookie, client cert, HTTP auth); escalates read to write via reflected methods; severity CRITICAL
+testability: AUTH_HELPED
+[HYP] platform.sparelabs.com CSP + MFE manifest leaks accessible staging admin apps and Metabase
+class: MISCONFIG
+asset: platform.sparelabs.com (CSP + /login MFE prefetch script)
+confidence: 90
+reasoning: CSP + /login script enumerates `admin-eam-app-staging.vercel.app`, `admin-fixed-route-app-staging.vercel.app`, `metabase.staging.sparelabs.com`. Live probes confirm all three respond 200: Vercel apps with CORS `*`, Metabase behind envoy with login page. Staging apps typically less hardened.
+evidence_needed: Verify staging apps accept unauthenticated access or have weaker auth; check for debug endpoints, source maps, exposed admin APIs
+verify_steps: PASSIVE: GET https://admin-eam-app-staging.vercel.app (inspect for auth prompts, debug info, API endpoints), GET https://admin-fixed-route-app-staging.vercel.app, GET https://metabase.staging.sparelabs.com; check for exposed /api/, /debug/, source maps (.map), unauthenticated access to admin functions
+impact: Attacker gains direct access to staging admin consoles and BI tool; enables targeted follow-up on less-hardened environments; severity HIGH
+testability: PASSIVE
+[HYP] api.sparelabs.com /v1/public/* endpoints return sensitive data despite 401 status code
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/terms, /v1/global/organizations, /v1/public/organization
+confidence: 85
+reasoning: `/v1/public/terms` returns 200 with `termsOfUseUrl`, `privacyPolicyUrl`; `/v1/global/organizations` returns 200 with `{"data":[]}`; `/v1/public/organization` returns 404/400 distinguishing org existence. All with reflected CORS+credentials. Status code inconsistent (was 401, now 200/404) but data accessible without auth.
+evidence_needed: Confirm other `/v1/public/*` or `/v1/global/*` endpoints return data without auth; verify no auth header required for data access
+verify_steps: PASSIVE: GET /v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000 (capture body), GET /v1/global/organizations, GET /v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000; classify status vs body; test additional /v1/public/* paths from JS bundle enumeration
+impact: Unauthenticated enumeration of org terms, org list, org existence via 404 vs 400 oracle; severity MEDIUM
+testability: PASSIVE
+[FINAL] 1. api.sparelabs.com CORS reflect-any-origin with credentials enables cross-origin authenticated requests (confidence 95)
+[FINAL] 2. platform.sparelabs.com CSP + MFE manifest leaks accessible staging admin apps and Metabase (confidence 90)
+[FINAL] 3. api.sparelabs.com /v1/public/* endpoints return sensitive data despite 401 status code (confidence 85)
+[NEXT] AUTH_HELPED: Obtain a valid session token/cookie for api.sparelabs.com (via authorized test account) and verify whether the reflected CORS with `access-control-allow-credentials: true` allows cross-origin authenticated requests to `/v1/journeys` or other auth-gated endpoints — i.e., does the victim's browser auto-attach credentials (cookie/Bearer) when attacker's page calls `fetch('https://api.sparelabs.com/v1/journeys', {credentials: 'include'})`?
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflect-any-origin with credentials confirmed on all /v1 endpoints (including auth-gated) via live probe
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/*: Endpoints return response data (terms URLs, org list, org existence) despite 401 status code — misleading status, data accessible without auth
+[LEARN] ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + /login MFE manifest confirmed leaking staging admin apps (2x Vercel) and Metabase; all three staging hosts respond 200 and are accessible
+[LEARN] REJECTED MISCONFIG @ api.staging.sparelabs.com: Leaked staging API hosts return 404 behind same envoy gateway — no independent API surface
+[LEARN] REJECTED MISCONFIG @ api-spare.ngrok.io: Ngrok dev tunnel inactive (ERR_NGROK_3200)
+[LEARN] ACCEPTED MISCONFIG @ forms.staging.sparelabs.com / forms.staging.us.sparelabs.com: Staging forms portals live (200, same SPA catch-all behind envoy+Google CDN)
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: CONFIRMED dead — all /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404; no discoverable surface behind envoy gateway
+[RISK] api.sparelabs.com: 95 reason — Envoy edge gateway reflects any Origin with credentials on entire /v1 API; /v1/public/* endpoints return data despite 401; core API with high business value; critical CORS misconfig
+[RISK] platform.sparelabs.com: 85 reason — MFE SPA shell leaks accessible staging admin apps (Vercel, CORS *) and Metabase (envoy, login page); auth-gated prod but staging inventory exposed and live
+[RISK] routing.sparelabs.com: 40 reason — Envoy gateway returning 404; no discoverable routing API surface; low visible exposure
+[RISK] forms.sparelabs.com: 50 reason — Public SPA on object store/CDN; JS bundle leaks staging infra (forms.staging.* live, api.staging.* 404, ngrok dead, JIRA OOS); IDOR risk only if shared /v1 API has cross-tenant flaws
+[RISK] web (spare.com/sparelabs.com): 35 reason — Webflow marketing site behind Cloudflare; sparelabs.com 301→spare.com; static exposure only

@@ -78,3 +78,8 @@
 - CHANGED forms.sparelabs.com JS bundle rotated: main.6ed467ae.js → main.71d52314.js (verified live)
 
 ## 2026-08-07 22:08:24 UTC
+
+## 2026-08-07 22:55:14 UTC
+- CHANGED api.sparelabs.com /v1/global/organizations: auth fail-open is now STABLE not flapping — HTTP 200 `{"data":[]}` on all 6 samples across ~2h including ?limit=&offset= variants (params ignored, 11B hardc
+- NEW api.sparelabs.com /v1/** error envelope leaks `metadata.correlationId` (UUID) on every 401/404 — request-tracking artifact, no independent value.
+- NEW forms.sparelabs.com/ now shows `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture, low value.

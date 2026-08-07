@@ -153,3 +153,47 @@ evidence_needed: an ID whose resource returns data for a token that doesn't own 
 verify_steps: PASSIVE first (extract id params + UUID shape from current forms bundle), then AUTH_HELPED: cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
 impact: cross-tenant read of passenger/journey PII; high.
 testability: AUTH_HELPED
+## 2026-08-07 22:53:10 UTC [api] (model bigpickle)
+[CHANGED] api.sparelabs.com /v1/global/organizations: auth fail-open is now STABLE not flapping — HTTP 200 `{"data":[]}` on all 6 samples across ~2h including ?limit=&offset= variants (params ignored, 11B hardcoded); control /v1/journeys/requests stays 401.
+[NEW] api.sparelabs.com /v1/** error envelope leaks `metadata.correlationId` (UUID) on every 401/404 — request-tracking artifact, no independent value.
+[NEW] forms.sparelabs.com/ now shows `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture, low value.
+[PRIO] api.sparelabs.com/v1/**: score 7.05 (attack 8, business 8, tech 8, gate 5, cloud 6, fresh 5)
+[PRIO] platform.sparelabs.com: score 6.30 (attack 6, business 7, tech 8, gate 5, cloud 6, fresh 5)
+[PRIO] forms.sparelabs.com: score 6.05 (attack 5, business 6, tech 6, gate 8, cloud 7, fresh 5)
+[PRIO] spare.com apex: score 3.1 — Cloudflare marketing site only
+[HYP] Route-level auth omission on /v1/global/* (confirmed fail-open, data-bearing unproven)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations (+ /v1/global/* namespace)
+confidence: 55
+reasoning: 6 consecutive unauth 200s (~2h, incl ?limit=100&offset=0) with hardcoded 11B `{"data":[]}` while /v1/journeys/requests is a stable 401; no Set-Cookie → middleware gap on this route, not session artifact. Sits OUTSIDE /v1/public/*, so the 200 is inconsistent with the intended auth boundary.
+evidence_needed: a non-empty 200 body from this route or a sibling /v1/global/* route unauth.
+verify_steps: PASSIVE. Use 401-vs-200 differential vs /v1/journeys/requests control to probe likely siblings (GET /v1/global/settings, /v1/global/regions, spaced ≥1.2s); re-sample /v1/global/organizations weekly for a data-bearing body. No live payloads.
+impact: unauth read of org/global config; currently empty payload caps severity at medium; A05 route misconfig that force-amplifies the confirmed reflect-any-origin CORS.
+testability: PASSIVE
+[HYP] MFE-manifest / dynamic org-host injection in platform SPA
+class: XSS
+asset: platform.sparelabs.com
+confidence: 50
+reasoning: index.html feeds prod/staging/localhost manifest URLs into window.__MFE_MANIFESTS__; org settings expose user-influenced host fields; dynamic remote-host selection is a DOM-injection surface. Consumer logic in index-DHUgT6Ph.js.
+evidence_needed: a manifest URL reaching a script/DOM sink without allowlist, or a postMessage handler injecting HTML.
+verify_steps: PASSIVE static review of captured bundle: __MFE_MANIFESTS__ consumers, message listeners, innerHTML/dangerouslySetInnerHTML sinks, host allowlist. No live payloads.
+impact: client-side XSS in admin console, token theft; high.
+testability: PASSIVE
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: auth-less Engage SPA calls the same /v1 Bearer API; per-route 401 guards confirmed but object-level authorization on ID-keyed resources unproven. Bundle unchanged this round (main.71d52314.js) — ID params/route shape already extracted.
+evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[FINAL] 1) api /v1/global/* route-auth omission (55, PASSIVE) 2) platform MFE-manifest XSS (50, PASSIVE) 3) forms /v1 IDOR (45, AUTH_HELPED)
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/global/settings and /v1/global/regions (2 req, spaced ≥1.2s, ≤1 rps) — 401-vs-200 differential against /v1/journeys/requests as auth-gated control; a 200 with non-empty body = data-bearing fail-open and immediately escalates the top hypothesis to ACCEPTED.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: fail-open now STABLE — 200 ×6 across ~2h incl. pagination variants (params ignored, hardcoded `{"data":[]}`), control route stable 401 → route-level auth omission confirmed as pattern, not flapping; severity remains capped while payload empty.
+[LEARN] REJECTED BUSLOGIC @ api.sparelabs.com: CORS reflect-any-origin+credentials re-confirmed on all /v1 (401, 404, and 200 paths) — uniformly applied API-scoped middleware, not path-conditional.
+[RISK] api.sparelabs.com: 72 — reflect-any-origin CORS+creds on all /v1, unauth data-on-401 (public/terms), UUID enumeration oracle, stable route-level auth omission (/v1/global/organizations); all passive-confirmed.
+[RISK] platform.sparelabs.com: 48 — MFE shell leaks staging admin apps + Metabase; DOM-injection surface unproven.
+[RISK] routing.sparelabs.com: 12 — surface dead (all paths 404 behind envoy), gateway only.
+[RISK] forms.sparelabs.com: 42 — bundle leaks staging API hosts + JIRA + ngrok tunnel; SPA catch-all; shares /v1 API (IDOR unproven).
+[RISK] web (spare.com/sparelabs.com): 18 — Cloudflare-fronted marketing site, HSTS max-age=0, no exposed surface.

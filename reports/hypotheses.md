@@ -116,3 +116,20 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: Returns 200 with {"data":[]} and reflected CORS+credentials — auth state inconsistent (was 401 a
 - LEARN: REJECTED MISCONFIG @ api-staking.sparelabs.com: Staging API hosts return 404 — no independent API surface
 - LEARN: REJECTED MISCONFIG @ api-spare.ngrok.io: Ngrok dev tunnel inactive (ERR_NGROK_3200)
+
+## RANKED HYPOTHESES 2026-08-07 22:55:14 UTC
+- [95] api.sparelabs.com/v1/**: api.sparelabs.com CORS reflect-any-origin with credentials enables cross-origin authenticated requests (from reports/hypotheses-nemotron3.txt)
+- [95] api.sparelabs.com: api.sparelabs.com CORS reflect-any-origin with credentials on /v1 API enables cross-origin authenticated reads+writes (from reports/hypotheses-laguna.txt)
+- [55] api.sparelabs.com/v1/global/organizations: Route-level auth omission on /v1/global/* (confirmed fail-open, data-bearing unproven) (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): AUTH_HELPED: Obtain a valid session token/cookie for api.sparelabs.com (via authorized test account) and verify whether the reflected CORS with `access-control-
+- NEXT(hypotheses-bigpickle.txt): PROBE: GET https://api.sparelabs.com/v1/global/settings and /v1/global/regions (2 req, spaced ≥1.2s, ≤1 rps) — 401-vs-200 differential against /v1/journeys/requ
+- NEXT(hypotheses-laguna.txt): PROBE: Poll `GET https://api.sparelabs.com/v1/global/organizations` at 5s intervals (≤1 rps) for 60s — characterize the auth-gate flap timing (when does it retu
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflect-any-origin with credentials confirmed on all /v1 endpoints (including auth-gated) via live probe
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/*: Endpoints return response data (terms URLs, org list, org existence) despite 401 status code — misleading st
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + /login MFE manifest confirmed leaking staging admin apps (2x Vercel) and Metabase; all three staging hosts re
+- LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com: Leaked staging API hosts return 404 behind same envoy gateway — no independent API surface
+- LEARN: REJECTED MISCONFIG @ api-spare.ngrok.io: Ngrok dev tunnel inactive (ERR_NGROK_3200)
+- LEARN: ACCEPTED MISCONFIG @ forms.staging.sparelabs.com / forms.staging.us.sparelabs.com: Staging forms portals live (200, same SPA catch-all behind envoy+Google CDN)
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: CONFIRMED dead — all /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404; no disco
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: fail-open now STABLE — 200 ×6 across ~2h incl. pagination variants (params ignored, hardcoded `{"data
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com: CORS reflect-any-origin+credentials re-confirmed on all /v1 (401, 404, and 200 paths) — uniformly applied API-scoped midd

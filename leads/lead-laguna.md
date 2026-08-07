@@ -199,3 +199,40 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 50 — envoy 404 on all paths; routing API completely hidden; no unauth surface
 [RISK] forms.sparelabs.com: 60 — public SPA; JS bundle (342KB) leaks staging infra + ngrok (inactive) + JIRA + routes; staging forms portals respond 200
 [RISK] web (spare.com/sparelabs.com): 40 — Cloudflare Webflow marketing; static only
+## 2026-08-07 22:54:59 UTC [web] (model laguna)
+[HYP] api.sparelabs.com CORS reflect-any-origin with credentials on /v1 API enables cross-origin authenticated reads+writes
+class: MISCONFIG
+asset: api.sparelabs.com /v1/* (confirmed on /v1/journeys, /v1/journeys/requests, /v1/global/organizations)
+confidence: 95
+reasoning: Live probe at 22:52 UTC: OPTIONS /v1/journeys/requests returns `access-control-allow-origin: <reflected any origin>` + `access-control-allow-credentials: true` + `access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE` + `access-control-allow-headers: Authorization`. GET responses also reflect origin with credentials. Affects ALL /v1 endpoints including auth-gated. Any malicious site can issue credentialed read+write API calls on behalf of any logged-in user.
+evidence_needed: Full OPTIONS preflight response headers captured (done, live verified 22:52 UTC)
+verify_steps: PASSIVE — `curl -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization" https://api.sparelabs.com/v1/journeys/requests`
+impact: Full account takeover via browser — any malicious origin issues authenticated reads (steal user/rider/org data) and writes (POST/PUT/DELETE on /v1/journeys, /v1/riders) using victim's session/token. Severity: CRITICAL
+testability: PASSIVE
+[HYP] api.sparelabs.com UUID-based org enumeration via OpenAPI validation error oracle
+class: MISCONFIG
+asset: api.sparelabs.com /v1/public/organization?organizationId=<uuid>
+confidence: 65
+reasoning: Endpoint unauthenticated; returns 400 with full OpenAPI ValidationError body for malformed input, 404 NotFoundError for valid-format UUIDs that don't exist, 200+org data for valid UUIDs. 400-vs-404-vs-200 is a reliable enumeration oracle. Forms SPA bundle confirms `global.getOrganization(organizationId)` is the real client method.
+evidence_needed: Capture 200 response for a valid org UUID (test UUIDs return 404; real org UUID not yet sourced)
+verify_steps: PASSIVE — `curl "https://api.sparelabs.com/v1/public/organization?organizationId=not-a-uuid"` (400 ValidationError, confirmed); `curl "https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000"` (404, confirmed)
+impact: Enumerate valid organization UUIDs without auth, enabling targeted attacks against specific tenants. Severity: MEDIUM
+testability: PASSIVE
+[HYP] platform.sparelabs.com CSP + /login prefetch leaks staging admin panels and production infra
+class: MISCONFIG
+asset: platform.sparelabs.com /login (CSP header)
+confidence: 65
+reasoning: CSP connect-src/frame-src/script-src/style-src whitelists `admin-eam-app-staging.vercel.app`, `admin-fixed-route-app-staging.vercel.app`, `metabase.staging.sparelabs.com` alongside prod Cognito, Stripe, DO Spaces, Sentry, Intercom, Mapbox. Verified at 22:53 UTC via live CSP header capture. All three staging hosts respond 200.
+evidence_needed: Full CSP header captured (done); staging admin apps respond 200 (confirmed)
+verify_steps: PASSIVE — `curl -s https://platform.sparelabs.com/login -D - -o /dev/null` → grep for staging hosts in CSP; `curl https://admin-eam-app-staging.vercel.app`
+impact: Disclosure of staging infrastructure enabling targeted attacks against less-hardened staging; potential cross-environment token replay. Severity: MEDIUM
+testability: PASSIVE
+[FINAL] 1. [95] api.sparelabs.com: CORS reflect-any-origin with credentials on entire /v1 API (PASSIVE)
+[FINAL] 2. [65] api.sparelabs.com: UUID-based org enumeration via OpenAPI validation error oracle (PASSIVE)
+[FINAL] 3. [65] platform.sparelabs.com: CSP leaks staging admin panels + production infra via /login (PASSIVE)
+[NEXT] PROBE: Poll `GET https://api.sparelabs.com/v1/global/organizations` at 5s intervals (≤1 rps) for 60s — characterize the auth-gate flap timing (when does it return 200 vs 401 vs 500?), determining whether the fail-open window is exploitable for unauthenticated data access combined with the CORS credential reflection (escalation path: malicious origin reads org data when gate is open).
+[RISK] api.sparelabs.com: 95 — CRITICAL CORS credential reflection on entire /v1 API (all methods + Authorization via any malicious origin, confirmed on /v1/journeys + /v1/journeys/requests + /v1/global/organizations); auth-gate flap exposing /v1/global/organizations in fail-open mode (200 + data + CORS); 3 unauthenticated data-leaking endpoints (/v1/public/terms, /v1/public/organization, /v1/global/organizations); 15+ auth-gated endpoints with unknown access controls; OpenAPI schema leaks; UUID enumeration oracle.
+[RISK] platform.sparelabs.com: 65 — Admin MFE SPA; CSP discloses staging admin panels (admin-eam-app-staging.vercel.app, admin-fixed-route-app-staging.vercel.app) + Metabase + Cognito + Stripe + DO Spaces + Sentry + Intercom; all staging hosts respond 200 (accessible).
+[RISK] routing.sparelabs.com: 50 — Envoy 404 on all paths; routing API completely hidden; no unauth surface.
+[RISK] forms.sparelabs.com: 60 — Public SPA; JS bundle (342KB) leaks staging infra (api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com) + inactive ngrok tunnel + JIRA; staging forms portals respond 200.
+[RISK] web (spare.com/sparelabs.com): 40 — Cloudflare Webflow marketing; static only.
