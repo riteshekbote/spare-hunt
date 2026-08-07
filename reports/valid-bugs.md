@@ -10,3 +10,6 @@
 - 2 lead(s) marked VALID at 2026-08-07 22:00:40 UTC
   - VALID   3
   - | **VALID** | 3 | CORS reflect-any-origin+creds (7.5), data-on-401 (5.3), UUID org enumeration (5.3) |
+
+- 1 lead(s) marked VALID at 2026-08-07 22:59:31 UTC
+  - | **VALID** | 3 | CORS reflect-any-origin+creds on /v1, auth bypass /v1/global/organizations, UUID org enumeration oracle |
