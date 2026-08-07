@@ -52,3 +52,15 @@
 - CHANGED forms.sparelabs.com: re-identified from "static object store SPA" to "SPA behind envoy+Google CDN; JS bundle leaks staging infrastructure; all paths return index.html (SPA catch-all, 537 bytes)"
 
 ## 2026-08-07 20:05:10 UTC
+
+## 2026-08-07 20:57:44 UTC
+- CHANGED api.sparelabs.com `/v1/global/organizations` now returns 401 (was 200) but body returns `{"data":[]}` — data returned despite 401 status
+- CHANGED api.sparelabs.com `/v1/public/organization?organizationId=<uuid>` now returns 401 (was 400/404) with `NotFoundError` body — auth gate added but error info leaks
+- CHANGED api.sparelabs.com `/v1/public/terms?organizationId=<uuid>` now returns 401 (was 400/404) but body returns full terms URLs — **data returned despite 401 status**
+- NEW api.sparelabs.com CORS `access-control-allow-origin` reflects **any Origin** with `access-control-allow-credentials: true` on **all /v1 endpoints** (including auth-gated `/v1/journeys`)
+- CHANGED forms.sparelabs.com JS bundle filename rotated (`main.6ed467ae.js` → `main.71d52314.js`) but **same leaked endpoints persist**: `api.staging.sparelabs.com`, `api.staging.us.sparelabs.com`, `api-spare.
+- NEW `forms.staging.sparelabs.com` and `forms.staging.us.sparelabs.com` now **respond 200** (same SPA catch-all, 537 bytes, envoy+Google CDN)
+- NEW `api.staging.sparelabs.com` and `api.staging.us.sparelabs.com` respond **404** (envoy gateway, same as prod)
+- NEW `admin-eam-app-staging.vercel.app` and `admin-fixed-route-app-staging.vercel.app` **respond 200** (Vercel, CORS `*`, minimal HTML)
+- NEW `metabase.staging.sparelabs.com` **responds 200** (envoy gateway, Metabase login page, frame-ancestors 'none')
+- NEW `api-spare.ngrok.io` returns **ngrok 404 (ERR_NGROK_3200)** — tunnel inactive
