@@ -95,3 +95,4 @@ verify_steps: PASSIVE — curl https://forms.sparelabs.com/static/js/main.6ed467
 [RISK] routing.sparelabs.com: 50 — envoy gateway returning 404 on all probed paths; routing-engine API completely hidden behind 404s; no unauthenticated surface; high latent value, low visible exposure.
 [RISK] forms.sparelabs.com: 55 — public "Spare Engage" SPA behind envoy+Google CDN; JS bundle (342KB) leaks staging API hosts + dev ngrok tunnel + JIRA + route structure + API method names; root + all paths return 537-byte index.html (SPA catch-all).
 [RISK] web (spare.com/sparelabs.com): 40 — Webflow marketing site behind Cloudflare (`cf-cache-status: HIT`, `set-cookie: _cfuvid`); sparelabs.com 301→spare.com (HSTS `max-age=0; preload`); static exposure only, no API.
+## 2026-08-07 20:04:57 UTC [web] (model laguna)

@@ -94,3 +94,32 @@ evidence_needed: a manifest URL reaching a script/DOM sink without allowlist, or
 verify_steps: PASSIVE static review: `__MFE_MANIFESTS__` consumers, message listeners, innerHTML/dangerouslySetInnerHTML sinks, host allowlist. No live payloads.
 impact: client-side XSS in admin console, token theft; high.
 testability: PASSIVE
+## 2026-08-07 20:01:47 UTC [api] (model bigpickle)
+[HYP] CORS reflect-any-origin with credentials on entire /v1 API surface (confirmed) — escalate if any auto-attached credential exists
+class: MISCONFIG
+asset: api.sparelabs.com/v1/**
+confidence: 80
+reasoning: 4 live probes (2×401, 2×200) all echo attacker Origin with ACAC true; OPTIONS permits all methods + authorization/content-type; 404 paths don't reflect (API-scoped middleware). No Set-Cookie on any probe → Bearer-only today.
+evidence_needed: any /v1 route issuing Set-Cookie/cookie session, or a client holding the token where the browser auto-attaches → cross-origin credentialed read/mutation becomes real.
+verify_steps: PASSIVE. Continue watching for Set-Cookie across the wider /v1 enum; if a cookie session appears → AUTH_HELPED cross-origin read test from a test Origin.
+impact: cross-origin read of journey/org data + mutation (PUT/PATCH/DELETE allowed) if credentials auto-attach; otherwise standalone A05:2021 misconfig that force-amplifies any future XSS; medium.
+testability: PASSIVE
+[HYP] MFE-manifest / dynamic org-host injection in platform SPA
+class: XSS
+asset: platform.sparelabs.com
+confidence: 50
+reasoning: index.html feeds production/staging/localhost manifest URLs into window.__MFE_MANIFESTS__; org settings expose user-influenced host fields (organizationApiHost, organizationRoutingHost); dynamic remote-host selection is a DOM/URL-injection surface. Consumer logic is in captured index-DHUgT6Ph.js.
+evidence_needed: a manifest URL reaching a script/DOM sink without allowlist, or a postMessage handler injecting HTML.
+verify_steps: PASSIVE static review of bundle: __MFE_MANIFESTS__ consumers, message listeners, innerHTML/dangerouslySetInnerHTML sinks, host allowlist. No live payloads.
+impact: client-side XSS in admin console, token theft; high.
+testability: PASSIVE
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: auth-less Engage SPA calls the same /v1 Bearer API (hosts in main.6ed467ae.js); per-route 401 guards confirmed but object-level authorization on ID-keyed resources unproven; portal routes typically embed journey/booking IDs.
+evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+verify_steps: PASSIVE extract id params + UUID shape from forms bundle; then AUTH_HELPED cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000 and capture the response body — the new 200 contradicts the earlier 400/404-only note; body determines whether the unauth public surface returns org/legal PII or static text (1 request).

@@ -735,3 +735,135 @@ testability: PASSIVE
 - [RISK] routing.sparelabs.com: 15 — confirmed dead surface (all paths 404 behind envoy+Google CDN); minimal exposure.
 - [RISK] forms.sparelabs.com: 50 — public Engage SPA behind envoy+CDN; bundle leaks staging API hosts, ngrok dev tunnel, JIRA; possible IDOR against shared /v1 API (unproven).
 - [RISK] web (spare.com/sparelabs.com): 25 — marketing/redirect surface, Cloudflare front, HSTS `max-age=0` oddity; low business-data exposure.
+===== ANALYST bigpickle 2026-08-07 20:05:10 UTC =====
+[0m
+> build · big-pickle
+[0m
+I'll run a few read-only probes to validate my top CORS hypothesis before producing the analysis.
+[0m$ [0mfor u in "/v1/journeys" "/v1/organizations" "/v1/zzz-not-a-route-404"; do
+  echo "=== GET $u ==="
+  curl -sS -D - -o /dev/null -H "Origin: https://evil.example.com" --max-time 25 "https://api.sparelabs.com$u" | grep -iE "^(HTTP|access-control|vary|content-type|server|via|date)" 
+  sleep 1.5
+done
+=== GET /v1/journeys ===
+HTTP/2 401 
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 07 Aug 2026 20:00:34 GMT
+server: envoy
+via: 1.1 google
+=== GET /v1/organizations ===
+HTTP/2 401 
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+date: Fri, 07 Aug 2026 20:00:36 GMT
+server: envoy
+via: 1.1 google
+=== GET /v1/zzz-not-a-route-404 ===
+HTTP/2 404 
+vary: Accept-Encoding
+date: Fri, 07 Aug 2026 20:00:37 GMT
+server: envoy
+via: 1.1 google
+[0m
+CORS reflection confirmed on real routes. Now the OPTIONS preflight to check allowed methods/headers (my planned verify step).
+[0m$ [0mecho "=== OPTIONS /v1/journeys (preflight) ==="
+curl -sS -D - -o /dev/null -X OPTIONS \
+  -H "Origin: https://evil.example.com" \
+  -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: authorization, content-type" \
+  --max-time 25 "https://api.sparelabs.com/v1/journeys" | grep -iE "^(HTTP|access-control|vary|allow|server|via)"
+=== OPTIONS /v1/journeys (preflight) ===
+HTTP/2 204 
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Access-Control-Request-Headers, Accept-Encoding
+access-control-allow-credentials: true
+access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
+access-control-allow-headers: authorization, content-type
+server: envoy
+via: 1.1 google
+[0m
+Both real routes reflect `Origin` + credentials; 404 paths don't. Let me check whether the reflection also wraps the unauthenticated `/v1/public/*` data endpoints and whether any route issues `Set-Cookie` (the CORS escalation trigger).
+[0m$ [0mfor u in "/v1/global/organizations" "/v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000"; do
+  echo "=== GET $u ==="
+  curl -sS -D - -o /dev/null -H "Origin: https://evil.example.com" --max-time 25 "https://api.sparelabs.com$u" | grep -iE "^(HTTP|access-control|vary|set-cookie|content-type)"
+  sleep 1.5
+done
+=== GET /v1/global/organizations ===
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+vary: Origin
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+=== GET /v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000 ===
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+[0m
+All probes complete. Producing the structured analysis.
+
+STEP 1 — DELTA
+- [NEW] api.sparelabs.com/v1: reflect-any-origin CORS **confirmed on live responses** — GET /v1/journeys & /v1/organizations (401), /v1/global/organizations (200), /v1/public/terms (200) all return `access-control-allow-origin: https://evil.example.com` + `access-control-allow-credentials: true`; absent on 404 path (middleware sits after envoy route-match, API-surface-scoped)
+- [NEW] api.sparelabs.com/v1: preflight detail — OPTIONS /v1/journeys → 204, `ACAM: GET,HEAD,PUT,PATCH,POST,DELETE`, `ACAH: authorization, content-type`, credentials allowed
+- [NEW] api.sparelabs.com/v1/public/terms: GET with schema-valid zero-UUID returns **200** (data-returning; prior notes only showed 400/404) and reflects Origin
+- [NEW] api.sparelabs.com: **no `Set-Cookie`** on any probed /v1 response → Bearer-only auth model, caps current CORS impact
+
+STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/**: attack=8 business=8 tech=7 gate=6 cloud=5 fresh=10 → priority **7.45**
+- [PRIO] platform.sparelabs.com: attack=7 business=8 tech=8 gate=5 cloud=6 fresh=7 → priority **7.00**
+- [PRIO] forms.sparelabs.com: attack=7 business=7 tech=6 gate=7 cloud=5 fresh=6 → priority **6.55**
+
+STEP 3 — HYPOTHESES
+[HYP] CORS reflect-any-origin with credentials on entire /v1 API surface (confirmed) — escalate if any auto-attached credential exists
+class: MISCONFIG
+asset: api.sparelabs.com/v1/**
+confidence: 80
+reasoning: 4 live probes (2×401, 2×200) all echo attacker Origin with ACAC true; OPTIONS permits all methods + authorization/content-type; 404 paths don't reflect (API-scoped middleware). No Set-Cookie on any probe → Bearer-only today.
+evidence_needed: any /v1 route issuing Set-Cookie/cookie session, or a client holding the token where the browser auto-attaches → cross-origin credentialed read/mutation becomes real.
+verify_steps: PASSIVE. Continue watching for Set-Cookie across the wider /v1 enum; if a cookie session appears → AUTH_HELPED cross-origin read test from a test Origin.
+impact: cross-origin read of journey/org data + mutation (PUT/PATCH/DELETE allowed) if credentials auto-attach; otherwise standalone A05:2021 misconfig that force-amplifies any future XSS; medium.
+testability: PASSIVE
+
+[HYP] MFE-manifest / dynamic org-host injection in platform SPA
+class: XSS
+asset: platform.sparelabs.com
+confidence: 50
+reasoning: index.html feeds production/staging/localhost manifest URLs into window.__MFE_MANIFESTS__; org settings expose user-influenced host fields (organizationApiHost, organizationRoutingHost); dynamic remote-host selection is a DOM/URL-injection surface. Consumer logic is in captured index-DHUgT6Ph.js.
+evidence_needed: a manifest URL reaching a script/DOM sink without allowlist, or a postMessage handler injecting HTML.
+verify_steps: PASSIVE static review of bundle: __MFE_MANIFESTS__ consumers, message listeners, innerHTML/dangerouslySetInnerHTML sinks, host allowlist. No live payloads.
+impact: client-side XSS in admin console, token theft; high.
+testability: PASSIVE
+
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: auth-less Engage SPA calls the same /v1 Bearer API (hosts in main.6ed467ae.js); per-route 401 guards confirmed but object-level authorization on ID-keyed resources unproven; portal routes typically embed journey/booking IDs.
+evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+verify_steps: PASSIVE extract id params + UUID shape from forms bundle; then AUTH_HELPED cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+
+STEP 4 — SELF-CRITIQUE
+- No drops: all 3 hypotheses ≥40 confidence, classes not on REJECTED list, each has concrete verify_steps.
+- [FINAL] re-ranked: 1. CORS reflect-any-origin (80, MISCONFIG, api) 2. MFE-manifest XSS (50, XSS, platform) 3. Engage IDOR (45, IDOR, forms)
+
+STEP 5 — NEXT ACTION
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000 and capture the response body — the new 200 contradicts the earlier 400/404-only note; body determines whether the unauth public surface returns org/legal PII or static text (1 request).
+
+STEP 6 — LEARNING
+- [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: reflect-any-origin CORS with allow-credentials confirmed on live 401 and 200 routes; preflight allows all methods + authorization header; absent on 404 paths (API-scoped middleware, A05:2021).
+- [LEARN] REJECTED AUTH @ api.sparelabs.com: no Set-Cookie on any probed /v1 route → credential auto-attach unproven, CORS escalation chain parked (Bearer-only model).
+
+STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 62 — confirmed reflect-any-origin+credentials CORS across the whole /v1 surface incl. public data endpoints; Bearer-only caps exploitability; large auth-gated + growing unauth public surface.
+- [RISK] platform.sparelabs.com: 48 — admin console SPA leaking staging infra via CSP/manifest; dynamic MFE host trust is an unproven XSS surface; heavy client-side config.
+- [RISK] routing.sparelabs.com: 20 — confirmed dead (envoy 404 on all probed paths), minimal residual exposure.
+- [RISK] forms.sparelabs.com: 45 — public Engage portal over envoy+CDN; bundle leaks staging hosts + ngrok tunnel; IDOR unproven.
+- [RISK] web (spare.com/sparelabs.com): 22 — marketing/static behind Cloudflare, near-zero dynamic surface.
