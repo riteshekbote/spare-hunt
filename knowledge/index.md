@@ -15,3 +15,4 @@
 
 ## Rejected / parked
 - (none yet)
+- 2026-08-07 REJECTED BUSLOGIC @ routing.sparelabs.com: asset unreachable, confidence below threshold, no auth context available

@@ -21,3 +21,10 @@
 - Authentication model of api.sparelabs.com (Bearer? API key?)
 - What routing.sparelabs.com and forms.sparelabs.com serve (once reachable)
 - CDN/WAF in front (why timeouts?)
+
+## 2026-08-07 18:34:58 UTC
+- NEW sparelabs.com now responds (301→https://spare.com via Cloudflare; HSTS `max-age=0; preload`) — previously TIMEOUT.
+- NEW platform.sparelabs.com now responds 200 — Micro-frontend SPA shell; previously TIMEOUT.
+- NEW routing.sparelabs.com now responds 404 (`server: envoy`, `via: 1.1 google`) — previously TIMEOUT.
+- NEW forms.sparelabs.com now responds 200 ("Spare Engage Web Portal" SPA; object-store headers) — previously TIMEOUT.
+- CHANGED api.sparelabs.com positively re-identified as envoy edge gateway (`server: envoy`, `via: 1.1 google`); was only "404" in seed.
