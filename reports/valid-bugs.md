@@ -13,3 +13,12 @@
 
 - 1 lead(s) marked VALID at 2026-08-07 22:59:31 UTC
   - | **VALID** | 3 | CORS reflect-any-origin+creds on /v1, auth bypass /v1/global/organizations, UUID org enumeration oracle |
+
+- 14 leads triaged at 2026-08-07 23:50 UTC — **CONSOLIDATED**
+  - | **VALID** | 3 | CORS reflect-any-origin+creds (CVSS 5.3), route-level auth omission /v1/global/organizations (CVSS 5.3), UUID org enumeration oracle (CVSS 5.3) |
+  - | **HOLD** | 2 | MFE-manifest XSS (sink trace needed), IDOR (test token needed) |
+  - | **INVALID** | 9 | CSP/JS info disclosure (Q6), refuted object-store (Q4), dead routing (Q2), speculative SSRF (Q4), absent OpenAPI (Q2), correlationId leak (Q6), XFO variance (Q6), HSTS config (Q6) |
+  - Reporting channel: Spare security channel (per scope.yml, TBD)
+
+- 1 lead(s) marked VALID at 2026-08-07 23:52:55 UTC
+  - | **VALID** | 3 | CORS reflect-any-origin+creds (CVSS 5.3), auth bypass /v1/global/organizations (CVSS 5.3), UUID org enumeration (CVSS 5.3) |
