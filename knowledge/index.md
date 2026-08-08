@@ -217,3 +217,7 @@
 - 2026-08-08 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle STABLE — malformed→400 ValidationError; nil-uuid→404 NotFoundError; 3-way differential intact — verified 2026-08-08 17:05 UTC
 - 2026-08-08 REJECTED MISCONFIG (controller-wide): /v1/global/* omission is NOT controller-wide — live sweep of 14 sibling routes → 12×401 + {organizations:200, regions:200}; confirms route-specific scope — verified 2026-08-08 17:07 UTC
 - 2026-08-08 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/; no surface, no change — verified 2026-08-08 17:05 UTC
+- 2026-08-08 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — 200 + 725B region registry + ACAO+ACAC with `Bearer x`; no-Auth → 400 "Authorization header required"; bare non-Bearer → 400 "scheme Bearer required" — verified live through 17:09 UTC
+- 2026-08-08 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:<reflected> + ACAC:true + full method surface (GET/HEAD/PUT/PATCH/POST/DELETE) + ACAH:Authorization uniformly across all /v1 — verified live through 17:05 UTC
+- 2026-08-08 ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app (both 200) + staging + Metabase (200) + full cloud infra — verified live through 17:04 UTC
+- 2026-08-08 REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 on all paths — remains dead, no surface — verified through 17:05 UTC
