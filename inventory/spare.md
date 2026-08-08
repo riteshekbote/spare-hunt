@@ -113,3 +113,13 @@
 - CHANGED api.sparelabs.com/v1/global/organizations list still 200 hardcoded `{"data":[]}` (params ignored) — empty-payload cap persists; no data-bearing 200 found
 - CHANGED api.sparelabs.com/v1/global/settings control → 401 InvalidTokenError stable; Origin-reflect + credentials + envoy re-confirmed on all probes
 - NEW api.sparelabs.com/v1/public/terms?organizationId=<uuid> now returns 401 (was 400/404) but body returns full terms URLs — **data returned despite 401 status**
+
+## 2026-08-08 06:00:08 UTC
+- CHANGED api.sparelabs.com/v1/public/terms?organizationId=<uuid> now returns HTTP 401 (was 200/400/404) but response body STILL returns live termsOfUseUrl + privacyPolicyUrl — data disclosed despite misleading
+- CHANGED api.sparelabs.com/v1/global/organizations remains HTTP 200 with hardcoded `{"data":[]}` (query params ignored, 11B body) — fail-open STABLE
+- CHANGED api.sparelabs.com/v1/global/organizations/key/{any-string} returns 404 NotFoundError "Organization was not found" WITHOUT auth, no UUID format validation (probed: `not-a-uuid`, `x`, all-zero UUID → by
+- CHANGED api.sparelabs.com/v1/global/organizations/zones/centroid (bundle-derived) returns 400 ValidationError "not found" WITHOUT auth — not a live route, yet bypasses auth gate
+- CHANGED platform.sparelabs.com /login CSP still leaking production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app) + staging variants + metabase.sparelabs.com + metabase.staging
+- CHANGED forms.sparelabs.com JS bundle (main.71d52314.js) still leaking api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com, api-spare.ngrok.io,
+- CHANGED routing.sparelabs.com all paths (/v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/) return envoy 404 — CONFIRMED dead
+- CHANGED api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com all 404/inactive — remain dead

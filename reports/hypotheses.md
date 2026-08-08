@@ -236,3 +236,24 @@
 - LEARN: REJECTED MISCONFIG @ api.us.sparelabs.com: OOS subdomain (per scope exclusions) with identical CORS profile to api.sparelabs.com — surfaced only via in-scope fo
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: No re-probe delta; envoy 404 across all /v1/,/api/,/routing/,/router,/v2/,/graphql/,/map/,/directions/ — CONFIRMED de
 - LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com: No re-probe delta — staging API hos
+
+## RANKED HYPOTHESES 2026-08-08 06:00:08 UTC
+- [96] api.sparelabs.com: api.sparelabs.com /v1/** credential-reflecting CORS (from reports/hypotheses-laguna.txt)
+- [95] api.sparelabs.com/v1/**: api.sparelabs.com CORS reflect-any-origin with credentials enables cross-origin authenticated requests (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): AUTH_HELPED: Obtain a valid session token/cookie for api.sparelabs.com (via authorized test account) and verify whether the reflected CORS with access-control-a
+- NEXT(hypotheses-laguna.txt): PROBE: HUMAN — With an authorized api.sparelabs.com session (Bearer token in Authorization), run `curl -s -H "Origin: https://evil.example.com" -H "Authorizatio
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflect-any-origin with credentials confirmed on OPTIONS preflight + GET responses for all /v1 endpoints (met
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + /login MFE manifest confirmed leaking production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-rou
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle confirmed (400 ValidationError for malformed, 404 NotFoundError for valid
+- LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com: staging API hosts return 404 behind envoy gateway, no independent API surface
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: all /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404; envoy 404 on all paths, n
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: controller-scoped auth omission re-confirmed live — list 200 `{"data":[]}`, key/{any} 404, zones/cent
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/global/organizations/key/: NOT an enumeration oracle — every key string returns identical 404 NotFoundError (no format 
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/zones/centroid: bundle-derived path is not a live route (400 "not found") — its auth-free 400 sti
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com /v1/**: Live OPTIONS this session re-confirms ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + hea
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com /v1/global/organizations: Live GET this session re-confirms 200 + {"data":[]} + CORS credentials — fail-open STABLE (11B 
+- LEARN: NEW: api.sparelabs.com /v1/public/terms?mobileAppId=<uuid>: Returns 200 with live terms URLs + reflected CORS credentials without auth — new parameter vector on
+- LEARN: CHANGED: api.sparelabs.com /v1/public/terms?organizationId=<uuid>: Behavior now flapping between 200+data and 400 validation error — inconsistent parameter hand
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP confirmed STABLE — still leaking production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-rou
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: No re-probe delta; envoy 404 across all paths — remains dead.
+- LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com: No re-probe delta — staging API hos
