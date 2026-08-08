@@ -1,0 +1,408 @@
+# SPARE PROGRAM — STRICT TRIAGE REPORT
+# Date: 2026-08-08 ~19:06 UTC
+# Triager: longcat-2.0-free (strict mode)
+# Probe basis: passive GET/HEAD per probe-results.md
+
+## PROGRAM SCOPE (scope.yml)
+In-scope: spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com
+Out-of-scope: all other subdomains of sparelabs.com/spare.com, third-party services
+Rules: passive_first (GET/HEAD only), ≤1 rps, no_doom, no_account_creation, no_data_modification, no_pre_disclosure
+Disclosure channel: Spare security channel (per scope.yml, TBD — operator to confirm)
+
+## ALREADY ACCEPTED (valid-bugs.md — reconfirmation only, no delta)
+| # | Finding | CVSS | Status |
+|---|---------|------|--------|
+| A1 | CORS reflect-any-origin + credentials on /v1/** (all methods + Authorization header, uniform via envoy) | 8.1 High | VALID — reconfirmed STABLE |
+| A2 | Scheme-only auth bypass /v1/global/regions (200 + 725B region registry with garbage Bearer; middleware validates scheme only, never token) | 5.3 Medium | VALID — reconfirmed STABLE |
+| A3 | UUID enumeration oracle /v1/public/organization (400 malformed / 404 not-found / 200 found) | 5.3 Medium | VALID — reconfirmed STABLE |
+| A4 | /v1/global/organizations fail-open (200 + {"data":[]} + CORS, route-specific) | 5.3 Medium | VALID — reconfirmed STABLE |
+| A5 | /v1/public/terms data disclosure (200 + live terms URLs via mobileAppId|organizationId, no auth) | 5.3 Medium | VALID — reconfirmed STABLE |
+
+---
+
+## NEW LEADS — 7-QUESTION GATE
+
+### LEAD 1: Metabase exposure (metabase.sparelabs.com / metabase.staging.sparelabs.com)
+Source: ling3, laguna | Asset: metabase.sparelabs.com | Probe: 200 len=? text/html
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **NO** — metabase.sparelabs.com is NOT in scope.yml asset list; falls under "All other subdomains of sparelabs.com" exclusion |
+| Q2 Attacker-reachable? | Yes (public, 200) |
+| Q3 Real impact? | Potentially high (Metabase BI tool) |
+| Q4 Passive proof? | Yes (GET 200) |
+| Q5 Novel? | Yes |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | N/A — Q1 fails |
+
+**Verdict: INVALID — Q1 out of scope.** metabase.sparelabs.com is explicitly excluded as a non-listed subdomain. Probe confirms 200 but asset is third-party-adjacent and out-of-scope. No further action.
+
+---
+
+### LEAD 2: MFE-manifest / org-host client-side XSS (platform.sparelabs.com)
+Source: bigpickle, ling3 | Asset: platform.sparelabs.com | Class: XSS | Confidence: 50
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** — platform.sparelabs.com |
+| Q2 Attacker-reachable? | Yes (public SPA shell) |
+| Q3 Real impact? | High if proven (token theft via DOM injection) |
+| Q4 Passive proof? | **PARTIAL** — static bundle review only; no live payload per rules |
+| Q5 Novel? | Yes |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | **NO** — sink scan repeatedly negative across 6+ sessions; no evidence of manifest URL reaching script/DOM sink without allowlist |
+
+**Verdict: HOLD — sink trace needed.** index.html loads manifest URLs into window.__MFE_MANIFESTS__ but consumer logic in index-DHUgT6Ph.js shows no unvalidated sink. Confidence stuck at 50. Escalate only if a manifest URL reaching innerHTML/dangerouslySetInnerHTML/postMessage sink is found. Static review exhausted — needs dynamic analysis (out of passive scope).
+
+---
+
+### LEAD 3: Engage portal IDOR (forms.sparelabs.com + api.sparelabs.com/v1)
+Source: bigpickle | Asset: forms.sparelabs.com + api.sparelabs.com | Class: IDOR | Confidence: 45
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **PARTIAL** — portal is public but cross-tenant IDOR requires ≥2 valid Bearer tokens |
+| Q3 Real impact? | High (cross-tenant PII read: journeys, riders) |
+| Q4 Passive proof? | **NO** — requires AUTH_HELPED (valid test token); rules say no_account_creation without program approval |
+| Q5 Novel? | Yes |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | **BORDERLINE** — ID params/UUID shape extracted from bundle but cross-tenant read unproven without test token |
+
+**Verdict: HOLD — AUTH_HELPED required.** Public Engage SPA calls same /v1 Bearer API; per-route 401s confirmed. Cross-tenant object-level authorization unproven. Requires program-obtained test token (no self-signup). No passive proof possible.
+
+---
+
+### LEAD 4: superAdmin token-minting role check (api.sparelabs.com/v1/auth/token/superAdmin)
+Source: bigpickle, nemotron3 | Asset: api.sparelabs.com | Class: AUTH | Confidence: 45-50
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **NO** — 401-gated (garbage Bearer → 401 "Unrecognized token type" = type-presence check only; valid token needed to test role check) |
+| Q3 Real impact? | Critical (full platform takeover) |
+| Q4 Passive proof? | **NO** — requires POST with valid non-superAdmin token |
+| Q5 Novel? | Yes |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | **NO** — live probe confirms 401-gated; cannot prove missing role check without valid token; speculative |
+
+**Verdict: HOLD — AUTH_HELPED required.** Route is live (OPTIONS 204 advertises POST) but 401-gated. Edge validates token-type presence only. Per-route auth omissions proven elsewhere (global controller fail-open) but role check on valid token is unproven. Needs program-obtained valid tenant/rider token. POST to /v1/auth/token/superAdmin with non-superAdmin token → 2xx would prove it.
+
+---
+
+### LEAD 5: Email-reset chain ATO (api.sparelabs.com/v1/auth/email/reset/{request,verify})
+Source: bigpickle | Asset: api.sparelabs.com | Class: AUTH | Confidence: 55
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **NO** — live probe confirms 401 + CORS; auth-gated, not bypassable |
+| Q3 Real impact? | Critical if ATO confirmed |
+| Q4 Passive proof? | **NO** — requires AUTH_HELPED (test user email) |
+| Q5 Novel? | No — REJECTED in bigpickle's own LEARN section (line 769): "Live GET returns 401 + CORS — auth-gated, not bypassable" |
+| Q6 Not rejected? | N/A |
+| Q7 Triager accept? | **NO** — refuted by live probe |
+
+**Verdict: INVALID — Q2 fails.** Live probe confirms 401-gated on all /v1/auth/* endpoints. bigpickle's own earlier hypothesis that this was header-presence-only (like /v1/global/regions) was refuted. No unauthenticated access path.
+
+---
+
+### LEAD 6: Rider PIN brute-force (api.sparelabs.com/v1/auth/rider/pin/login)
+Source: bigpickle | Asset: api.sparelabs.com | Class: AUTH | Confidence: 50
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **PARTIAL** — route live but needs valid org UUID + rider context; edge-gated on auth namespace |
+| Q3 Real impact? | High (rider ATO via 4-digit PIN space) |
+| Q4 Passive proof? | **NO** — needs test credentials + repeated attempts (prohibited by no_account_creation rule) |
+| Q5 Novel? | Yes |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | **NO** — cannot test without program-approved test credentials |
+
+**Verdict: HOLD — AUTH_HELPED required.** Schema fully enumerated (4-digit pin + phonePin≥6) but rate-limit/lockout behavior and token issuance require program-obtained test org + rider credentials. Cannot brute-force ethically within passive rules.
+
+---
+
+### LEAD 7: Auth-free org-record read /v1/global/organizations/{id}
+Source: bigpickle | Asset: api.sparelabs.com/v1/global/organizations/{id} | Class: AUTH | Confidence: 75
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **YES** — no-auth GET discriminates 400 ValidationError (malformed UUID) vs 404 NotFoundError (valid-unfound) = real DB lookup behind auth-free controller |
+| Q3 Real impact? | **HIGH** — unauthenticated tenant org-record/PII disclosure from gated namespace if a valid UUID returns 200 |
+| Q4 Passive proof? | **PARTIAL** — oracle (400/404 differential) confirmed passive; actual data read (200 + org record) needs a valid existing org UUID |
+| Q5 Novel? | **YES** — new subroute on already-accepted controller (Lead A4 covers list route; this is the {id} subroute = data-bearing) |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | **BORDERLINE** — oracle is genuinely novel (400-vs-404 discrimination without auth); data-bearing 200 unproven without valid UUID |
+
+**Verdict: VALID (low) — oracle confirmed; data read HOLD.**
+- **Passive proof (oracle only):**
+  1. `curl -s "https://api.sparelabs.com/v1/global/organizations/not-a-uuid"` → 400 ValidationError "must match format uuid"
+  2. `curl -s "https://api.sparelabs.com/v1/global/organizations/00000000-0000-0000-0000-000000000000"` → 404 NotFoundError "Organization was not found"
+  3. Control: `curl -s "https://api.sparelabs.com/v1/global/settings"` → 401 InvalidTokenError (proves gate exists on sibling route)
+- **Impact:** Unauthenticated org UUID existence oracle + DB-lookup confirmation from a gated namespace. Enables targeted enumeration of valid org UUIDs. Force-amplified by reflect-any-origin CORS+credentials on same controller.
+- **CVSS 3.1:** 5.3 Medium (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) — oracle-only; escalates to 7.5 High if 200 + org PII confirmed with valid UUID.
+- **Note:** Data-bearing 200 (GET /v1/global/organizations/{valid-org-uuid} without auth → 200 + full org record) requires program test-org UUID → **HOLD** for AUTH_HELPED data confirmation.
+- **Channel:** Spare security channel (per scope.yml, TBD)
+
+---
+
+### LEAD 8: Cross-origin write on auth-free organizations controller
+Source: bigpickle | Asset: api.sparelabs.com/v1/global/organizations/{id} | Class: AUTH | Confidence: 55
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **PARTIAL** — OPTIONS advertises PUT/PATCH/POST/DELETE + ACAO+ACAC; whether mutating methods are auth-free is unproven |
+| Q3 Real impact? | Critical if confirmed (unauthenticated cross-origin org modification) |
+| Q4 Passive proof? | **PARTIAL** — OPTIONS 204 + write methods = PASSIVE done; actual PUT/PATCH/DELETE response = AUTH_HELPED (write test) |
+| Q5 Novel? | Yes |
+| Q6 Not rejected? | Yes (OPTIONS advertisement alone is not on rejected list) |
+| Q7 Triager accept? | **NO** — write-method advertisement ≠ auth-free write handling; needs proof that PUT/PATCH responds without InvalidTokenError |
+
+**Verdict: HOLD — AUTH_HELPED for actual write test.** Controller answers GET without auth; OPTIONS advertises write methods with CORS reflect. But house pattern is route-specific middleware omission — whether it extends to mutating methods is unproven. PASSIVE OPTIONS proof done. Needs program-approved write test with inert field on test-org UUID.
+
+---
+
+### LEAD 9: Auth-free data-bearing route on /v1/global/regions (scheme-only bypass)
+Source: bigpickle | Asset: api.sparelabs.com/v1/global/regions | Class: AUTH | Confidence: 94-96
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **YES** — GET with `Authorization: Bearer x` (any garbage) → 200 + 725B |
+| Q3 Real impact? | **HIGH** — unauthenticated disclosure of full regional infra topology (6 OOS api/routing hosts) + CORS enables browser exfil |
+| Q4 Passive proof? | **YES** — fully passive GET |
+| Q5 Novel? | **Already VALID since 08:06 UTC 2026-08-08** (Lead A2) |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | **YES** — already accepted |
+
+**Verdict: Already VALID — reconfirmation only, no delta.** This is Lead A2. Scheme fully characterized (scheme-only gate bypass), data-bearing (725B region registry), CORS-confirmed. Confidence increased from 94→97 with sub-route sweep showing /v1/global/regions/{id}→400 0B (auth-free but not data-bearing). No new reportable finding.
+
+---
+
+### LEAD 10: CSP leak on platform.sparelabs.com/login
+Source: bigpickle, ling3, laguna, nemotron3 | Asset: platform.sparelabs.com /login | Class: MISCONFIG | Confidence: 85-93
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **YES** — public /login page |
+| Q3 Real impact? | **MEDIUM-HIGH** — production admin Vercel apps + Metabase + cloud infra surfaced via in-scope asset |
+| Q4 Passive proof? | **YES** — passive GET + CSP header analysis |
+| Q5 Novel? | Already accepted in prior triage (17:58 UTC 2026-08-08) |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | **YES** |
+
+**Verdict: VALID — already accepted, reconfirmation.** No delta. CSP still leaking production admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app + Metabase prod+staging + Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox. STABLE across all intervals.
+
+---
+
+### LEAD 11: JS bundle infra leak on forms.sparelabs.com
+Source: bigpickle, ling3, laguna, nemotron3 | Asset: forms.sparelabs.com | Class: MISCONFIG | Confidence: 85
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **YES** — public SPA, JS bundle fetchable |
+| Q3 Real impact? | **LOW-MEDIUM** — infra recon value only (staging+prod API hosts, inactive ngrok, JIRA); no direct auth bypass |
+| Q4 Passive proof? | **YES** — passive bundle retrieval + grep |
+| Q5 Novel? | Already surfaced in prior triages |
+| Q6 Not rejected? | **BORDERLINE** — JS bundle info disclosure of infra URLs is often considered "best practice" / low value alone; but combined with auth route map it has recon value |
+| Q7 Triager accept? | **LOW** — acceptable as LOW info-disclosure; not independently actionable |
+
+**Verdict: VALID (informational) — recon value only.** JS bundle main.71d52314.js STABLE, leaks api.staging.sparelabs.com + api.staging.us.sparelabs.com + forms.staging.sparelabs.com + forms.staging.us.sparelabs.com + api.us.sparelabs.com + atlassian.net + ngrok.io (inactive). No direct exploit path. Append to existing infra-leak documentation; not a standalone reportable vuln at most programs.
+
+---
+
+### LEAD 12: MFE manifest enumeration → new /v1 paths
+Source: bigpickle | Asset: platform.sparelabs.com/login | Class: MISCONFIG | Confidence: 50
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **YES** |
+| Q3 Real impact? | Medium (may surface new auth-free routes) |
+| Q4 Passive proof? | **PARTIAL** — manifest→/v1 mapping proven once (zones/centroid) but that path is 400 0B |
+| Q5 Novel? | No — proven path was not data-bearing |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | **NO** — confidence stuck at 50 across 10+ sessions; no new data-bearing route discovered via manifest enumeration; speculative |
+
+**Verdict: HOLD — confidence 50 < typical 70 threshold.** Mechanism is real (bundle rotation reveals new paths) but has not produced a new auth-free data-bearing route beyond the 5 already confirmed. Continue passive re-fetching; escalate only if a manifest-derived /v1 path returns 200 + non-static payload under header-presence auth.
+
+---
+
+### LEAD 13: Fail-open slow replica omits auth on sibling global routes (version skew)
+Source: bigpickle | Asset: api.sparelabs.com/v1/global | Class: BUSLOGIC | Confidence: 42
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **PARTIAL** — timing-based; slow replica (700ms+) vs fast (2-8ms) |
+| Q3 Real impact? | Medium-HIGH if confirmed (auth-free surface expansion) |
+| Q4 Passive proof? | **NO** — 14/14 sibling routes sweep → 12×401 + 2×200 (organizations, regions already known); no new auth-free route found |
+| Q5 Novel? | No — REJECTED this session: "scope is route-specific to /regions + /organizations only" |
+| Q6 Not rejected? | N/A |
+| Q7 Triager accept? | **NO** — confidence 42 < 40 threshold; empirical sweep negative |
+
+**Verdict: INVALID — Q5 fails (refuted).** Multi-version envoy LB confirmed (700ms+ vs 2ms replicas) but auth omission does NOT extend to siblings. 14/14 sibling routes properly gated at 401. Hypothesis that slow replica carries stale route table with broader auth omission is empirically refuted. No new attack surface.
+
+---
+
+### LEAD 14: Org-settings host injection (platform.sparelabs.com)
+Source: bigpickle | Asset: platform.sparelabs.com | Class: XSS | Confidence: 35
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **PARTIAL** — org settings host fields (organizationApiHost, organizationRoutingHost) drive client-side fetch base URLs |
+| Q3 Real impact? | High if proven (credential confusion / token exfil) |
+| Q4 Passive proof? | **NO** — sink scan complete and negative across all sessions |
+| Q5 Novel? | Yes |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | **NO** — confidence 35 < 40; sink scan negative; manifest list hardcoded |
+
+**Verdict: INVALID — Q4 fails (sink scan negative).** Bundle shows organizationApiHost/organizationRoutingHost drive client-side fetch base URLs only. No DOM sink found. Manifest list is hardcoded (not user-influenced). Parked with confidence 35 across multiple sessions. No path to exploitation demonstrated.
+
+---
+
+### LEAD 15: Object-store directory listing (forms.sparelabs.com)
+Source: laguna, nemotron3 | Asset: forms.sparelabs.com | Class: MISCONFIG | Confidence: 45
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | N/A — hypothesis refuted |
+| Q3 Real impact? | Low (potential read of static assets) |
+| Q4 Passive proof? | **NO** — refuted: traffic served via envoy+Google CDN, not raw object store; SPA catch-all returns index.html for all paths |
+| Q5 Novel? | No — REJECTED in knowledge base |
+| Q6 Not rejected? | N/A |
+| Q7 Triager accept? | **NO** |
+
+**Verdict: INVALID — Q4 refuted.** forms.sparelabs.com is behind envoy+Google CDN (server: envoy, via: 1.1 google), not raw DigitalOcean Spaces/S3. All paths return 537-byte index.html (SPA catch-all). No directory listing or unguarded objects. Object-store hypothesis refuted.
+
+---
+
+### LEAD 16: Absent OpenAPI spec (api.sparelabs.com)
+Source: nemotron3 | Asset: api.sparelabs.com | Class: MISCONFIG | Confidence: 70
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | N/A — no public spec found |
+| Q3 Real impact? | **NONE** — absence of OpenAPI spec is a documentation best practice issue, not a vulnerability |
+| Q4 Passive proof? | Yes (404 on /docs, /swagger, /openapi.json) |
+| Q5 Novel? | N/A |
+| Q6 Not rejected? | **YES — on rejected list** — "absence of OpenAPI spec" is explicitly called out in prior triage as a best-practice issue with no independent security impact |
+| Q7 Triager accept? | **NO** |
+
+**Verdict: INVALID — Q6 rejected (best practice / no impact).** No public API documentation = no vulnerability. The /v1/ surface is already fully enumerated via other means (bundle analysis, route probing). Absence of a spec is not a security finding.
+
+---
+
+### LEAD 17: SSRF via platform.sparelabs.com CDN/WAF (origin metadata access)
+Source: nemotron3 | Asset: platform.sparelabs.com | Class: SSRF | Confidence: 45
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **NO** — purely speculative; no alternate origin path found |
+| Q3 Real impact? | Critical if proven (cloud credential theft) |
+| Q4 Passive proof? | **NO** — speculative; no evidence of origin reachability |
+| Q5 Novel? | Yes |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | **NO** — no concrete exploit step; CDN timeout is normal, not evidence of SSRF |
+
+**Verdict: INVALID — Q4 speculative.** CDN/WAF timeouts are normal for edge-gated SPAs. No evidence that origin is reachable via alternate paths (Host: localhost, X-Forwarded-For: 127.0.0.1 etc.). Purely speculative with no proof vector within passive rules.
+
+---
+
+### LEAD 18: routing.sparelabs.com hidden routing API
+Source: bigpickle, laguna, nemotron3 | Asset: routing.sparelabs.com | Class: AUTH/BUSLOGIC
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **NO** — envoy 404 on ALL paths (/v1/, /api/, /routing/, /router, /v2/, /graphql, /map, /directions/) |
+| Q3 Real impact? | High if surface existed (but it doesn't) |
+| Q4 Passive proof? | N/A — all paths 404 |
+| Q5 Novel? | No — CONFIRMED dead across all sessions |
+| Q6 Not rejected? | N/A |
+| Q7 Triager accept? | **NO** |
+
+**Verdict: INVALID — Q2 fails.** routing.sparelabs.com is envoy 404 on every enumerated path. No discoverable surface. Confirmed dead across 20+ sessions. No delta.
+
+---
+
+### LEAD 19: Unauthenticated read on /v1/public/terms?mobileAppId= (new parameter vector)
+Source: bigpickle, laguna | Asset: api.sparelabs.com/v1/public/terms | Class: MISCONFIG | Confidence: 78-82
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | **YES** — 200 + 137B with ?mobileAppId=<uuid>, no auth |
+| Q3 Real impact? | **MEDIUM** — unauthenticated disclosure of live terms/privacy URLs; valid mobileAppId space enumerable |
+| Q4 Passive proof? | **YES** — passive GET |
+| Q5 Novel? | **Already VALID since 11:47 UTC 2026-08-08** (Lead A5) — mobileAppId parameter is a new vector on already-accepted endpoint |
+| Q6 Not rejected? | Yes |
+| Q7 Triager accept? | **YES** — already accepted |
+
+**Verdict: Already VALID — reconfirmation.** mobileAppId is a new parameter vector on the already-accepted /v1/public/terms disclosure (Lead A5). Same hardcoded response body. Append to existing report as additional parameter vector. No new standalone finding.
+
+---
+
+### LEAD 20: correlationId leak on error envelopes (api.sparelabs.com)
+Source: bigpickle | Asset: api.sparelabs.com | Class: MISCONFIG
+
+| Q | Answer |
+|---|--------|
+| Q1 In scope? | **YES** |
+| Q2 Attacker-reachable? | Yes |
+| Q3 Real impact? | **NONE** — request-tracking UUID (correlationId) is not secret; standard observability practice |
+| Q4 Passive proof? | Yes |
+| Q5 Novel? | No — noted in prior triage as "no independent value" |
+| Q6 Not rejected? | **YES — on rejected list** — correlationId/request-tracking UUID is explicitly not a vulnerability |
+| Q7 Triager accept? | **NO** |
+
+**Verdict: INVALID — Q6 rejected.** correlationId is a standard request-tracking UUID (observability/tracing). Not a secret. Not actionable. Explicitly noted as "no independent value" in bigpickle's own assessment (line 158).
+
+---
+
+## SUMMARY TABLE
+
+| Lead | Asset | Verdict | Reason |
+|------|-------|---------|--------|
+| L1 | metabase.sparelabs.com | **INVALID** | Q1 out of scope (non-listed subdomain) |
+| L2 | platform.sparelabs.com MFE XSS | **HOLD** | Sink trace needed; static scan negative |
+| L3 | forms IDOR | **HOLD** | AUTH_HELPED needed (≥2 test tokens) |
+| L4 | superAdmin token minting | **HOLD** | AUTH_HELPED needed (401-gated) |
+| L5 | email-reset ATO | **INVALID** | Q2 refuted (401-gated, live probe) |
+| L6 | rider PIN brute-force | **HOLD** | AUTH_HELPED needed (test creds) |
+| L7 | org-record read {id} oracle | **VALID (low)** | 400/404 oracle confirmed passive; data HOLD |
+| L8 | cross-origin write orgs | **HOLD** | OPTIONS done; write test needs AUTH_HELPED |
+| L9 | regions scheme bypass | **Already VALID** | Lead A2 reconfirmation |
+| L10 | CSP leak /login | **Already VALID** | Reconfirmation, no delta |
+| L11 | JS bundle infra leak | **VALID (info)** | Recon value only; not standalone |
+| L12 | MFE manifest enumeration | **HOLD** | Confidence 50; no new data-bearing route |
+| L13 | fail-open sibling replica | **INVALID** | Q5 refuted (14/14 siblings 401) |
+| L14 | org-settings host injection | **INVALID** | Q4 sink scan negative |
+| L15 | object-store dir listing | **INVALID** | Q4 refuted (envoy CDN, SPA catch-all) |
+| L16 | absent OpenAPI spec | **INVALID** | Q6 rejected (best practice, no impact) |
+| L17 | SSRF via CDN/WAF | **INVALID** | Q4 speculative, no proof |
+| L18 | routing.sparelabs.com | **INVALID** | Q2 dead (envoy 404 all paths) |
+| L19 | /terms mobileAppId vector | **Already VALID** | Lead A5 reconfirmation |
+| L20 | correlationId leak | **INVALID** | Q6 rejected (observability UUID, not secret) |
+
+## NEW VALID FINDINGS THIS CYCLE
+| # | Finding | CVSS | Channel |
+|---|---------|------|---------|
+| 1 | /v1/global/organizations/{id} — UUID existence oracle (400 malformed / 404 not-found) without auth on gated namespace | 5.3 Medium (oracle) | Spare security |
+
+## NOTES
+- All 5 previously accepted findings (A1-A5) remain STABLE across 2026-08-07 → 2026-08-08 (24h+).
+- Lead A1 (CORS) + Lead A2 (regions bypass) + L7 (org {id} oracle) form an amplifiable chain: any-origin credentialed read + scheme-only auth bypass + org enumeration = cross-origin data exfil via victim browser against the gated org namespace. Worth noting in consolidated report.
+- multi-version envoy LB confirmed: 2ms fast replica (gated routes) vs 700ms+ slow replica (bypass routes). Auth omission is route-specific, NOT replica-specific (both replicas serve the same auth-free behavior on /regions + /organizations).
+- No new invasive testing recommended. All HOLD items require program-obtained test credentials (no_account_creation rule).
+- reposcan-latest: 0 hits (scan error — target mismatch in runner config).
