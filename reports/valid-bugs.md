@@ -84,3 +84,6 @@
 
 - 1 lead(s) marked VALID at 2026-08-08 13:18:01 UTC
   - | **VALID** | 5 | CORS reflect-any-origin+creds (8.1), scheme-only bypass /v1/global/regions (5.3), UUID enumeration oracle (5.3), /v1/global/organizations fail-open (5.3), /v1/public/terms param-vect
+
+- 1 lead(s) marked VALID at 2026-08-08 14:03:14 UTC
+  - | **VALID** | 5 | CORS reflect-any-origin+creds (8.1), scheme-only bypass /v1/global/regions (5.3), UUID enumeration oracle (5.3), /v1/global/organizations fail-open (5.3), /v1/public/terms param-vect
