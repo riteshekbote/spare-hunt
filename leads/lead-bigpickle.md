@@ -465,3 +465,4 @@ evidence_needed: any response body >11B or org-scoped data.
 verify_steps: PASSIVE — spaced GET /v1/global/organizations with params (?status=&cursor=&limit=) across several intervals to sample replicas; flag body ≠ `{"data":[]}`.
 impact: unauthenticated cross-origin read of org registry; escalates severity from info-only.
 testability: PASSIVE
+## 2026-08-08 10:05:59 UTC [api] (model bigpickle)

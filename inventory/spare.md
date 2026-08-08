@@ -148,3 +148,11 @@
 ## 2026-08-08 09:37:43 UTC
 - NEW platform bundle index-BIOrSDj1.js leaks /v1/auth/token/superAdmin (live, 401-gated confirmed: 401 w/ garbage Bearer, 401 lacks-header, OPTIONS 204) + admin-spare.ngrok.io (OOS tunnel).
 - NEW forms bundle main.71d52314.js maps auth surface: auth/metadata, auth/rider/{phone,email}/request|verify, auth/rider/pin/login, auth/rider/test/login, auth/email/reset/{request,verify}, auth/token, aut
+
+## 2026-08-08 10:13:30 UTC
+- NEW platform.sparelabs.com bundle index-BIOrSDj1.js leaks /v1/auth/token/superAdmin (401-gated, OPTIONS 204) + admin-spare.ngrok.io (OOS)
+- NEW forms.sparelabs.com bundle main.71d52314.js maps auth surface: auth/metadata, auth/rider/{phone,email}/request|verify, auth/rider/pin/login, auth/rider/test/login, auth/email/reset/{request,verify}, a
+- NEW `/v1/global/regions` auth gate fully characterized: no-Auth→400 `{"message":"Authorization header required"}`; `Authorization: x`→400 `{"message":"Authorization header with scheme 'Bearer' required"}`
+- NEW Subroute sweep: `/v1/global/regions/{id}`→400 (0B auth-free), `/v1/global/organizations/key/{x}`→404 (0B auth-free) — auth gate skipped but **not data-bearing** (registered-not-implemented routes).
+- CHANGED `/v1/public/terms?organizationId=<uuid` flapped back to **200 + live terms URLs** (was 401+body at 06:00 UTC) — confirms multi-version LB flapping; data disclosure stable across status variance.
+- CHANGED `admin-spare.ngrok.io` (OOS) now returns ngrok-edge 404 (was `ERR_NGROK_3200` inactive) — tunnel registered, no backing app; remains OOS.

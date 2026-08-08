@@ -336,3 +336,27 @@
 ## RANKED HYPOTHESES 2026-08-08 09:37:43 UTC
 - [50] platform.sparelabs.com/login: Module-federation manifest enumeration → new first-party /v1 paths (re-fetch rotated chunks) (from reports/hypotheses-bigpickle.txt)
 - NEXT(hypotheses-bigpickle.txt): PROBE: GET `/v1/global/regions/00000000-0000-0000-0000-000000000000/zones` then `/v1/global/config`, `/v1/global/regions/CA`, `/v1/global/features` with `Author
+
+## RANKED HYPOTHESES 2026-08-08 10:13:30 UTC
+- [96] api.sparelabs.com: api.sparelabs.com /v1/**: credential-reflecting CORS across entire API (from reports/hypotheses-laguna.txt)
+- [75] api.sparelabs.com/auth/rider/test/login,: Rider authentication bypass via test/login or PIN login endpoints (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST `https://api.sparelabs.com/auth/rider/test/login` with `Content-Type: application/json` body `{"phone":"+15551234567","code":"123456"}` and `Origin:
+- NEXT(hypotheses-laguna.txt): PROBE: `GET https://api.sparelabs.com/v1/global/regions/00000000-0000-0000-0000-000000000000/zones`, `/v1/global/regions/CA`, `/v1/global/organizations?key=0000
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: auth-free DATA-BEARING confirmed STABLE — 200 + 725B region registry with any garbage Bearer; header presen
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id}: 400 auth-free route-registered-not-implemented (no InvalidTokenError) — controller-wide omission 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations: 400 auth-free "not found" — new router path on public namespace
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com: multi-version LB behind envoy re-confirmed — /v1/public/terms?organizationId flapped 401→200 in ~35min; fail-open route s
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/generic/regions: garbage token → 404 empty (not data-bearing) — generic namespace does not mirror the global controller's o
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection remains STABLE across all intervals — ACAO:<reflected> + ACAC:true + methods GET,HEAD,P
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app) +
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — leaking api.staging.sparelabs.com + api.staging.us.sparelabs.com + forms.staging.s
+- LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: No surface — remain dead, envoy 404 across all paths
+- LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com: All 404/inactive (ERR_NGROK_3200) —
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only auth bypass confirmed STABLE — 200 + 725B region registry (incl. 6 OOS regional api/routing hos
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{config,features,countries,currencies,fares,tariffs,zones,settings}: sibling sweep (this session) → 401 on all (prop
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection confirmed STABLE on OPTIONS preflight + GET (200/401/400 paths) uniformly across /v1 — 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open `200 + {"data":[]}` + CORS STABLE (empty payload caps severity; route-specific).
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure flapped back to 200+live terms URLs (termsOfUseUrl+privacyPolicyUrl) with no auth + CORS
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id},organizations/key/{x}: auth-free (0 InvalidTokenError) but **not data-bearing** (400/404, 0-byte b
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app (vercel.app, loadable) + staging variants + Meta
+- LEARN: REJECTED MISCONFIG @ admin-spare.ngrok.io: OOS — now ngrok-edge 404 (was ERR_NGROK_3200 inactive); no independent in-scope exploitation vector; marked dead/OOS.
