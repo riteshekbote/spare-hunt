@@ -158,3 +158,6 @@
   - | 5 | /v1/public/terms param-vector disclosure | VALID (reconf) | 5.3 | Spare security (TBD) |
   - VALID: 5 (all reconfirmations, no delta)
   - | 9 | **Engage portal IDOR** `forms.sparelabs.com → api.sparelabs.com/v1` | Per-route 401 confirmed. Cross-tenant read needs ≥2 valid tokens. AUTH_HELPED required. |
+
+- 1 lead(s) marked VALID at 2026-08-08 23:22:08 UTC
+  - triage/run-2026-08-08-17-58.md:275:**Verdict: Already VALID (reconfirmation only)** — no delta. Previously accepted CSP + MFE manifest infra leak.
