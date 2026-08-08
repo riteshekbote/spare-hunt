@@ -542,3 +542,4 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 60 — Public SPA (200, envoy+Google CDN, x-frame DENY); JS bundle leaks staging+prod infra (api.staging.*, forms.staging.* 200; staging forms portals 200); inactive ngrok tunnel leaked; infra recon value.
 [RISK] web (spare.com/sparelabs.com): 40 — spare.com apex HTTP 200 (Cloudflare Webflow static); www.spare.com 301 (OOS subdomain); sparelabs.com root apex TIMEOUT on https (CDN/WAF gating) — minimal live surface.
 ## 2026-08-08 06:35:48 UTC [web] (model laguna)
+## 2026-08-08 07:32:39 UTC [web] (model laguna)

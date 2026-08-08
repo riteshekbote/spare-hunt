@@ -276,3 +276,14 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations: 400 auth-free "not found" — new router path on public namespace.
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com: multi-version LB behind envoy re-confirmed — /v1/public/terms?organizationId flapped 401→200 in ~35min; fail-open route s
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/generic/regions: garbage token → 404 empty (not data-bearing) — generic namespace does not mirror the global controller's o
+
+## RANKED HYPOTHESES 2026-08-08 07:34:28 UTC
+- [90] api.sparelabs.com/v1/global/*: api.sparelabs.com/v1/global/* controller-wide auth omission exposes data-bearing routes (from reports/hypotheses-nemotron3.txt)
+- [75] api.sparelabs.com/v1/global/regions: Route-scoped auth omission set on /v1/global — data-bearing only at /regions, write methods advertised auth-free (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET `/v1/global/{countries,currencies,fares,tariffs,zones,settings/regions}` with `Authorization: Bearer x` + `Origin: https://evil.example.com`, spaced 
+- NEXT(hypotheses-bigpickle.txt): PROBE: `curl -X OPTIONS https://api.sparelabs.com/v1/global/regions/00000000-0000-0000-0000-000000000000` — preflight this session 204-advertises PUT/PATCH/POST
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: auth-free DATA-BEARING — 200 + 725B region registry (CA/US/US2/US3/JP/EU/UAT + apiUrl + routingHost) with a
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id}: 400 auth-free route-registered-not-implemented (no InvalidTokenError) — controller-wide omission 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations: 400 auth-free "not found" — new router path on public namespace
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com: multi-version LB behind envoy re-confirmed — /v1/public/terms?organizationId flapped 401→200 in ~35min; fail-open route s
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/generic/regions: garbage token → 404 empty (not data-bearing) — generic namespace does not mirror the global controller's o

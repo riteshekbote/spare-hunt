@@ -125,3 +125,11 @@
 - CHANGED api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com all 404/inactive — remain dead
 
 ## 2026-08-08 06:38:30 UTC
+
+## 2026-08-08 07:34:28 UTC
+- NEW api.sparelabs.com/v1/global/regions: auth-free DATA-BEARING — 200 + 725B region registry (CA/US/US2/US3/JP/EU/UAT + apiUrl + routingHost) with any garbage Bearer token; header presence-only, token val
+- NEW api.sparelabs.com/v1/global/regions/{id}: 400 auth-free route-registered-not-implemented (no InvalidTokenError) — controller-wide omission extends to subroutes
+- NEW api.sparelabs.com/v1/public/organizations: 400 auth-free "not found" — new router path on public namespace
+- CHANGED api.sparelabs.com/v1/public/terms?organizationId=<uuid>: behavior flapping between 200+data and 400 validation error — inconsistent parameter handling, suggests multi-version backend behind envoy LB
+- CHANGED forms.sparelabs.com JS bundle rotated: main.6ed467ae.js → main.71d52314.js (verified live)
+- NEW api.sparelabs.com: multi-version LB behind envoy re-confirmed — /v1/public/terms?organizationId flapped 401→200 in ~35min; fail-open route served by ~703ms upstream vs 4–8ms on auth-gated routes (dist
