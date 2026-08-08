@@ -141,3 +141,6 @@
 - CHANGED api.sparelabs.com/v1/public/terms?organizationId=<uuid>: behavior flapping between 200+data and 400 validation error — inconsistent parameter handling, suggests multi-version backend behind envoy LB
 - CHANGED forms.sparelabs.com JS bundle rotated: main.6ed467ae.js → main.71d52314.js (verified live)
 - NEW api.sparelabs.com: multi-version LB behind envoy re-confirmed — /v1/public/terms?organizationId flapped 401→200 in ~35min; fail-open route served by ~703ms upstream vs 4–8ms on auth-gated routes (dist
+
+## 2026-08-08 09:01:29 UTC
+- NEW api.sparelabs.com /v1/public/terms?mobileAppId=<uuid>: Returns 200 with live terms URLs + reflected CORS credentials without auth — new parameter vector on existing public endpoint

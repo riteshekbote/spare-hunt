@@ -1,1 +1,29 @@
-## 2026-08-08 08:10:16 UTC [api] (model bigpickle)
+## 2026-08-08 08:59:01 UTC [api] (model bigpickle)
+[HYP] Implemented-but-auth-free read siblings on the global controller (fail-open replica route table)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions/{id}/zones, /v1/global/regions/CA, /v1/global/config, /v1/global/features
+confidence: 55
+reasoning: omission is read-scoped on the global controller (regions 200+725B, orgs 200, regions/{id} 400 auth-free, write paths 401). Siblings countries/currencies/fares/tariffs/zones are 401, but 400 "not-found" routes (zones/centroid) prove registered-but-unimplemented paths bypass the gate; an implemented sibling would return a data-bearing payload.
+evidence_needed: any non-404/non-401 response with body size > 725B or a non-static/filtered payload on the global namespace.
+verify_steps: PASSIVE — GET `/v1/global/regions/{id}/zones`, `/v1/global/regions/CA`, `/v1/global/config`, `/v1/global/features` with `Authorization: Bearer x` + `Origin: https://evil.example.com`, spaced ≥1.5s; log status + size; repeat on a second hop to sample both replicas.
+impact: unauthenticated cross-origin read of global platform config beyond the static region registry; low-medium today, escalates if slow replica serves org-scoped data.
+testability: PASSIVE
+[HYP] Module-federation manifest enumeration → new first-party /v1 paths (re-fetch rotated chunks)
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 50
+reasoning: /login MFE manifests leaked prod+staging admin Vercel apps + Metabase; manifest→/v1 mapping proven once (zones/centroid); bundles rotate, so current chunks may name the global-controller siblings the sweep cannot enumerate blindly.
+evidence_needed: a manifest/bundle-derived /v1/global path that is live non-404 or data-bearing auth-free.
+verify_steps: PASSIVE — GET /login + remote manifests (≤1rps), fetch entrypoint chunks, grep `/v1/global/` literals, cross-check on api.sparelabs.com.
+impact: expands in-scope API surface; medium.
+testability: PASSIVE
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: auth-less Engage SPA calls the same /v1 Bearer API with ID-keyed paths; route-level 401s confirmed but object-level authorization on ID-keyed resources unproven; bundle unchanged (main.71d52314.js).
+evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[NEXT] PROBE: GET `/v1/global/regions/00000000-0000-0000-0000-000000000000/zones` then `/v1/global/config`, `/v1/global/regions/CA`, `/v1/global/features` with `Authorization: Bearer x` + `Origin: https://evil.example.com`, spaced ≥1.5s, repeat each once to sample both replicas — flag any status ≠ 401/404 with body > 725B.

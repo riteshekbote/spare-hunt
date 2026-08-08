@@ -4215,3 +4215,63 @@ No hypotheses dropped — all three are on ACCEPTED lists from knowledge base, h
 [RISK] routing.sparelabs.com: 50 — Envoy gateway returns 404 on all paths; routing API completely hidden; no unauthenticated surface.
 [RISK] forms.sparelabs.com: 60 — Public SPA (200, envoy+Google CDN, x-frame DENY); JS bundle leaks staging+prod infra (all 200); inactive ngrok tunnel leaked; infra recon value.
 [RISK] web (spare.com/sparelabs.com): 40 — spare.com apex HTTP 200 (Cloudflare Webflow static); www.spare.com 301→OOS; sparelabs.com root apex TIMEOUT (CDN/WAF gating) — minimal live surface.
+===== ANALYST laguna 2026-08-08 09:01:29 UTC =====
+[0m
+> build · laguna-s-2.1-free
+[0m
+NO_DELTA
+
+[PRIO] api.sparelabs.com /v1/**: CORS reflect-any-origin+credentials | score 94 | attack:10 business:9 tech:9 gate:10 cloud:8 freshness:10
+[PRIO] api.sparelabs.com /v1/global/regions: auth-free data-bearing region registry | score 88 | attack:9 business:8 tech:8 gate:10 cloud:7 freshness:10
+[PRIO] api.sparelabs.com /v1/global/organizations: route-level auth omission | score 80 | attack:9 business:8 tech:6 gate:10 cloud:7 freshness:10
+[PRIO] platform.sparelabs.com /login: CSP leaks prod+staging admin Vercel+Metabase | score 75 | attack:8 business:8 tech:7 gate:8 cloud:8 freshness:10
+
+[HYP] api.sparelabs.com /v1/**: credential-reflecting CORS across entire API
+class: MISCONFIG
+asset: api.sparelabs.com /v1/**
+confidence: 96
+reasoning: Live OPTIONS /v1/journeys returns ACAO:<reflected> + ACAC:true + ACA-Methods:GET,HEAD,PUT,PATCH,POST,DELETE + ACA-Headers:Authorization; GET on 401 routes also reflects credentials; uniformly applied API-scoped envoy middleware; STABLE 2026-08-07 through 2026-08-08.
+evidence_needed: OPTIONS 204 with ACAO+ACAC+methods+Authorization header; GET returning 401+cors on control route
+verify_steps: PASSIVE — curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization" https://api.sparelabs.com/v1/journeys -o /dev/null
+impact: CRITICAL — any malicious origin can issue credentialed cross-origin GET/PUT/PATCH/POST/DELETE against 15+ auth-gated + 3 unauthenticated endpoints via victim browser; Bearer tokens in JS are exfiltrable
+testability: PASSIVE
+
+[HYP] api.sparelabs.com /v1/global/regions: auth-free data-bearing region registry
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 92
+reasoning: Live GET returns 200 + 725B region registry (CA/US/US2/US3/JP/EU/UAT + apiUrl + routingHost) with any garbage Bearer token; header presence-only gate, token validity never checked; STABLE 2026-08-08 07:34 UTC.
+evidence_needed: 200 + region JSON body with garbage Authorization header; CORS credentials reflected
+verify_steps: PASSIVE — curl -s -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/regions
+impact: HIGH — unauthenticated disclosure of infra routing topology (apiUrl + routingHost per region) enabling targeted follow-on attacks; controller-wide auth gate omission proven
+testability: PASSIVE
+
+[HYP] api.sparelabs.com /v1/global/organizations: route-level auth omission
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 88
+reasoning: Unauth GET returns 200 + `{"data":[]}` + reflected CORS+credentials, confirmed STABLE across all intervals; control /v1/journeys returns 401; OPTIONS advertises PUT/PATCH/POST/DELETE on omitted route.
+evidence_needed: 200 + `{"data":[]}` + CORS on unauth probe; 401 on control /v1/journeys
+verify_steps: PASSIVE — curl -s -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations; curl -s -o /dev/null -w '%{http_code}' https://api.sparelabs.com/v1/journeys
+impact: MEDIUM-HIGH — route-level auth gate permanently omitted at controller scope; OPTIONS advertises write methods on omitted route; empty payload caps severity but pattern is exploitable for enumeration
+testability: PASSIVE
+
+[FINAL] 1. [94] api.sparelabs.com /v1/**: CORS reflect-any-origin+credentials (MISCONFIG, 96, PASSIVE, STABLE)
+[FINAL] 2. [88] api.sparelabs.com /v1/global/regions: auth-free data-bearing region registry (AUTH, 92, PASSIVE, STABLE)
+[FINAL] 3. [80] api.sparelabs.com /v1/global/organizations: route-level auth omission (AUTH, 88, PASSIVE, STABLE)
+
+[NEXT] PROBE: GET `https://api.sparelabs.com/v1/global/{countries,currencies,fares,tariffs,zones,settings}` with `Authorization: Bearer x` + `Origin: https://evil.example.com`, spaced 10s apart, to map which /v1/global/* subroutes are also auth-free (following the regions precedent). Control: confirm /v1/journeys still returns 401.
+
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com /v1/**: CORS credential reflection remains STABLE across all intervals — ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + Authorization on ALL /v1 endpoints
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com /v1/global/regions: auth-free DATA-BEARING confirmed STABLE — 200 + 725B region registry with any garbage Bearer; header presence-only gate
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com /v1/global/organizations: controller-scoped auth omission STABLE — 200 + `{"data":[]}` + CORS, control /v1/journeys still 401
+[LEARN] ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — production admin Vercel apps + staging variants + Metabase + full infra list
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle STABLE — leaking staging+prod infra hosts + inactive ngrok tunnel
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: No surface — envoy 404 across all paths, remains dead
+[LEARN] REJECTED MISCONFIG @ api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com: All 404/inactive — remain dead
+
+[RISK] api.sparelabs.com: 96 — CRITICAL credential-reflecting CORS (any-origin+credentials, all methods+Authorization, uniformly on /v1); auth-free data-bearing route /v1/global/regions (725B region registry, header-presence-only gate); route-level auth omission /v1/global/organizations (200+empty+CORS); 15+ auth-gated + 3 unauthenticated endpoints with 401/400/200+CORS; UUID enumeration oracle; OpenAPI ValidationError disclosure; data disclosure on /v1/public/terms; correlationId leak; envoy edge
+[RISK] platform.sparelabs.com: 72 — Admin MFE/SPA (200); CSP leaks production admin Vercel apps (admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app, 200) + staging (200) + Metabase prod+staging (200) + Cognito/Stripe/DO-Spaces/Sentry/Intercom/Mapbox/S3/JIRA; production admin surface exposed
+[RISK] routing.sparelabs.com: 50 — Envoy gateway returns 404 on all paths; routing API completely hidden; no unauthenticated surface
+[RISK] forms.sparelabs.com: 60 — Public SPA (200, envoy+Google CDN, x-frame DENY); JS bundle leaks staging+prod infra (all 200); inactive ngrok tunnel leaked; infra recon value
+[RISK] web (spare.com/sparelabs.com): 40 — spare.com apex HTTP 200 (Cloudflare Webflow static); www.spare.com 301→OOS; sparelabs.com root apex TIMEOUT (CDN/WAF gating) — minimal live surface

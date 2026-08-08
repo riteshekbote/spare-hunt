@@ -95,3 +95,7 @@
 - 2026-08-08 ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — leaking api.staging.sparelabs.com + api.staging.us.sparelabs.com + forms.staging.sparelabs.com + forms.staging.us.sparelabs.com + api-spare.ngrok.io + atlassian.net
 - 2026-08-08 REJECTED MISCONFIG @ routing.sparelabs.com: No surface — remain dead, envoy 404 across all paths
 - 2026-08-08 REJECTED MISCONFIG @ api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com: All 404/inactive (ERR_NGROK_3200) — remain dead
+- 2026-08-08 ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — production admin Vercel apps + staging variants + Metabase + full infra list
+- 2026-08-08 ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle STABLE — leaking staging+prod infra hosts + inactive ngrok tunnel
+- 2026-08-08 REJECTED BUSLOGIC @ routing.sparelabs.com: No surface — envoy 404 across all paths, remains dead
+- 2026-08-08 REJECTED MISCONFIG @ api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com: All 404/inactive — remain dead
