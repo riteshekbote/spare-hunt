@@ -230,3 +230,7 @@
 - 2026-08-08 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — 200 + `{"data":[]}` + ACAO+ACAC with `Bearer x`; OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC — closes read→write escalation on fail-open route — confirmed live 2026-08-08 19:28 UTC
 - 2026-08-08 ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app + staging + Metabase + full cloud infra — confirmed live 2026-08-08 19:28 UTC
 - 2026-08-08 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/ across all probes — confirmed live 2026-08-08 19:28 UTC
+- 2026-08-08 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — `Bearer x` → 200 + 725B + ACAO+ACAC; no-Auth → 400 "header required", `Auth:x` → 400 "scheme Bearer required" — verified live 2026-08-08 19:28 UTC
+- 2026-08-08 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:<reflected> + ACAC:true + full method surface uniformly across /v1 (OPTIONS 204 + GET 200/401/400) — verified live 2026-08-08 19:28 UTC
+- 2026-08-08 ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app + staging + Metabase + full cloud infra — verified live 2026-08-08 19:28 UTC
+- 2026-08-08 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/ across all probes — verified live 2026-08-08 19:28 UTC

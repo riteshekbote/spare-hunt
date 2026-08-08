@@ -979,3 +979,4 @@ evidence_needed: capture a 401-state response on the same request to confirm rep
 verify_steps: PASSIVE — spaced GET ?mobileAppId=nil-uuid and ?organizationId=nil-uuid (2s) until a non-200 or status flip observed; log upstream-service-time each.
 impact: confirms divergent auth enforcement across replicas → aids timing-based fingerprinting of the auth-free replica; low-medium.
 testability: PASSIVE
+## 2026-08-08 19:56:11 UTC [api] (model bigpickle)
