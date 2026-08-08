@@ -123,3 +123,38 @@
   - | 4 | `/v1/global/regions` scheme-only bypass | **Already VALID** | Lead 2 reconfirmation |
   - | 5 | `/v1/public/organization` UUID enum | **Already VALID** | Lead 4 reconfirmation |
   - | 7 | `/login` accessible | **Already VALID** | CSP leak reconfirmation |
+
+- 19 leads triaged at 2026-08-08 22:30 UTC — **CONSOLIDATED**
+  - | Q5 Novel? | **NO** — already VALID since 2026-08-07 22:00 UTC |
+  - **Verdict: Already VALID** (reconfirmation only, no delta). CORS credential reflection stable.
+  - | Q5 Novel? | **NO** — already VALID since 2026-08-08 08:06 UTC |
+  - **Verdict: Already VALID** (reconfirmation only, no delta). Scheme-only bypass stable on fast replica.
+  - | Q5 Novel? | **NO** — already VALID since 2026-08-08 01:50 UTC |
+  - **Verdict: Already VALID** (reconfirmation — complete zero-header bypass reconfirmed).
+  - | Q5 Novel? | **NO** — already VALID since 2026-08-08 08:06 UTC |
+  - **Verdict: Already VALID** (reconfirmation only, no delta). Oracle stable.
+  - | Q5 Novel? | **NO** — already VALID since 2026-08-08 11:47 UTC |
+  - **Verdict: Already VALID** (reconfirmation only, no delta). Param-vector disclosure stable.
+  - | Q3 Real impact? | **NO** — import-map enumeration yielded no auth-free admin route; all /v1/admin/* paths return 404 |
+  - **Verdict: HOLD → INVALID** (no result — import-map technique valid but null output; auth-free surface unchanged)
+  - | Q3 Real impact? | **UNPROVEN** — oracle discriminates 400 vs 404 but no data-bearing response without real org UUID |
+  - | Q4 Passive proof? | **PARTIAL** — needs AUTH_HELPED test-org UUID |
+  - **Verdict: HOLD** — org-record read potential, but data disclosure unproven without authorized test UUID
+  - | Q3 Real impact? | **LOW** — replica version skew is infrastructure fingerprinting, not a vulnerability |
+  - **Verdict: INVALID** (Q3 — no security impact)
+  - | Q4 Passive proof? | **NO** — requires AUTH_HELPED |
+  - **Verdict: HOLD** — IDOR potential, needs ≥2 valid test tokens
+  - | **VALID** | 5 | CORS reflect-any-origin+creds (CVSS 8.1), scheme-only bypass /v1/global/regions (CVSS 5.3), complete no-auth bypass /v1/global/organizations (CVSS 5.3), UUID enumeration oracle (CVSS 5.3), /v1/public/terms param-vector disclosure (CVSS 5.3) |
+  - | **HOLD** | 2 | Auth-free org-record read (needs test-org UUID), Engage portal IDOR (needs test tokens) |
+  - | **INVALID** | 12 | Import-map null result (Q3), LB replica skew (Q3), MFE XSS refuted (Q4), CSP/JS info disclosure (Q6), dead routing (Q2), superAdmin refuted (Q2), OOS subdomain (Q1), object-store refuted (Q4), metabase OOS (Q1) |
+  - Key update: /v1/global/organizations confirmed as COMPLETE zero-header bypass (not just scheme-only). No new reportable findings beyond the 5 already accepted.
+  - Reporting channel: Spare security channel (per scope.yml, TBD)
+
+- 7 lead(s) marked VALID at 2026-08-08 22:34:12 UTC
+  - | 1 | CORS reflect-any-origin+creds on /v1/** | VALID (reconf) | 8.1 | Spare security (TBD) |
+  - | 2 | Scheme-only bypass /v1/global/regions | VALID (reconf) | 5.3 | Spare security (TBD) |
+  - | 3 | Complete no-auth bypass /v1/global/organizations | VALID (reconf) | 5.3 | Spare security (TBD) |
+  - | 4 | UUID enum oracle /v1/public/organization | VALID (reconf) | 5.3 | Spare security (TBD) |
+  - | 5 | /v1/public/terms param-vector disclosure | VALID (reconf) | 5.3 | Spare security (TBD) |
+  - VALID: 5 (all reconfirmations, no delta)
+  - | 9 | **Engage portal IDOR** `forms.sparelabs.com → api.sparelabs.com/v1` | Per-route 401 confirmed. Cross-tenant read needs ≥2 valid tokens. AUTH_HELPED required. |

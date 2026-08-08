@@ -267,3 +267,4 @@
 - 2026-08-08 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE confirmed live 2026-08-08 22:03 UTC — `?mobileAppId=<nil-uuid>` → 200 + 137B (terms URLs) + CORS without auth (9ms upstream).
 - 2026-08-08 ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE confirmed live 2026-08-08 22:04 UTC — CSP still exposes admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging) + Metabase (prod+staging) + Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit; strict HTML CSP + x-frame DENY confirmed on raw HTML response, leak is infra-level.
 - 2026-08-08 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404, no surface, NO_DELTA — confirmed 2026-08-08 22:00 UTC.
+- 2026-08-08 REJECTED class @ lead: 2 (need AUTH_HELPED test tokens/UUID)
