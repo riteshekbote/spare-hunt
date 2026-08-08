@@ -815,3 +815,21 @@
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surface — NO_DELTA, 
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com HTML CSP: in-scope SPA 200 + strict CSP (no infra leak in HTML, x-frame DENY, envoy+Google CDN); infra leak lives in JS
 - LEARN: REJECTED MISCONFIG @ forms.staging.sparelabs.com, api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-staking.sparelabs.com, api-spare.ngrok.io, admin-
+
+## RANKED HYPOTHESES 2026-08-08 21:51:32 UTC
+- [96] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + full read/write CORS chain on /v1/global/regions (from reports/hypotheses-nemotron3.txt)
+- [96] api.sparelabs.com/v1/global/organizations: Complete no-auth bypass + write-method CORS on /v1/global/organizations (from reports/hypotheses-laguna.txt)
+- [55] api.sparelabs.com/v1/global/organizations/{id}: Auth-free {id} returns full org record for a real org UUID (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: OPTIONS `https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` and `Access-Control-Request-Method: POST` and `Access
+- NEXT(hypotheses-bigpickle.txt): HUMAN: request program test-org UUID from authorized contact → `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` with NO Authorization header 
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations/v1/global/organizations/{test-uuid}"` — sweep the 
+- LEARN: (no new class changes since last cycle — all prior ACCEPTED/REJECTED remain stable)
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions: Full read+write CORS chain confirmed STABLE — GET Bearer x → 200 + 725B region registry (7 regions inc
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — verified on OPTIONS 204 (across /v1/global/regions, /v1/global/organizations, 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — both ?mobileAppId=<nil-uuid> and ?organizationId=<nil-uuid> → 200 + 137B (terms
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle STABLE — malformed→400 ValidationError `must match format uuid` (285B + c
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com HTML CSP: SPA 200 + strict CSP + x-frame DENY (envoy+Google CDN); infra leak lives in JS bundle main.71d52314.js only. 
+- LEARN: REJECTED MISCONFIG @ forms.staging.sparelabs.com, api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-staking.sparelabs.com, api-spare.ngrok.io, admin-
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app (both 200) + staging variants + Metabase (prod+s
