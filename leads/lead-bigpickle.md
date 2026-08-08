@@ -807,3 +807,32 @@ verify_steps: AUTH_HELPED: obtain rider token via /v1/auth/rider/pin/login or te
 impact: full platform takeover via superAdmin token; CRITICAL.
 testability: AUTH_HELPED
 [NEXT] HUMAN: request from the program: one test organization UUID + test rider credentials + test user email (no self-signup). Sequence: (1) `GET /v1/global/organizations/{test-org-uuid}` with NO auth header → confirm 200 + full org record (escalates the new auth-free controller finding from oracle to data-read); (2) with program approval, PUT/PATCH/DELETE inert field on same UUID no-auth → confirm write escalation; (3) obtain rider token via /v1/auth/rider/pin/login, then POST /v1/auth/token/superAdmin empty body → role-check test; (4) POST /v1/auth/email/reset/request for test email (Bearer x) → delivery + token-format recon. Until creds arrive: PASSIVE spaced re-sample of `/v1/global/organizations?limit=&cursor=` for any body ≠ `{"data":[]}` (2s spacing).
+## 2026-08-08 13:08:48 UTC [api] (model bigpickle)
+[HYP] Cross-origin write on auth-free data-bearing regions controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: OPTIONS this session (204) advertises GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:authorization + ACAC:true on the same controller whose GET returns 200 with any `Bearer x` (725B). House pattern is per-route middleware omission; whether it skips auth on mutating methods is unproven.
+evidence_needed: PUT/PATCH/POST/DELETE /v1/global/regions with `Bearer x` (or no auth) → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED: with program approval, PUT an inert field on /v1/global/regions (unchanged payload) no-auth → 2xx vs 401/403; passive first: OPTIONS with `Access-Control-Request-Method: PUT` already 204 (done).
+impact: unauthenticated cross-origin region/config tampering via victim browser (CORS reflect + ACAC + Authorization header); CRITICAL if a mutating method responds.
+testability: PASSIVE (OPTIONS done) / AUTH_HELPED (actual write)
+[HYP] Auth-free live org-record read via /v1/global/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations/{id}
+confidence: 75
+reasoning: no-auth GET {id} discriminates 400 ValidationError (malformed) vs 404 NotFoundError (valid-unfound) — a real DB lookup behind the same controller that returns 200 empty on list no-auth; control /v1/global/settings no-auth → 401. Controller-wide omission, {id} is data-bearing subroute.
+evidence_needed: GET with a valid existing org UUID → 200 + full org record with no token.
+verify_steps: PASSIVE oracle confirmed. AUTH_HELPED: program test-org UUID → `GET /v1/global/organizations/{uuid}` with NO auth → expect 200 + record (name/branding/PII).
+impact: unauthenticated tenant org-record disclosure (PII); HIGH.
+testability: PASSIVE (oracle) / AUTH_HELPED (data)
+[HYP] Fail-open replica serves a broader auth-free route set (LB version skew)
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/global/regions
+confidence: 42
+reasoning: fail-open routes consistently hit a distinct slow replica (703→818→7210ms upstream) vs 3-9ms auth-gated; a stale replica with missing auth middleware on /regions+/organizations may omit auth on sibling controllers not yet swept.
+evidence_needed: a non-global controller route returning 200 (not 401/404) with `Bearer x` from the slow replica.
+verify_steps: PASSIVE spaced re-samples (2s) of `GET /v1/generic/*` and `GET /v1/riders`, `GET /v1/journeys` with `Authorization: Bearer x` + timing capture — 200 on a previously-401 route with >500ms upstream signals stale-replica auth omission.
+impact: expansion of the auth-free surface beyond regions/organizations; MEDIUM-HIGH.
+testability: PASSIVE
+[NEXT] HUMAN: request from the program: one test organization UUID + explicit approval for a single write test. Sequence: (1) `GET /v1/global/organizations/{test-org-uuid}` with NO auth header → 200+record confirms auth-free data read; (2) with approval, `PUT /v1/global/organizations/{test-org-uuid}` inert no-auth → 2xx confirms cross-origin write escalation; (3) rider test creds → `POST /v1/auth/token/superAdmin` role-check probe. Until creds arrive: passive 2s-spaced re-sample of `/v1/global/organizations?limit=&cursor=` for any body ≠ `{"data":[]}` and `GET /v1/generic/{config,regions}` with `Bearer x` + timing to hunt the fail-open replica's sibling routes.

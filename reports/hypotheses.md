@@ -466,3 +466,23 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions incl. 6 OOS api/routing host
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — 200 + `{"data":[]}` + CORS (ACAO+ACAC) with `Bearer x`; OPTIONS 204 confirms 
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — 200 + live terms URLs with `?mobileAppId=<uuid>` and `?organizationId=<uuid>` w
+
+## RANKED HYPOTHESES 2026-08-08 13:13:27 UTC
+- [95] api.sparelabs.com/v1/global/regions: Auth-free data-bearing region registry with infrastructure topology disclosure (from reports/hypotheses-nemotron3.txt)
+- [50] api.sparelabs.com/v1/global/regions: Cross-origin write on auth-free data-bearing regions controller (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET `https://api.sparelabs.com/v1/global/regions` with `Authorization: Bearer x` and `Origin: https://evil.example.com`; capture status, body, CORS heade
+- NEXT(hypotheses-bigpickle.txt): HUMAN: request from the program: one test organization UUID + explicit approval for a single write test. Sequence: (1) `GET /v1/global/organizations/{test-org-u
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DE
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions incl. 6 OOS api/routing host
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — 200 + `{"data":[]}` + CORS (ACAO+ACAC) with `Bearer x`; OPTIONS 204 confirms 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — 200 + live terms URLs with `?mobileAppId=<uuid>` and `?organizationId=<uuid>` w
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app (vercel.app, loadable 200) + staging variants + 
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — leaking api.staging.sparelabs.com + api.staging.us.sparelabs.com + forms.staging.s
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/email/reset/{request,verify}: Live GET returns 401 + CORS — auth-gated, not bypassable; bigpickle "unauthenticate
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/metadata: Live GET returns 401 + CORS — auth-gated, not bypassable
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/rider/test/login: Live GET returns 401 + CORS — auth-gated, not bypassable
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/token/superAdmin: Live GET returns 401 + CORS — auth-gated, not bypassable despite bundle leak
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/key/{x}: 404 auth-free 0B — registered-not-implemented route, not data-bearing, not enumeration o
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id}: 400 auth-free 0B — registered-not-implemented route, not data-bearing
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{config,features,countries,currencies,fares,tariffs,zones,settings}: all 401 with garbage Bearer — auth omission doe
+- LEARN: REJECTED MISCONFIG @ admin-spare.ngrok.io: OOS — ngrok-edge 404; no independent in-scope exploitation vector

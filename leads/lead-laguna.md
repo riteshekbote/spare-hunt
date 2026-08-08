@@ -841,3 +841,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 50 — Envoy 404 on all paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); routing API surface fully hidden; no unauthenticated surface; dead.  
 [RISK] forms.sparelabs.com: 58 — Public SPA (200, envoy+Google CDN, x-frame DENY); JS bundle leaks staging+prod+regional infra hosts (all 200) + atlassian.net/JIRA + OOS regional hosts + inactive ngrok tunnel; infra recon value; no direct auth bypass.  
 [RISK] web (spare.com/sparelabs.com): 38 — spare.com apex HTTP 200 (Cloudflare Webflow static); www.spare.com 301→OOS; sparelabs.com root apex TIMEOUT (CDN/WAF gating); minimal live surface.
+## 2026-08-08 13:13:11 UTC [web] (model laguna)
