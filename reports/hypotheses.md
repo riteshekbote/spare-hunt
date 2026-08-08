@@ -727,3 +727,19 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:<reflected> + ACAC:true + full method surface (GET/HEAD/PUT/PATCH/POST/DE
 - LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app (both 200) + staging + Metabase (200) + full cl
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 on all paths — remains dead, no surface — verified through 17:05 UTC
+
+## RANKED HYPOTHESES 2026-08-08 18:56:28 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + full read+write CORS chain on /v1/global/regions (convergence) (from reports/hypotheses-laguna.txt)
+- [96] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + CORS exfil chain on /v1/global/regions (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: OPTIONS `https://api.sparelabs.com/v1/journeys` with `Origin: https://evil.example.com` and `Access-Control-Request-Method: DELETE` and `Access-Control-R
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/v1/global/regions/{id}"` — confirm sub-rou
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions incl. 6 OOS api/routing host
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:A
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE + FULL READ+WRITE CORS CHAIN — GET `Bearer x` → 200 + 11B + ACAO+ACAC; OPTIONS 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — ?mobileAppId=nil-uuid AND ?organizationId=nil-uuid → 200 + 137B + ACAO+ACAC no-
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle STABLE — malformed→400 ValidationError; nil-uuid→404 NotFoundError; 3-way
+- LEARN: REJECTED MISCONFIG (controller-wide): /v1/global/* omission is NOT controller-wide — live sweep of 14 sibling routes → 12×401 + {organizations:200, regions:200}
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/; no surface, no change — verified 2026-08-08 17:05 UTC
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass + CORS preflight convergence confirmed LIVE 2026-08-08 18:55 UTC — GET `Bearer x` → 200 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — confirmed via OPTIONS on /v1/global/regions → 204 + ACAO:https://evil.example.
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 across all paths, no surface, NO_DELTA since last session.

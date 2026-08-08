@@ -67,3 +67,4 @@ evidence_needed: JavaScript bundle analysis confirming leaked API endpoints and 
 verify_steps: Passive retrieval of forms.sparelabs.com main.71d52314.js bundle; cross-reference leaked URLs against known infrastructure
 impact: Unauthenticated access to internal API endpoints; potential data exposure via leaked credentials
 testability: PASSIVE
+## 2026-08-08 18:54:25 UTC [forms] (model ling3)

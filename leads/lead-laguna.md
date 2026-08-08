@@ -1278,3 +1278,48 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 50 — Envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); routing-engine API fully hidden; no unauthenticated surface; confirmed dead.
 [RISK] forms.sparelabs.com: 58 — Public SPA 200 (envoy+Google CDN, x-frame DENY); JS bundle main.71d52314.js leaks staging+prod+regional infra (incl. 6 OOS hosts) + atlassian.net/JIRA + inactive ngrok tunnel + full auth route map; infra-recon value, no direct auth bypass.
 [RISK] web (spare.com/sparelabs.com): 38 — spare.com apex HTTP 200 (Cloudflare Webflow static marketing); www.spare.com 301 → OOS (excluded); sparelabs.com root TIMEOUT (CDN/WAF gating); minimal live surface, static-only.
+## 2026-08-08 18:56:11 UTC [web] (model laguna)
+[PRIO] api.sparelabs.com/v1/global/regions | 9.2 — attack:9 business:8 tech:7 gate:10 cloud:9 fresh:10
+[PRIO] api.sparelabs.com/v1/** CORS | 9.2 — attack:10 business:9 tech:8 gate:7 cloud:8 fresh:10
+[PRIO] platform.sparelabs.com /login CSP | 7.8 — attack:8 business:8 tech:8 gate:6 cloud:7 fresh:10
+[PRIO] api.sparelabs.com/v1/global/organizations fail-open | 8.1 — attack:8 business:6 tech:7 gate:8 cloud:6 fresh:8
+[PRIO] api.sparelabs.com/v1/public/terms disclosure | 7.7 — attack:7 business:7 tech:6 gate:10 cloud:5 fresh:8
+[PRIO] api.sparelabs.com/v1/public/organization UUID oracle | 7.3 — attack:7 business:6 tech:6 gate:8 cloud:5 fresh:8
+[HYP] Scheme-only auth bypass + full read+write CORS chain on /v1/global/regions (convergence)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 97
+reasoning: Confirmed STABLE live 2026-08-08 18:55 UTC: GET with `Authorization: Bearer x` (garbage token) → 200 + 725B region registry (7 regions incl. 6 OOS api/routing hosts) + ACAO:https://evil.example.com + ACAC:true; OPTIONS preflight → 204 + ACAO + ACAC + methods GET,HEAD,PUT,PATCH,POST,DELETE — the scheme-only gateway returns data without validating token content. Control /v1/journeys → 401. Route-specific (14/14 /v1/global/* siblings gate at 401).
+evidence_needed: 200 + 725B region registry incl ≥5 OOS regional api/routing hosts with garbage `Bearer x`; ACAO+ACAC on GET response; OPTIONS 204 w/ ACAO+ACAC+Allow-Methods(PUT/PATCH/POST/DELETE); 401 on control sibling /v1/journeys; sub-route sweep shows /v1/global/regions/{id}→400 0B but still auth-free
+verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions` ; `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: DELETE" -H "Access-ControlRequestHeaders: Authorization,Content-Type" https://api.sparelabs.com/v1/global/regions` ; `curl -s -o /dev/null -w '%{http_code}' https://api.sparelabs.com/v1/journeys`
+impact: CRITICAL — unauthenticated disclosure of full regional cloud infrastructure topology (6 OOS api/routing subdomains enabling targeted follow-on recon); credential-reflecting CORS with full write-method surface (PUT/PATCH/POST/DELETE) enables cross-origin read+write from any malicious origin via victim browser → infra-targeted account takeover / data tampering
+testability: PASSIVE
+[HYP] Credential-reflecting CORS across entire /v1 API enables cross-origin credentialled read+write
+class: MISCONFIG
+asset: api.sparelabs.com/v1/**
+confidence: 96
+reasoning: Confirmed STABLE live at 18:55 UTC via OPTIONS on /v1/global/regions → 204 + ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type. GET-side reflection confirmed on 200 (regions 725B, organizations 11B), 401 (/v1/journeys), 400 (UUID oracle) uniformly. Origin allowlist is wildcard reflection, not domain-scoped. Multi-version envoy LB confirmed (2ms fast vs 700ms+ slow replicas).
+evidence_needed: OPTIONS 204 w/ ACAO+ACAC+Allow-Methods(PUT/PATCH/POST/DELETE)+ACAH:Authorization; GET reflection on ≥1 200 path + ≥1 401 path
+verify_steps: PASSIVE — `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: DELETE" -H "Access-ControlRequestHeaders: Authorization,Content-Type" https://api.sparelabs.com/v1/journeys` ; `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" | grep -i access-control`
+impact: CRITICAL — any malicious origin can issue credentialed cross-origin read AND write (PUT/PATCH/POST/DELETE + Authorization) on behalf of any logged-in user → account takeover / data tampering across entire /v1 API surface
+testability: PASSIVE
+[HYP] Production admin surface + Metabase + cloud infra disclosed via platform.sparelabs.com /login CSP
+class: MISCONFIG
+asset: platform.sparelabs.com /login
+confidence: 93
+reasoning: CSP from in-scope platform.sparelabs.com /login (confirmed STABLE live at 17:04 UTC) whitelists admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (both production Vercel apps, loadable 200) + staging variants + metabase.sparelabs.com + metabase.staging.sparelabs.com (both 200) + cognito-identity.us-west-2.amazonaws.com + *.digitaloceanspaces.com + *.stripe.com + *.sentry.io + *.intercom.io + *.tiles.mapbox.com — production admin surface fully surfaced via in-scope asset
+evidence_needed: Full CSP header from in-scope platform.sparelabs.com /login containing prod+staging admin hosts + Metabase + cloud infra; verification that staging admin + Metabase hosts respond 200 (confirmed in prior session)
+verify_steps: PASSIVE — `curl -s -D https://platform.sparelabs.com/login | grep -i content-security-policy` ; `curl -s -o /dev/null -w '%{http_code}' https://admin-eam-app.vercel.app` ; `curl -s -o /dev/null -w '%{http_code}' https://metabase.staging.sparelabs.com`
+impact: HIGH — enumerates production admin surface (2 Vercel admin apps) + accessible Metabase BI + cloud infra (Cognito/Stripe/S3/Sentry/Intercom/Mapbox); enables targeted follow-on (staging exploitation, cross-env token replay, Metabase analytics exfil); staging admin apps historically weaker than prod
+testability: PASSIVE
+[PARKED] forms.sparelabs.com JS bundle infoleak: confidence 85 but tech_exposure only 5 (infra recon, no direct bypass); gate_ease 4 (requires follow-on auth); impact capped at HIGH without direct exploit path → not in top 3.
+[FINAL] 
+[NEXT] PROBE: `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/v1/global/regions/{id}"` — confirm sub-route auth gate is skipped (GET /v1/global/regions/{id} returns 400 0B auth-free without InvalidTokenError), proving route-registration-level omission extends across controller — strengthens hypothesis #1 by demonstrating the scheme-only bypass is at middleware/route-registration level, not a single route patch.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass + CORS preflight convergence confirmed LIVE 2026-08-08 18:55 UTC — GET `Bearer x` → 200 + 725B region registry + ACAO+ACAC (x-envoy-upstream-service-time:2); OPTIONS → 204 + ACAO+ACAC + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type — closes read+write CORS chain on auth-bypass route.
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — confirmed via OPTIONS on /v1/global/regions → 204 + ACAO:https://evil.example.com + ACAC:true + full method surface; GET reflection confirmed on 200 (725B) + control 401 (/v1/journeys) paths.
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 across all paths, no surface, NO_DELTA since last session.
+[RISK] api.sparelabs.com: 97 — CRITICAL credential-reflecting CORS across entire /v1 (all methods+Authorization, uniform, GET/OPTIONS confirmed on 200/401/400); HIGH auth-free data-bearing /v1/global/regions (725B infra topology w/ 6 OOS hosts, 97-conf scheme-only bypass + CORS preflight convergence, fast 2ms replica); fail-open /v1/global/organizations (200+empty+CORS+OPTIONS 204 write methods); /v1/public/terms disclosure (200+137B terms URLs w/o auth for mobileAppId+organizationId, multi-version LB flapping); /v1/public/organization UUID enumeration oracle (stable 400/404/200 differential); OpenAPI ValidationError disclosure; 15+ auth-gated + 5 unauthenticated endpoints confirmed; highest program risk.
+[RISK] platform.sparelabs.com: 80 — Admin MFE/SPA 200 (envoy); CSP discloses production admin Vercel apps (admin-eam-app + admin-fixed-route-app, both loadable 200) + staging variants + Metabase prod+staging (200) + Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox; production admin surface exposed; staging portals historically lower-hardened; no direct auth bypass found.
+[RISK] routing.sparelabs.com: 50 — Envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); routing-engine API fully hidden; no unauthenticated surface; confirmed dead, no change.
+[RISK] forms.sparelabs.com: 58 — Public SPA 200 (envoy+Google CDN, x-frame DENY); JS bundle main.71d52314.js STABLE leaks staging+prod+regional infra (incl. 6 OOS hosts) + atlassian.net/JIRA + inactive ngrok tunnel + full auth route map (rider/email-reset/token endpoints); infra-recon value, no direct auth bypass; OOS dev tunnel inactive.
+[RISK] web (spare.com/sparelabs.com): 38 — spare.com apex HTTP 200 (Cloudflare Webflow static marketing); www.spare.com 301 → OOS (excluded subdomain); sparelabs.com root previously TIMEOUT (CDN/WAF gating) — minimal live surface, static-only.
