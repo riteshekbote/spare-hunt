@@ -332,3 +332,7 @@
 - LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle STABLE — leaking staging+prod infra hosts + inactive ngrok tunnel
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: No surface — envoy 404 across all paths, remains dead
 - LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com: All 404/inactive — remain dead
+
+## RANKED HYPOTHESES 2026-08-08 09:37:43 UTC
+- [50] platform.sparelabs.com/login: Module-federation manifest enumeration → new first-party /v1 paths (re-fetch rotated chunks) (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-bigpickle.txt): PROBE: GET `/v1/global/regions/00000000-0000-0000-0000-000000000000/zones` then `/v1/global/config`, `/v1/global/regions/CA`, `/v1/global/features` with `Author
