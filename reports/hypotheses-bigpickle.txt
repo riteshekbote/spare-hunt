@@ -1,28 +1,20 @@
-## 2026-08-07 23:58:51 UTC [api] (model bigpickle)
-[HYP] Organizations controller-wide auth omission on /v1/global/organizations
+## 2026-08-08 01:01:31 UTC [api] (model bigpickle)
+[HYP] Unauthenticated write exposure on /v1/global/organizations controller
 class: AUTH
 asset: api.sparelabs.com/v1/global/organizations (+ subroutes)
-confidence: 75
-reasoning: 6 live probes confirm no Authorization header required on list(200 empty), {uuid}(404), key/{key}(404), {uuid}/mobileApps(400), zones/centroid(400); siblings in the same namespace (users/mobileApps/settings/regions) correctly 401/400 — auth middleware omitted on the entire organizations controller, not one route.
-evidence_needed: a data-bearing 200 body from any /v1/global/organizations subroute (org config, zones) without auth.
-verify_steps: PASSIVE. Enumerate remaining subroutes from platform bundle (index-BIOrSDj1.js: `organizations/zones/centroid`, `organizations/key/`), probe each spaced ≥1.2s; retest list route weekly for non-empty body. No live payloads.
-impact: unauth read/confirm of org registry (existence oracle by UUID+key), org config if any subroute returns data; force-amplified by reflect-any-origin CORS+credentials; currently data-light, medium.
+confidence: 70
+reasoning: live differential proves list(200)+subroutes(400/404) answer without `InvalidTokenError` while settings(401)/regions(400)/journeys(401) enforce auth → omission is controller-scoped, persistent; preflight on the same auth-free controller advertises PUT/PATCH/POST/DELETE + allow-headers authorization with any-origin credential reflect.
+evidence_needed: a write route (POST/PUT/PATCH/DELETE) on the controller that answers without Authorization (404/405/400 but no InvalidTokenError), or a data-bearing GET from any subroute.
+verify_steps: PASSIVE — OPTIONS preflights (Origin: https://evil.example, ACRM: POST, ACRH: authorization) + GET differential on /v1/global/organizations/key/x, /{00000000-0000-0000-0000-000000000000}, /zones, spaced ≥1.2s vs InvalidTokenError control; AUTH_HELPED write validation only with authorized token.
+impact: if any write route is auth-free, unauthenticated cross-origin org-data modification via reflected CORS+credentials; currently data-light, medium-high.
 testability: PASSIVE
-[HYP] Org-settings host injection into platform API client
-class: XSS
-asset: platform.sparelabs.com
-confidence: 35
-reasoning: bundle shows `organizationApiHost`/`organizationRoutingHost` (from org settings via `global.getOrganization`) drive client-side fetch base URLs only; no sink found. Manifest list hardcoded.
-evidence_needed: a settings host value reaching a script/DOM sink, or unvalidated host accepted by the org-settings API.
-verify_steps: PASSIVE (sink scan of platform bundle complete — negative) then AUTH_HELPED: inspect org-settings write path for URL validation with an authorized token.
-impact: credential confusion / token exfil if host is attacker-set; currently unproven.
-testability: AUTH_HELPED
 [HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
 class: IDOR
 asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
 confidence: 45
-reasoning: auth-less Engage SPA calls the same /v1 Bearer API; bundle now shows `/v1/journeyNotifications/*` POST push endpoints; object-level authorization on ID-keyed resources unproven.
+reasoning: auth-less Engage SPA calls the same /v1 Bearer API with ID-keyed paths; route-level auth 401s confirmed but object-level authorization on ID-keyed resources unproven; bundle unchanged (main.71d52314.js) so route shapes already extracted.
 evidence_needed: an ID whose resource returns data for a token that doesn't own it.
 verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
 impact: cross-tenant read of passenger/journey PII; high.
 testability: AUTH_HELPED
+[NEXT] PROBE: OPTIONS preflight (Origin: https://evil.example, ACRM: POST, ACRH: authorization) on `https://api.sparelabs.com/v1/global/organizations/key/x` → then GET same path; repeat on `/zones`; each spaced ≥1.2s (≤1 rps). A 204-with-write-methods or a 400/404 that is NOT `InvalidTokenError` maps a write-enabled/behaving subroute inside the auth-free controller → escalate hypothesis 1.

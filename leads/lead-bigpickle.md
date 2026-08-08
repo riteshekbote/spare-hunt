@@ -226,3 +226,23 @@ evidence_needed: an ID whose resource returns data for a token that doesn't own 
 verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
 impact: cross-tenant read of passenger/journey PII; high.
 testability: AUTH_HELPED
+## 2026-08-08 01:01:31 UTC [api] (model bigpickle)
+[HYP] Unauthenticated write exposure on /v1/global/organizations controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations (+ subroutes)
+confidence: 70
+reasoning: live differential proves list(200)+subroutes(400/404) answer without `InvalidTokenError` while settings(401)/regions(400)/journeys(401) enforce auth → omission is controller-scoped, persistent; preflight on the same auth-free controller advertises PUT/PATCH/POST/DELETE + allow-headers authorization with any-origin credential reflect.
+evidence_needed: a write route (POST/PUT/PATCH/DELETE) on the controller that answers without Authorization (404/405/400 but no InvalidTokenError), or a data-bearing GET from any subroute.
+verify_steps: PASSIVE — OPTIONS preflights (Origin: https://evil.example, ACRM: POST, ACRH: authorization) + GET differential on /v1/global/organizations/key/x, /{00000000-0000-0000-0000-000000000000}, /zones, spaced ≥1.2s vs InvalidTokenError control; AUTH_HELPED write validation only with authorized token.
+impact: if any write route is auth-free, unauthenticated cross-origin org-data modification via reflected CORS+credentials; currently data-light, medium-high.
+testability: PASSIVE
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: auth-less Engage SPA calls the same /v1 Bearer API with ID-keyed paths; route-level auth 401s confirmed but object-level authorization on ID-keyed resources unproven; bundle unchanged (main.71d52314.js) so route shapes already extracted.
+evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[NEXT] PROBE: OPTIONS preflight (Origin: https://evil.example, ACRM: POST, ACRH: authorization) on `https://api.sparelabs.com/v1/global/organizations/key/x` → then GET same path; repeat on `/zones`; each spaced ≥1.2s (≤1 rps). A 204-with-write-methods or a 400/404 that is NOT `InvalidTokenError` maps a write-enabled/behaving subroute inside the auth-free controller → escalate hypothesis 1.
