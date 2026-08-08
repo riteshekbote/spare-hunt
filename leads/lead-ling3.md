@@ -68,3 +68,4 @@ verify_steps: Passive retrieval of forms.sparelabs.com main.71d52314.js bundle; 
 impact: Unauthenticated access to internal API endpoints; potential data exposure via leaked credentials
 testability: PASSIVE
 ## 2026-08-08 18:54:25 UTC [forms] (model ling3)
+## 2026-08-08 19:27:29 UTC [forms] (model ling3)
