@@ -792,3 +792,26 @@
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surface. No c
 - LEARN: REJECTED MISCONFIG @ forms.staging.sparelabs.com, api.staging.sparelabs.com, api-staking.sparelabs.com, api-spare.ngrok.io, admin-spare.ngrok.io: All OOS/404/in
 - LEARN: NO_DELTA @ web (spare.com/sparelabs.com): spare.com HTTP 200 static Webflow marketing site (Cloudflare, CSP `frame-ancestors 'self'`, HSTS 31536000), no interna
+
+## RANKED HYPOTHESES 2026-08-08 21:06:47 UTC
+- [97] api.sparelabs.com/v1/global/regions: Full unauthenticated read+write CORS chain with scheme-only auth bypass converging on /v1/global/regions (from reports/hypotheses-laguna.txt)
+- [96] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + full read/write CORS chain on /v1/global/regions (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: OPTIONS `https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` and `Access-Control-Request-Method: POST` and `Access
+- NEXT(hypotheses-laguna.txt): PROBE: Characterize the multi-version envoy LB flapping on `/v1/public/terms?organizationId=<nil-uuid>` vs `?mobileAppId=<nil-uuid>` — both currently 200+137B+A
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: Write-method CORS chain confirmed STABLE — OPTIONS → 204 + ACAO:https://evil.example.com + ACAC:
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — GET `Bearer x` → 200 + 725B + ACAO+ACAC (4ms fast upstream); no-Auth → 400 "Aut
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — confirmed on 200 (regions/organizations), 401 (/v1/journeys GET with Origin), 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: Fail-open STABLE — 200 + `{"data":[]}` (11B) + ACAO+ACAC with garbage Bearer (922ms slow upstrea
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle STABLE — 400 ValidationError (malformed) / 404 NotFoundError (valid-unfou
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — ?mobileAppId=<nil-uuid> → 200 + 137B (termsOfUseUrl+privacyPolicyUrl); no-param
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — production admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app + staging variants 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surface. No c
+- LEARN: REJECTED MISCONFIG @ forms.staging.sparelabs.com, api.staging.sparelabs.com, api-staking.sparelabs.com, api-spare.ngrok.io, admin-spare.ngrok.io: All OOS/404/in
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass + FULL read+write CORS chain convergence STABLE — GET `Bearer x` → 200 + 725B + ACAO+ACA
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE uniformly — ACAO:https://evil.example.com + ACAC:true + full method surface (GET
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — GET `Bearer x` → 200 + 11B `{"data":[]}` + ACAO+ACAC (430ms slow upstream); O
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — ?mobileAppId=<nil-uuid> → 200 + 137B (terms URLs) + ACAO+ACAC no-auth; no-param
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app (vercel.app, both loadable 200) + staging varia
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surface — NO_DELTA, 
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com HTML CSP: in-scope SPA 200 + strict CSP (no infra leak in HTML, x-frame DENY, envoy+Google CDN); infra leak lives in JS
+- LEARN: REJECTED MISCONFIG @ forms.staging.sparelabs.com, api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-staking.sparelabs.com, api-spare.ngrok.io, admin-

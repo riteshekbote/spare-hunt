@@ -1009,3 +1009,4 @@ verify_steps: PASSIVE: `GET https://platform.sparelabs.com/login` → extract im
 impact: admin data/ops exposure; HIGH if any admin route is auth-free.
 testability: PASSIVE
 [NEXT] PROBE: `GET https://platform.sparelabs.com/login` (200, len 5555) → extract MFE import-map/root-config URLs (index-BIOrSDj1.js) → grep `v1/admin` + org-route patterns → then `GET https://api.sparelabs.com/v1/admin/{health,organizations,users,regions}` no-auth and with `Bearer x` (2s spaced) → flag any non-401 as new auth-omission surface.
+## 2026-08-08 21:02:50 UTC [api] (model bigpickle)

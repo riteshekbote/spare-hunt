@@ -76,3 +76,16 @@ https://api.sparelabs.com/v1/admin/{health,organizations,users,regions -> HTTP 4
 https://api.sparelabs.com/v1/global/regions -> HTTP 400
 https://metabase.sparelabs.com -> 200 len=? type=text/html;charset=utf-8
 https://metabase.staging.sparelabs.com -> 200 len=? type=text/html;charset=utf-8
+
+## 2026-08-08 21:06:50 UTC
+https://api.sparelabs.com/v1/global/regions` -> HTTP 400
+https://api.sparelabs.com/v1/journeys` -> HTTP 401
+https://api.sparelabs.com/v1/public/organization -> HTTP 400
+https://platform.sparelabs.com/login -> 200 len=5555 type=text/html; charset=UTF-8
+https://api.sparelabs.com/v1/public/terms?organizationId=0606efa8-59e1-4d08-9e1e-3b5e6a1f6e00 -> 200 len=137 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000 -> 200 len=137 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/journeys -> HTTP 401
+https://metabase.sparelabs.com -> 200 len=? type=text/html;charset=utf-8
+https://metabase.staging.sparelabs.com -> 200 len=? type=text/html;charset=utf-8
+https://api.sparelabs.com/v1/global/organizations` -> HTTP 400
