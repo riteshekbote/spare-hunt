@@ -33,3 +33,8 @@
 - 2 lead(s) marked VALID at 2026-08-08 02:27:02 UTC
   - | **VALID** | 3 | CORS reflect-any-origin+creds (CVSS 5.3), organizations controller auth omission (CVSS 5.3), UUID org enumeration (CVSS 5.3) |
   - | **VALID** | 3 | CORS reflect-any-origin+creds (CVSS 5.3), organizations controller auth omission (CVSS 5.3), UUID org enumeration (CVSS 5.3) |
+
+- 3 lead(s) marked VALID at 2026-08-08 04:31:32 UTC
+  - | Q5 Novel? | **NO** — already VALID since 01:50 UTC report |
+  - **Verdict: Already VALID — reconfirmation only, no delta**
+  - | **Already VALID** | 1 | Controller auth omission (reconfirmation, no delta) |
