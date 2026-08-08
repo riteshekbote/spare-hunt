@@ -947,3 +947,4 @@ verify_steps: PASSIVE 2s-spaced re-sample of `GET /v1/global/{apps,vehicles,ride
 impact: auth-free surface expansion beyond regions/organizations; MEDIUM-HIGH.
 testability: PASSIVE
 ## 2026-08-08 16:21:59 UTC [api] (model bigpickle)
+## 2026-08-08 17:02:22 UTC [api] (model bigpickle)
