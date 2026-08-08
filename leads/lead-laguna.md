@@ -417,3 +417,28 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 50 — Envoy gateway returns 404 on all enumerated paths (/v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/); routing API completely hidden; no unauthenticated surface.
 [RISK] forms.sparelabs.com: 60 — Public SPA (200, envoy+Google CDN, x-frame DENY); JS bundle leaks staging+prod infra (api.staging.*, forms.staging.* 200; staging forms portals 200); inactive ngrok tunnel (api-spare.ngrok.io → ERR_NGROK_3200); JIRA OOS — infra recon value.
 [RISK] web (spare.com/sparelabs.com): 40 — spare.com apex HTTP 200 (Cloudflare Webflow static marketing); www.spare.com 301 (excluded subdomain); sparelabs.com root apex TIMEOUT on https (CDN/WAF gating) — minimal live surface.
+## 2026-08-08 04:16:14 UTC [web] (model laguna)
+class: MISCONFIG  
+asset: api.us.sparelabs.com /v1/**  
+confidence: 75  
+reasoning: Live probe confirms OPTIONS /v1/journeys returns `access-control-allow-origin:<reflected>` + `access-control-allow-credentials:true` + methods GET,HEAD,PUT,PATCH,POST,DELETE + header Authorization; GET on auth-gated /v1/journeys (401) also reflects credentials; /v1/global/organizations returns 200+`{"data":[]}`+CORS+creds (fail-open); /v1/public/organization + /v1/public/terms exhibit same oracle + data disclosure as api.sparelabs.com. OOS subdomain leaked from in-scope forms.sparelabs.com JS bundle.  
+evidence_needed: OPTIONS/GET response headers captured live this session (done); control /v1/journeys returns 401 (done); /v1/global/organizations returns 200+`{"data":[]}` (done)  
+verify_steps: PASSIVE — `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization" https://api.us.sparelabs.com/v1/journeys -o /dev/null`; `curl -s -H "Origin: https://evil.example.com" https://api.us.sparelabs.com/v1/global/organizations` (expect 200+`{"data":[]}`)  
+impact: CRITICAL — identical to api.sparelabs.com: any malicious origin issues credentialed cross-origin reads+writes across US-regional /v1 API; fail-open on /v1/global/organizations enables unauthenticated cross-origin read  
+testability: PASSIVE
+class: MISCONFIG  
+asset: api.sparelabs.com /v1/**  
+confidence: 95  
+reasoning: Live OPTIONS probe confirms `access-control-allow-origin:<reflected arbitrary origin>` + `access-control-allow-credentials:true` + `access-control-allow-methods:GET,HEAD,PUT,PATCH,POST,DELETE` + `access-control-allow-headers:Authorization` on ALL /v1 endpoints uniformly; GET on auth-gated /v1/journeys (401) also reflects credentials; envoy edge, Authorization-header scheme (no Set-Cookie on auth).  
+evidence_needed: OPTIONS/GET response headers captured live this session (done); control /v1/journeys returns 401 (done); no Set-Cookie present (done)  
+verify_steps: PASSIVE — `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization" https://api.sparelabs.com/v1/journeys -o /dev/null`  
+impact: CRITICAL — any malicious origin issues credentialed cross-origin reads+writes across /v1 (journeys, riders, organizations) using victim's browser; combined with fail-open /v1/global/organizations yields unauthenticated data read, and any Bearer token in cross-origin JS is exfiltrable.  
+testability: PASSIVE
+class: MISCONFIG  
+asset: platform.sparelabs.com /login  
+confidence: 90  
+reasoning: Live GET confirms /login 200 (envoy edge); CSP `frame-src` + `connect-src` includes `metabase.sparelabs.com` (production Metabase, confirmed 200 this session) + `metabase.staging.sparelabs.com` (200) + `admin-eam-app.vercel.app` + `admin-fixed-route-app.vercel.app` + staging variants + Cognito + Stripe + DO Spaces + Sentry + Intercom + Mapbox + S3 + JIRA + livekit/twilio. Production Metabase is full-stack analytics platform likely with weaker auth.  
+evidence_needed: CSP header from /login response (confirmed 200 this session); production + staging admin hosts respond 200 (confirmed)  
+verify_steps: PASSIVE — `curl -s -D - https://platform.sparelabs.com/login -o /dev/null | grep -i 'content-security-policy'`; `curl -s -o /dev/null -w '%{http_code}' https://metabase.sparelabs.com https://admin-eam-app.vercel.app`  
+impact: MEDIUM-HIGH — production Metabase (analytics data) + production admin Vercel apps exposed; staging hosts likely weaker posture (dev tokens, no WAF); bridge to admin actions via admin-eam-app.vercel.app.  
+testability: PASSIVE

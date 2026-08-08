@@ -265,3 +265,49 @@ evidence_needed: an ID whose resource returns data for a token that doesn't own 
 verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using program-obtained token (no self-signup).
 impact: cross-tenant read of passenger/journey PII; high.
 testability: AUTH_HELPED
+## 2026-08-08 04:08:26 UTC [api] (model bigpickle)
+[NEW] api.sparelabs.com/v1/global/organizations/key/{anything} → 404 NotFoundError "Organization was not found" WITHOUT auth, no format validation (probed: `not-a-uuid`, `x`, all-zero UUID → byte-identical 404) — key subroute wired into the auth-free org resolver, but NO oracle discrimination
+[NEW] api.sparelabs.com/v1/global/organizations/zones/centroid (platform-bundle-derived) → 400 ValidationError "not found" WITHOUT auth — not a live route, yet bypasses the auth gate → omission is controller-scoped, extends to bundle-derived subroutes
+[CHANGED] /v1/global/organizations list still 200 hardcoded `{"data":[]}` (params ignored) — empty-payload cap persists; no data-bearing 200 found
+[CHANGED] Control /v1/global/settings → 401 InvalidTokenError stable; Origin-reflect + credentials + envoy re-confirmed on all 8 probes this session
+[PRIO] api.sparelabs.com/v1/global/organizations: 6.65 (attack7 business7 tech5 gate10 cloud4 fresh5)
+[PRIO] forms.sparelabs.com: 6.10 (attack5 business8 tech6 gate7 cloud4 fresh5)
+[PRIO] platform.sparelabs.com: 6.05 (attack5 business7 tech7 gate6 cloud5 fresh6)
+[HYP] Write-method exposure on auth-free organizations controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations (+ key/, zones/ subroutes)
+confidence: 60
+reasoning: controller answers GET (200/400/404) with zero InvalidTokenError while /v1/global/settings and /v1/generic/regions enforce; path-specific OPTIONS 204 this session advertises PUT,PATCH,POST,DELETE + allow-headers authorization on the SAME auth-free controller.
+evidence_needed: a write route (PUT/PATCH/POST) responding with body-validation/404 error — NOT InvalidTokenError — proving auth-free write handling without mutation; or data-bearing 200 from any subroute.
+verify_steps: AUTH_HELPED: with authorized token, PUT/PATCH invalid body to /v1/global/organizations/{00000000-0000-0000-0000-000000000000} and /key/{x} expecting 400 ValidationError vs 401; PASSIVE weekly: retest list route for non-empty body.
+impact: unauth cross-origin org registry/config modification via reflect-any-origin CORS+credentials if any write route is auth-free; currently data-light, medium.
+testability: AUTH_HELPED
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: auth-less Engage SPA calls same /v1 Bearer API with ID-keyed paths; route-level 401s confirmed but object-level authorization on ID-keyed resources unproven; bundle unchanged (main.71d52314.js).
+evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[HYP] Org-settings host injection into platform API client
+class: XSS
+asset: platform.sparelabs.com
+confidence: 35
+reasoning: bundle shows organizationApiHost/organizationRoutingHost (org settings) drive client-side fetch base URLs only; sink scan negative; manifest list hardcoded.
+evidence_needed: a settings host value reaching a script/DOM sink, or unvalidated host accepted by org-settings API.
+verify_steps: PASSIVE (sink scan complete — negative) then AUTH_HELPED inspect org-settings write path URL validation.
+impact: credential confusion / token exfil if host attacker-set; currently unproven.
+testability: AUTH_HELPED
+[PARKED] Org-settings host injection: confidence 35 < 40 and sink scan negative — no new evidence this session.
+[FINAL] 1) Write-method exposure on auth-free organizations controller (AUTH, 60) 2) Engage portal IDOR (IDOR, 45)
+[NEXT] HUMAN: With an authorized Bearer token, PUT invalid-body JSON to `https://api.sparelabs.com/v1/global/organizations/00000000-0000-0000-0000-000000000000` and `/key/x`; 400 ValidationError (vs 401 InvalidTokenError) proves auth-free write handling on the controller — discriminative, no mutation possible with invalid body. Passive weekly retest of list route for non-empty body remains in parallel.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: controller-scoped auth omission re-confirmed live — list 200 `{"data":[]}`, key/{any} 404, zones/centroid 400, all without InvalidTokenError; /v1/global/settings control 401 stable; path-specific OPTIONS 204 advertises PUT/PATCH/POST/DELETE.
+[LEARN] REJECTED BUSLOGIC @ api.sparelabs.com/v1/global/organizations/key/: NOT an enumeration oracle — every key string returns identical 404 NotFoundError (no format discrimination), only the /v1/public/organization UUID oracle discriminates.
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/zones/centroid: bundle-derived path is not a live route (400 "not found") — its auth-free 400 still evidences controller-wide omission.
+[RISK] api.sparelabs.com: 62 — org-registry controller-scoped auth omission with any-origin credential-reflecting CORS, but payloads empty, no write path proven, stable over 24h
+[RISK] platform.sparelabs.com: 45 — CSP + /login MFE manifest leak prod+staging admin Vercel apps + Metabase; host-injection sink unproven
+[RISK] routing.sparelabs.com: 5 — envoy 404 across all surfaces, no delta
+[RISK] forms.sparelabs.com: 35 — bundle leaks staging/prod API hosts + JIRA/ngrok; SPA catch-all; x-frame-options DENY; IDOR unproven
+[RISK] web (spare.com/sparelabs.com): 20 — apex 200, www 301 (excluded); minimal first-party surface

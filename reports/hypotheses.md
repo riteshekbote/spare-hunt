@@ -200,3 +200,17 @@
 - LEARN: REJECTED BUSLOGIC @ api.sparelabs.com: Sibling sweep (/v1/organizations, /v1/riders, /v1/global/settings) all 401 + CORS → NO sibling route-level auth omission 
 - LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: No re-probe delta; envoy 404 across all paths — remains dead.
 - LEARN: REJECTED MISCONFIG @ forms.staging.sparelabs.com, api.staging.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com: No re-probe delta — staging hosts 40
+
+## RANKED HYPOTHESES 2026-08-08 04:16:26 UTC
+- [95] api.sparelabs.com/v1/**: api.sparelabs.com CORS reflect-any-origin with credentials enables cross-origin authenticated requests (from reports/hypotheses-nemotron3.txt)
+- [60] api.sparelabs.com/v1/global/organizations: Write-method exposure on auth-free organizations controller (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): AUTH_HELPED: Obtain a valid session token/cookie for api.sparelabs.com (via authorized test account) and verify whether the reflected CORS with access-control-a
+- NEXT(hypotheses-bigpickle.txt): HUMAN: With an authorized Bearer token, PUT invalid-body JSON to `https://api.sparelabs.com/v1/global/organizations/00000000-0000-0000-0000-000000000000` and `/
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflect-any-origin with credentials confirmed on OPTIONS preflight + GET responses for all /v1 endpoints (met
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + /login MFE manifest confirmed leaking production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-rou
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle confirmed (400 ValidationError for malformed, 404 NotFoundError for valid
+- LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com: staging API hosts return 404 behind envoy gateway, no independent API surface
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: all /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404; envoy 404 on all paths, n
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: controller-scoped auth omission re-confirmed live — list 200 `{"data":[]}`, key/{any} 404, zones/cent
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/global/organizations/key/: NOT an enumeration oracle — every key string returns identical 404 NotFoundError (no format 
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/zones/centroid: bundle-derived path is not a live route (400 "not found") — its auth-free 400 sti
