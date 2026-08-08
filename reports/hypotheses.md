@@ -698,3 +698,14 @@
 - LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle STABLE — confirmed live 2026-08-08 17:06 UTC — main.71d52314.js unchanged; leaks api.staging.sparelabs.com +
 - LEARN: REJECTED MISCONFIG (controller-wide): /v1/global/* omission is NOT controller-wide — live sweep 2026-08-08 17:07 UTC of 14 sibling routes (tenants/organization/
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — confirmed live 2026-08-08 17:05 UTC — envoy 404 on /v1/; no surface, no change.
+
+## RANKED HYPOTHESES 2026-08-08 17:58:34 UTC
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass on /v1/global/regions yields unauthenticated infrastructure topology (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: OPTIONS `https://api.sparelabs.com/v1/journeys` with `Origin: https://evil.example.com` and `Access-Control-Request-Method: DELETE` and `Access-Control-R
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions incl. 6 OOS api/routing host
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:A
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE + FULL READ+WRITE CORS CHAIN — GET `Bearer x` → 200 + 11B + ACAO+ACAC; OPTIONS 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — ?mobileAppId=nil-uuid AND ?organizationId=nil-uuid → 200 + 137B + ACAO+ACAC no-
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle STABLE — malformed→400 ValidationError; nil-uuid→404 NotFoundError; 3-way
+- LEARN: REJECTED MISCONFIG (controller-wide): /v1/global/* omission is NOT controller-wide — live sweep of 14 sibling routes → 12×401 + {organizations:200, regions:200}
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/; no surface, no change — verified 2026-08-08 17:05 UTC
