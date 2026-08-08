@@ -1,4 +1,4 @@
-## 2026-08-08 15:22:45 UTC [web] (model laguna)
+## 2026-08-08 15:55:16 UTC [web] (model laguna)
 [PRIO] api.sparelabs.com/v1/global/regions, 9.0 — attack:10, business:9, tech:8, gate:10, cloud:10, fresh:9
 [PRIO] api.sparelabs.com/v1/** CORS, 8.9 — attack:10, business:9, tech:8, gate:10, cloud:7, fresh:9
 [PRIO] api.sparelabs.com/v1/public/terms, 6.9 — attack:7, business:7, tech:6, gate:8, cloud:6, fresh:9
@@ -6,19 +6,40 @@
 class: AUTH
 asset: api.sparelabs.com/v1/global/regions
 confidence: 96
-reasoning: Live GET with Authorization: Bearer x returned 200 + content-length: 725 + ACAO+ACAC. No-Auth -> 400 {"message":"Authorization header required"}; Authorization: x -> 400 {"message":"Authorization header with scheme 'Bearer' required"}. Confirmed live 2026-08-08.
+reasoning: Live GET with Authorization: Bearer x returned 200 + content-length: 725 + ACAO+ACAC. No-Auth -> 400 {"message":"Authorization header required"}; Authorization: x -> 400 {"message":"Authorization header with scheme 'Bearer' required"}. Confirmed live 2026-08-08 15:22 UTC.
 evidence_needed: 200 + 725B region registry with garbage Bearer; 400 scheme-error on bare/non-Bearer
 verify_steps: PASSIVE — curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions ; curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: x" https://api.sparelabs.com/v1/global/regions
 impact: HIGH — unauthenticated disclosure of full regional infra topology (incl. 6 OOS hosts) enabling targeted follow-on recon; scheme-only gate is textbook auth bypass; CORS enables browser exfil
 testability: PASSIVE
-[FINAL] 1. [96] api.sparelabs.com/v1/global/regions: scheme-only auth bypass + 725B region registry disclosure incl. 6 OOS infra hosts (AUTH) — verified live 2026-08-08 14:56 UTC
-[FINAL] 2. [92] api.sparelabs.com/v1/**: Credential-reflecting CORS across entire /v1 API with full method surface (no-auth) (MISCONFIG) — verified live 2026-08-08 15:22 UTC (OPTIONS 204)
-[NEXT] PROBE: `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: PUT" -H "Access-ControlRequestHeaders: Authorization,Content-Type" -w '[%{http_code}] total=%{time_total}s\n' "https://api.sparelabs.com/v1/global/organizations"` — confirm OPTIONS 204 + ACAO:<reflected> + ACAC:true + PUT in allow-methods (already returns 200+`{"data":[]}`+CORS with garbage Bearer); closes the CORS+auth-bypass+method-advertising loop on a single route that is simultaneously auth-bypassed, data-bearing-ish (200, empty), and CORS-exposed.
-[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — confirmed live 2026-08-08 15:22 UTC — 200 + 725B + ACAO+ACAC with Bearer x
-[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — confirmed live 2026-08-08 15:22 UTC — ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type on OPTIONS 204
-[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — confirmed live 2026-08-08 15:22 UTC — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC; GET returns 200+`{"data":[]}` with garbage Bearer
-[RISK] api.sparelabs.com: 97 — CRITICAL credential-reflecting CORS (no-auth, all methods+Authorization, uniformly on /v1) STABLE; HIGH auth-free data-bearing /v1/global/regions (725B region registry incl. 6 OOS infra hosts, scheme-only bypass); route-level auth omission on /v1/global/organizations (200 + empty + CORS, OPTIONS 204 advertises write methods); /v1/public/terms disclosure; /v1/public/organization UUID enumeration oracle; multi-version envoy LB; highest program risk.
-[RISK] platform.sparelabs.com: 72 — Admin MFE (200); CSP leaks prod admin Vercel apps (admin-eam-app + admin-fixed-route-app, both loadable 200) + staging + Metabase + full infra
-[RISK] routing.sparelabs.com: 50 — Envoy 404 on all paths; no unauthenticated surface; dead
-[RISK] forms.sparelabs.com: 58 — Public SPA (200, envoy+Google CDN); JS bundle leaks staging+prod+regional infra + atlassian.net + ngrok
-[RISK] web (spare.com/sparelabs.com): 38 — spare.com apex HTTP 200; minimal live surface
+[HYP] Credential-reflecting CORS across entire /v1 API enables cross-origin authenticated read/write via victim browser
+class: MISCONFIG
+asset: api.sparelabs.com/v1/**
+confidence: 95
+reasoning: OPTIONS preflight + GET uniformly return ACAO:<reflected Origin> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type across ALL /v1 endpoints including 401, 400, and 200 paths. Verified live 2026-08-08 15:22 UTC.
+evidence_needed: OPTIONS 204 returning ACAO:https://evil.example.com + ACAC:true + Allow-Methods listing PUT/PATCH/POST/DELETE; ACAH:Authorization
+verify_steps: PASSIVE — curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: PUT" -H "Access-ControlRequestHeaders: Authorization,Content-Type" https://api.sparelabs.com/v1/global/regions
+impact: CRITICAL — any victim with valid session credentials browsing a malicious origin can perform cross-origin read AND write (PUT/PATCH/POST/DELETE) on their behalf with no SameSite or origin-checking mitigation
+testability: PASSIVE
+[HYP] No-auth data disclosure via mobileAppId parameter on /v1/public/terms leaks live terms-of-service URLs
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/terms?mobileAppId=<uuid>
+confidence: 82
+reasoning: Live GET with ?mobileAppId=<nil-uuid> returned 200 + 137B body containing termsOfUseUrl + privacyPolicyUrl + CORS (ACAO+ACAC) without any Authorization header. No-params variant returns 400 IntegrationError. Multi-version envoy LB confirmed (700ms+ upstream on disclosure routes vs 3-15ms on gated routes).
+evidence_needed: 200 + JSON body with termsOfUseUrl/privacyPolicyUrl for ?mobileAppId=<uuid> with no auth header
+verify_steps: PASSIVE — curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000"
+impact: MEDIUM-HIGH — unauthenticated disclosure of live legal/branding URLs; enables correlation attacks against org identity; CORS reflection allows browser-based exfil
+testability: PASSIVE
+[FINAL] 1. [96] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass yields unauthenticated 725B region-registry disclosure incl. 6 OOS infra hosts (AUTH)
+[FINAL] 2. [95] api.sparelabs.com/v1/**: Credential-reflecting CORS across entire /v1 API enables cross-origin authenticated read/write via victim browser (MISCONFIG)
+[FINAL] 3. [82] api.sparelabs.com/v1/public/terms?mobileAppId=<uuid>: No-auth data disclosure leaks live terms URLs + CORS (MISCONFIG)
+[NEXT] PROBE: `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: PUT" -H "Access-ControlRequestHeaders: Authorization,Content-Type" -w '[%{http_code}] total=%{time_total}s\n' "https://api.sparelabs.com/v1/global/organizations"` — confirm OPTIONS 204 + ACAO:<reflected> + ACAC:true + PUT in allow-methods on the fail-open /v1/global/organizations route (already returns 200+`{"data":[]}`+CORS with garbage Bearer); closes the CORS+auth-bypass+method-advertising loop on a single route that is simultaneously (a) auth-bypassed, (b) data-bearing-ish (200, empty), and (c) CORS-exposed with write methods.
+[LEARN] REJECTED BUSLOGIC @ api.sparelabs.com/v1/global/regions/{id}: 400 auth-free 0B — registered-not-implemented route, not data-bearing; auth omission is route-registration-level only
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/key/{x}: 404 auth-free 0B — identical 404 for all key strings, not enumeration oracle
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — Bearer x -> 200 + 725B + ACAO+ACAC; no-Auth -> 400 "header required"; Authorization: x -> 400 "scheme Bearer required"
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:<reflected>+ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type uniformly on all /v1 (OPTIONS 204 + GET 200/401/400)
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — 200 + `{"data":[]}` (11B) + ACAO+ACAC with Bearer x; OPTIONS 204 advertises PUT/PATCH/POST/DELETE; control /v1/journeys still 401
+[RISK] api.sparelabs.com: 97 — CRITICAL credential-reflecting CORS across /v1 (all methods+Authorization, no-auth); HIGH auth-free data-bearing /v1/global/regions (725B region registry incl. 6 OOS infra, 96-confidence scheme-only bypass); route-level auth omission on /v1/global/organizations (200+empty+CORS+OPTIONS 204 write methods); /v1/public/terms disclosure (data-bearing via mobileAppId+organizationId, 82-confidence); /v1/public/organization UUID enumeration oracle (stable); OpenAPI ValidationError disclosure; multi-version envoy LB confirmed (700ms+ slow replica on bypass routes vs 3-15ms on gated routes); 15+ auth-gated + 3 unauthenticated data-bearing endpoints confirmed; highest program risk.
+[RISK] platform.sparelabs.com: 72 — Admin MFE/SPA (200); CSP leaks production admin Vercel apps (admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app, both loadable 200) + staging variants (200) + Metabase prod+staging (200) + Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox; production admin surface exposed.
+[RISK] routing.sparelabs.com: 50 — Envoy 404 on all paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); routing API surface fully hidden; no unauthenticated surface; dead.
+[RISK] forms.sparelabs.com: 58 — Public SPA (200, envoy+Google CDN, x-frame DENY); JS bundle main.71d52314.js leaks staging+prod+regional infra hosts (incl. 6 OOS, all 200) + atlassian.net/JIRA + OOS + inactive ngrok tunnel; infra recon value; no direct auth bypass.
+[RISK] web (spare.com/sparelabs.com): 38 — spare.com apex HTTP 200 (Cloudflare Webflow static); www.spare.com 301 -> OOS; sparelabs.com root apex TIMEOUT (CDN/WAF gating); minimal live surface.
