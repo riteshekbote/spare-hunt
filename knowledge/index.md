@@ -115,3 +115,8 @@
 - 2026-08-08 REJECTED MISCONFIG @ api.sparelabs.com/v1/generic/regions: garbage Bearer → 404 empty 0B — generic namespace does not mirror global controller's auth omission.
 - 2026-08-08 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass confirmed STABLE — `Bearer x` → 200 + 725B region registry; no-Auth → 400 "header required"; `x` → 400 "scheme 'Bearer' required".
 - 2026-08-08 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?mobileAppId=<uuid>: new parameter vector returns 200 + live terms URLs without auth + CORS — data disclosure confirmed.
+- 2026-08-08 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only auth bypass confirmed STABLE — 200 + 725B region registry with any `Bearer x`; no-Auth→400 "header required", `Auth:x`→400 "scheme Bearer required"
+- 2026-08-08 ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — production admin Vercel apps + staging variants + Metabase prod+staging (200) + full infra list
+- 2026-08-08 REJECTED AUTH @ api.sparelabs.com/v1/global/{config,features,countries,currencies,fares,tariffs,zones,settings}: all 401 with garbage Bearer — auth omission route-specific to /regions + /organizations only
+- 2026-08-08 REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id},organizations/key/{x}: auth-free (0 InvalidTokenError) but not data-bearing (400/404, 0-byte bodies)
+- 2026-08-08 REJECTED MISCONFIG @ admin-spare.ngrok.io: OOS — ngrok-edge 404; no independent in-scope exploitation vector

@@ -391,3 +391,15 @@
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/generic/regions: garbage Bearer → 404 empty 0B — generic namespace does not mirror global controller's auth omission.
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass confirmed STABLE — `Bearer x` → 200 + 725B region registry; no-Auth → 400 "header requir
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?mobileAppId=<uuid>: new parameter vector returns 200 + live terms URLs without auth + CORS — data disclos
+
+## RANKED HYPOTHESES 2026-08-08 11:14:26 UTC
+- [95] api.sparelabs.com/v1/global/regions: Auth-free data-bearing region registry with infrastructure topology disclosure (from reports/hypotheses-nemotron3.txt)
+- [55] api.sparelabs.com/v1/auth/email/reset/{request,verify}: Unauthenticated email-reset chain → ATO / reset-email abuse (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET `https://api.sparelabs.com/v1/global/regions` with `Authorization: Bearer x` and `Origin: https://evil.example.com`; capture status, body, CORS heade
+- NEXT(hypotheses-bigpickle.txt): HUMAN: request from the program a test organization UUID + test user email + test rider credentials (no self-signup). Sequence: (1) POST /v1/auth/email/reset/re
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only auth bypass confirmed STABLE — 200 + 725B region registry with any `Bearer x`; no-Auth→400 "hea
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — production admin Vercel apps + staging variants + Metabase prod+staging (200) + full infra 
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{config,features,countries,currencies,fares,tariffs,zones,settings}: all 401 with garbage Bearer — auth omission rou
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id},organizations/key/{x}: auth-free (0 InvalidTokenError) but not data-bearing (400/404, 0-byte bodie
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?mobileAppId=<uuid>: new parameter vector returns 200 + live terms URLs without auth + CORS
+- LEARN: REJECTED MISCONFIG @ admin-spare.ngrok.io: OOS — ngrok-edge 404; no independent in-scope exploitation vector

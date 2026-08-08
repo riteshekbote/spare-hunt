@@ -173,3 +173,5 @@
 - NEW `/v1/global/organizations/key/{x}` → 404 auth-free 0B (not data-bearing)
 - NEW `/v1/global/organizations/zones/centroid` → 400 auth-free 0B (bundle-derived, not a live route)
 - CHANGED `/v1/public/terms?mobileAppId=<uuid>` → 200 + live terms URLs + CORS without auth (new parameter vector)
+
+## 2026-08-08 11:14:26 UTC

@@ -651,3 +651,32 @@ verify_steps: AUTH_HELPED: obtain a rider token via pin/test login with program 
 impact: full platform takeover via superAdmin token; critical.
 testability: AUTH_HELPED
 [NEXT] HUMAN: request from the program a test organization UUID + test rider credentials (no self-signup) — this unlocks all three top hypotheses in sequence: (1) trigger /v1/auth/email/reset/request for the test user and confirm delivery + token format on /v1/auth/email/reset/verify, (2) obtain a rider token via /v1/auth/rider/pin/login (or test/login), (3) reuse that token on POST /v1/auth/token/superAdmin (role-check) and then IDOR probes. Until then: PASSIVE spaced GET re-sampling of /v1/auth/email/reset/request (2s spacing, watch for 429) to confirm no rate limit at edge.
+## 2026-08-08 11:13:42 UTC [api] (model bigpickle)
+[HYP] Unauthenticated email-reset chain → ATO / reset-email abuse
+class: AUTH
+asset: api.sparelabs.com/v1/auth/email/reset/{request,verify}
+confidence: 55
+reasoning: routes edge-gated on header *presence* only (this session: tokenless→401, but prior live POST with any Bearer returned 200 "OK" for arbitrary emails + non-UUID org, 4x no rate-limit); verify is anonymous with disclosed schema; header-presence-only gate is the proven house pattern (/v1/global/regions).
+evidence_needed: (a) reset email actually delivered for a real user, (b) verify token space/rate-limit allowing repeated attempts.
+verify_steps: AUTH_HELPED: with program test org+user email, POST /v1/auth/email/reset/request (Bearer x) → confirm delivery; then spaced POST /v1/auth/email/reset/verify with observed token format → measure lockout/429.
+impact: account takeover of org users or unauthenticated reset-spam/phishing to arbitrary addresses; critical if ATO, medium otherwise.
+testability: AUTH_HELPED
+[HYP] superAdmin token-minting reachable with non-superAdmin valid token (missing role check)
+class: AUTH
+asset: api.sparelabs.com/v1/auth/token/superAdmin
+confidence: 45
+reasoning: route live (401 w/ garbage Bearer "Unrecognized token type" = type-presence check only; OPTIONS 204 advertises POST); per-route auth omissions proven elsewhere in this codebase; the role check is unproven.
+evidence_needed: POST with a non-superAdmin *valid* Bearer → 2xx + token.
+verify_steps: AUTH_HELPED: obtain a rider token via /v1/auth/rider/pin/login (or test/login) with program creds, then POST empty body → 2xx (missing role check) vs 401/403.
+impact: full platform takeover via superAdmin token minting; critical.
+testability: AUTH_HELPED
+[HYP] Fail-open /v1/global/organizations replica can serve non-empty payload
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 45
+reasoning: fail-open route served by ~703ms replica vs 4–8ms gated routes; multi-version LB flaps behaviors; list currently returns hardcoded 11B `{"data":[]}` with params ignored.
+evidence_needed: any response body >11B or org-scoped data.
+verify_steps: PASSIVE — spaced GET `/v1/global/organizations?status=active&cursor=&limit=100` (Bearer x) across intervals; flag body ≠ `{"data":[]}`; correlate with response time.
+impact: unauthenticated cross-origin read of org registry; escalates severity from info-only.
+testability: PASSIVE
+[NEXT] HUMAN: request from the program a test organization UUID + test user email + test rider credentials (no self-signup). Sequence: (1) POST /v1/auth/email/reset/request for test user → confirm delivery + token format; (2) obtain rider token via /v1/auth/rider/pin/login; (3) reuse it on POST /v1/auth/token/superAdmin (role check), then IDOR probes. Until then: PASSIVE spaced re-sample of `/v1/global/organizations?status=&cursor=&limit=` for any body >11B.
