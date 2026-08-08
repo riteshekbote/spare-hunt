@@ -9356,3 +9356,124 @@ STEP 7 — RISK SCORE
 [RISK] forms.sparelabs.com: 30 — strict CSP + x-frame DENY SPA; infra leak confined to JS bundle main.71d52314.js (staging+regional hosts, dead ngrok, JIRA); staging variants 404/dead.
 [RISK] web (spare.com/sparelabs.com): 15 — static Webflow marketing site behind Cloudflare; CSP frame-ancestors 'self' + HSTS; no infra leaks in HTML/JS; sparelabs.com 301→spare.com.
 ```
+===== ANALYST bigpickle 2026-08-08 23:14:02 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mcurl -s -o /dev/null -w "orgs: %{http_code} %{size_download}B %{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" && sleep 2 && curl -s -o /dev/null -w "regions: %{http_code} %{size_download}B %{time_total}s\n" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"
+orgs: 200 11B 1.180345s
+regions: 200 725B 0.242470s
+[0m
+[0m$ [0mcurl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000" 2>&1 | grep -iE "^HTTP|x-envoy|access-control"
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-envoy-upstream-service-time: 7
+[0m
+[0m$ [0mcurl -s -o /dev/null -w "terms?orgId: %{http_code} %{size_download}B %{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000" && sleep 2 && curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" 2>&1 | grep -iE "^HTTP|access-control-allow"
+terms?orgId: 200 137B 0.163363s
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+[0m
+[0m$ [0mfor i in 1 2 3 4; do curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000" 2>&1 | grep -iE "^HTTP|x-envoy-upstream" | tr '\n' ' '; echo "(probe $i)"; sleep 2.5; done
+HTTP/2 200 
+ x-envoy-upstream-service-time: 7
+ (probe 1)
+HTTP/2 200 
+ x-envoy-upstream-service-time: 7
+ (probe 2)
+HTTP/2 200 
+ x-envoy-upstream-service-time: 10
+ (probe 3)
+HTTP/2 200 
+ x-envoy-upstream-service-time: 7
+ (probe 4)
+[0m
+[0m$ [0mcurl -s -o /dev/null -w "journeys(ctl): %{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys" && sleep 2 && curl -s -o /dev/null -w "routing: %{http_code} %{size_download}B\n" "https://routing.sparelabs.com/v1/" && sleep 2 && curl -s -o /dev/null -w "platform: %{http_code} %{size_download}B\n" "https://platform.sparelabs.com/login"
+journeys(ctl): 401 143B
+routing: 404 0B
+platform: 200 5555B
+[0m
+[0m$ [0mcurl -s "https://platform.sparelabs.com/login" | grep -oE "admin-[a-z-]+\.vercel\.app" | sort -u && sleep 2 && curl -s -o /dev/null -w "orgs/{id}: %{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations/00000000-0000-0000-0000-000000000000"
+admin-eam-app-staging.vercel.app
+admin-eam-app.vercel.app
+admin-fixed-route-app-staging.vercel.app
+admin-fixed-route-app.vercel.app
+orgs/{id}: 404 131B
+[0m
+[0m$ [0mcurl -s -o /dev/null -w "public/regions: %{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/regions" && sleep 2 && curl -s -o /dev/null -w "public/apps: %{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/apps" && sleep 2 && curl -s -o /dev/null -w "public/config: %{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/config"
+public/regions: 404 0B
+public/apps: 404 0B
+public/config: 404 0B
+[0m
+**STEP 1 — DELTA**
+
+- [NO_DELTA] api.sparelabs.com: orgs no-auth 200+11B+ACAO/ACAC (1180ms slow replica), regions Bearer-x 200+725B, terms 200+137B, control /v1/journeys 401, orgs/{nil-uuid} 404 — all STABLE vs 22:43 baseline.
+- [NO_DELTA] platform.sparelabs.com/login 200 (5555B); CSP still leaking the same 4 Vercel admin apps (prod+staging).
+- [NO_DELTA] routing.sparelabs.com envoy 404 0B — dead.
+- [NEW-ONLY-AS-NEGATIVE] `/v1/public/{regions,apps,config}` sweep → all 404 0B: public namespace surface unchanged (terms/organization/organizations only).
+
+**STEP 2 — PRIORITIZE**
+
+- [PRIO] api.sparelabs.com/v1/global/organizations: 7.30 = 0.25*7 +0.25*9 +0.15*6 +0.15*10 +0.10*4 +0.10*5 (complete no-auth bypass, write-CORS chain, gated-namespace systemic pattern)
+- [PRIO] api.sparelabs.com/v1/global/regions: 6.50 = 0.25*7 +0.25*6 +0.15*6 +0.15*9 +0.10*5 +0.10*5 (scheme-only bypass, 725B data-bearing, write-CORS)
+- [PRIO] api.sparelabs.com/v1/public/terms: 5.75 = 0.25*5 +0.25*5 +0.15*5 +0.15*10 +0.10*3 +0.10*7 (no-auth disclosure, flapping multi-version)
+
+**STEP 3 — HYPOTHESES**
+
+[HYP] Auth-free {id} returns full org record for a real org UUID
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations/{id}
+confidence: 55
+reasoning: no-auth malformed→400 ValidationError `/params/id`; nil-uuid→404 NotFoundError (DB lookup path); list sibling fail-open 200+`{"data":[]}` with NO header re-confirmed this session (1180ms slow replica); control 401. Omission is route-specific to this controller's list+id routes; only known UUID is not a real org, so data-bearing unproven.
+evidence_needed: GET with a real existing org UUID (no auth) → 200 + org record (name/branding/contacts) vs control 401.
+verify_steps: AUTH_HELPED/HUMAN: program test-org UUID → `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` NO Authorization header → expect 200+record; passive fallback none (UUID space not passively enumerable).
+impact: unauthenticated tenant org-record/PII disclosure from gated namespace; HIGH.
+testability: PASSIVE (oracle, done) / HUMAN_ONLY (data)
+
+[HYP] Cross-origin write on auth-free regions controller (PUT/PATCH/POST/DELETE)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: GET `Bearer x` → 200+725B+ACAO:https://evil.example.com+ACAC:true (fast upstream); OPTIONS → 204 + write methods + ACAH:Authorization,Content-Type on same path; per-route middleware omission is the proven house pattern; mutating behavior unproven.
+evidence_needed: PUT/PATCH/POST/DELETE `/v1/global/regions` (or `/{id}`) with `Bearer x`/no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED: inert unchanged `PUT https://api.sparelabs.com/v1/global/regions` no-auth → 2xx vs 401/403; passive OPTIONS ACRM:PUT already 204.
+impact: unauthenticated cross-origin region/config tampering via victim browser (CORS reflect+ACAC); CRITICAL if mutating responds.
+testability: PASSIVE (preflight, done) / AUTH_HELPED (write)
+
+[HYP] Multi-version LB replica skew on /v1/public/terms — auth-free replica still reachable
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/terms
+confidence: 42
+reasoning: this session 4 spaced `?mobileAppId=<nil-uuid>` probes all 200 on fast replica (7-10ms upstream) — 401-flip NOT captured; documented history has same request 401 on ~703ms replica; replicas disagree on public-namespace auth.
+evidence_needed: capture a 401-state response on identical request to confirm the replica split persists.
+verify_steps: PASSIVE — 2.5s-spaced alternating `?mobileAppId=<nil-uuid>`/`?organizationId=<nil-uuid>` GETs logging status + x-envoy-upstream-service-time until a status flip observed.
+impact: confirms divergent auth enforcement across replicas → timing fingerprint of auth-free replica; low-medium.
+testability: PASSIVE
+
+**STEP 4 — SELF-CRITIQUE**
+
+- [PARKED] terms replica skew: confidence dropped 45→42 after this session's 4-probe run hit only the fast replica (no flip captured); evidence_needed outstanding; retained (≥40, concrete verify) but lowest rank.
+- [FINAL] 1. org {id} data-bearing (AUTH, 55) | 2. regions cross-origin write (AUTH, 50) | 3. terms replica skew (BUSLOGIC, 42)
+
+**STEP 5 — NEXT ACTION**
+
+- [NEXT] HUMAN: request program test-org UUID from authorized contact → `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` with NO Authorization header → expect 200 + full org record vs control 401 (only unproven HIGH-impact data-bearing path; UUID space not passively enumerable). Until approval, no further productive passive probe this cycle — public-namespace sweep returned 404-only negatives.
+
+**STEP 6 — LEARNING**
+
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: complete no-auth bypass re-confirmed live this session — 200+11B+ACAO+ACAC with NO Authorization header (1180ms slow replica); control stable.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed live — `Bearer x` → 200+725B+ACAO+ACAC (fast upstream); control stable.
+- [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: disclosure STABLE — 200+137B (mobileAppId and organizationId variants) + CORS, no 401-state observed this window (fast replica dominant).
+- [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE on 200/401 paths.
+- [LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/{regions,apps,config}: 404 0B — public namespace limited to terms/organization/organizations; no new surface.
+- [LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 0B — STABLE dead.
+
+**STEP 7 — RISK SCORE**
+
+- [RISK] api.sparelabs.com: 78 — systemic route-level auth omission in gated namespace (complete no-auth on /organizations, scheme-only on /regions w/ 725B data, terms disclosure, UUID oracle) + CORS reflect-any-origin+credentials advertising write methods on fail-open routes (read→write escalation); severity capped only by currently-empty/hardcoded payloads.
+- [RISK] platform.sparelabs.com: 45 — CSP/frame-src infra leak (prod admin Vercel apps + Metabase + full cloud stack) enables precise targeting; mitigated by strict HTML CSP, x-frame DENY, static SPA.
+- [RISK] routing.sparelabs.com: 12 — envoy 404 across all probed paths across all sessions; no discoverable surface, remains dead.
+- [RISK] forms.sparelabs.com: 30 — strict CSP + x-frame DENY SPA; infra leak confined to JS bundle main.71d52314.js (staging+regional hosts, dead ngrok, JIRA); staging variants 404/dead.
+- [RISK] web (spare.com/sparelabs.com): 15 — static Webflow marketing site behind Cloudflare; CSP frame-ancestors 'self' + HSTS; no infra leaks in HTML/JS.

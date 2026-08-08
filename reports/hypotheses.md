@@ -873,3 +873,23 @@
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/tenants: Confirmed NOT data-bearing — returns 400 auth-free 0B, omission is route-registration-le
 - LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — production admin Vercel apps + staging variants + Metabase + full cloud infra; strict HTML
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths, no surface. Verified 22:43 UTC.
+
+## RANKED HYPOTHESES 2026-08-08 23:14:02 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + full read+write CORS chain on regional infra topology (from reports/hypotheses-laguna.txt)
+- [96] api.sparelabs.com/v1/global/organizations: Complete no-auth bypass + write-method CORS on /v1/global/organizations (from reports/hypotheses-nemotron3.txt)
+- [55] api.sparelabs.com/v1/global/organizations/{id}: Auth-free {id} returns full org record for a real org UUID (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET `https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` and NO Authorization header; capture status, body, CORS h
+- NEXT(hypotheses-laguna.txt): PROBE: Verify that the uniform API-scoped CORS middleware also applies OPTIONS preflight with write methods to `/v1/global/organizations` specifically (not just
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/admin/*: /v1/admin/{health,organizations} no-auth → 404 0B; platform root-config (index-BIOrSDj1.js) has zero v1/admin
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/journeyNotifications/*, /v1/meticulous-manual-init: bundle-derived refs live-probe 404 0B — dead build-time refs, no su
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/{uuid}: Confirmed NOT data-bearing — path-param UUID returns 404 NotFoundError (131B) with Bearer
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/tenants: Confirmed NOT data-bearing — returns 400 auth-free 0B, omission is route-registration-le
+- LEARN: STABLE @ api.sparelabs.com/v1/global/regions: 23:12 UTC re-confirm — Bearer x → 200+725B+ACAO+ACAC (2ms fast upstream); OPTIONS 204+ACAO+ACAC+PUT/PATCH/POST/DEL
+- LEARN: STABLE @ api.sparelabs.com/v1/global/organizations: 23:12 UTC re-confirm — zero-header → 200+11B+ACAO+ACAC (1179ms slow upstream) — complete no-auth bypass STAB
+- LEARN: STABLE @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + full methods + ACAH:Authorization uniformly ac
+- LEARN: STABLE @ api.sparelabs.com/v1/public/terms: 23:12 UTC re-confirm — ?mobileAppId=nil → 200+137B+ACAO+ACAC no-auth — STABLE.
+- LEARN: STABLE @ api.sparelabs.com/v1/public/organization: 23:12 UTC re-confirm — nil-uuid → 404+131B+ACAO+ACAC; 3-way differential (malformed→400/404/200) intact — STA
+- LEARN: STABLE @ platform.sparelabs.com/login: 23:12 UTC re-confirm — CSP leaks prod admin-eam-app+admin-fixed-route-app (vercel.app) + staging + Metabase prod+staging 
+- LEARN: STABLE @ forms.sparelabs.com: JS bundle `main.71d52314.js` unchanged at 23:12 UTC — same infra leak (staging+prod+regional+atlassian.net+ngrok) — STABLE.
+- LEARN: STABLE @ routing.sparelabs.com: envoy 404 on /v1/ at 23:12 UTC — confirmed dead, no surface — NO_DELTA.
