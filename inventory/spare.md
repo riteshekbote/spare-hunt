@@ -220,3 +220,10 @@
 ## 2026-08-08 22:05:12 UTC
 - NEW api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed (no Authorization header needed) — severity upgraded from scheme-only to full route-level omission; OPTIONS 204 confirms wr
 - CHANGED api.sparelabs.com/v1/global/organizations: Auth bypass refined — previously "scheme-only" like /regions, now confirmed zero-header bypass (200 + `{"data":[]}` + ACAO+ACAC with NO Authorization header)
+
+## 2026-08-08 22:45:41 UTC
+- NEW api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed (no Authorization header needed) — severity upgraded from scheme-only to full route-level omission; OPTIONS 204 confirms wr
+- CHANGED api.sparelabs.com/v1/global/organizations: Auth bypass refined — previously "scheme-only" like /regions, now confirmed zero-header bypass (200 + `{"data":[]}` + ACAO+ACAC with NO Authorization header)
+- NEW api.sparelabs.com/v1/admin/*: no-auth GET /v1/admin/health + /v1/admin/organizations → 404 0B (0B, no CORS) — no admin namespace on API; platform root-config (index-BIOrSDj1.js, 6MB) contains ZERO v1/
+- NEW platform.sparelabs.com root-config: leaks regional env matrix (api.eu/jp/us/us2/uat/staging.sparelabs.com + platform.eu/jp/us/us2/uat.staging) — ALL OOS subdomains per exclusions; informational only, 
+- NEW api.sparelabs.com/v1/journeyNotifications/{rebookedRescheduled,rebookingFailed,rebookingPlanned,rebookedReshaped} + /v1/meticulous-manual-init: bundle-derived refs → live GET 404 0B (dead build-time r
