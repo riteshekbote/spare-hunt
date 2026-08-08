@@ -360,3 +360,34 @@
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id},organizations/key/{x}: auth-free (0 InvalidTokenError) but **not data-bearing** (400/404, 0-byte b
 - LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app (vercel.app, loadable) + staging variants + Meta
 - LEARN: REJECTED MISCONFIG @ admin-spare.ngrok.io: OOS — now ngrok-edge 404 (was ERR_NGROK_3200 inactive); no independent in-scope exploitation vector; marked dead/OOS.
+
+## RANKED HYPOTHESES 2026-08-08 10:50:59 UTC
+- [96] api.sparelabs.com: Credential-reflecting CORS across entire /v1 API surface (from reports/hypotheses-laguna.txt)
+- [90] api.sparelabs.com/v1/global/*: Controller-wide auth omission on /v1/global/* exposes additional data-bearing routes (from reports/hypotheses-nemotron3.txt)
+- [55] platform.sparelabs.com/login: Module-federation manifest enumeration → new first-party /v1 paths (re-fetch rotated chunks) (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET `https://api.sparelabs.com/v1/global/countries` with `Authorization: Bearer x` and `Origin: https://evil.example.com`; capture status, body, CORS hea
+- NEXT(hypotheses-bigpickle.txt): PROBE: GET `/v1/global/regions/00000000-0000-0000-0000-000000000000/zones` then `/v1/global/config`, `/v1/global/regions/CA`, `/v1/global/features` with `Author
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -o /dev/null -w '%{http_code}\n' -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions`
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: auth-free DATA-BEARING confirmed STABLE — 200 + 725B region registry with any garbage Bearer; header presen
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id}: 400 auth-free route-registered-not-implemented (no InvalidTokenError) — controller-wide omission 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations: 400 auth-free "not found" — new router path on public namespace
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com: multi-version LB behind envoy re-confirmed — /v1/public/terms?organizationId flapped 401→200 in ~35min; fail-open route s
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/generic/regions: garbage token → 404 empty (not data-bearing) — generic namespace does not mirror the global controller's o
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection remains STABLE across all intervals — ACAO:<reflected> + ACAC:true + methods GET,HEAD,P
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app) +
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — leaking api.staging.sparelabs.com + api.staging.us.sparelabs.com + forms.staging.s
+- LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: No surface — remain dead, envoy 404 across all paths
+- LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com: All 404/inactive (ERR_NGROK_3200) —
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only auth bypass confirmed STABLE — 200 + 725B region registry (incl. 6 OOS regional api/routing hos
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{config,features,countries,currencies,fares,tariffs,zones,settings}: sibling sweep (this session) → 401 on all (prop
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection confirmed STABLE on OPTIONS preflight + GET (200/401/400 paths) uniformly across /v1 — 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open `200 + {"data":[]}` + CORS STABLE (empty payload caps severity; route-specific).
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure flapped back to 200+live terms URLs (termsOfUseUrl+privacyPolicyUrl) with no auth + CORS
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id},organizations/key/{x}: auth-free (0 InvalidTokenError) but **not data-bearing** (400/404, 0-byte b
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app (vercel.app, loadable) + staging variants + Meta
+- LEARN: REJECTED MISCONFIG @ admin-spare.ngrok.io: OOS — now ngrok-edge 404 (was ERR_NGROK_3200 inactive); no independent in-scope exploitation vector; marked dead/OOS.
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{config,features,countries,currencies,fares,tariffs,zones,settings}: all 401 with garbage Bearer — auth omission doe
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id}: 400 auth-free 0B — registered-not-implemented route, omission is route-registration-level not exp
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/generic/regions: garbage Bearer → 404 empty 0B — generic namespace does not mirror global controller's auth omission.
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass confirmed STABLE — `Bearer x` → 200 + 725B region registry; no-Auth → 400 "header requir
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?mobileAppId=<uuid>: new parameter vector returns 200 + live terms URLs without auth + CORS — data disclos

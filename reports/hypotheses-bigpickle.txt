@@ -1,1 +1,185 @@
-## 2026-08-08 10:05:59 UTC [api] (model bigpickle)
+## 2026-08-08 10:50:51 UTC [api] (model bigpickle)
+confidence: 55
+reasoning: omission is read-scoped on the global controller (regions 200+725B, orgs 200, regions/{id} 400 auth-free, write paths 401). Siblings countries/currencies/fares/tariffs/zones are 401, but 400 "not-found" routes (zones/centroid) prove registered-but-unimplemented paths bypass the gate; an implemented sibling would return a data-bearing payload.
+evidence_needed: any non-404/non-401 response with body size > 725B or a non-static/filtered payload on the global namespace.
+verify_steps: PASSIVE — GET `/v1/global/regions/{id}/zones`, `/v1/global/regions/CA`, `/v1/global/config`, `/v1/global/features` with `Authorization: Bearer x` + `Origin: https://evil.example.com`, spaced ≥1.5s; log status + size; repeat on a second hop to sample both replicas.
+impact: unauthenticated cross-origin read of global platform config beyond the static region registry; low-medium today, escalates if slow replica serves org-scoped data.
+testability: PASSIVE
+[HYP] Module-federation manifest enumeration → new first-party /v1 paths (re-fetch rotated chunks)
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 50
+reasoning: /login MFE manifests leaked prod+staging admin Vercel apps + Metabase; manifest→/v1 mapping proven once (zones/centroid); bundles rotate, so current chunks may name the global-controller siblings the sweep cannot enumerate blindly.
+evidence_needed: a manifest/bundle-derived /v1/global path that is live non-404 or data-bearing auth-free.
+verify_steps: PASSIVE — GET /login + remote manifests (≤1rps), fetch entrypoint chunks, grep `/v1/global/` literals, cross-check on api.sparelabs.com.
+impact: expands in-scope API surface; medium.
+testability: PASSIVE
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: auth-less Engage SPA calls the same /v1 Bearer API with ID-keyed paths; route-level 401s confirmed but object-level authorization on ID-keyed resources unproven; bundle unchanged (main.71d52314.js).
+evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[NEXT] PROBE: GET `/v1/global/regions/00000000-0000-0000-0000-000000000000/zones` then `/v1/global/config`, `/v1/global/regions/CA`, `/v1/global/features` with `Authorization: Bearer x` + `Origin: https://evil.example.com`, spaced ≥1.5s, repeat each once to sample both replicas — flag any status ≠ 401/404 with body > 725B.
+testability: PASSIVE
+[HYP] Module-federation manifest enumeration → new first-party /v1 paths (re-fetch rotated chunks)
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 50
+reasoning: /login MFE manifests leaked prod+staging admin Vercel apps + Metabase; manifest→/v1 mapping proven once (zones/centroid); bundles rotate, so current chunks may name the global-controller siblings the sweep cannot enumerate blindly.
+evidence_needed: a manifest/bundle-derived /v1/global path that is live non-404 or data-bearing auth-free.
+verify_steps: PASSIVE — GET /login + remote manifests (≤1rps), fetch entrypoint chunks, grep `/v1/global/` literals, cross-check on api.sparelabs.com.
+impact: expands in-scope API surface; medium.
+testability: PASSIVE
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: auth-less Engage SPA calls the same /v1 Bearer API with ID-keyed paths; route-level 401s confirmed but object-level authorization on ID-keyed resources unproven; bundle unchanged (main.71d52314.js).
+evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[NEXT] PROBE: GET `/v1/global/regions/00000000-0000-0000-0000-000000000000/zones` then `/v1/global/config`, `/v1/global/regions/CA`, `/v1/global/features` with `Authorization: Bearer x` + `Origin: https://evil.example.com`, spaced ≥1.5s, repeat each once to sample both replicas — flag any status ≠ 401/404 with body > 725B.
+[NEW] platform bundle index-BIOrSDj1.js leaks /v1/auth/token/superAdmin (live, 401-gated confirmed: 401 w/ garbage Bearer, 401 lacks-header, OPTIONS 204) + admin-spare.ngrok.io (OOS tunnel).
+[NEW] forms bundle main.71d52314.js maps auth surface: auth/metadata, auth/rider/{phone,email}/request|verify, auth/rider/pin/login, auth/rider/test/login, auth/email/reset/{request,verify}, auth/token, auth/token/superAdmin. ALL probe = 401 "lacks Authorization header" tokenless → auth ns edge-gated, no anonymous reset.
+[HYP] superAdmin token-minting role check (AUTH_HELPED)
+[HYP] Engage IDOR via rider token (AUTH_HELPED)
+[HYP] organizations fail-open non-empty payload (PASSIVE sampling)
+[NEXT] HUMAN: program-obtained valid Bearer → POST /v1/auth/token/superAdmin (role-check probe, highest impact)
+[HYP] superAdmin token-minting reachable with any valid token (missing role check)
+class: AUTH
+asset: api.sparelabs.com/v1/auth/token/superAdmin
+confidence: 45
+reasoning: bundle-derived path confirmed live; global controller proves per-route auth omissions exist in this codebase; edge checks only token-type presence ("Unrecognized token type" for garbage), so a valid token passes middleware and the controller role check is unproven.
+evidence_needed: POST /v1/auth/token/superAdmin with a non-superAdmin valid Bearer returns 2xx + token.
+verify_steps: AUTH_HELPED: with a program-obtained valid tenant/rider token (no self-signup), POST empty body → 2xx (missing role check) vs 401/403 (enforced).
+impact: full platform takeover via superAdmin token minting; critical.
+testability: AUTH_HELPED
+[HYP] Engage portal rider/journey IDOR once a rider token is held
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: public Engage SPA authenticates via auth/rider/phone|email request+verify (edge-gated, needs real cred); bundle maps ID-keyed riders/journeys paths; object-level authorization on those resources unproven.
+evidence_needed: a rider token that reads another rider's journey.
+verify_steps: AUTH_HELPED: obtain a rider token via the public Engage flow with a program-created test rider, then GET ID-keyed rider/journey endpoints cross-tenant.
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[HYP] /v1/global/organizations fail-open replica can serve non-empty payload
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 45
+reasoning: fail-open route served by ~703ms replica vs 4–8ms gated routes; multi-version LB flaps behaviors (/v1/public/terms 401↔200); list returns hardcoded 11B `{"data":[]}` with params ignored.
+evidence_needed: any response body >11B or org-scoped data.
+verify_steps: PASSIVE — spaced GET /v1/global/organizations with params (?status=&cursor=&limit=) across several intervals to sample replicas; flag body ≠ `{"data":[]}`.
+impact: unauthenticated cross-origin read of org registry; escalates severity from info-only.
+testability: PASSIVE
+confidence: 55
+reasoning: omission is read-scoped on the global controller (regions 200+725B, orgs 200, regions/{id} 400 auth-free, write paths 401). Siblings countries/currencies/fares/tariffs/zones are 401, but 400 "not-found" routes (zones/centroid) prove registered-but-unimplemented paths bypass the gate; an implemented sibling would return a data-bearing payload.
+evidence_needed: any non-404/non-401 response with body size > 725B or a non-static/filtered payload on the global namespace.
+verify_steps: PASSIVE — GET `/v1/global/regions/{id}/zones`, `/v1/global/regions/CA`, `/v1/global/config`, `/v1/global/features` with `Authorization: Bearer x` + `Origin: https://evil.example.com`, spaced ≥1.5s; log status + size; repeat on a second hop to sample both replicas.
+impact: unauthenticated cross-origin read of global platform config beyond the static region registry; low-medium today, escalates if slow replica serves org-scoped data.
+testability: PASSIVE
+[HYP] Module-federation manifest enumeration → new first-party /v1 paths (re-fetch rotated chunks)
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 50
+reasoning: /login MFE manifests leaked prod+staging admin Vercel apps + Metabase; manifest→/v1 mapping proven once (zones/centroid); bundles rotate, so current chunks may name the global-controller siblings the sweep cannot enumerate blindly.
+evidence_needed: a manifest/bundle-derived /v1/global path that is live non-404 or data-bearing auth-free.
+verify_steps: PASSIVE — GET /login + remote manifests (≤1rps), fetch entrypoint chunks, grep `/v1/global/` literals, cross-check on api.sparelabs.com.
+impact: expands in-scope API surface; medium.
+testability: PASSIVE
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: auth-less Engage SPA calls the same /v1 Bearer API with ID-keyed paths; route-level 401s confirmed but object-level authorization on ID-keyed resources unproven; bundle unchanged (main.71d52314.js).
+evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[NEXT] PROBE: GET `/v1/global/regions/00000000-0000-0000-0000-000000000000/zones` then `/v1/global/config`, `/v1/global/regions/CA`, `/v1/global/features` with `Authorization: Bearer x` + `Origin: https://evil.example.com`, spaced ≥1.5s, repeat each once to sample both replicas — flag any status ≠ 401/404 with body > 725B.
+testability: PASSIVE
+[HYP] Module-federation manifest enumeration → new first-party /v1 paths (re-fetch rotated chunks)
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 50
+reasoning: /login MFE manifests leaked prod+staging admin Vercel apps + Metabase; manifest→/v1 mapping proven once (zones/centroid); bundles rotate, so current chunks may name the global-controller siblings the sweep cannot enumerate blindly.
+evidence_needed: a manifest/bundle-derived /v1/global path that is live non-404 or data-bearing auth-free.
+verify_steps: PASSIVE — GET /login + remote manifests (≤1rps), fetch entrypoint chunks, grep `/v1/global/` literals, cross-check on api.sparelabs.com.
+impact: expands in-scope API surface; medium.
+testability: PASSIVE
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: auth-less Engage SPA calls the same /v1 Bearer API with ID-keyed paths; route-level 401s confirmed but object-level authorization on ID-keyed resources unproven; bundle unchanged (main.71d52314.js).
+evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a program-obtained token (no self-signup).
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[NEXT] PROBE: GET `/v1/global/regions/00000000-0000-0000-0000-000000000000/zones` then `/v1/global/config`, `/v1/global/regions/CA`, `/v1/global/features` with `Authorization: Bearer x` + `Origin: https://evil.example.com`, spaced ≥1.5s, repeat each once to sample both replicas — flag any status ≠ 401/404 with body > 725B.
+[NEW] platform bundle index-BIOrSDj1.js leaks /v1/auth/token/superAdmin (live, 401-gated confirmed: 401 w/ garbage Bearer, 401 lacks-header, OPTIONS 204) + admin-spare.ngrok.io (OOS tunnel).
+[NEW] forms bundle main.71d52314.js maps auth surface: auth/metadata, auth/rider/{phone,email}/request|verify, auth/rider/pin/login, auth/rider/test/login, auth/email/reset/{request,verify}, auth/token, auth/token/superAdmin. ALL probe = 401 "lacks Authorization header" tokenless → auth ns edge-gated, no anonymous reset.
+[HYP] superAdmin token-minting role check (AUTH_HELPED)
+[HYP] Engage IDOR via rider token (AUTH_HELPED)
+[HYP] organizations fail-open non-empty payload (PASSIVE sampling)
+[NEXT] HUMAN: program-obtained valid Bearer → POST /v1/auth/token/superAdmin (role-check probe, highest impact)
+[HYP] superAdmin token-minting reachable with any valid token (missing role check)
+class: AUTH
+asset: api.sparelabs.com/v1/auth/token/superAdmin
+confidence: 45
+reasoning: bundle-derived path confirmed live; global controller proves per-route auth omissions exist in this codebase; edge checks only token-type presence ("Unrecognized token type" for garbage), so a valid token passes middleware and the controller role check is unproven.
+evidence_needed: POST /v1/auth/token/superAdmin with a non-superAdmin valid Bearer returns 2xx + token.
+verify_steps: AUTH_HELPED: with a program-obtained valid tenant/rider token (no self-signup), POST empty body → 2xx (missing role check) vs 401/403 (enforced).
+impact: full platform takeover via superAdmin token minting; critical.
+testability: AUTH_HELPED
+[HYP] Engage portal rider/journey IDOR once a rider token is held
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: public Engage SPA authenticates via auth/rider/phone|email request+verify (edge-gated, needs real cred); bundle maps ID-keyed riders/journeys paths; object-level authorization on those resources unproven.
+evidence_needed: a rider token that reads another rider's journey.
+verify_steps: AUTH_HELPED: obtain a rider token via the public Engage flow with a program-created test rider, then GET ID-keyed rider/journey endpoints cross-tenant.
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED
+[HYP] /v1/global/organizations fail-open replica can serve non-empty payload
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 45
+reasoning: fail-open route served by ~703ms replica vs 4–8ms gated routes; multi-version LB flaps behaviors (/v1/public/terms 401↔200); list returns hardcoded 11B `{"data":[]}` with params ignored.
+evidence_needed: any response body >11B or org-scoped data.
+verify_steps: PASSIVE — spaced GET /v1/global/organizations with params (?status=&cursor=&limit=) across several intervals to sample replicas; flag body ≠ `{"data":[]}`.
+impact: unauthenticated cross-origin read of org registry; escalates severity from info-only.
+testability: PASSIVE
+[HYP] Unauthenticated email-reset chain → account takeover / reset-email abuse
+class: AUTH
+asset: api.sparelabs.com/v1/auth/email/reset/{request,verify}
+confidence: 55
+reasoning: request returns 200 "OK" for arbitrary emails and even non-UUID organizationId (zero validation), 4x no rate-limit; verify is anonymous, schema disclosed, no token-format oracle observed. If request mints+emails real reset links and verify token is low-entropy/unrate-limited → ATO; alone it is unauthenticated reset-email triggering to arbitrary addresses.
+evidence_needed: (a) reset email actually delivered for an existing user, (b) verify rate-limit/token space allowing repeated attempts.
+verify_steps: AUTH_HELPED: with program test org+user email, trigger request and confirm delivery; then N spaced verify attempts with observed token format to measure lockout/rate-limit.
+impact: account takeover of any org user / phishing + email-abuse; critical if ATO confirmed, medium otherwise.
+testability: AUTH_HELPED
+[HYP] Rider PIN login brute-force (4-digit pin, no visible rate limit)
+class: AUTH
+asset: api.sparelabs.com/v1/auth/rider/pin/login
+confidence: 50
+reasoning: anonymous login reached, schema fully enumerated (4-digit pin + phonePin≥6); org lookup precedes cred check; 3 sequential attempts no rate-limit headers. If lockout absent, 10k-pin space brute-forceable per rider.
+evidence_needed: valid org UUID + no lockout across wrong-pin attempts + correct pin → token.
+verify_steps: AUTH_HELPED: program test org/rider → wrong pin N times (2s spacing, watch 429/lockout) then correct pin; also try test/login with likely test creds (username/password/organizationId).
+impact: rider account takeover; high.
+testability: AUTH_HELPED
+[HYP] superAdmin token-minting reachable with non-superAdmin valid token (missing role check)
+class: AUTH
+asset: api.sparelabs.com/v1/auth/token/superAdmin
+confidence: 45
+reasoning: route live (401 w/ garbage token "Unrecognized token type", OPTIONS advertises POST); edge validates token-type presence only; per-route auth omissions proven elsewhere (global controller fail-open).
+evidence_needed: POST with non-superAdmin valid Bearer → 2xx + token.
+verify_steps: AUTH_HELPED: obtain a rider token via pin/test login with program creds, then POST empty body → 2xx (missing role check) vs 401/403.
+impact: full platform takeover via superAdmin token; critical.
+testability: AUTH_HELPED
+[NEXT] HUMAN: request from the program a test organization UUID + test rider credentials (no self-signup) — this unlocks all three top hypotheses in sequence: (1) trigger /v1/auth/email/reset/request for the test user and confirm delivery + token format on /v1/auth/email/reset/verify, (2) obtain a rider token via /v1/auth/rider/pin/login (or test/login), (3) reuse that token on POST /v1/auth/token/superAdmin (role-check) and then IDOR probes. Until then: PASSIVE spaced GET re-sampling of /v1/auth/email/reset/request (2s spacing, watch for 429) to confirm no rate limit at edge.
