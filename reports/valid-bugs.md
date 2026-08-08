@@ -101,3 +101,25 @@
   - | 4 | UUID enumeration oracle /v1/public/organization | ✅ VALID (low, reconfirmation) | 5.3 Medium | Spare security (TBD) |
   - | 5 | /v1/public/terms param-vector disclosure | ✅ VALID (low, reconfirmation) | 5.3 Medium | Spare security (TBD) |
   - | **VALID** | 5 |
+
+- 20 lead(s) marked VALID at 2026-08-08 21:56:34 UTC
+  - | Q5 Novel? | **NO** — already VALID as Lead 5 since 08:06 UTC 2026-08-08 |
+  - **Verdict: Already VALID** (reconfirmation only, no delta). `mobileAppId` param is a new vector on the already-accepted endpoint — append to Lead 5 report.
+  - | Q5 Novel? | **NO** — already VALID as Lead 3 since 22:59 UTC 2026-08-07 |
+  - **Verdict: Already VALID** (reconfirmation only, no delta). Empty payload persists.
+  - | Q5 Novel? | **NO** — already VALID as Lead 2 since 08:06 UTC 2026-08-08 |
+  - **Verdict: Already VALID** (reconfirmation only, no delta). Scheme-only bypass stable.
+  - | Q5 Novel? | **NO** — already VALID as Lead 4 since 01:50 UTC 2026-08-08 |
+  - **Verdict: Already VALID** (reconfirmation only, no delta). Oracle stable.
+  - | Q2 Attacker-reachable? | **NO** — requires valid Bearer token |
+  - | Q5 Novel? | **NO** — CSP leak already VALID since 17:58 UTC 2026-08-08 |
+  - **Verdict: Already VALID** (CSP leak reconfirmation, no delta). Login page accessibility itself is expected; the CSP header leak is the accepted finding.
+  - | Q2 Attacker-reachable? | **PARTIAL** — 400 for malformed UUID; valid UUID untested |
+  - | Q3 Real impact? | Unproven — needs valid UUID + cross-tenant token |
+  - | Q4 Passive proof? | **NO** — requires AUTH_HELPED (valid test token); rules say `no_account_creation` without program approval |
+  - **Verdict: HOLD** — IDOR potential on org-record read, but cross-tenant test requires ≥2 valid tokens. No test token available within rules. Escalate only if program provides test credentials.
+  - | 2 | `/v1/public/terms` data disclosure | **Already VALID** | Lead 5 reconfirmation |
+  - | 3 | `/v1/global/organizations` fail-open | **Already VALID** | Lead 3 reconfirmation |
+  - | 4 | `/v1/global/regions` scheme-only bypass | **Already VALID** | Lead 2 reconfirmation |
+  - | 5 | `/v1/public/organization` UUID enum | **Already VALID** | Lead 4 reconfirmation |
+  - | 7 | `/login` accessible | **Already VALID** | CSP leak reconfirmation |
