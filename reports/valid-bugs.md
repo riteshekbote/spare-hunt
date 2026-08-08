@@ -38,3 +38,15 @@
   - | Q5 Novel? | **NO** — already VALID since 01:50 UTC report |
   - **Verdict: Already VALID — reconfirmation only, no delta**
   - | **Already VALID** | 1 | Controller auth omission (reconfirmation, no delta) |
+
+- 10 lead(s) marked VALID at 2026-08-08 08:06:31 UTC
+  - **Verdict: ✅ VALID**
+  - **Verdict: ✅ VALID**
+  - | Q3 Impact | **LIMITED** — 400 ValidationError (malformed UUID) vs 404 NotFoundError (valid UUID not found) vs 200 (found). Enables UUID enumeration. But the model itself notes real org UUIDs are not
+  - | Q7 Triager accept | **BORDERLINE** — acceptable as a MEDIUM info-disclosure / enumeration finding; many programs accept this as a low-end valid |
+  - **Verdict: ✅ VALID (low)**
+  - | Q2 Reachable | **PARTIAL** — route-level 401 guards confirmed; IDOR requires valid Bearer token |
+  - | Q4 Proof passive | **NO** — requires AUTH_HELPED (valid test token); rules say no_account_creation without program approval |
+  - | 1 | CORS reflect-any-origin + credentials on /v1/** | ✅ VALID | 8.1 High | Spare security |
+  - | 2 | Auth-free data-bearing /v1/global (regions 725B) | ✅ VALID | 5.3 Medium | Spare security |
+  - | 3 | UUID org enumeration oracle /v1/public/organization | ✅ VALID (low) | 5.3 Medium | Spare security |
