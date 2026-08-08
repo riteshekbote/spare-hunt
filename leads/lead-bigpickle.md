@@ -246,3 +246,22 @@ verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a prog
 impact: cross-tenant read of passenger/journey PII; high.
 testability: AUTH_HELPED
 [NEXT] PROBE: OPTIONS preflight (Origin: https://evil.example, ACRM: POST, ACRH: authorization) on `https://api.sparelabs.com/v1/global/organizations/key/x` → then GET same path; repeat on `/zones`; each spaced ≥1.2s (≤1 rps). A 204-with-write-methods or a 400/404 that is NOT `InvalidTokenError` maps a write-enabled/behaving subroute inside the auth-free controller → escalate hypothesis 1.
+## 2026-08-08 03:00:00 UTC [api] (model bigpickle)
+[HYP] Organizations controller-wide auth omission confirmed via bracketed differential
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations (+ key/, {uuid}, zones, mobileApps subroutes)
+confidence: 85
+reasoning: 6 subroutes answer without Authorization (list 200 `{"data":[]}`, key/x 404, {uuid} 404, {uuid}/mobileApps 400, {uuid}/zones 400, zones 400) — zero InvalidTokenError; sibling /v1/global/settings (401) and /v1/global/regions (400 "Authorization header required") enforce → omission is controller-scoped, not flapping.
+evidence_needed: a data-bearing 200 from any subroute (org config/zones payload) to lift the empty-payload cap; or a write route answering without auth.
+verify_steps: PASSIVE — weekly retest list route for non-empty body; sweep `{uuid}/zones`, `key/{key}` variants with valid-format UUIDs spaced ≥1.2s; do NOT send POST until AUTH_HELPED token context.
+impact: unauth read/confirm of org registry (UUID+key existence oracle) + any subroute data; amplified by reflect-any-origin CORS+credentials; currently data-light, medium.
+testability: PASSIVE
+[HYP] Engage portal IDOR against shared /v1 API via journey/booking IDs
+class: IDOR
+asset: forms.sparelabs.com (+ api.sparelabs.com/v1)
+confidence: 45
+reasoning: auth-less Engage SPA calls same /v1 Bearer API with ID-keyed paths; route-level 401s confirmed but object-level authorization on ID-keyed resources unproven.
+evidence_needed: an ID whose resource returns data for a token that doesn't own it.
+verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using program-obtained token (no self-signup).
+impact: cross-tenant read of passenger/journey PII; high.
+testability: AUTH_HELPED

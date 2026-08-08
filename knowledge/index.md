@@ -61,3 +61,10 @@
 - 2026-08-08 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle confirmed (400 ValidationError for malformed, 404 NotFoundError for valid-but-unfound, 200 for valid org)
 - 2026-08-08 REJECTED MISCONFIG @ api.staging.sparelabs.com: staging API hosts return 404 behind envoy gateway, no independent API surface
 - 2026-08-08 REJECTED BUSLOGIC @ routing.sparelabs.com: all /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404; envoy 404 on all paths, no surface — CONFIRMED dead
+- 2026-08-08 ACCEPTED MISCONFIG @ api.sparelabs.com /v1/**: Live OPTIONS this session re-confirms `access-control-allow-origin:<reflected>` + `access-control-allow-credentials:true` + methods GET,HEAD,PUT,PATCH,POST,DELETE + header Authorization on ALL /v1 endpoints uniformly — STABLE.
+- 2026-08-08 ACCEPTED MISCONFIG @ api.sparelabs.com /v1/global/organizations: Live GET this session re-confirms 200 + `{"data":[]}` + CORS credentials — fail-open STABLE (not flapping), body 11B hardcoded, all query params ignored.
+- 2026-08-08 ACCEPTED MISCONFIG @ api.sparelabs.com /v1/generic/regions: Live GET returns 400 (param validation gate active) + CORS credentials — auth enforced, NOT fail-open.
+- 2026-08-08 ACCEPTED MISCONFIG @ platform.sparelabs.com /login: Live GET confirms 200 + CSP still leaking production admin Vercel hosts (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app) + staging (both 200) + infra — STABLE.
+- 2026-08-08 REJECTED BUSLOGIC @ api.sparelabs.com: Sibling sweep (/v1/organizations, /v1/riders, /v1/global/settings) all 401 + CORS → NO sibling route-level auth omission beyond /v1/global/organizations CONFIRMED this session; /v1/global/regions 400.
+- 2026-08-08 REJECTED MISCONFIG @ routing.sparelabs.com: No re-probe delta; envoy 404 across all paths — remains dead.
+- 2026-08-08 REJECTED MISCONFIG @ forms.staging.sparelabs.com, api.staging.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com: No re-probe delta — staging hosts 404, ngrok inactive — remain dead.
