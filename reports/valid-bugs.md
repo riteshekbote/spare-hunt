@@ -55,3 +55,22 @@
   - | 1 | CORS reflect-any-origin + credentials on /v1/** | ✅ VALID | 8.1 High | Spare security |
   - | 2 | Auth-free data-bearing /v1/global (regions 725B) | ✅ VALID | 5.3 Medium | Spare security |
   - | 3 | UUID org enumeration oracle /v1/public/organization | ✅ VALID (low) | 5.3 Medium | Spare security |
+
+- 17 lead(s) marked VALID at 2026-08-08 11:47:09 UTC
+  - | Q5 Novel | ❌ **Already VALID** since 01:50 UTC 2026-08-08 (CVSS 8.1 High). Reconfirmed 8+ times today. |
+  - **Verdict: ✅ VALID (reconfirmation only — no delta)**
+  - | Q5 Novel | ❌ **Already VALID** since 08:06 UTC 2026-08-08 (CVSS 5.3 Medium). Confirmed STABLE. |
+  - **Verdict: ✅ VALID (reconfirmation — scheme characterization refined: middleware validates header scheme only, never token)**
+  - | Q3 Impact | ✅ 400 ValidationError (malformed UUID) vs 404 NotFoundError (valid UUID not found) vs 200 (found) = reliable UUID enumeration oracle without auth |
+  - | Q5 Novel | ❌ **Already VALID** since 01:50 UTC 2026-08-08 (CVSS 5.3). Reconfirmed. |
+  - **Verdict: ✅ VALID (reconfirmation)**
+  - | Q5 Novel | ❌ **Already VALID** since 22:59 UTC 2026-08-08 (CVSS 5.3) — controller-wide scope confirmed. |
+  - **Verdict: ✅ VALID (reconfirmation — empty payload persists, no new data-bearing subroute found)**
+  - | Q2 Reachable | ⚠️ Public SPA shell, but IDOR requires ≥2 valid tokens (cross-tenant test) |
+  - | Q4 Passive proof | ❌ **Requires AUTH_HELPED.** Rules say `no_account_creation` without program approval. No valid test token available. ID params/UUID shape extracted from bundle but cross-tenant re
+  - **Verdict: ✅ VALID (note on existing finding) — New parameter vector on already-accepted auth-free data disclosure. Append to Lead 2 report.**
+  - | 1 | CORS reflect-any-origin+creds on /v1/** | ✅ VALID | Already accepted, reconfirmed STABLE |
+  - | 2 | Auth-free data-bearing /v1/global/regions (scheme-only) | ✅ VALID | Already accepted, scheme characterized |
+  - | 3 | UUID enumeration oracle /v1/public/organization | ✅ VALID | Already accepted, reconfirmed |
+  - | 4 | /v1/global/organizations fail-open (empty payload) | ✅ VALID | Already accepted, persists |
+  - | 17 | /v1/public/terms?mobileAppId= (new param) | ✅ VALID (note) | Variant of Lead 2; append to report |
