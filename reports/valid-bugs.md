@@ -161,3 +161,8 @@
 
 - 1 lead(s) marked VALID at 2026-08-08 23:22:08 UTC
   - triage/run-2026-08-08-17-58.md:275:**Verdict: Already VALID (reconfirmation only)** — no delta. Previously accepted CSP + MFE manifest infra leak.
+
+- 3 lead(s) marked VALID at 2026-08-08 23:53:13 UTC
+  - | Q3 Real impact? | **Medium** — enumerate valid org UUIDs |
+  - | Q4 Prove passively? | **Yes** — GET with malformed vs valid-format UUIDs |
+  - | Q3 Real impact? | **Unproven** — 401 with garbage AND valid-format tokens; role check not bypassed |
