@@ -637,3 +637,31 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — Bearer x -> 200 + 725B + ACAO+ACAC; no-Auth -> 400 "header required"; Authoriza
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:<reflected>+ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Aut
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — 200 + `{"data":[]}` (11B) + ACAO+ACAC with Bearer x; OPTIONS 204 advertises P
+
+## RANKED HYPOTHESES 2026-08-08 16:24:36 UTC
+- [96] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass yields unauthenticated region-registry disclosure incl. 6 OOS infra hosts (from reports/hypotheses-laguna.txt)
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass on /v1/global/regions yields unauthenticated infrastructure topology (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: OPTIONS `https://api.sparelabs.com/v1/journeys` with `Origin: https://evil.example.com` and `Access-Control-Request-Method: DELETE` and `Access-Control-R
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?organizationId=0606efa8-59e1-4d08-9e1e-3b5e6a1f6e00"` — a 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions incl. 6 OOS api/routing host
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:A
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — 200 + `{"data":[]}` (11B) + CORS (ACAO+ACAC) with `Bearer x`; OPTIONS 204 adv
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{config,features,countries,currencies,fares,tariffs,zones,settings}: all 401 with garbage Bearer — auth omission doe
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/email/reset/{request,verify}: Live GET returns 401 + CORS — auth-gated, not bypassable
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/metadata: Live GET returns 401 + CORS — auth-gated, not bypassable
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/rider/test/login: Live GET returns 401 + CORS — auth-gated, not bypassable
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/token/superAdmin: Live GET returns 401 + CORS — auth-gated, not bypassable despite bundle leak
+- LEARN: REJECTED MISCONFIG @ admin-spare.ngrok.io: OOS — ngrok-edge 404; no independent in-scope exploitation vector
+- LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: envoy 404 across all paths — remains dead, no surface
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id}: 400 auth-free 0B — registered-not-implemented route, not data-bearing
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/key/{x}: 404 auth-free 0B — identical 404 for all key strings, not enumeration oracle
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — confirmed live 2026-08-08 16:21 UTC — 200 + 725B (7 regions incl. 6 OOS) + ACAO
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — confirmed live 2026-08-08 16:21 UTC — ACAO:https://evil.example.com + ACAC:tru
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — confirmed live 2026-08-08 16:21 UTC — 200 + `{"data":[]}` (11B) + ACAO+ACAC w
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?mobileAppId=<nil-uuid>: data disclosure STABLE — confirmed live 2026-08-08 16:21 UTC — 200 + 137B (termsO
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle STABLE — confirmed live 2026-08-08 16:22 UTC — malformed → 400 Validation
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{config,features,countries,currencies,fares,tariffs,zones,settings}: all 401 with `Bearer x` (control siblings prope
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — confirmed live 2026-08-08 16:21 UTC — production admin-eam-app.vercel.app + admin-fixed-rou
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle STABLE — main.71d52314.js (same filename) leaking staging+prod+regional infra (incl. 6 OOS) + atlassian.net 
+- LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: envoy 404 across all paths — remains dead, no surface
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?organizationId=<nil-uuid>: currently in 200 data-disclosure state (fast 8ms replica), consistent with doc

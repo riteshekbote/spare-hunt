@@ -946,3 +946,4 @@ evidence_needed: a previously-401 global sibling returning 200 + data with `Bear
 verify_steps: PASSIVE 2s-spaced re-sample of `GET /v1/global/{apps,vehicles,rider,appversions,configs}` with `Bearer x` + time_total capture — 200 with >500ms upstream signals stale-replica omission.
 impact: auth-free surface expansion beyond regions/organizations; MEDIUM-HIGH.
 testability: PASSIVE
+## 2026-08-08 16:21:59 UTC [api] (model bigpickle)
