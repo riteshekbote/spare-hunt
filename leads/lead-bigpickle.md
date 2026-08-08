@@ -681,3 +681,129 @@ impact: unauthenticated cross-origin read of org registry; escalates severity fr
 testability: PASSIVE
 [NEXT] HUMAN: request from the program a test organization UUID + test user email + test rider credentials (no self-signup). Sequence: (1) POST /v1/auth/email/reset/request for test user → confirm delivery + token format; (2) obtain rider token via /v1/auth/rider/pin/login; (3) reuse it on POST /v1/auth/token/superAdmin (role check), then IDOR probes. Until then: PASSIVE spaced re-sample of `/v1/global/organizations?status=&cursor=&limit=` for any body >11B.
 ## 2026-08-08 11:44:52 UTC [api] (model bigpickle)
+## 2026-08-08 12:07:09 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/global/regions, 9.55, attack=10 business=10 tech=9 gate=10 cloud=7 fresh=10
+[PRIO] platform.sparelabs.com/login, 8.50, attack=9 business=9 tech=8 gate=8 cloud=7 fresh=9
+[PRIO] api.sparelabs.com/v1/auth/token/superAdmin, 8.10, attack=9 business=9 tech=8 gate=6 cloud=5 fresh=10
+[HYP] Auth-free data-bearing region registry with infrastructure topology disclosure
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: GET with `Authorization: Bearer x` returns 200 + 725B region registry (CA/US/US2/US3/JP/EU/UAT environments with apiUrl + routingHost); no-Auth→400 "header required"; `Auth:x`→400 "scheme Bearer required"; token validity never checked; CORS reflects any Origin with credentials
+evidence_needed: Confirm scheme-only bypass stability across multiple requests; verify no rate limiting; confirm regional apiUrl/routingHost values are production infrastructure
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/regions with `Authorization: Bearer x` and `Origin: https://evil.example.com` spaced 2s apart ×3; capture status, body, CORS headers, response times
+impact: Unauthenticated access to complete infrastructure topology (6 regional API/routing hosts including OOS subdomains); combined with reflected CORS+credentials enables cross-origin data theft from victim browsers; severity HIGH
+testability: PASSIVE
+[HYP] Production admin application exposure via CSP leak on platform.sparelabs.com/login
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 90
+reasoning: CSP on /login page leaks production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app) + staging variants + Metabase (prod+staging, both 200) + full infra list (Cognito, Stripe, DO Spaces, S3, Sentry, Intercom, Mapbox); all leaked hosts respond 200 and are accessible
+evidence_needed: Verify production admin apps are auth-gated but staging variants may have weaker controls; confirm Metabase instances expose data
+verify_steps: PASSIVE: GET https://platform.sparelabs.com/login capture CSP header; GET https://admin-eam-app.vercel.app, https://admin-fixed-route-app.vercel.app, https://metabase.sparelabs.com, https://metabase.staging.sparelabs.com; observe auth challenges and response codes
+impact: Production admin surface enumerated and accessible; staging admin apps live with potential weaker auth; Metabase BI tool exposed; combined with CORS reflection on API enables chained attacks; severity HIGH
+testability: PASSIVE
+[HYP] SuperAdmin token generation or validation bypass via /v1/auth/token/superAdmin
+class: AUTH
+asset: api.sparelabs.com/v1/auth/token/superAdmin
+confidence: 70
+reasoning: Platform bundle index-BIOrSDj1.js leaks this endpoint; OPTIONS returns 204 confirming existence; GET with garbage Bearer returns 401 (auth-gated); endpoint name implies platform-wide superAdmin token generation/validation; may have logic flaws in token issuance or validation
+evidence_needed: Determine if endpoint generates tokens (POST) or validates them (GET); test for auth bypass, weak validation, or token leakage with various payloads
+verify_steps: PASSIVE: POST /v1/auth/token/superAdmin with empty body, garbage JSON, valid JWT structure; GET with `Authorization: Bearer x` and `Origin: https://evil.example.com`; observe if tokens returned, validation differs from standard 401, or error messages leak info
+impact: Full platform admin compromise — all organizations, riders, trips, PII, billing; severity CRITICAL
+testability: PASSIVE
+[PARKED] SuperAdmin token generation or validation bypass via /v1/auth/token/superAdmin: confidence 70 but verify_steps require POST with payloads (not passive-first GET/HEAD only); class AUTH not rejected but testability AUTH_HELPED conflicts with passive-only rules
+[FINAL] 1. Auth-free data-bearing region registry with infrastructure topology disclosure (confidence 95)
+[FINAL] 2. Production admin application exposure via CSP leak on platform.sparelabs.com/login (confidence 90)
+[NEXT] PROBE: GET `https://api.sparelabs.com/v1/global/regions` with `Authorization: Bearer x` and `Origin: https://evil.example.com`; capture status, body, CORS headers, response time
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only auth bypass confirmed STABLE — 200 + 725B region registry with any `Bearer x`; no-Auth→400 "header required", `Auth:x`→400 "scheme Bearer required"
+[LEARN] ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — production admin Vercel apps + staging variants + Metabase prod+staging (200) + full infra list
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/{config,features,countries,currencies,fares,tariffs,zones,settings}: all 401 with garbage Bearer — auth omission route-specific to /regions + /organizations only
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id},organizations/key/{x}: auth-free (0 InvalidTokenError) but not data-bearing (400/404, 0-byte bodies)
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?mobileAppId=<uuid>: new parameter vector returns 200 + live terms URLs without auth + CORS
+[LEARN] REJECTED MISCONFIG @ admin-spare.ngrok.io: OOS — ngrok-edge 404; no independent in-scope exploitation vector
+[RISK] api.sparelabs.com: 95 reason — Envoy edge gateway reflects any Origin with credentials on entire /v1 API; /v1/public/* endpoints return data despite 401; /v1/global/regions auth-free data-bearing with infrastructure topology; /v1/global/organizations fail-open; NEW auth surface mapped (rider test/login, PIN, email reset, superAdmin token); critical CORS misconfig
+[RISK] platform.sparelabs.com: 85 reason — MFE SPA shell leaks accessible staging AND production admin apps (Vercel, CORS *) and Metabase; auth-gated prod but staging inventory exposed and live; bundle leaks /v1/auth/token/superAdmin + admin-spare.ngrok.io
+[RISK] routing.sparelabs.com: 40 reason — Envoy gateway returning 404; no discoverable routing API surface; low visible exposure
+[RISK] forms.sparelabs.com: 55 reason — Public SPA on object store/CDN; JS bundle leaks staging infra (forms.staging.* live, api.staging.* 404, ngrok dead, JIRA OOS); auth surface fully mapped (rider auth, email reset, token endpoints); IDOR risk if shared /v1 API has cross-tenant flaws
+[RISK] web (spare.com/sparelabs.com): 35 reason — Webflow marketing site behind Cloudflare; sparelabs.com 301→spare.com; static exposure only
+[HYP] Credential-reflecting CORS across entire /v1 API surface with auth-bypassed data-bearing routes
+class: MISCONFIG
+asset: api.sparelabs.com /v1/**
+confidence: 96
+reasoning: Live OPTIONS on /v1/global/regions returns 204 + ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization. GET on data-bearing /v1/global/regions also reflects ACAO+ACAC. Uniformly applied envoy middleware across all /v1 paths including auth-gated 401 endpoints confirmed STABLE across 2026-08-07→08.
+evidence_needed: 204 + ACAO+ACAC+methods+Authorization on OPTIONS; GET 200 + ACAO+ACAC on data-bearing route
+verify_steps: PASSIVE — `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization" https://api.sparelabs.com/v1/global/regions -o /dev/null`; `curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | grep -i access-control`
+impact: CRITICAL — any malicious origin can issue credentialed cross-origin GET/PUT/PATCH/POST/DELETE against 15+ auth-gated + data-bearing endpoints via victim browser; Bearer tokens exfiltrable; read-to-write escalation
+testability: PASSIVE
+[HYP] Scheme-only auth bypass yields unauthenticated region-registry disclosure with OOS infra
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 94
+reasoning: Live GET this session confirms 200 + 725B JSON of 7 regions (CA/US/US2/US3/JP/EU/UAT) each with apiUrl + routingHost including 6 OOS regional hosts (api.us/api.us2/api.us3/api.jp/api.eu/api.uat + routing). No-Auth→400 `{"message":"Authorization header required"}`; `Authorization: x`→400 `{"message":"Authorization header with scheme 'Bearer' required"}`; `Authorization: Bearer x`→200. Middleware validates header scheme only, never the token. CORS ACAO+ACAC on the 200.
+evidence_needed: 200 + 725B region registry with garbage Bearer; 400 scheme-requirement on non-Bearer
+verify_steps: PASSIVE — `curl -s -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions`; `curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: x" https://api.sparelabs.com/v1/global/regions`
+impact: HIGH — unauthenticated disclosure of full regional infra topology (apiUrl + routingHost per region incl. 6 OOS hosts) enabling targeted follow-on recon; scheme-only gate is textbook auth bypass; CORS enables exfil via browser
+testability: PASSIVE
+[HYP] No-auth parameter-vector data disclosure on /v1/public/terms via mobileAppId|organizationId
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/terms
+confidence: 78
+reasoning: Live GET this session confirms 200 + `{"termsOfUseUrl":"https://sparelabs.com/terms-of-use/","privacyPolicyUrl":"https://sparelabs.com/privacy-policy/","serviceTermsUrl":null}` with `?mobileAppId=<uuid>` and `?organizationId=<uuid>` without auth + CORS ACAO+ACAC. Without params returns 400 IntegrationError "One of mobileAppId or organizationId needs to be provided". Multi-version LB behind envoy flaps between 200 and 400 (~703ms upstream on data-bearing route vs 4-8ms on auth-gated routes).
+evidence_needed: 200 + live terms URLs with no auth + CORS; 400 IntegrationError without params; 703ms upstream timing delta
+verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000"`
+impact: MEDIUM-HIGH — unauthenticated disclosure of live terms-of-use + privacy policy URLs; may differ by organization (param-dependent); reveals valid mobileAppId/organizationId space via enumeration
+testability: PASSIVE
+[HYP] Credential-reflecting CORS: confidence 96, class MISCONFIG on ACCEPTED list, verify_steps concrete and proven this session — RETAINED
+[HYP] Scheme-only auth bypass /v1/global/regions: confidence 94, class AUTH, verify_steps concrete and proven this session — RETAINED
+[HYP] /v1/public/terms data disclosure: confidence 78, class MISCONFIG on ACCEPTED list, verify_steps concrete and proven this session — RETAINED
+[FINAL] 1. [96] api.sparelabs.com /v1/**: credential-reflecting CORS across entire API (MISCONFIG) — STABLE across all intervals
+[FINAL] 2. [94] api.sparelabs.com/v1/global/regions: scheme-only auth bypass + region-registry disclosure with OOS infra (AUTH) — scheme fully characterized, data-bearing
+[FINAL] 3. [78] api.sparelabs.com/v1/public/terms: no-auth data disclosure via mobileAppId|organizationId parameter vector (MISCONFIG) — confirmed live
+[NEXT] PROBE: `curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` and `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000" https://api.sparelabs.com/v1/global/organizations` — confirm CORS reflection + ACAH:Authorization on the two data-bearing auth-bypassed routes (200 + 725B / 11B + CORS) to close the standalone exfil PoC loop, verifying multi-version LB timing delta (703ms vs 4-8ms) for /v1/public/terms (in-scope; GET; ≤1 rps).
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization on OPTIONS 204 + GET (200/401/400 paths) uniformly across /v1 — confirmed 2026-08-08 11:45 UTC.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only auth bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions incl. 6 OOS hosts); no-Auth→400 "header required"; `Auth:x`→400 "scheme 'Bearer' required" — confirmed 2026-08-08 11:45 UTC.
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — 200 + `{"data":[]}` + CORS with `Bearer x` (818ms upstream, slow replica); control /v1/journeys still 401 — confirmed 2026-08-08 11:45 UTC.
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — 200 + live terms URLs with `?mobileAppId=<uuid>` and `?organizationId=<uuid>` without auth + CORS; no-params→400 IntegrationError "One of mobileAppId or organizationId needs to be provided"; multi-version LB flapping confirmed (703ms vs 4-8ms upstream) — confirmed 2026-08-08 11:45 UTC.
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle STABLE — malformed→400 ValidationError `must match format "uuid"`; valid-but-unfound→404 NotFoundError; valid+found→200 — confirmed 2026-08-08 11:45 UTC.
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/email/reset/{request,verify}: Live GET returns 401 + CORS — auth-gated, not bypassable; bigpickle "unauthenticated email-reset chain → ATO" hypothesis REJECTED.
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/metadata: Live GET returns 401 + CORS — auth-gated, not bypassable.
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/rider/test/login: Live GET returns 401 + CORS — auth-gated, not bypassable.
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/token/superAdmin: Live GET returns 401 + CORS — auth-gated, not bypassable despite bundle leak.
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/key/{x}: 404 auth-free 0B — registered-not-implemented route, not data-bearing, not enumeration oracle.
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id}: 400 auth-free 0B — registered-not-implemented route, not data-bearing.
+[LEARN] ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app (vercel.app, loadable 200) + staging variants + Metabase prod+staging (200) + full infra (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox) — confirmed 2026-08-08 11:45 UTC.
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — leaking api.staging.sparelabs.com + api.staging.us.sparelabs.com + forms.staging.sparelabs.com + forms.staging.us.sparelabs.com + forms.us.sparelabs.com + api.us.sparelabs.com + atlassian.net + ngrok.io — confirmed 2026-08-08 11:45 UTC.
+[RISK] api.sparelabs.com: **97** — CRITICAL credential-reflecting CORS (no-auth, all methods+Authorization, uniformly on /v1) STABLE; HIGH auth-free data-bearing /v1/global/regions (725B region registry incl. 6 OOS infra hosts, scheme-only gate bypass); route-level auth omission on /v1/global/organizations (200+empty+CORS); /v1/public/terms disclosure (200+URLs no-auth, mobileAppId+organizationId vectors); /v1/public/organization UUID enumeration oracle; OpenAPI ValidationError + correlationId disclosure on all errors; 15+ auth-gated + 3 unauthenticated endpoints; envoy edge. Highest program risk.
+[RISK] platform.sparelabs.com: **72** — Admin MFE/SPA (200); CSP leaks production admin Vercel apps (admin-eam-app + admin-fixed-route-app, loadable 200) + staging 200 + Metabase prod+staging 200 + Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox; production admin surface exposed → bridge to admin actions + auth-bypassed API.
+[RISK] forms.sparelabs.com: **58** — Public SPA (200, envoy+Google CDN, x-frame DENY); JS bundle main.71d52314.js leaks staging+prod+regional infra hosts (api.staging.us/api.staging/forms.staging/forms.us + 6 OOS) + atlassian.net/JIRA + inactive ngrok tunnel + auth surface mapping; infra recon value; no direct auth bypass found.
+[RISK] routing.sparelabs.com: **50** — Envoy gateway returns 404 on all paths (/v1/,/api/,/routing/,/router,/v2/,/graphql/,/map/,/directions/); routing API surface completely hidden; no unauthenticated surface; remain dead.
+[RISK] web (spare.com/sparelabs.com): **38** — spare.com apex HTTP 200 (Cloudflare Webflow static); www.spare.com 301→OOS; sparelabs.com root apex TIMEOUT (CDN/WAF gating); minimal live surface.
+[HYP] Auth-free live org-record read via /v1/global/organizations/{id} (controller lacks auth middleware entirely)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations/{id}
+confidence: 75
+reasoning: no-auth GET on {id} → 404 NotFoundError+correlationId for valid-unfound UUID and 400 OpenAPI ValidationError for malformed (this session); list route no-auth → 200; control /v1/global/settings no-auth → 401. Controller-wide middleware omission; {id} is a live DB-lookup (real NotFoundError, not 400 registered-not-implemented).
+evidence_needed: (a) malformed→400 vs valid→404 discrimination (CONFIRMED, PASSIVE); (b) GET with a valid existing org UUID → 200 + full org object without any token.
+verify_steps: PASSIVE oracle done (400/404, no-auth). AUTH_HELPED: program test org UUID → `GET /v1/global/organizations/{test-org-uuid}` with NO auth header → expect 200 + org record (name, branding, PII).
+impact: unauthenticated read of org records (tenant data/PII) from a gated namespace; enumerates org existence with format-validation oracle; HIGH.
+testability: PASSIVE (oracle confirmed) / AUTH_HELPED (data)
+[HYP] Write-method escalation on auth-free organizations controller (PUT/PATCH/DELETE/{id} auth-free + CORS reflect = unauthenticated cross-origin org modification)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations/{id}
+confidence: 55
+reasoning: controller skipped auth on all tested GET routes (no header needed); OPTIONS on {id} advertises GET,HEAD,PUT,PATCH,POST,DELETE with ACAO:<reflected>+ACAC:true; if the same middleware omission applies to mutating methods, any origin can rewrite org records via victim browser.
+evidence_needed: PUT/PATCH/DELETE on {id} with NO auth → 2xx (not 401/403).
+verify_steps: AUTH_HELPED: with program test org UUID, PUT/PATCH/DELETE an inert field (e.g., unchanged name) with no auth → observe 2xx vs 401/403; requires program approval for write test.
+impact: unauthenticated cross-origin org-record tampering/delete; CRITICAL if confirmed.
+testability: AUTH_HELPED
+[HYP] superAdmin token-minting with non-superAdmin valid token (presence-only gate + missing role check)
+class: AUTH
+asset: api.sparelabs.com/v1/auth/token/superAdmin
+confidence: 50
+reasoning: route live (garbage Bearer → 401 "Unrecognized token type" = type-presence check only); OPTIONS 204 advertises POST; per-route middleware omission is the proven house pattern (global controller this session); role-check on a *valid* token is unproven.
+evidence_needed: POST with a valid non-superAdmin Bearer → 2xx + minted token.
+verify_steps: AUTH_HELPED: obtain rider token via /v1/auth/rider/pin/login or test/login with program creds; POST empty body to /v1/auth/token/superAdmin → 2xx (role-check missing) vs 401/403.
+impact: full platform takeover via superAdmin token; CRITICAL.
+testability: AUTH_HELPED
+[NEXT] HUMAN: request from the program: one test organization UUID + test rider credentials + test user email (no self-signup). Sequence: (1) `GET /v1/global/organizations/{test-org-uuid}` with NO auth header → confirm 200 + full org record (escalates the new auth-free controller finding from oracle to data-read); (2) with program approval, PUT/PATCH/DELETE inert field on same UUID no-auth → confirm write escalation; (3) obtain rider token via /v1/auth/rider/pin/login, then POST /v1/auth/token/superAdmin empty body → role-check test; (4) POST /v1/auth/email/reset/request for test email (Bearer x) → delivery + token-format recon. Until creds arrive: PASSIVE spaced re-sample of `/v1/global/organizations?limit=&cursor=` for any body ≠ `{"data":[]}` (2s spacing).
