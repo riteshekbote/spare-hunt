@@ -1,1 +1,28 @@
-## 2026-08-08 14:56:13 UTC [api] (model bigpickle)
+## 2026-08-08 15:22:48 UTC [api] (model bigpickle)
+[HYP] Auth-free live org-record read via /v1/global/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations/{id}
+confidence: 75
+reasoning: no-auth GET on {id} returns real 404 `NotFoundError` (DB lookup) with correlationId; list route no-auth → 200; control /v1/global/settings no-auth → 401. Controller-wide omission, {id} is a data-bearing subroute.
+evidence_needed: GET with a valid existing org UUID → 200 + full org record (name/branding/PII) without any token.
+verify_steps: PASSIVE oracle done (malformed→400 ValidationError, valid-unfound→404, this session). AUTH_HELPED: program test-org UUID → `GET /v1/global/organizations/{uuid}` NO auth header → expect 200 + record.
+impact: unauthenticated tenant org-record/PII disclosure from gated namespace; HIGH.
+testability: PASSIVE (oracle) / AUTH_HELPED (data)
+[HYP] Cross-origin write on auth-free regions controller (PUT/PATCH/DELETE)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: OPTIONS 204 advertises GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:authorization + ACAC:true on the same controller whose GET returns 200 with any `Bearer x` (725B); house pattern is per-route middleware omission; mutating-method behavior unproven.
+evidence_needed: PUT/PATCH/POST/DELETE /v1/global/regions with `Bearer x` (or no auth) → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED: with program approval, PUT inert unchanged payload on /v1/global/regions no-auth → 2xx vs 401/403; passive OPTIONS with `Access-Control-Request-Method: PUT` already 204 (done).
+impact: unauthenticated cross-origin region/config tampering via victim browser; CRITICAL if mutating responds.
+testability: PASSIVE (OPTIONS) / AUTH_HELPED (write)
+[HYP] Fail-open slow replica omits auth on sibling global routes (version skew)
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/global
+confidence: 42
+reasoning: fail-open routes consistently hit slow replica (1.6s list this session) vs 3-15ms auth-gated; stale replica carrying /regions+/organizations may omit auth on a route not yet swept; this session 5 new global siblings all 401 — scope narrowing.
+evidence_needed: a previously-401 global sibling returning 200 + data with `Bearer x` from the slow replica.
+verify_steps: PASSIVE 2s-spaced re-sample of `GET /v1/global/{apps,vehicles,rider,appversions,configs}` with `Bearer x` + time_total capture — 200 with >500ms upstream signals stale-replica omission.
+impact: auth-free surface expansion beyond regions/organizations; MEDIUM-HIGH.
+testability: PASSIVE

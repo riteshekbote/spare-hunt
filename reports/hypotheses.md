@@ -580,3 +580,27 @@
 - LEARN: NO_DELTA: routing.sparelabs.com remains envoy 404 across all paths; no surface.
 - LEARN: NO_DELTA: forms.sparelabs.com JS bundle remains main.71d52314.js (same infra leak incl. OOS + ngrok inactive).
 - LEARN: NO_DELTA: platform.sparelabs.com /login CSP remains leaking prod admin-eam-app + admin-fixed-route-app (vercel.app) + staging + Metabase + full infra.
+
+## RANKED HYPOTHESES 2026-08-08 15:24:22 UTC
+- [96] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass yields unauthenticated 725B region-registry disclosure incl. 6 OOS infra hosts (from reports/hypotheses-laguna.txt)
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass on /v1/global/regions yields unauthenticated infrastructure topology (from reports/hypotheses-nemotron3.txt)
+- [75] api.sparelabs.com/v1/global/organizations/{id}: Auth-free live org-record read via /v1/global/organizations/{id} (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET `https://api.sparelabs.com/v1/global/regions` with `Authorization: Bearer x` and `Origin: https://evil.example.com`; capture status, body, CORS heade
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: PUT" -H "Access-ControlRequestHeaders: Auth
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions incl. 6 OOS api/routing host
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:A
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — 200 + `{"data":[]}` (11B) + CORS (ACAO+ACAC) with `Bearer x`; upstream 709ms 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — 200 + live terms URLs (`termsOfUseUrl`+`privacyPolicyUrl`, 137B) with `?mobileA
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — production admin Vercel apps (`admin-eam-app.vercel.app` + `admin-fixed-route-app.vercel.ap
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/email/reset/{request,verify}: Live GET returns 401 + CORS — auth-gated, not bypassable
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/metadata: Live GET returns 401 + CORS — auth-gated, not bypassable
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/rider/test/login: Live GET returns 401 + CORS — auth-gated, not bypassable
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/auth/token/superAdmin: Live GET returns 401 + CORS — auth-gated, not bypassable despite bundle leak
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/key/{x}: 404 auth-free 0B — registered-not-implemented route, not data-bearing, not enumeration o
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id}: 400 auth-free 0B — registered-not-implemented route, not data-bearing
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{config,features,countries,currencies,fares,tariffs,zones,settings}: all 401 with garbage Bearer — auth omission doe
+- LEARN: REJECTED MISCONFIG @ admin-spare.ngrok.io: OOS — ngrok-edge 404; no independent in-scope exploitation vector
+- LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: envoy 404 across all paths — remains dead, no surface
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — confirmed live 2026-08-08 15:22 UTC — 200 + 725B + ACAO+ACAC with Bearer x
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — confirmed live 2026-08-08 15:22 UTC — ACAO:<reflected> + ACAC:true + methods G
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open STABLE — confirmed live 2026-08-08 15:22 UTC — OPTIONS 204 advertises PUT/PATCH/POST/D
