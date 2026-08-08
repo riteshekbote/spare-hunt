@@ -1039,3 +1039,108 @@ verify_steps: PASSIVE — spaced GETs (2s) `?mobileAppId=<nil-uuid>` then `?orga
 impact: confirms divergent auth enforcement across replicas → timing-based fingerprinting of auth-free replica; low-medium.
 testability: PASSIVE
 [NEXT] HUMAN: request program test-org UUID from authorized contact → `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` with NO Authorization header → expect 200 + full org record vs control 401 (this is the only unproven high-impact data-bearing path; UUID space not passively enumerable). Until approval, run the passive public/terms skew probe at 2s spacing.
+## 2026-08-08 22:04:22 UTC [api] (model bigpickle)
+impact: unauthenticated tenant org-record/PII disclosure from gated namespace; HIGH.
+testability: PASSIVE (oracle) / AUTH_HELPED (data)
+[HYP] Cross-origin write on auth-free regions controller (PUT/PATCH/DELETE)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: OPTIONS 204 advertises GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization + ACAC:true on the same controller whose GET returns 200+725B with any `Bearer x` (upstream 3ms); per-route middleware omission is the proven house pattern; mutating-method behavior unproven.
+evidence_needed: PUT/PATCH/POST/DELETE /v1/global/regions with `Bearer x` (or no auth) → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED: with program approval, PUT inert unchanged payload on /v1/global/regions no-auth → 2xx vs 401/403; passive OPTIONS ACRM:PUT already 204 (done).
+impact: unauthenticated cross-origin region/config tampering via victim browser (CORS reflect + ACAC + Authorization); CRITICAL if mutating responds.
+testability: PASSIVE (OPTIONS) / AUTH_HELPED (write)
+[HYP] Multi-version LB flapping on /v1/public/terms — 401-state replica still discoverable (version-skew oracle)
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/terms
+confidence: 45
+reasoning: ?mobileAppId=nil-uuid → 200 + 137B this session (fast, 0.34s); documented history shows same route 401 on the other replica (~703ms); the two replicas disagree on whether the public namespace requires auth — a differential oracle for backend version enumeration.
+evidence_needed: capture a 401-state response on the same request to confirm replica split persists.
+verify_steps: PASSIVE — spaced GET ?mobileAppId=nil-uuid and ?organizationId=nil-uuid (2s) until a non-200 or status flip observed; log upstream-service-time each.
+impact: confirms divergent auth enforcement across replicas → aids timing-based fingerprinting of the auth-free replica; low-medium.
+testability: PASSIVE
+[HYP] Auth-free {id} returns full org record for a real org UUID
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations/{id}
+confidence: 55
+reasoning: no-auth malformed→400 ValidationError (`/params/id`, `format.openapi.validation`); no-auth 0606efa8/nil→404 NotFoundError (131B, 756-867ms upstream = DB lookup, not stub); control `/v1/journeys` 401. Only known org UUID (0606efa8) is NOT real (public oracle 404), so data-bearing for real orgs unproven.
+evidence_needed: GET with a real existing org UUID (no auth) → 200 + org record (name/branding/contacts).
+verify_steps: AUTH_HELPED: program test-org UUID → `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` with NO auth header → expect 200+record vs control 401. Passive fallback none (UUID space not enumerable passively).
+impact: unauth tenant org-record/PII disclosure from gated namespace; HIGH if proven.
+testability: PASSIVE (oracle, done) / AUTH_HELPED (data)
+[HYP] Cross-origin write on auth-free regions controller (PUT/PATCH/DELETE)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: GET 200+725B with any `Bearer x`; OPTIONS (ACRM:PUT) 204 + ACAO:reflected + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:authorization,content-type — re-confirmed live this session. Per-route middleware omission is the proven house pattern; write behavior unproven.
+evidence_needed: PUT/PATCH/POST/DELETE → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED: `PUT /v1/global/regions` (or `/{id}`) inert unchanged payload, no-auth → 2xx vs 401/403; passive OPTIONS ACRM:PUT already 204 (done).
+impact: unauth cross-origin region/config tampering via victim browser (CORS reflect+ACAC+Authorization); CRITICAL if mutating responds.
+testability: PASSIVE (preflight) / AUTH_HELPED (write)
+[HYP] Platform /login import-map leaks admin MFE API paths → auth-free admin routes on api
+class: MISCONFIG
+asset: platform.sparelabs.com/login → api.sparelabs.com/v1/admin/*
+confidence: 45
+reasoning: /login CSP+prefetch already leaks prod admin-eam-app + admin-fixed-route-app (200 loadable); those MFEs call api.sparelabs.com and the import-map/root-config in platform HTML names their API paths. House pattern = per-route auth omission on global controller; admin namespace untested.
+evidence_needed: an api.sparelabs.com/v1/admin/* path returning non-401.
+verify_steps: PASSIVE: `GET https://platform.sparelabs.com/login` → extract import-map/root-config (index-BIOrSDj1.js) → grep v1/admin + org-route patterns → `GET https://api.sparelabs.com/v1/admin/{health,organizations,users,regions}` no-auth then `Bearer x`, 2s spaced → flag any 200/400 (omission) vs 401 (gated).
+impact: admin data/ops exposure; HIGH if any admin route is auth-free.
+testability: PASSIVE
+[NEXT] PROBE: `GET https://platform.sparelabs.com/login` (200, len 5555) → extract MFE import-map/root-config URLs (index-BIOrSDj1.js) → grep `v1/admin` + org-route patterns → then `GET https://api.sparelabs.com/v1/admin/{health,organizations,users,regions}` no-auth and with `Bearer x` (2s spaced) → flag any non-401 as new auth-omission surface.
+[HYP] Auth-free {id} returns full org record for a real org UUID
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations/{id}
+confidence: 55
+reasoning: no-auth malformed→400 ValidationError (`/params/id`); valid-unfound/nil-uuid→404 NotFoundError with 756-867ms upstream (DB lookup, not stub); list sibling `/v1/global/organizations` fail-open 200+`{"data":[]}`; control `/v1/journeys` 401. Omission is route-specific to this controller's list+id routes.
+evidence_needed: GET with a real existing org UUID (no auth header) → 200 + full org record (name/branding/contacts/PII).
+verify_steps: AUTH_HELPED: program test-org UUID → `GET https://api.sparelabs.com/v1/global/organizations/{uuid}` no auth → expect 200+record vs control 401. Passive fallback none (UUID space not enumerable passively).
+impact: unauthenticated tenant org-record/PII disclosure from gated namespace; HIGH.
+testability: PASSIVE (oracle, done) / AUTH_HELPED (data)
+[HYP] Cross-origin write on auth-free regions controller (PUT/PATCH/POST/DELETE)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: GET 200+725B with any `Bearer x` (this session: 200+725B+ACAO+ACAC, 3ms fast upstream); OPTIONS 204 advertises methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type + ACAC:true. Per-route middleware omission is the proven house pattern; mutating behavior unproven.
+evidence_needed: PUT/PATCH/POST/DELETE `/v1/global/regions` (or `/{id}`) with `Bearer x`/no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED: `PUT https://api.sparelabs.com/v1/global/regions` inert unchanged payload no-auth → 2xx vs 401/403. Passive OPTIONS ACRM:PUT already 204 (done).
+impact: unauthenticated cross-origin region/config tampering via victim browser (CORS reflect + ACAC + Authorization); CRITICAL if mutating responds.
+testability: PASSIVE (preflight) / AUTH_HELPED (write)
+[HYP] Multi-version LB flapping on /v1/public/terms — 401-state replica still reachable (version-skew oracle)
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/terms
+confidence: 45
+reasoning: ?mobileAppId=nil-uuid → 200 + 137B + ACAO+ACAC no-auth this session; documented history: same request 401 on the ~703ms replica vs 200 on fast replica — replicas disagree on whether the public namespace requires auth, a differential oracle for backend version enumeration.
+evidence_needed: capture a 401-state response on the same request to confirm the replica split persists.
+verify_steps: PASSIVE — spaced GETs (2s) `?mobileAppId=<nil-uuid>` then `?organizationId=<nil-uuid>`, log `x-envoy-upstream-service-time` each, until a status flip observed.
+impact: confirms divergent auth enforcement across replicas → timing-based fingerprinting of auth-free replica; low-medium.
+testability: PASSIVE
+[NEXT] HUMAN: request program test-org UUID from authorized contact → `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` with NO Authorization header → expect 200 + full org record vs control 401 (this is the only unproven high-impact data-bearing path; UUID space not passively enumerable). Until approval, run the passive public/terms skew probe at 2s spacing.
+[HYP] Auth-free {id} returns full org record for a real org UUID
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations/{id}
+confidence: 55
+reasoning: no-auth malformed→400 ValidationError `/params/id`; valid-unfound/nil→404 NotFoundError (756-867ms upstream = DB lookup, not stub); list sibling fail-open 200+`{"data":[]}` with NO auth header; control `/v1/journeys` 401. Only known UUID (0606efa8) is not a real org, so data-bearing unproven.
+evidence_needed: GET with a real existing org UUID (no auth) → 200 + org record (name/branding/contacts).
+verify_steps: AUTH_HELPED: program test-org UUID → `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` NO auth header → expect 200+record vs control 401. Passive fallback: none (UUID space not passively enumerable).
+impact: unauthenticated tenant org-record/PII disclosure from gated namespace; HIGH.
+testability: PASSIVE (oracle, done) / AUTH_HELPED (data)
+[HYP] Cross-origin write on auth-free regions controller (PUT/PATCH/POST/DELETE)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: GET 200+725B with any `Bearer x` (3ms fast upstream); OPTIONS 204 + ACAO:reflected + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type on the same path; per-route middleware omission is the proven house pattern; mutating-method behavior unproven.
+evidence_needed: PUT/PATCH/POST/DELETE `/v1/global/regions` (or `/{id}`) → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED: inert unchanged `PUT https://api.sparelabs.com/v1/global/regions` no-auth → 2xx vs 401/403; passive OPTIONS ACRM:PUT already 204 (done).
+impact: unauthenticated cross-origin region/config tampering via victim browser (CORS reflect + ACAC + Authorization); CRITICAL if mutating responds.
+testability: PASSIVE (preflight) / AUTH_HELPED (write)
+[HYP] Multi-version LB replica skew on /v1/public/terms — 401-state replica still reachable
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/terms
+confidence: 45
+reasoning: this session ?mobileAppId=nil-uuid → 200 + 137B + ACAO+ACAC (fast replica); history documents same request 401 on the ~703ms replica vs 200 on fast — replicas disagree on whether public namespace requires auth; differential oracle for version enumeration.
+evidence_needed: capture a 401-state response on the identical request to confirm replica split persists.
+verify_steps: PASSIVE — spaced GETs (2s) `?mobileAppId=<nil-uuid>` then `?organizationId=<nil-uuid>`, log `x-envoy-upstream-service-time` each, until status flip observed.
+impact: confirms divergent auth enforcement across replicas → timing fingerprint of auth-free replica; low-medium.
+testability: PASSIVE
+[NEXT] PROBE: passive 2s-spaced GET sweep — `GET https://api.sparelabs.com/v1/global/organizations/{nil-uuid}` (baseline 404 control) then `?` variants of `/v1/public/terms` (`?mobileAppId=<nil-uuid>` alternating `?organizationId=<nil-uuid>`) logging `x-envoy-upstream-service-time` until a 401-state flip captures the skewed replica; also one GET `/v1/global/organizations/{valid-format-v1-uuid}` to confirm 404 (no data) remains. HUMAN stands behind this: request program test-org UUID for `GET /v1/global/organizations/{test-uuid}` no-auth — the only proof of HIGH-impact data-bearing.

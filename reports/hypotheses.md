@@ -833,3 +833,17 @@
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com HTML CSP: SPA 200 + strict CSP + x-frame DENY (envoy+Google CDN); infra leak lives in JS bundle main.71d52314.js only. 
 - LEARN: REJECTED MISCONFIG @ forms.staging.sparelabs.com, api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-staking.sparelabs.com, api-spare.ngrok.io, admin-
 - LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app (both 200) + staging variants + Metabase (prod+s
+
+## RANKED HYPOTHESES 2026-08-08 22:05:12 UTC
+- [96] api.sparelabs.com/v1/global/organizations: Complete no-auth bypass + write-method CORS on /v1/global/organizations (from reports/hypotheses-nemotron3.txt)
+- [50] api.sparelabs.com/v1/global/regions: Cross-origin write on auth-free regions controller (PUT/PATCH/DELETE) (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET `https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` and NO Authorization header; capture status, body, CORS h
+- NEXT(hypotheses-bigpickle.txt): PROBE: `GET https://platform.sparelabs.com/login` (200, len 5555) → extract MFE import-map/root-config URLs (index-BIOrSDj1.js) → grep `v1/admin` + org-route pa
+- NEXT(hypotheses-laguna.txt): PROBE: Sweep /v1/global/organizations subroutes with GET + `Authorization: Bearer x` + Origin header to check for non-empty data-bearing payload beyond hardcode
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE confirmed live 2026-08-08 22:03 UTC — GET `Bearer x` → 200 + 725B + ACAO+ACAC (4m
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: complete no-auth bypass STABLE confirmed live 2026-08-08 22:03 UTC — GET with NO auth header → 200 + 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE confirmed live 2026-08-08 22:03-22:04 UTC — ACAO:https://evil.example.com + ACAC
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE confirmed live 2026-08-08 22:03 UTC — `?mobileAppId=<nil-uuid>` → 200 + 137B (ter
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE confirmed live 2026-08-08 22:04 UTC — CSP still exposes admin-eam-app.vercel.app + admin-fix
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404, no surface, NO_DELTA — confirmed 2026-08-08 22:00 UTC.

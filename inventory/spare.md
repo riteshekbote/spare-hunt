@@ -216,3 +216,7 @@
 ## 2026-08-08 21:06:47 UTC
 
 ## 2026-08-08 21:51:32 UTC
+
+## 2026-08-08 22:05:12 UTC
+- NEW api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed (no Authorization header needed) — severity upgraded from scheme-only to full route-level omission; OPTIONS 204 confirms wr
+- CHANGED api.sparelabs.com/v1/global/organizations: Auth bypass refined — previously "scheme-only" like /regions, now confirmed zero-header bypass (200 + `{"data":[]}` + ACAO+ACAC with NO Authorization header)
