@@ -680,3 +680,4 @@ verify_steps: PASSIVE — spaced GET `/v1/global/organizations?status=active&cur
 impact: unauthenticated cross-origin read of org registry; escalates severity from info-only.
 testability: PASSIVE
 [NEXT] HUMAN: request from the program a test organization UUID + test user email + test rider credentials (no self-signup). Sequence: (1) POST /v1/auth/email/reset/request for test user → confirm delivery + token format; (2) obtain rider token via /v1/auth/rider/pin/login; (3) reuse it on POST /v1/auth/token/superAdmin (role check), then IDOR probes. Until then: PASSIVE spaced re-sample of `/v1/global/organizations?status=&cursor=&limit=` for any body >11B.
+## 2026-08-08 11:44:52 UTC [api] (model bigpickle)

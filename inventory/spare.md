@@ -175,3 +175,5 @@
 - CHANGED `/v1/public/terms?mobileAppId=<uuid>` → 200 + live terms URLs + CORS without auth (new parameter vector)
 
 ## 2026-08-08 11:14:26 UTC
+
+## 2026-08-08 11:51:10 UTC
