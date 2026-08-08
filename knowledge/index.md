@@ -296,3 +296,7 @@
 - 2026-08-08 STABLE @ platform.sparelabs.com/login: 23:12 UTC re-confirm — CSP leaks prod admin-eam-app+admin-fixed-route-app (vercel.app) + staging + Metabase prod+staging + full cloud infra — STABLE.
 - 2026-08-08 STABLE @ forms.sparelabs.com: JS bundle `main.71d52314.js` unchanged at 23:12 UTC — same infra leak (staging+prod+regional+atlassian.net+ngrok) — STABLE.
 - 2026-08-08 STABLE @ routing.sparelabs.com: envoy 404 on /v1/ at 23:12 UTC — confirmed dead, no surface — NO_DELTA.
+- 2026-08-08 ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — production admin Vercel apps + staging variants + Metabase + full cloud infra; strict HTML CSP + x-frame DENY on raw HTML, leak is infra-level via CSP. Verified 2026-08-08 22:43 UTC.
+- 2026-08-08 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass + write-method CORS on OPTIONS confirmed LIVE 23:47 UTC — 200 + 11B + ACAO+ACAC with NO Authorization header; OPTIONS 204 + `Allow: PUT,PATCH,POST,DELETE` + ACAO+ACAC — read→write escalation gap CLOSED.
+- 2026-08-08 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — live re-confirm 23:47 UTC — `Bearer x` → 200 + 725B + ACAO+ACAC (2ms fast upstream); control /v1/journeys → 401.
+- 2026-08-08 ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — live re-confirm 23:47 UTC — CSP still exposes admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app + staging + Metabase + full cloud infra (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit).

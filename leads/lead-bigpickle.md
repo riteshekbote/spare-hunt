@@ -1222,3 +1222,31 @@ evidence_needed: capture a 401-state response on identical request to confirm th
 verify_steps: PASSIVE — 2.5s-spaced alternating `?mobileAppId=<nil-uuid>`/`?organizationId=<nil-uuid>` GETs logging status + x-envoy-upstream-service-time until a status flip observed.
 impact: confirms divergent auth enforcement across replicas → timing fingerprint of auth-free replica; low-medium.
 testability: PASSIVE
+## 2026-08-08 23:47:36 UTC [api] (model bigpickle)
+[HYP] Auth-free {id} returns full org record for a real org UUID
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations/{id}
+confidence: 55
+reasoning: list sibling fail-open 200+11B with NO header re-confirmed (675ms slow replica); {id} path discriminates (malformed→400, nil-uuid→404 DB lookup); control 401. Only known UUID is not a real org, so data-bearing unproven.
+evidence_needed: real org UUID → 200 + org record (name/branding/contacts) no-auth.
+verify_steps: AUTH_HELPED/HUMAN: `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` NO Authorization header → 200+record; passive fallback none (UUID space not passively enumerable).
+impact: unauthenticated tenant org-record/PII disclosure from gated namespace; HIGH.
+testability: HUMAN_ONLY
+[HYP] Cross-origin write on auth-free regions controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: GET Bearer x → 200+725B+ACAO+ACAC (3ms); OPTIONS PUT preflight re-confirmed 204 + write methods + ACAH:Authorization on same path; per-route middleware omission proven house pattern; mutating behavior unproven.
+evidence_needed: PUT/PATCH/POST/DELETE with Bearer x/no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED: inert unchanged `PUT https://api.sparelabs.com/v1/global/regions` no-auth → 2xx vs 401/403.
+impact: unauthenticated cross-origin region/config tampering via victim browser; CRITICAL if mutating responds.
+testability: PASSIVE (preflight done) / AUTH_HELPED (write)
+[HYP] Multi-version LB replica skew on /v1/public/terms — auth-free replica reachable
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/terms
+confidence: 42
+reasoning: 3 spaced probes this session all 200 on 7-10ms fast replica — 401-flip NOT captured; historical evidence has same request 401 on ~703ms replica; replicas disagree on public-namespace auth. Unobserved, downgraded.
+evidence_needed: capture 401-state on identical request to confirm split persists.
+verify_steps: PASSIVE — 2.5s-spaced alternating `?mobileAppId=<nil-uuid>`/`?organizationId=<nil-uuid>` GETs logging status+x-envoy-upstream-service-time until flip.
+impact: confirms divergent auth enforcement across replicas → timing fingerprint; low-medium.
+testability: PASSIVE
