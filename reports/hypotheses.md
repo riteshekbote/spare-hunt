@@ -773,3 +773,22 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:<reflected> + ACAC:true + full method surface uniformly across /v1 (OPTIO
 - LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app + staging + Metabase + full cloud infra — verif
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/ across all probes — verified live 2026-08-08 19:28 UTC
+
+## RANKED HYPOTHESES 2026-08-08 20:39:47 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + full read+write CORS chain convergence on /v1/global/regions (from reports/hypotheses-laguna.txt)
+- [96] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + full read/write CORS chain on /v1/global/regions (from reports/hypotheses-nemotron3.txt)
+- [55] api.sparelabs.com/v1/global/organizations/{id}: Auth-free {id} returns full org record for a real org UUID (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: OPTIONS `https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` and `Access-Control-Request-Method: POST` and `Access
+- NEXT(hypotheses-bigpickle.txt): PROBE: `GET https://platform.sparelabs.com/login` (200, len 5555) → extract MFE import-map/root-config URLs (index-BIOrSDj1.js) → grep `v1/admin` + org-route pa
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/public/terms?organizationId=0606efa8-59e1-
+- LEARN: (no new class changes since last cycle — all prior ACCEPTED/REJECTED remain stable)
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: Write-method CORS chain confirmed STABLE — OPTIONS → 204 + ACAO:https://evil.example.com + ACAC:
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — GET `Bearer x` → 200 + 725B + ACAO+ACAC (4ms fast upstream); no-Auth → 400 "Aut
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — confirmed on 200 (regions/organizations), 401 (/v1/journeys GET with Origin), 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: Fail-open STABLE — 200 + `{"data":[]}` (11B) + ACAO+ACAC with garbage Bearer (922ms slow upstrea
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle STABLE — 400 ValidationError (malformed) / 404 NotFoundError (valid-unfou
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — ?mobileAppId=<nil-uuid> → 200 + 137B (termsOfUseUrl+privacyPolicyUrl); no-param
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — production admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app + staging variants 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surface. No c
+- LEARN: REJECTED MISCONFIG @ forms.staging.sparelabs.com, api.staging.sparelabs.com, api-staking.sparelabs.com, api-spare.ngrok.io, admin-spare.ngrok.io: All OOS/404/in
+- LEARN: NO_DELTA @ web (spare.com/sparelabs.com): spare.com HTTP 200 static Webflow marketing site (Cloudflare, CSP `frame-ancestors 'self'`, HSTS 31536000), no interna
