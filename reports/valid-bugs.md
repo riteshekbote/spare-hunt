@@ -50,3 +50,8 @@
   - | 1 | CORS reflect-any-origin + credentials on /v1/** | ✅ VALID | 8.1 High | Spare security |
   - | 2 | Auth-free data-bearing /v1/global (regions 725B) | ✅ VALID | 5.3 Medium | Spare security |
   - | 3 | UUID org enumeration oracle /v1/public/organization | ✅ VALID (low) | 5.3 Medium | Spare security |
+
+- 3 lead(s) marked VALID at 2026-08-08 09:03:35 UTC
+  - | 1 | CORS reflect-any-origin + credentials on /v1/** | ✅ VALID | 8.1 High | Spare security |
+  - | 2 | Auth-free data-bearing /v1/global (regions 725B) | ✅ VALID | 5.3 Medium | Spare security |
+  - | 3 | UUID org enumeration oracle /v1/public/organization | ✅ VALID (low) | 5.3 Medium | Spare security |
