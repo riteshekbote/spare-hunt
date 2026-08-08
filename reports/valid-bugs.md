@@ -74,3 +74,13 @@
   - | 3 | UUID enumeration oracle /v1/public/organization | ✅ VALID | Already accepted, reconfirmed |
   - | 4 | /v1/global/organizations fail-open (empty payload) | ✅ VALID | Already accepted, persists |
   - | 17 | /v1/public/terms?mobileAppId= (new param) | ✅ VALID (note) | Variant of Lead 2; append to report |
+
+- 26 leads triaged at 2026-08-08 13:13 UTC — **CONSOLIDATED**
+  - | **VALID** | 5 | CORS reflect-any-origin+creds (CVSS 8.1), scheme-only auth bypass /v1/global/regions (CVSS 5.3), UUID enumeration oracle (CVSS 5.3), /v1/global/organizations fail-open (CVSS 5.3), /v1/public/terms parameter-vector disclosure (CVSS 5.3) |
+  - | **HOLD** | 6 | Auth-free org-record read /v1/global/organizations/{id} (oracle confirmed, data needs AUTH_HELPED), write-method escalation on orgs controller (merged), superAdmin token-minting (speculative, 401-gated), rider PIN brute-force (needs test creds), Engage portal IDOR (needs AUTH_HELPED), org-settings host injection (parked, confidence 35) |
+  - | **INVALID** | 15 | Email-reset chain (refuted, 401-gated), MFE-manifest XSS (sink scan negative), CSP/JS info disclosure (Q6), refuted object-store (Q4), dead routing (Q2), speculative SSRF (Q4), absent OpenAPI (Q2), correlationId leak (Q6), XFO variance (Q6), HSTS config (Q6), OOS subdomain (Q1), marketing site (Q3), reposcan (0 hits), empty seed files |
+  - Key update: Lead 9 (email-reset ATO) REJECTED — live probe confirms 401-gated. Lead 10 (PIN brute-force) newly surfaced but needs test creds. Lead 6 (org-record read) new subroute on accepted controller — oracle confirmed, data needs AUTH_HELPED. No new reportable findings beyond the 5 already accepted.
+  - Reporting channel: Spare security channel (per scope.yml, TBD)
+
+- 1 lead(s) marked VALID at 2026-08-08 13:18:01 UTC
+  - | **VALID** | 5 | CORS reflect-any-origin+creds (8.1), scheme-only bypass /v1/global/regions (5.3), UUID enumeration oracle (5.3), /v1/global/organizations fail-open (5.3), /v1/public/terms param-vect
