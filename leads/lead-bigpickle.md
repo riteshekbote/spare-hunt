@@ -836,3 +836,4 @@ verify_steps: PASSIVE spaced re-samples (2s) of `GET /v1/generic/*` and `GET /v1
 impact: expansion of the auth-free surface beyond regions/organizations; MEDIUM-HIGH.
 testability: PASSIVE
 [NEXT] HUMAN: request from the program: one test organization UUID + explicit approval for a single write test. Sequence: (1) `GET /v1/global/organizations/{test-org-uuid}` with NO auth header → 200+record confirms auth-free data read; (2) with approval, `PUT /v1/global/organizations/{test-org-uuid}` inert no-auth → 2xx confirms cross-origin write escalation; (3) rider test creds → `POST /v1/auth/token/superAdmin` role-check probe. Until creds arrive: passive 2s-spaced re-sample of `/v1/global/organizations?limit=&cursor=` for any body ≠ `{"data":[]}` and `GET /v1/generic/{config,regions}` with `Bearer x` + timing to hunt the fail-open replica's sibling routes.
+## 2026-08-08 13:53:51 UTC [api] (model bigpickle)
