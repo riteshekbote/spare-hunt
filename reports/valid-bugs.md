@@ -93,3 +93,11 @@
   - **Verdict: Already VALID (reconfirmation only)** — no delta. Previously accepted CSP + MFE manifest infra leak.
   - | 3 | api.sparelabs.com/v1/public/terms?organizationId=... (200) | **Already VALID** | Reconfirmation of accepted Lead 5. No delta. |
   - | 5 | platform.sparelabs.com/login (200) | **Already VALID** | Reconfirmation of accepted CSP leak. No delta. |
+
+- 6 lead(s) marked VALID at 2026-08-08 19:55:51 UTC
+  - | 1 | CORS reflect-any-origin+creds on /v1/** | ✅ VALID (reconfirmation) | 8.1 High | Spare security (TBD) |
+  - | 2 | Scheme-only auth bypass /v1/global/regions | ✅ VALID (reconfirmation) | 5.3 Medium | Spare security (TBD) |
+  - | 3 | /v1/global/organizations fail-open | ✅ VALID (reconfirmation) | 5.3 Medium | Spare security (TBD) |
+  - | 4 | UUID enumeration oracle /v1/public/organization | ✅ VALID (low, reconfirmation) | 5.3 Medium | Spare security (TBD) |
+  - | 5 | /v1/public/terms param-vector disclosure | ✅ VALID (low, reconfirmation) | 5.3 Medium | Spare security (TBD) |
+  - | **VALID** | 5 |
