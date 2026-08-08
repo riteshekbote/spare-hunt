@@ -381,3 +381,4 @@ verify_steps: AUTH_HELPED: cross-tenant read on a low-risk endpoint using a prog
 impact: cross-tenant read of passenger/journey PII; high.
 testability: AUTH_HELPED
 [NEXT] PROBE: `curl -X OPTIONS https://api.sparelabs.com/v1/global/regions/00000000-0000-0000-0000-000000000000` — preflight this session 204-advertises PUT/PATCH/POST/DELETE with reflected CORS+credentials on an auth-free subroute; a `PUT` with invalid body (`{}`/malformed JSON, no auth or garbage Bearer) discriminating 400 ValidationError (handler registered auth-free) vs 401 InvalidTokenError (auth gate present) confirms whether the write path is reachable without a token — non-mutating, invalid body only.
+## 2026-08-08 08:10:16 UTC [api] (model bigpickle)

@@ -287,3 +287,21 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations: 400 auth-free "not found" — new router path on public namespace
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com: multi-version LB behind envoy re-confirmed — /v1/public/terms?organizationId flapped 401→200 in ~35min; fail-open route s
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/generic/regions: garbage token → 404 empty (not data-bearing) — generic namespace does not mirror the global controller's o
+
+## RANKED HYPOTHESES 2026-08-08 08:12:41 UTC
+- [96] api.sparelabs.com: api.sparelabs.com /v1/** credential-reflecting CORS across entire API (from reports/hypotheses-laguna.txt)
+- [90] api.sparelabs.com/v1/global/*: api.sparelabs.com/v1/global/* controller-wide auth omission exposes additional data-bearing routes (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET `/v1/global/{countries,currencies,fares,tariffs,zones,settings/regions}` with `Authorization: Bearer x` + `Origin: https://evil.example.com`, spaced 
+- NEXT(hypotheses-laguna.txt): HUMAN: With an authorized api.sparelabs.com session Bearer token, run `curl -s -H "Origin: https://evil.example.com" -H "Authorization: Bearer <token>" -H "Acce
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: auth-free DATA-BEARING — 200 + 725B region registry (CA/US/US2/US3/JP/EU/UAT + apiUrl + routingHost) with a
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions/{id}: 400 auth-free route-registered-not-implemented (no InvalidTokenError) — controller-wide omission 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations: 400 auth-free "not found" — new router path on public namespace
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com: multi-version LB behind envoy re-confirmed — /v1/public/terms?organizationId flapped 401→200 in ~35min; fail-open route s
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/generic/regions: garbage token → 404 empty (not data-bearing) — generic namespace does not mirror the global controller's o
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com /v1/**: CORS credential reflection remains STABLE across all intervals — ACAO:<reflected> + ACAC:true + methods GET,HEAD,
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com /v1/global/regions: auth-free DATA-BEARING confirmed STABLE — 200 + 725B region registry with any garbage Bearer; header prese
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com /v1/global/organizations: controller-scoped auth omission STABLE — 200 + `{"data":[]}` + CORS, control /v1/journeys still
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app) 
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — leaking api.staging.sparelabs.com + api.staging.us.sparelabs.com + forms.staging.s
+- LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: No surface — remain dead, envoy 404 across all paths
+- LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com, api.staging.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com: All 404/inactive (ERR_NGROK_3200) —
