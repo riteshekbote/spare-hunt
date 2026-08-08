@@ -106,3 +106,10 @@
 - NEW api.sparelabs.com/v1/global/organizations/zones/centroid (platform-bundle-derived) → 400 ValidationError "not found" WITHOUT auth — not a live route, yet bypasses the auth gate → omission is controlle
 - CHANGED /v1/global/organizations list still 200 hardcoded `{"data":[]}` (params ignored) — empty-payload cap persists; no data-bearing 200 found
 - CHANGED Control /v1/global/settings → 401 InvalidTokenError stable; Origin-reflect + credentials + envoy re-confirmed on all 8 probes this session
+
+## 2026-08-08 05:10:34 UTC
+- NEW api.sparelabs.com/v1/global/organizations/key/{anything} → 404 NotFoundError "Organization was not found" WITHOUT auth, no format validation (probed: `not-a-uuid`, `x`, all-zero UUID → byte-identical 
+- NEW api.sparelabs.com/v1/global/organizations/zones/centroid (platform-bundle-derived) → 400 ValidationError "not found" WITHOUT auth — not a live route, yet bypasses auth gate → controller-wide omission
+- CHANGED api.sparelabs.com/v1/global/organizations list still 200 hardcoded `{"data":[]}` (params ignored) — empty-payload cap persists; no data-bearing 200 found
+- CHANGED api.sparelabs.com/v1/global/settings control → 401 InvalidTokenError stable; Origin-reflect + credentials + envoy re-confirmed on all probes
+- NEW api.sparelabs.com/v1/public/terms?organizationId=<uuid> now returns 401 (was 400/404) but body returns full terms URLs — **data returned despite 401 status**

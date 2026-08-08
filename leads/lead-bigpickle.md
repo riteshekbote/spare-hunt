@@ -311,3 +311,4 @@ testability: AUTH_HELPED
 [RISK] routing.sparelabs.com: 5 — envoy 404 across all surfaces, no delta
 [RISK] forms.sparelabs.com: 35 — bundle leaks staging/prod API hosts + JIRA/ngrok; SPA catch-all; x-frame-options DENY; IDOR unproven
 [RISK] web (spare.com/sparelabs.com): 20 — apex 200, www 301 (excluded); minimal first-party surface
+## 2026-08-08 05:07:41 UTC [api] (model bigpickle)
