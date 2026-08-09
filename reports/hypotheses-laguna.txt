@@ -1,4 +1,8 @@
-## 2026-08-09 10:20:26 UTC [web] (model laguna)
+## 2026-08-09 10:58:42 UTC [web] (model laguna)
+[PRIO] api.sparelabs.com/v1/global/organizations | score: 8.1 | attack:9 business:8 tech:7 gate:10 cloud:3 fresh:10
+[PRIO] api.sparelabs.com/v1/** | score: 7.7 | attack:8 business:9 tech:6 gate:9 cloud:2 fresh:10
+[PRIO] api.sparelabs.com/v1/global/regions | score: 7.5 | attack:8 business:7 tech:7 gate:8 cloud:5 fresh:10
+[PRIO] platform.sparelabs.com/login | score: 6.1 | attack:6 business:7 tech:5 gate:3 cloud:6 fresh:10
 [HYP] Cross-origin read+write chain on global organizations controller (zero-header bypass + CORS)
 class: AUTH
 asset: api.sparelabs.com/v1/global/organizations
@@ -6,7 +10,7 @@ confidence: 97
 reasoning: Live 2026-08-09 10:18 UTC — GET with `Origin: https://evil.example.com` and NO Authorization header → HTTP 200 + 11B `{"data":[]}` + `access-control-allow-origin: https://evil.example.com` + `access-control-allow-credentials: true` (`x-envoy-upstream-service-time: 1343ms` slow replica). OPTIONS preflight → HTTP 204 + `access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE` + ACAO+ACAC on the exact route. Control `/v1/journeys` stable 401. Complete route-level omission (middleware skips auth entirely for this controller).
 evidence_needed: GET zero-header + Origin → 200+11B+ACAO+ACAC; OPTIONS 204 + write-methods + ACAO+ACAC on same route.
 verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"`; `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: POST" -H "Access-ControlRequestHeaders: Authorization,Content-Type" "https://api.sparelabs.com/v1/global/organizations"`
-impact: CRITICAL — any malicious origin can issue credentialed cross-origin read+write (PUT/PATCH/POST/DELETE) requests via victim browser to global organizations controller with zero credentials. Empty payload (`{"data":[]}`) caps current data exfil; write surface is CORS-advertised on the fail-open route, closing read→write escalation.
+impact: CRITICAL — any malicious origin can issue credentialed cross-origin read+write (PUT/PATCH/POST/DELETE) requests via victim browser to global organizations controller with zero credentials. Empty payload (`{"data":[]}`) caps current data exfiltration; write surface is CORS-advertised on the fail-open route, closing read→write escalation.
 testability: PASSIVE
 [HYP] Scheme-only auth bypass + infrastructure topology disclosure + full read+write CORS on regions controller
 class: AUTH
@@ -23,4 +27,14 @@ asset: api.sparelabs.com/v1/**
 confidence: 96
 reasoning: Confirmed live 2026-08-09 10:18 UTC — envoy edge reflects ANY Origin with `access-control-allow-credentials: true` uniformly across entire `/v1/*` namespace; verified on GET 200 (/regions 725B, /organizations 11B, /public/terms 137B, /public/organization), GET 401 (/v1/journeys control), GET 400 (no-auth /regions), and OPTIONS 204 preflight responses (ACAC:true + allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type). Uniform API-scoped middleware, confirmed non-path-conditional by sibling sweep (12×401 + 2×200). Multi-version LB fingerprint: fast replica 1–5ms on gated routes, slow replica 920–1343ms on fail-open routes.
 evidence_needed: ACAO=<reflected> + ACAC:true + full methods + ACAH:Authorization on OPTIONS 204 + GET reflection (200/401/400 paths) across ≥3 /v1 endpoints.
-verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"`
+verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"` (401 + ACAO+ACAC — control path reflection, confirms middleware uniformity); `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: PATCH" -H "Access-ControlRequestHeaders: Authorization,Content-Type" "https://api.sparelabs.com/v1/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000"` (204 + write methods + CORS on cross-origin data)
+impact: CRITICAL — when combined with the route-level auth omissions on /regions (scheme-only) and /organizations (complete), any malicious origin can issue authenticated-looking credentialed cross-origin read+write requests (DELETE/PUT/PATCH/POST with Authorization header) via victim browser across the entire /v1 API. Separately, /public/* namespace leaks data without auth + CORS.
+testability: PASSIVE
+[FINAL] 1. Complete zero-header no-auth bypass + write CORS chain on /v1/global/organizations (confidence 97, AUTH) — CRITICAL
+[FINAL] 2. Scheme-only auth bypass + infra topology disclosure on /v1/global/regions (confidence 98, AUTH) — CRITICAL (capped HIGH by route scope)
+[FINAL] 3. Credential-reflecting CORS across entire /v1 API (confidence 96, MISCONFIG) — CRITICAL
+[NEXT] PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` — re-verify complete zero-header no-auth bypass stability + CORS credential reflection on highest-priority asset (expect 200 + 11B `{"data":[]}` + ACAO+ACAC). Single passive GET, ≤1 rps, no data modification.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass STABLE — live 2026-08-09 10:18 UTC — GET with NO Authorization header + Origin → 200 + 11B `{"data":[]}` + ACAO=https://evil.example.com + ACAC=true (x-envoy-upstream-service-time:1343ms slow replica); OPTIONS 204 confirms PUT/PATCH/POST/DELETE with ACAO+ACAC on exact fail-open route; control /v1/journeys stable 401. Refined from "scheme-only" to "complete route-level omission".
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — live 2026-08-09 10:18 UTC — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS) + ACAO+ACAC (1ms fast replica); no-auth → 400 "header required", `Auth:x` → 400 "scheme Bearer required"; OPTIONS 204 + full write methods confirmed.
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — live 2026-08-09 10:18 UTC — ACAO=https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type uniform on OPTIONS 204 + GET reflection (200/401/400 paths) across /v1; non-path-conditional confirmed via sibling sweep (12×401 + 2×200).
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surface, NO_DELTA, verified this session.
