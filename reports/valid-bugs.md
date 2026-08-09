@@ -231,3 +231,6 @@
   - | Q7 Triager accept? | Would be VALID if novel |
   - - **Verdict: 🔶 HOLD** — IDOR potential on cross-tenant read, but requires ≥2 valid test tokens. No test token available within program rules. Escalate only if program provides test credentials.
   - | **VALID** | 0 | No new findings |
+
+- 1 lead(s) marked VALID at 2026-08-09 09:32:30 UTC
+  - **VALID count remains: 5** (CORS reflect-any-origin+creds CVSS 8.1, scheme-only bypass `/v1/global/regions` CVSS 5.3, complete no-auth bypass `/v1/global/organizations` CVSS 5.3, UUID enumeration orac
