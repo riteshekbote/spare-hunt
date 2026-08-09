@@ -2563,3 +2563,4 @@ evidence_needed: Bearer x → 200 + 725B body + ACAO+ACAC (re-verified this sess
 verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` — expect 200 + 725B; `curl -s -o /dev/null -w "%{http_code}" "https://api.sparelabs.com/v1/global/regions"` — expect 400.
 impact: HIGH (capped by route scope) — unauthenticated infra-topology disclosure + credentialed cross-origin read.
 testability: PASSIVE
+## 2026-08-09 19:39:56 UTC [api] (model bigpickle)
