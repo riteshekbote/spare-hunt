@@ -194,3 +194,12 @@
 
 - 1 lead(s) marked VALID at 2026-08-09 05:43:14 UTC
   - | **Already VALID** (reconfirmation, no delta) | 5 | CORS reflect-any-origin+creds (8.1), scheme-only bypass /v1/global/regions (5.3), complete no-auth bypass /v1/global/organizations (5.3), UUID enum
+
+- 7 lead(s) marked VALID at 2026-08-09 06:45:14 UTC
+  - | Q7 Triager accept? | Would be VALID if novel |
+  - | Q7 Triager accept? | Would be VALID if novel |
+  - | Q7 Triager accept? | Would be VALID if novel |
+  - | Q7 Triager accept? | Would be VALID if novel |
+  - | Q7 Triager accept? | Would be VALID if novel |
+  - | Q3 Real impact? | **Yes** — 3-way differential (malformed→400 ValidationError, valid-unfound→404, found→200) confirms org UUID existence |
+  - | Q7 Triager accept? | Would be VALID if novel |
