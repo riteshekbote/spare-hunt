@@ -288,3 +288,7 @@
 - CHANGED api.sparelabs.com/v1/public/organization: UUID enumeration oracle differential DEGRADED 3-way(400/404/200) → 2-way(400/200); nil-uuid now returns 400 ValidationError (was 404 NotFoundError). Valid-org
 
 ## 2026-08-09 17:42:34 UTC
+
+## 2026-08-09 18:09:15 UTC
+- NEW None — all live probes confirm STABLE state matching knowledge base (2026-08-09 13:10–15:00 UTC re-confirmations)
+- CHANGED api.sparelabs.com/v1/public/organization: Inventory claimed UUID oracle degraded 3-way→2-way (nil-uuid→400), but live probe 2026-08-09 18:07 UTC confirms 3-way intact: malformed→400 ValidationError (2

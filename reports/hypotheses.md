@@ -1437,3 +1437,15 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE re-confirmed live 15:49 UTC — ACAO+ACAC on GET 200/401/404 paths uniformly acros
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure re-confirmed STABLE live 15:49 UTC — 200 + 137B + ACAO+ACAC no-auth on both `?mobileAppI
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths, NO_DELTA, verified this session.
+
+## RANKED HYPOTHESES 2026-08-09 18:09:15 UTC
+- [98] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + read+write CORS chain on /v1/global/organizations (from reports/hypotheses-bigpickle.txt)
+- [97] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read/write CORS chain on fail-open organization controller (from reports/hypotheses-nemotron3.txt)
+- [97] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read+write CORS chain on /v1/global/organizations (from reports/hypotheses-laguna.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -w "\n%{http_code}\n%{time_total}s\n" -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/re
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + full read+write CORS STABLE confirmed live 2026-08-09 18:06 UTC — `Bearer x` → 200 + 7
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + full methods uniform on OPTIONS 20
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?mobileAppId=<nil-uuid>: Data disclosure confirmed live 2026-08-09 18:06 UTC — 200 + 137B (termsOfUseUrl →
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle 3-way STABLE — malformed→400 ValidationError; nil-uuid→404 NotFoundError 
