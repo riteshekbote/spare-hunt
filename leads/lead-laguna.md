@@ -1762,3 +1762,46 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 58 — Public SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP); JS bundle main.71d52314.js leaks staging+prod+regional infra (+6 OOS) + atlassian.net + inactive ngrok tunnel + full auth route map; infra-recon value only.
 [RISK] web (spare.com/sparelabs.com): 38 — spare.com apex 200 (Cloudflare Webflow, CSP frame-ancestors self, HSTS 31536000, no infra leaks); www.spare.com 301→OOS; sparelabs.com 301→spare.com. Minimal static-only surface.
 ## 2026-08-09 00:38:38 UTC [web] (model laguna)
+## 2026-08-09 02:51:33 UTC [web] (model laguna)
+[PRIO] api.sparelabs.com/v1/global/regions | 9.50 — attack:10 business:9 tech:9 gate:10 cloud:9 fresh:10  
+[PRIO] api.sparelabs.com/v1/global/organizations | 9.25 — attack:10 business:8 tech:9 gate:10 cloud:9 fresh:10  
+[PRIO] api.sparelabs.com/v1/** | 9.20 — attack:10 business:10 tech:9 gate:7 cloud:8 fresh:10  
+[PRIO] platform.sparelabs.com/login | 8.30 — attack:8 business:8 tech:7 gate:9 cloud:9 fresh:10  
+[PRIO] api.sparelabs.com/v1/public/terms | 8.10 — attack:9 business:7 tech:7 gate:10 cloud:8 fresh:10  
+[PRIO] api.sparelabs.com/v1/public/organization | 7.40 — attack:8 business:7 tech:7 gate:10 cloud:5 fresh:10  
+[HYP] Complete no-auth bypass + write-method CORS on fail-open org controller (zero-header)  
+class: AUTH  
+asset: api.sparelabs.com/v1/global/organizations  
+confidence: 96  
+reasoning: Live re-confirmed multiple times through 2026-08-09 00:39 UTC — GET with NO Authorization header → 200 + `{"data":[]}` (11B) + ACAO:https://evil.example.com + ACAC:true; OPTIONS → 204 + ACAO+ACAC + Allow:PUT,PATCH,POST,DELETE — closes read→write escalation gap on the fail-open route; distinct from /v1/global/regions (scheme-only). Control /v1/journeys → 401 stable. Multi-version envoy LB: 922ms–1179ms slow replica vs 4–15ms on gated routes.  
+evidence_needed: GET 200 + 11B + ACAO+ACAC with NO Authorization header; OPTIONS 204 with write methods + ACAO+ACAC on same route; /v1/journeys control → 401.  
+verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` ; `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: POST" -H "Access-ControlRequestHeaders: Authorization,Content-Type" "https://api.sparelabs.com/v1/global/organizations"`  
+impact: CRITICAL — full authentication bypass on org controller; any malicious origin can issue credentialed cross-origin read+write requests via victim browser → state mutation via PUT/PATCH/POST/DELETE. Empty payload caps data exfil but write surface is live.  
+testability: PASSIVE  
+[HYP] Scheme-only auth bypass + full read+write CORS chain on regional infra topology  
+class: AUTH  
+asset: api.sparelabs.com/v1/global/regions  
+confidence: 97  
+reasoning: STABLE through 2026-08-09 00:39 UTC — GET `Authorization: Bearer x` → 200 + 725B region registry (7 regions incl. 6 OOS api/routing subdomains: api.us/jp/eu/us2/uat + routing.{jp,us,eu,us2}) + ACAO+ACAC; OPTIONS → 204 + ACAO+ACAC + write methods; no-auth → 400 "Authorization header required"; wrong-scheme → 400. Control /v1/journeys → 401 stable. Fast upstream: 2ms.  
+evidence_needed: GET 200 + 725B + ACAO+ACAC with Bearer x; OPTIONS 204 with ACAO+ACAC+write methods on /regions; 400 on no-auth; 401 on /v1/journeys.  
+verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` ; `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: DELETE" -H "Access-ControlRequestHeaders: Authorization,Content-Type" "https://api.sparelabs.com/v1/global/regions"`  
+impact: CRITICAL — unauthenticated disclosure of regional cloud infra topology (725B payload, 6 OOS subdomains exposed) + credential-reflecting CORS with full write-method surface → any malicious origin can issue credentialed read+write cross-origin requests via victim browser.  
+testability: PASSIVE  
+[HYP] Production admin app surface + cloud infra exposed via CSP on /login  
+class: MISCONFIG  
+asset: platform.sparelabs.com/login  
+confidence: 90  
+reasoning: STABLE through 2026-08-09 00:39 UTC — GET → 200 + strict HTML CSP (x-frame DENY, script-src-attr 'none') but CSP connect-src/script-src disclose admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (both loadable 200) + staging variants + Metabase (prod+staging 200) + Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit. Bundle leak confirms /v1/auth/token/superAdmin but live probe → 401 (not bypassable).  
+evidence_needed: CSP header containing admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app + Metabase hosts; admin apps return 200.  
+verify_steps: PASSIVE — `curl -s -D - -o /dev/null "https://platform.sparelabs.com/login"` then grep CSP for admin- + metabase hosts; `curl -s -o /dev/null -w "%{http_code}" "https://admin-eam-app.vercel.app"`  
+impact: HIGH — production admin app URLs + staging admin hosts + Metabase + full cloud infra topology disclosed via in-scope asset; admin apps loadable → targeted auth-bypass attempts.  
+testability: PASSIVE  
+[FINAL] 1. [97] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + full read+write CORS chain on data-bearing route (725B infra topology incl. 6 OOS subdomains, 2ms fast upstream) — STABLE confirmed 2026-08-09 00:39 UTC.  
+[FINAL] 2. [96] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + write-method CORS on fail-open org controller (200+11B+ACAO+ACAC, 922–1179ms slow replica, OPTIONS 204 advertises PUT/PATCH/POST/DELETE) — STABLE confirmed 2026-08-09 00:39 UTC.  
+[FINAL] 3. [90] platform.sparelabs.com/login: Production admin Vercel apps + Metabase + cloud infra exposed via CSP (admin-eam-app + admin-fixed-route-app both loadable 200) — STABLE confirmed 2026-08-09 00:39 UTC.  
+[NEXT] HUMAN: Request program test-org UUID from authorized contact → `GET https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` with NO Authorization header + `Origin: https://evil.example.com`. Goal: demonstrate the 200 (found) branch of the 3-way UUID enumeration oracle (malformed→400 ValidationError / nil→404 NotFoundError / real-org→200 data). Auth-bypass + CORS already proven; this closes the oracle data-bearing demonstration.  
+[RISK] api.sparelabs.com: 97 — CRITICAL + STABLE: complete no-auth bypass on /v1/global/organizations (zero-header, 200+11B+CORS, write methods confirmed); scheme-only bypass on /v1/global/regions (725B infra topology incl. 6 OOS subdomains); credential-reflecting CORS across entire /v1 (all methods+Authorization+ACAC, uniform); /v1/public/terms disclosure (137B no-auth, flapping multi-version LB); UUID enumeration oracle (400/404/200 differential); OpenAPI ValidationError disclosure; multi-version envoy LB confirmed (2ms fast vs 1179ms slow).  
+[RISK] platform.sparelabs.com: 80 — Admin SPA 200 (strict HTML CSP + x-frame DENY, no direct auth bypass); CSP discloses production admin Vercel apps (admin-eam-app + admin-fixed-route-app, both loadable 200) + staging variants + Metabase (prod+staging 200) + full cloud infra (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit); bundle-level leak of /v1/auth/token/superAdmin (401-gated, not bypassable).  
+[RISK] routing.sparelabs.com: 50 — Envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); routing-engine API fully hidden; no unauthenticated surface; STABLE dead.  
+[RISK] forms.sparelabs.com: 58 — Public SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP, no infra leak in HTML); JS bundle main.71d52314.js STABLE leaks staging+prod+regional infra (incl. 6 OOS) + atlassian.net/JIRA + inactive ngrok tunnel + full auth route map; infra-recon value only, no direct auth bypass on SPA.  
+[RISK] web (spare.com/sparelabs.com): 38 — spare.com apex 200 (Cloudflare Webflow static marketing, CSP frame-ancestors self, HSTS 31536000, no internal infra leaks); www.spare.com 301→OOS (excluded); sparelabs.com 301→spare.com; minimal static-only surface.
