@@ -216,4 +216,18 @@
   - | Q4 Passive proof? | **NO** — requires AUTH_HELPED (valid test token); rules forbid `no_account_creation` without program approval |
   - **Verdict: 🔶 HOLD** — IDOR potential on cross-tenant read, but requires ≥2 valid test tokens. No test token available within program rules. Escalate only if program provides test credentials.
   - | Q5 Novel? | **NO** — already VALID as informational finding since 2026-08-07 22:00 UTC |
-  - | ✅ **VALID** | **5** | CORS reflect-any-origin+creds (CVSS 8.1), scheme-only bypass `/v1/global/regions` (CVSS 5.3), complete no-auth bypass `/v1/global/organizations` (CVSS 5.3), UUID enumeration or
+  - | ✅ **VALID** | **5** | CORS reflect-any-origin+creds (CVSS 8.1), scheme-only bypass `/v1/global/regions` (CVSS 5.3), complete no-auth bypass `/v1/global/organizations` (CVSS 5.3), UUID enumeration oracle (CVSS 5.3), param-vector data disclosure (CVSS 3.1) |
+
+- 8 lead(s) triaged at 2026-08-09 08:28 UTC — **NO DELTA**
+  - | **VALID** | 0 | No new findings — all probe results are duplicates of already-ACCEPTED findings |
+  - | **INVALID** | 8 | terms?organizationId (dup), terms?mobileAppId (dup), organizations fail-open (dup), regions 400 (dup), journeys 401 (expected), login 200 (expected), metabase OOS (Q1), org enum oracle (dup) |
+  - | **HOLD** | 0 | No new holds |
+  - Key update: All 5 ACCEPTED findings remain STABLE across 10+ probe samples (17:20 UTC → 08:07 UTC). No new reportable surface. No delta.
+  - Reporting channel: Spare security channel (per scope.yml, TBD)
+
+- 5 lead(s) marked VALID at 2026-08-09 08:33:15 UTC
+  - | Q7 Triager accept? | Would be VALID if novel |
+  - | Q7 Triager accept? | Would be VALID if novel |
+  - | Q7 Triager accept? | Would be VALID if novel |
+  - - **Verdict: 🔶 HOLD** — IDOR potential on cross-tenant read, but requires ≥2 valid test tokens. No test token available within program rules. Escalate only if program provides test credentials.
+  - | **VALID** | 0 | No new findings |
