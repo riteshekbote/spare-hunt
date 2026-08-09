@@ -2255,3 +2255,29 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 50 — Envoy 404 on all probed paths (`/v1/`,`/api/`,`/routing/`,`/router`,`/v2/`,`/graphql`,`/map`,`/directions/`); routing-engine API fully hidden behind WAF/gateway; no unauthenticated surface, no CORS disclosure; STABLE dead, NO_DELTA.
 [RISK] forms.sparelabs.com: 58 — Public SPA 200 (envoy+Google CDN, strict HTML CSP + x-frame DENY, no infra leak in HTML head/body); JS bundle `main.71d52314.js` STABLE (unchanged 3+ sessions) leaks staging+prod+regional infra (`api.staging.{us,}.sparelabs.com` 404, `forms.staging.{us,}.sparelabs.com` live 200, `api.us.sparelabs.com` OOS) + `atlassian.net` (OOS JIRA) + inactive `api-spare.ngrok.io` (ERR_NGROK_3200). Auth route map fully documented (rider auth, email reset, token endpoints — all 401). Infil-recon value only.
 [RISK] web (spare.com/sparelabs.com): 38 — `spare.com` apex 200 (Cloudflare+Webflow static marketing, CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks in HTML/JS); `www.spare.com` 301→OOS (excluded); `sparelabs.com` 301→spare.com; minimal static-only surface, fully passive-safe, NO_DELTA.
+## 2026-08-09 10:20:26 UTC [web] (model laguna)
+[HYP] Cross-origin read+write chain on global organizations controller (zero-header bypass + CORS)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 97
+reasoning: Live 2026-08-09 10:18 UTC — GET with `Origin: https://evil.example.com` and NO Authorization header → HTTP 200 + 11B `{"data":[]}` + `access-control-allow-origin: https://evil.example.com` + `access-control-allow-credentials: true` (`x-envoy-upstream-service-time: 1343ms` slow replica). OPTIONS preflight → HTTP 204 + `access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE` + ACAO+ACAC on the exact route. Control `/v1/journeys` stable 401. Complete route-level omission (middleware skips auth entirely for this controller).
+evidence_needed: GET zero-header + Origin → 200+11B+ACAO+ACAC; OPTIONS 204 + write-methods + ACAO+ACAC on same route.
+verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"`; `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: POST" -H "Access-ControlRequestHeaders: Authorization,Content-Type" "https://api.sparelabs.com/v1/global/organizations"`
+impact: CRITICAL — any malicious origin can issue credentialed cross-origin read+write (PUT/PATCH/POST/DELETE) requests via victim browser to global organizations controller with zero credentials. Empty payload (`{"data":[]}`) caps current data exfil; write surface is CORS-advertised on the fail-open route, closing read→write escalation.
+testability: PASSIVE
+[HYP] Scheme-only auth bypass + infrastructure topology disclosure + full read+write CORS on regions controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Live 2026-08-09 10:18 UTC — GET with `Authorization: Bearer x` + `Origin: https://evil.example.com` → HTTP 200 + 725B region registry (7 regions incl. 6 OOS subdomains: api.us/jp/us2/us3/eu/uat.sparelabs.com + routing equivalents) + ACAO+ACAC (`x-envoy-upstream-service-time: 1ms` fast replica). No-Auth header → 400 "Authorization header required"; bare non-Bearer → 400 "scheme 'Bearer' required" — token validity never checked. OPTIONS → 204 + full write methods + ACAO+ACAC.
+evidence_needed: GET `Bearer x` → 200+725B+ACAO+ACAC with region registry; 400 on no-auth; OPTIONS 204 + write methods + CORS on same route.
+verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"`; `curl -s -D - -o /dev/null "https://api.sparelabs.com/v1/global/regions"` (no-auth → 400); `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: DELETE" -H "Access-ControlRequestHeaders: Authorization,Content-Type" "https://api.sparelabs.com/v1/global/regions"`
+impact: CRITICAL (capped HIGH by route-specific scope — control /v1/journeys stable 401, 14 sibling routes verified 401) — unauthenticated disclosure of full regional infrastructure topology (6 OOS api/routing subdomains behind edge) via `Bearer x`; combined with reflected CORS+credentials → any malicious origin can issue credentialed read+write cross-origin requests (DELETE/PUT/PATCH/POST) via victim browser to /regions.
+testability: PASSIVE
+[HYP] Credential-reflecting CORS across entire /v1 API enabling cross-origin authenticated read+write
+class: MISCONFIG
+asset: api.sparelabs.com/v1/**
+confidence: 96
+reasoning: Confirmed live 2026-08-09 10:18 UTC — envoy edge reflects ANY Origin with `access-control-allow-credentials: true` uniformly across entire `/v1/*` namespace; verified on GET 200 (/regions 725B, /organizations 11B, /public/terms 137B, /public/organization), GET 401 (/v1/journeys control), GET 400 (no-auth /regions), and OPTIONS 204 preflight responses (ACAC:true + allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type). Uniform API-scoped middleware, confirmed non-path-conditional by sibling sweep (12×401 + 2×200). Multi-version LB fingerprint: fast replica 1–5ms on gated routes, slow replica 920–1343ms on fail-open routes.
+evidence_needed: ACAO=<reflected> + ACAC:true + full methods + ACAH:Authorization on OPTIONS 204 + GET reflection (200/401/400 paths) across ≥3 /v1 endpoints.
+verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"`
