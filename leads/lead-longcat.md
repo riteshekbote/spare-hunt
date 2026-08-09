@@ -104,3 +104,4 @@ testability: PASSIVE (OPTIONS re-confirm) / AUTH_HELPED (body test)
 [RISK] forms.sparelabs.com: 40 — JS bundle leaks staging+prod+regional infra + inactive ngrok; SPA catch-all limits direct attack surface
 [RISK] web (spare.com/sparelabs.com): 10 — static Webflow marketing on Cloudflare, strict CSP, HSTS, no internal infra leaks; minimal surface
 ## 2026-08-09 13:58:31 UTC [routing] (model longcat)
+## 2026-08-09 14:42:52 UTC [routing] (model longcat)
