@@ -204,3 +204,11 @@ https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application
 https://api.sparelabs.com/v1/journeys -> HTTP 401
 https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000 -> 200 len=137 type=application/json; charset=utf-8
 https://api.sparelabs.com/v1/global/organizations` -> HTTP 400
+
+## 2026-08-09 09:01:17 UTC
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/journeys -> HTTP 401
+https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000 -> 200 len=137 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/global/organizations` -> HTTP 400
+https://api.sparelabs.com/v1/global/regions` -> HTTP 400
