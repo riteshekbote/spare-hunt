@@ -104,3 +104,33 @@ testability: PASSIVE
 ## 2026-08-09 20:04:00 UTC [forms] (model ling3)
 ## 2026-08-09 20:48:53 UTC [forms] (model ling3)
 ## 2026-08-09 21:18:06 UTC [forms] (model ling3)
+## 2026-08-09 21:54:49 UTC [forms] (model ling3)
+[PRIO] forms.sparelabs.com — JS bundle main.71d52314.js: 5.0/10
+[PRIO] platform.sparelabs.com/login — CSP + /login prefetch script: 6.6/10
+[PRIO] forms.staging.sparelabs.com — staging forms portal: 3.3/10
+[HYP] JS bundle main.71d52314.js leaks internal API endpoints and infrastructure URLs
+class: MISCONFIG
+asset: forms.sparelabs.com
+confidence: 85
+reasoning: Main JS bundle main.71d52314.js confirmed leaking api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com, api.us.sparelabs.com, atlassian.net, and ngrok.io
+evidence_needed: Passive retrieval of forms.sparelabs.com main.71d52314.js bundle; cross-reference leaked URLs against known infrastructure
+impact: Unauthenticated access to internal API endpoints; potential data exposure via leaked credentials
+testability: PASSIVE
+[HYP] CSP header and /login prefetch script leaking production admin Vercel apps
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 95
+reasoning: CSP header and /login prefetch script confirmed leaking production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app) plus staging variants and Metabase
+evidence_needed: CSP header analysis on platform.sparelabs.com/login; /login prefetch script enumeration of Vercel and other infra hosts
+impact: Unauthorized access to admin panel; potential data exposure via admin Vercel apps
+testability: PASSIVE
+[HYP] Staging forms portal live behind envoy+Google CDN
+class: MISCONFIG
+asset: forms.staging.sparelabs.com
+confidence: 85
+reasoning: Staging forms portal live (200, same SPA catch-all behind envoy+Google CDN), confirms API surface through staging forms portal
+evidence_needed: Live GET request to forms.staging.sparelabs.com
+impact: Unauthenticated access to staging forms portal; potential data exposure via staging portal
+testability: PASSIVE
+[NEXT] PROBE forms.sparelabs.com main.71d52314.js
+[RISK] api.sparelabs.com: 90 | CORS reflect-any-origin+credentials on all /v1 endpoints; fail-open org controller with complete no-auth bypass; 3-way UUID enumeration oracle | platform.sparelabs.com: 80 | CSP + /login prefetch leaking production admin Vercel apps + Metabase + full cloud infra | routing.sparelabs.com: 5 | envoy 404 on all probed paths — confirmed dead, no surface | forms.sparelabs.com: 50 | JS bundle leaks staging+prod infra URLs but no auth bypass | web (spare.com/sparelabs.com): 10 | Static Webflow marketing site, no internal infra leaks in HTML/JS, minimal surface
