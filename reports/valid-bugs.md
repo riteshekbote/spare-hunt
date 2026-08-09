@@ -300,3 +300,22 @@
   - | Q5 Novel? | **NO** — already VALID as A3 |
   - **Verdict: Already VALID (A3).** Reconfirmation of the UUID enumeration oracle.
   - | **Already VALID** | 5 | A1 CORS (8.1), A2 regions bypass (5.3), A3 UUID enum (5.3), A4 orgs fail-open (5.3), A5 terms disclosure (5.3) |
+
+- 17 lead(s) marked VALID at 2026-08-09 17:06:16 UTC
+  - **Verdict:** VALID (already reported — no new report needed)
+  - **Verdict:** VALID (already reported — no new report needed)
+  - **Verdict:** VALID (already reported — no new report needed)
+  - **Verdict:** VALID (already reported — no new report needed)
+  - | Q3 Real impact? | **MEDIUM** — 3-way differential: malformed→400 ValidationError "must match format uuid"; valid-unfound→404 NotFoundError; valid-found→200. Reliable org UUID enumeration. |
+  - **Verdict:** VALID (already reported — no new report needed)
+  - **Verdict:** VALID (already reported — no new report needed)
+  - **Verdict:** VALID (already reported — no new report needed)
+  - | Q4 Passive proof? | **NO** — requires AUTH_HELPED (valid token from program channel) |
+  - | Q3 Real impact? | **UNPROVEN** — GET returns 401 + CORS; auth-gated, not bypassable without valid token |
+  - | 1 | CORS reflect-any-origin+credentials /v1/** | **VALID** | No — already reported STABLE |
+  - | 2 | Scheme-only bypass /v1/global/regions (data-bearing) | **VALID** | No — already reported STABLE |
+  - | 3 | Fail-open /v1/global/organizations | **VALID** | No — already reported STABLE |
+  - | 4 | Data disclosure /v1/public/terms | **VALID** | No — already reported STABLE |
+  - | 5 | UUID enumeration /v1/public/organization | **VALID** | No — already reported STABLE |
+  - | 6 | CSP leak platform.sparelabs.com | **VALID** | No — already reported STABLE |
+  - | 7 | JS bundle leak forms.sparelabs.com | **VALID** | No — already reported STABLE |
