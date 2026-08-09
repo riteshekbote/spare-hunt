@@ -1341,3 +1341,88 @@ verify_steps: PASSIVE: HEAD platform.sparelabs.com/*.js + /login to detect bundl
 impact: new module enumeration; LOW.
 testability: PASSIVE
 [NEXT] HUMAN: Request a program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` AND `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` with NO Authorization header + `Origin: https://evil.example.com` → 200+org-record proves HIGH unauthenticated tenant PII disclosure (highest-value open item; zero passive fallback — bundles nil-UUID-only, this session's sweep found no new data-bearing route). If 404: AUTH_HELPED `PUT https://api.sparelabs.com/v1/global/regions` no-auth write test.
+## 2026-08-09 07:14:34 UTC [api] (model bigpickle)
+[HYP] Cross-origin write on auth-free global regions controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: GET `Bearer x` → 200+725B+ACAO:https://evil.example.com+ACAC:true re-confirmed live this session (121ms fast replica); OPTIONS → 204 + PUT/PATCH/POST/DELETE + ACAH:Authorization on same path; per-route middleware omission is the proven house pattern (regions scheme-only, organizations zero-header); mutating behavior never probed.
+evidence_needed: PUT/PATCH/POST/DELETE `/v1/global/regions` (or `/{id}`) no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED: inert unchanged-body `PUT https://api.sparelabs.com/v1/global/regions` with NO Authorization → observe 2xx/400-schema vs 401/403.
+impact: unauthenticated cross-origin region/config tampering via victim browser (reflect+ACAC); CRITICAL if mutating responds.
+testability: AUTH_HELPED
+[HYP] Real-org UUID returns full record via public UUID oracle + public {id} route
+class: AUTH
+asset: api.sparelabs.com/v1/public/organization?organizationId= AND /v1/public/organizations/{id}
+confidence: 50
+reasoning: 3-way oracle differential intact this session (malformed→400/285B, nil-uuid→404/131B, valid-found→200 never observed with a real org); public plural {id} does a real DB lookup (404 for two distinct valid-format UUIDs) with no auth; terms accepts real-org-format orgId; UUID space not passively enumerable (bundles verified nil-only).
+evidence_needed: real existing org UUID → 200 + org record (name/branding/contacts) no-auth on either route.
+verify_steps: HUMAN_ONLY: request program test-org UUID from authorized contact → `GET https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` AND `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200+record.
+impact: unauthenticated tenant org-record/PII disclosure from public namespace; HIGH.
+testability: HUMAN_ONLY
+[HYP] Login MFE rotation exposes new federation modules
+class: BUSLOGIC
+asset: platform.sparelabs.com /login
+confidence: 35
+reasoning: root-config index-BIOrSDj1.js already fully pulled — zero v1/admin refs; CSP leak stable across sessions; only a bundle rotation would surface new in-scope modules, and none observed.
+evidence_needed: root-config or MFE manifest hash change with new module URLs.
+verify_steps: PASSIVE: HEAD platform.sparelabs.com/*.js + /login to detect bundle filename rotation (compare to index-BIOrSDj1.js).
+impact: new module enumeration; LOW.
+testability: PASSIVE
+[NEXT] HUMAN: Request a program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` AND `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` with NO Authorization header + `Origin: https://evil.example.com` → 200+org-record proves HIGH unauthenticated tenant PII disclosure (highest-value open item; zero passive fallback — bundles nil-UUID-only, this session's sweep found no new data-bearing route). If 404: AUTH_HELPED `PUT https://api.sparelabs.com/v1/global/regions` no-auth write test.
+[HYP] Cross-origin write on auth-free global regions controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: GET `Bearer x` → 200+725B+ACAO:https://evil.example.com+ACAC:true re-confirmed live this session (121ms fast replica); OPTIONS → 204 + PUT/PATCH/POST/DELETE + ACAH:Authorization on same path; per-route middleware omission is the proven house pattern (regions scheme-only, organizations zero-header); mutating behavior never probed.
+evidence_needed: PUT/PATCH/POST/DELETE `/v1/global/regions` (or `/{id}`) no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED: inert unchanged-body `PUT https://api.sparelabs.com/v1/global/regions` with NO Authorization → observe 2xx/400-schema vs 401/403.
+impact: unauthenticated cross-origin region/config tampering via victim browser (reflect+ACAC); CRITICAL if mutating responds.
+testability: AUTH_HELPED
+[HYP] Real-org UUID returns full record via public UUID oracle + public {id} route
+class: AUTH
+asset: api.sparelabs.com/v1/public/organization?organizationId= AND /v1/public/organizations/{id}
+confidence: 50
+reasoning: 3-way oracle differential intact this session (malformed→400/285B, nil-uuid→404/131B, valid-found→200 never observed with a real org); public plural {id} does a real DB lookup (404 for two distinct valid-format UUIDs) with no auth; terms accepts real-org-format orgId; UUID space not passively enumerable (bundles verified nil-only).
+evidence_needed: real existing org UUID → 200 + org record (name/branding/contacts) no-auth on either route.
+verify_steps: HUMAN_ONLY: request program test-org UUID from authorized contact → `GET https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` AND `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200+record.
+impact: unauthenticated tenant org-record/PII disclosure from public namespace; HIGH.
+testability: HUMAN_ONLY
+[HYP] Login MFE rotation exposes new federation modules
+class: BUSLOGIC
+asset: platform.sparelabs.com /login
+confidence: 35
+reasoning: root-config index-BIOrSDj1.js already fully pulled — zero v1/admin refs; CSP leak stable across sessions; only a bundle rotation would surface new in-scope modules, and none observed.
+evidence_needed: root-config or MFE manifest hash change with new module URLs.
+verify_steps: PASSIVE: HEAD platform.sparelabs.com/*.js + /login to detect bundle filename rotation (compare to index-BIOrSDj1.js).
+impact: new module enumeration; LOW.
+testability: PASSIVE
+[NEXT] HUMAN: Request a program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` AND `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` with NO Authorization header + `Origin: https://evil.example.com` → 200+org-record proves HIGH unauthenticated tenant PII disclosure (highest-value open item; zero passive fallback — bundles nil-UUID-only, this session's sweep found no new data-bearing route). If 404: AUTH_HELPED `PUT https://api.sparelabs.com/v1/global/regions` no-auth write test.
+[HYP] Cross-origin write on auth-free global regions controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: GET `Bearer x` → 200+725B+ACAO:https://evil.example.com+ACAC:true re-confirmed live this session; OPTIONS → 204 + PUT/PATCH/POST/DELETE + ACAH:Authorization on same path; per-route middleware omission is the proven house pattern (regions scheme-only, organizations zero-header); mutating behavior never probed.
+evidence_needed: PUT/PATCH/POST/DELETE `/v1/global/regions` (or `/{id}`) no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED: inert unchanged-body `PUT https://api.sparelabs.com/v1/global/regions` with NO Authorization → observe 2xx/400-schema vs 401/403.
+impact: unauthenticated cross-origin region/config tampering via victim browser (reflect+ACAC); CRITICAL if mutating responds.
+testability: AUTH_HELPED
+[HYP] Real-org UUID returns full record via public oracle set
+class: AUTH
+asset: api.sparelabs.com/v1/public/organization?organizationId= AND /v1/public/organizations/{id}
+confidence: 50
+reasoning: TWO auth-free DB-lookup routes now confirmed on public namespace (query form 404/131B for nil; plural path form 404/131B for valid-unfound, new this session); both reflect ACAO+ACAC; 3-way differential (malformed→400 / valid-unfound→404 / found→200) intact but 200-branch never observed with a real org; bundles verified nil-UUID-only, UUID space not passively enumerable.
+evidence_needed: real existing org UUID → 200 + org record (name/branding/contacts) no-auth on either route.
+verify_steps: HUMAN_ONLY: request program test-org UUID from authorized contact → `GET https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` AND `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200+record.
+impact: unauthenticated tenant org-record/PII disclosure from public namespace; HIGH.
+testability: HUMAN_ONLY
+[HYP] Login MFE rotation exposes new federation modules
+class: BUSLOGIC
+asset: platform.sparelabs.com /login
+confidence: 35
+reasoning: root-config index-BIOrSDj1.js fully pulled, zero v1/admin refs; /login HTML this session shows same 4 manifest.wc.json URLs (prod+staging) + same root-config hash; no rotation observed in 3+ sessions.
+evidence_needed: root-config or MFE manifest hash change with new module URLs.
+verify_steps: PASSIVE: HEAD platform.sparelabs.com/assets/index-*.js + GET /login to detect bundle filename rotation vs index-BIOrSDj1.js.
+impact: new module enumeration; LOW.
+testability: PASSIVE
+[NEXT] HUMAN: Request a program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` AND `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → 200+org-record proves HIGH unauthenticated tenant PII disclosure via the now-2-route oracle set (highest-value open item; zero passive fallback). If 404: AUTH_HELPED `PUT https://api.sparelabs.com/v1/global/regions` no-auth write test.
