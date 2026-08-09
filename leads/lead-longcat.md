@@ -105,3 +105,4 @@ testability: PASSIVE (OPTIONS re-confirm) / AUTH_HELPED (body test)
 [RISK] web (spare.com/sparelabs.com): 10 — static Webflow marketing on Cloudflare, strict CSP, HSTS, no internal infra leaks; minimal surface
 ## 2026-08-09 13:58:31 UTC [routing] (model longcat)
 ## 2026-08-09 14:42:52 UTC [routing] (model longcat)
+## 2026-08-09 15:14:20 UTC [routing] (model longcat)

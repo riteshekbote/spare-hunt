@@ -1344,3 +1344,14 @@
 - LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE confirmed live 2026-08-09 13:12 UTC — CSP still exposes admin-eam-app.vercel.app + admi
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle differential DEGRADED — nil-uuid now returns 400 ValidationError (was 404
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+
+## RANKED HYPOTHESES 2026-08-09 15:17:02 UTC
+- [97] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read+write CORS chain on /v1/global/organizations (from reports/hypotheses-laguna.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -w "\n%{http_code}\n%{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=not
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID oracle DEGRADED from 3-way to 2-way — nil-uuid now returns 400 ValidationError (was 404 NotF
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE zero-header bypass STABLE — confirmed live 2026-08-09 13:10–15:00 UTC; OPTIONS 204 advertise
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — confirmed live 2026-08-09 15:00 UTC; Bearer x → 200 + 725B region registry (7 r
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true uniform on OPTIONS 204 + GET 200/401
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — prod admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app + staging variants +
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com HTML CSP: STABLE — SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN); infra leak lives in JS bundle main.71d5

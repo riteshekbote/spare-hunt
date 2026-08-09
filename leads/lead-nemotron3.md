@@ -3165,3 +3165,16 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 50 reason — Envoy 404 on all probed paths (/v1/,/api/); routing-engine API fully hidden; no unauthenticated surface; STABLE dead. No live exposure beyond 404
 [RISK] forms.sparelabs.com: 58 reason — Public SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP, no infra leak in HTML); JS bundle main.71d52314.js STABLE leaks staging+prod+regional infra (incl. 6 OOS) + atlassian.net/JIRA + inactive ngrok tunnel; infra-recon value only, no direct auth bypass
 [RISK] web (spare.com/sparelabs.com): 38 reason — spare.com apex 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors self, HSTS 31536000, no internal infra leaks); www.spare.com 301→OOS (excluded); sparelabs.com 301→spare.com; minimal static-only surface
+## 2026-08-09 15:15:41 UTC [platform] (model nemotron3)
+[NEW] NO_DELTA — inventory and knowledge base show no new surface changes since 2026-08-09 13:12 UTC stable re-confirmation; all prior ACCEPTED/REJECTED classes remain stable
+[PRIO] api.sparelabs.com/v1/global/organizations, 9.40, attack=10 business=9 tech=9 gate=10 cloud=8 fresh=10
+[PRIO] api.sparelabs.com/v1/global/regions, 9.25, attack=10 business=9 tech=9 gate=10 cloud=8 fresh=10
+[PRIO] api.sparelabs.com/v1/**, 9.10, attack=10 business=8 tech=10 gate=10 cloud=7 fresh=10
+[HYP] Complete zero-header no-auth bypass + full read+write CORS chain on fail-open organization controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 96
+reasoning: GET with NO Authorization header returns 200 + `{"data":[]}` + ACAO+ACAC across multiple probes (live 2026-08-09 13:10 UTC: 694ms slow replica); OPTIONS 204 advertises PUT,PATCH,POST,DELETE with reflected CORS+credentials; control /v1/journeys stable 401; complete route-level auth omission (not scheme-only)
+evidence_needed: Confirm zero-header bypass stability; verify write methods actually execute (not just advertised) via cross-origin POST
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/organizations with `Origin: https://evil.example.com` and NO Authorization header ×3 spaced 2s; capture status, body, CORS headers; OPTIONS same with `Access-Control-Request-Method: POST` and `Access-Control-Request-Headers: Authorization,Content-Type`
+impact: Unauthenticated read+write access to global organizations endpoint via any origin; combined with credential-reflecting CORS enables cross-origin state mutation from victim browsers;
