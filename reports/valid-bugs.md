@@ -256,3 +256,10 @@
   - | L8 | api /v1/global/organizations/{uuid} | **Already VALID** | Subsumed under A4 |
   - | L9 | api /v1/global/regions 400 | **Already VALID** | A2 reconfirmation |
   - | — | No new VALID findings this cycle | — | — |
+
+- 5 lead(s) marked VALID at 2026-08-09 13:48:34 UTC
+  - | A1 | CORS reflect-any-origin + credentials on /v1/** (all methods + Authorization header, uniform via envoy) | 8.1 High | VALID — STABLE |
+  - | A2 | Scheme-only auth bypass /v1/global/regions (200 + 725B region registry with garbage Bearer; middleware validates scheme only, never token) | 5.3 Medium | VALID — STABLE |
+  - | A3 | UUID enumeration oracle /v1/public/organization (400 malformed / 404 not-found / 200 found) | 5.3 Medium | VALID — STABLE |
+  - | A4 | /v1/global/organizations fail-open (200 + {"data":[]} + CORS, route-specific) | 5.3 Medium | VALID — STABLE |
+  - | A5 | /v1/public/terms data disclosure (200 + live terms URLs via mobileAppId|organizationId, no auth) | 5.3 Medium | VALID — STABLE |
