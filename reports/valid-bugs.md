@@ -284,3 +284,19 @@
   - | Q2 | **PARTIAL** — needs valid Bearer token |
   - | Q4 | **NO** — requires AUTH_HELPED (valid non-superAdmin Bearer token) |
   - | **Already VALID** | 5 | A1 CORS (8.1), A2 regions bypass (5.3), A3 UUID enum (5.3), A4 orgs fail-open (5.3), A5 terms disclosure (5.3) |
+
+- 14 lead(s) marked VALID at 2026-08-09 15:22:18 UTC
+  - | Q5 Novel? | **NO** — already VALID as A4 since 2026-08-07 22:59 UTC |
+  - **Verdict: Already VALID (A4).** Reconfirmed stable. CVSS 5.3 Med. Reporting channel: Spare security (TBD).
+  - | Q5 Novel? | **NO** — already VALID as A2 since 2026-08-08 08:06 UTC |
+  - **Verdict: Already VALID (A2).** The 400 in this probe sample reflects a request-shape variation (backtick-appended URL); the scheme-only bypass itself is stable across 10+ samples. CVSS 5.3 Med.
+  - | Q3 Real impact? | **YES** — 400 (malformed) vs 404 (valid-unfound) vs 200 (found) = reliable org UUID existence oracle |
+  - | Q4 Passive proof? | **YES** — GET with malformed vs valid-format UUIDs |
+  - | Q5 Novel? | **NO** — already VALID as A3 since 2026-08-07 22:00 UTC |
+  - **Verdict: Already VALID (A3).** CVSS 5.3 Med.
+  - | Q5 Novel? | **NO** — already VALID as A5 since 2026-08-08 08:06 UTC |
+  - **Verdict: Already VALID (A5).** CVSS 5.3 Med (param-vector variant 3.1 Low).
+  - | Q4 Passive proof? | **PARTIAL** — oracle confirmed (400 malformed → 404 valid-unfound = real DB lookup), but data disclosure unproven without authorized test UUID |
+  - | Q5 Novel? | **NO** — already VALID as A3 |
+  - **Verdict: Already VALID (A3).** Reconfirmation of the UUID enumeration oracle.
+  - | **Already VALID** | 5 | A1 CORS (8.1), A2 regions bypass (5.3), A3 UUID enum (5.3), A4 orgs fail-open (5.3), A5 terms disclosure (5.3) |
