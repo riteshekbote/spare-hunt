@@ -336,3 +336,11 @@
 
 - 1 lead(s) marked VALID at 2026-08-09 19:15:47 UTC
   - | **VALID** | 0 | All high-confidence valid findings (A1-A5) confirmed in prior cycles |
+
+- 6 lead(s) marked VALID at 2026-08-09 21:08:37 UTC
+  - | **Q5 Novel?** | ❌ **NO** — already VALID as A2 ("Scheme-only auth bypass /v1/global/regions", CVSS 5.3, STABLE since 2026-08-08 08:06 UTC, reconfirmed 30+ times) |
+  - | **Q5 Novel?** | ❌ **NO** — already VALID as A4 ("/v1/global/organizations fail-open", CVSS 5.3, STABLE, reconfirmed 30+ times) |
+  - | **Q5 Novel?** | ❌ **NO** — already VALID as A5 ("/v1/public/terms data disclosure", CVSS 5.3/3.1 Low, STABLE since 2026-08-08 08:06 UTC) |
+  - | **Q5 Novel?** | ❌ **NO** — already VALID as A5 parameter-vector variant (documented 2026-08-08 11:47 UTC, "new param-vector data disclosure") |
+  - | **Q6 Not always-rejected?** | ⚠️ Borderline — health endpoints that return only status are best-practice/info-disclosure. Only valid if body contains sensitive data. |
+  - | **VALID** | 0 | — |
