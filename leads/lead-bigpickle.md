@@ -1788,3 +1788,41 @@ testability: AUTH_HELPED
 [RISK] routing.sparelabs.com: 10 — envoy 404 on all paths, dead, no surface.
 [RISK] forms.sparelabs.com: 38 — JS bundle infra leak (staging+prod+regional+atlassian+ngrok); HTML strict CSP + x-frame DENY, no auth vector.
 [RISK] web (spare.com/sparelabs.com): 12 — static Webflow marketing site, no internal infra leaks.
+## 2026-08-09 14:02:47 UTC [api] (model bigpickle)
+[HYP] Cross-origin write on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 60
+reasoning: Zero-header GET → 200 + 11B + ACAO:evil + ACAC:true re-confirmed live this cycle; gate fully absent; OPTIONS 204 previously confirmed PUT/PATCH/POST/DELETE + ACAC on the exact fail-open path; write verbs never probed.
+evidence_needed: POST/PUT/PATCH/DELETE /v1/global/organizations no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED (program-authorized, inert no-body): `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + NO Authorization → observe status/body.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser (preflight gate closed by ACAO+ACAC); CRITICAL if write responds.
+testability: AUTH_HELPED
+[HYP] Write escalation on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: `Bearer x` → 200 + 725B + ACAO:evil + ACAC:true re-confirmed this cycle; gate is header+scheme presence-only, token never validated; this cycle the same presence-only-omission family expanded to /v1/public/mobileApps/{id} (fully auth-free) → omission pattern is systemic, write handlers may be registered auth-free; mutating verbs never probed.
+evidence_needed: PUT/PATCH/POST/DELETE /v1/global/regions (or /{id}) no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED (program-authorized, inert unchanged-body): `PUT https://api.sparelabs.com/v1/global/regions` with NO Authorization → observe 2xx vs 401/403.
+impact: unauthenticated cross-origin region/config tampering via victim browser; CRITICAL if mutating responds.
+testability: AUTH_HELPED
+[HYP] Real-org UUID returns full org record via public oracle set
+class: AUTH
+asset: api.sparelabs.com/v1/public/organization?organizationId= AND /v1/public/organizations/{id}
+confidence: 50
+reasoning: Oracle differential RESTORED to 3-way this cycle (nil-uuid → 404 NotFoundError 131B + ACAC on both query and path variants); malformed → 400 ValidationError; the 200-branch has never been observed with a real org; UUID space not passively enumerable (bundles verified nil-UUID-only).
+evidence_needed: real existing org UUID → 200 + org record (name/branding/contacts) no-auth on either route.
+verify_steps: HUMAN_ONLY: request program test-org UUID from authorized contact → GET `?organizationId=<uuid>` AND `/v1/public/organizations/<uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record.
+impact: unauthenticated tenant org-record/PII disclosure from public namespace; HIGH.
+testability: HUMAN_ONLY
+[HYP] Auth-free /v1/public/mobileApps/{id} returns mobile-app config for a valid mobileAppId
+class: AUTH
+asset: api.sparelabs.com/v1/public/mobileApps/{id}
+confidence: 45
+reasoning: Item route confirmed COMPLETELY auth-free (no-auth/wrong-scheme/garbage all → 404 "MobileApp was not found", never 401) while the collection is strongly gated (401 UnauthorizedError even with `Bearer x`); route is implemented (real resource error message) and shares the mobileAppId parameter space with the already-disclosed /v1/public/terms endpoint.
+evidence_needed: valid mobileAppId → 200 + mobile-app record (branding/deep-links/API config) with no auth.
+verify_steps: HUMAN_ONLY: request program test mobileAppId from authorized contact → GET `/v1/public/mobileApps/<id>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record vs 404.
+impact: unauthenticated mobile-app config disclosure (potential embedded credentials/keys); MEDIUM-HIGH if record contains secrets.
+testability: HUMAN_ONLY
+[NEXT] HUMAN: Request from the authorized contact a program test-org UUID AND a program test mobileAppId (GET-only, fully passive-compliant). Then (a) GET `https://api.sparelabs.com/v1/public/organization?organizationId=<uuid>` AND `/v1/public/organizations/<uuid>` with NO Authorization + `Origin: https://evil.example.com` → 200 + org-record closes the sole unobserved 200-branch (HIGH tenant PII); (b) GET `/v1/public/mobileApps/<mobileAppId>` with NO Authorization → 200 + config tests the new auth-free item route. If the operator instead grants write-method approval first, run the conf-60 inert no-body `POST /v1/global/organizations` probe (AUTH_HELPED) as the priority swap.
