@@ -2593,3 +2593,4 @@ verify_steps: AUTH_HELPED — `curl -s -D - -H "Origin: https://evil.example.com
 impact: HIGH — confirms data-bearing unauthenticated org-record disclosure on /v1/public/*.
 testability: AUTH_HELPED
 [NEXT] PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/global/organizations"` — re-verify write-method + credential preflight still converges on the exact fail-open route this cycle, closing the read→write chain gap record.
+## 2026-08-09 20:49:10 UTC [api] (model bigpickle)

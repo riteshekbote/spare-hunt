@@ -1514,3 +1514,15 @@
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com HTML CSP: STABLE — SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN); infra leak lives in JS bundle main.71d5
 - LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfigured (gladiaio org), 0 files scanned — no code-surface delta until clone target fixed.
+
+## RANKED HYPOTHESES 2026-08-09 20:50:34 UTC
+- [98] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read/write CORS chain on fail-open organization controller (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + full read+write CORS STABLE confirmed live 2026-08-09 18:38 UTC — `Bearer x` → 200 + 7
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + full methods uniform on OPTIONS 20
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?mobileAppId=<nil-uuid>: Data disclosure confirmed live 2026-08-09 18:38 UTC — 200 + 137B (termsOfUseUrl →
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle 3-way STABLE — malformed→400 ValidationError; nil-uuid→404 NotFoundError 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com HTML CSP: STABLE — SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN); infra leak lives in JS bundle main.71d5
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfigured (gladiaio org), 0 files scanned — no code-surface delta until clone target fixed.
