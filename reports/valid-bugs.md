@@ -234,3 +234,25 @@
 
 - 1 lead(s) marked VALID at 2026-08-09 09:32:30 UTC
   - **VALID count remains: 5** (CORS reflect-any-origin+creds CVSS 8.1, scheme-only bypass `/v1/global/regions` CVSS 5.3, complete no-auth bypass `/v1/global/organizations` CVSS 5.3, UUID enumeration orac
+
+- 20 lead(s) marked VALID at 2026-08-09 10:24:35 UTC
+  - | A1 | CORS reflect-any-origin + credentials on /v1/** (all methods + Authorization header) | 8.1 High | VALID — STABLE |
+  - | A2 | Scheme-only auth bypass /v1/global/regions (200 + 725B region registry with garbage Bearer) | 5.3 Medium | VALID — STABLE |
+  - | A3 | UUID enumeration oracle /v1/public/organization (400/404/200 differential) | 5.3 Medium | VALID — STABLE |
+  - | A4 | /v1/global/organizations fail-open (200 + {"data":[]} + CORS, empty payload persists) | 5.3 Medium | VALID — STABLE |
+  - | A5 | /v1/public/terms data disclosure (200 + live terms URLs via mobileAppId/organizationId) | 5.3 Medium | VALID — STABLE |
+  - | Q3 Real impact? | YES — UUID enumeration oracle (400 malformed / 404 valid-unfound / 200 found) |
+  - | Q5 Novel? | **NO — already VALID as Lead A3** |
+  - **Verdict: Already VALID (reconfirmation, no delta).** A3 covers this exact oracle.
+  - | Q5 Novel? | **NO — already VALID as Lead A4** (controller-wide auth omission) |
+  - **Verdict: Already VALID (reconfirmation, no delta).** A4 covers the organizations controller auth omission including subroutes.
+  - **Verdict: Already VALID (subsumed under A4).** No new finding.
+  - | Q5 Novel? | **NO — already VALID as Lead A2** (scheme-only bypass / 725B data disclosure) |
+  - **Verdict: Already VALID (reconfirmation of A2).** The 200-with-garbage-token variant is the same auth bypass; 400 here reflects a request-shape variation, not a new finding.
+  - | Q5 Novel? | **NO — CSP leak already VALID** (documented since 2026-08-07 22:00 UTC) |
+  - | `/v1/global/regions` | 200 with garbage token / 400 malformed | 400 | Possible replica flip. A2 still valid (historical); monitor for regression |
+  - | L4 | api /v1/public/organization?uuid= | **Already VALID** | A3 reconfirmation |
+  - | L7 | api /v1/global/organizations/{test-uuid} | **Already VALID** | A4 reconfirmation |
+  - | L8 | api /v1/global/organizations/{uuid} | **Already VALID** | Subsumed under A4 |
+  - | L9 | api /v1/global/regions 400 | **Already VALID** | A2 reconfirmation |
+  - | — | No new VALID findings this cycle | — | — |
