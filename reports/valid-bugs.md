@@ -363,3 +363,18 @@
   - | nemotron3 | CSP leak platform + staging admin apps | **VALID (dup)** | A6 reconfirmation |
   - | VALID (new) | 0 | No novel findings |
   - | VALID (reconfirmation) | 10 | A1–A7 reconfirmed STABLE |
+
+- 13 lead(s) marked VALID at 2026-08-09 23:57:50 UTC
+  - **Verdict: VALID — HIGH**
+  - **Verdict: VALID — MEDIUM**
+  - **Verdict: VALID — MEDIUM**
+  - **Verdict: VALID — MEDIUM**
+  - **Verdict: VALID — LOW** (accepted as info-disclosure reconnaissance enabler; severity capped because leaked hosts are third-party/Vercel, not directly in-scope)
+  - **Verdict: VALID — LOW** (accepted as reconnaissance enabler)
+  - **Verdict: HOLD → AUTH_HELPED. Highest-priority AUTH_HELPED test. With a program-obtained valid tenant/rider token, POST empty body → 2xx proves missing role check (critical); 401/403 means enforced (
+  - | 1 | CORS reflect-any-origin+creds on /v1/** | **VALID** | HIGH (standalone MEDIUM) | No |
+  - | 2 | /v1/global/organizations auth omission | **VALID** | MEDIUM | No |
+  - | 3 | /v1/global/regions presence-only gate | **VALID** | MEDIUM | No |
+  - | 4 | /v1/public/org UUID enumeration oracle | **VALID** | MEDIUM | No |
+  - | 5 | CSP + MFE manifest infra leak | **VALID** | LOW | No |
+  - | 6 | JS bundle staging infra leak | **VALID** | LOW | No |
