@@ -2624,3 +2624,31 @@ impact: HIGH (route-scoped) — unauthenticated infra-topology disclosure + cred
 testability: PASSIVE
 [NEXT] PROBE: `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/global/organizations"` — complements the DELETE preflight verified this cycle; expect 204 + ACAO:evil + ACAC:true + POST in allow-methods to close the full write-method surface record on the fail-open route.
 ## 2026-08-09 21:54:25 UTC [api] (model bigpickle)
+## 2026-08-09 22:27:28 UTC [api] (model bigpickle)
+[HYP] Complete zero-header auth omission + write-CORS chain resolves to live org records with a valid session
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 98
+reasoning: This cycle OPTIONS POST preflight → 204 + ACAO:evil + ACAC:true + allow-methods:GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization on the exact fail-open route; control /v1/journeys 401; body stays 11B so data layer unproven.
+evidence_needed: authorized admin token on same route → non-empty data body proving omission reaches live records.
+verify_steps: AUTH_HELPED — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer <AUTHORIZED_TOKEN>" "https://api.sparelabs.com/v1/global/organizations"` — expect 200 + data-bearing body.
+impact: CRITICAL if data loads (credentialed cross-origin read+write, zero attacker-supplied creds); HIGH while payload empty.
+testability: AUTH_HELPED
+[HYP] Region registry remains scheme-only-bypassed data-bearing route (no regression)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: This cycle `Bearer x` + Origin → 200 + 725B (7 regions incl. 6 OOS api/routing hosts) + ACAO:evil + ACAC:true (2ms fast upstream); token validity never checked; no-auth → 400 per KB.
+evidence_needed: Bearer x → 200+725B+ACAO/ACAC (re-verified 22:27 UTC); no-auth → 400.
+verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` (200+725B); `curl -s -o /dev/null -w "%{http_code}" "https://api.sparelabs.com/v1/global/regions"` (400).
+impact: HIGH (route-scoped) — unauthenticated infra-topology disclosure + credentialed cross-origin read.
+testability: PASSIVE
+[HYP] /v1/public/organization 200-arm returns full org record without authentication
+class: AUTH
+asset: api.sparelabs.com/v1/public/organization
+confidence: 70
+reasoning: 3-way differential intact per KB (malformed→400 ValidationError, nil-uuid→404 NotFoundError, valid→200); 200-arm never exercised — valid org UUIDs unreachable under passive rules.
+evidence_needed: authorized test-org UUID → 200 + org record + ACAO+ACAC with no Authorization header.
+verify_steps: AUTH_HELPED — `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=<AUTHORIZED_UUID>"` — expect 200 + org record.
+impact: HIGH — unauthenticated data-bearing org-record disclosure on /v1/public/*.
+testability: AUTH_HELPED
