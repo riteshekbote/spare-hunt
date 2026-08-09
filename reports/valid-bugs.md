@@ -166,3 +166,12 @@
   - | Q3 Real impact? | **Medium** — enumerate valid org UUIDs |
   - | Q4 Prove passively? | **Yes** — GET with malformed vs valid-format UUIDs |
   - | Q3 Real impact? | **Unproven** — 401 with garbage AND valid-format tokens; role check not bypassed |
+
+- 8 lead(s) triaged at 2026-08-09 03:00 UTC — **CONSOLIDATED RECONFIRMATION**
+  - | **Already VALID** | 5 | CORS reflect-any-origin+creds (CVSS 8.1), scheme-only bypass /v1/global/regions (CVSS 5.3), complete no-auth bypass /v1/global/organizations (CVSS 5.3), UUID enumeration oracle (CVSS 5.3), /v1/public/terms data disclosure (CVSS 5.3) |
+  - | **INVALID** | 3 | metabase OOS (Q1), /login accessibility normal (Q3/Q6), /v1/public/$p 404 (Q3) |
+  - Key update: All 5 findings STABLE across 10 probe samples (17:20 UTC → 02:52 UTC). No new reportable findings. No delta.
+  - Reporting channel: Spare security channel (per scope.yml, TBD)
+
+- 1 lead(s) marked VALID at 2026-08-09 03:21:56 UTC
+  - | **Already VALID** (reconfirmation, no delta) | 5 | CORS reflect-any-origin+creds (8.1), scheme-only bypass `/v1/global/regions` (5.3), complete no-auth bypass `/v1/global/organizations` (5.3), UUID 
