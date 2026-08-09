@@ -170,3 +170,10 @@ https://api.sparelabs.com/v1/global/regions` -> HTTP 400
 https://api.sparelabs.com/v1/public/users` -> HTTP 400
 https://api.sparelabs.com/v1/journeys -> HTTP 401
 https://api.sparelabs.com/v1/global/organizations` -> HTTP 400
+
+## 2026-08-09 05:18:58 UTC
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://platform.sparelabs.com/login -> 200 len=5555 type=text/html; charset=UTF-8
+https://api.sparelabs.com/v1/journeys -> HTTP 401
+https://api.sparelabs.com/v1/global/organizations` -> HTTP 400

@@ -952,3 +952,21 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC on 200 (regions/organizations), 401 (journeys), 400 (no-param) paths
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — ?mobileAppId=<nil-uuid> → 200 + 137B + ACAO+ACAC no-auth — re-confirmed 2026-08
 - LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app + staging + Metabase + full cloud infra (Cognito
+
+## RANKED HYPOTHESES 2026-08-09 05:18:56 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + full read+write CORS chain on regional infra topology (from reports/hypotheses-laguna.txt)
+- [96] api.sparelabs.com/v1/global/organizations: Complete no-auth bypass + write-method CORS on /v1/global/organizations (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET `https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` and NO Authorization header; capture status, body, CORS h
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE re-confirmed live 2026-08-09 04:08 UTC — Bearer x → 200 + 725B + ACAO+ACAC (1ms f
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC on 200 (regions/organizations), 401 (journeys), 400 (no-param) paths
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/admin/*: /v1/admin/{health,organizations} no-auth → 404 0B; platform root-config (index-BIOrSDj1.js) has zero v1/admin
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/journeyNotifications/*, /v1/meticulous-manual-init: bundle-derived refs live-probe 404 0B — dead build-time refs, no su
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/{uuid}: Confirmed NOT data-bearing — path-param UUID returns 404 NotFoundError (131B) with Bearer
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/tenants: Confirmed NOT data-bearing — returns 400 auth-free 0B, omission is route-registration-le
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + full read+write CORS confirmed live 2026-08-09 05:17 UTC — 200+725B+ACAO+ACAC with Bea
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass confirmed live 2026-08-09 05:17 UTC — 200+11B+ACAO+ACAC with NO Authoriza
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC on 200 (regions/organizations/terms) + 401 (journeys) + 404/400 path
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — ?mobileAppId=<nil-uuid> → 200+137B (termsOfUseUrl+privacyPolicyUrl) no-auth + C
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle STABLE — nil-uuid → 404 NotFoundError (131B + correlationId) + ACAO+ACAC;
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app (both 200) + staging + Metabase (prod+staging) +
