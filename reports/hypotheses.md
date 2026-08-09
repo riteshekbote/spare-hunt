@@ -1355,3 +1355,36 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true uniform on OPTIONS 204 + GET 200/401
 - LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — prod admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app + staging variants +
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com HTML CSP: STABLE — SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN); infra leak lives in JS bundle main.71d5
+
+## RANKED HYPOTHESES 2026-08-09 15:52:28 UTC
+- [97] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read+write CORS chain on /v1/global/organizations (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorizati
+- NEXT(hypotheses-bigpickle.txt): PROBE: `curl -s -w "\n%{http_code}\n%{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=not
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + full read+write CORS STABLE confirmed live 2026-08-09 13:12 UTC — `Bearer x` → 200 + 7
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + full methods uniform on OPTIONS 20
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?mobileAppId=<nil-uuid>: Data disclosure confirmed live 2026-08-09 13:10 UTC — 200 + 137B (termsOfUseUrl →
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE confirmed live 2026-08-09 13:12 UTC — CSP still exposes admin-eam-app.vercel.app + admi
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE confirmed live 2026-08-09 13:12 UTC — same infra leak (staging+prod+regional + atlas
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle differential DEGRADED — nil-uuid now returns 400 ValidationError (was 404
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan 2026-08-09 12:03 UTC: 0 hits — scan-target misconfigured (gladiaio org instead of sparelabs) — persists; no cod
+- LEARN: REJECTED (web) @ spare.com: spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks) — 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths, NO_DELTA since 2026-08-07, confirmed again this session.
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID oracle DEGRADED from 3-way to 2-way — nil-uuid now returns 400 ValidationError (was 404 NotF
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE zero-header bypass STABLE — confirmed live 2026-08-09 13:10–15:00 UTC; OPTIONS 204 advertise
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — confirmed live 2026-08-09 15:00 UTC; Bearer x → 200 + 725B region registry (7 r
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true uniform on OPTIONS 204 + GET 200/401
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — prod admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app + staging variants +
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com HTML CSP: STABLE — SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN); infra leak lives in JS bundle main.71d5
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + full read+write CORS STABLE confirmed live 2026-08-09 13:12 UTC — Bearer x → 200 + 725
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + full methods uniform on OPTIONS 20
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?mobileAppId=<nil-uuid>: Data disclosure confirmed live 2026-08-09 13:10 UTC — 200 + 137B (termsOfUseUrl →
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE confirmed live 2026-08-09 13:12 UTC — CSP still exposes admin-eam-app.vercel.app + admi
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle differential DEGRADED — nil-uuid now returns 400 ValidationError (was 404
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header no-auth bypass re-confirmed STABLE live 15:49 UTC — 200 + `{"data":[]}` + ACAO:evil + ACA
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed STABLE live 15:49 UTC — `Bearer x` → 200 + 725B (7 regions, 6 OOS), no-auth
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure re-confirmed STABLE live 15:49 UTC — 200 + 137B + ACAO+ACAC no-auth on both `?mobileAppI
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: 0 files scanned at 15:47 UTC — scan-target misconfig (gladiaio org) persists; no code-surface delta until clon
