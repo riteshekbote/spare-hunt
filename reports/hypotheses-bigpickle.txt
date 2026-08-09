@@ -1,28 +1,30 @@
-## 2026-08-08 23:47:36 UTC [api] (model bigpickle)
-[HYP] Auth-free {id} returns full org record for a real org UUID
-class: AUTH
-asset: api.sparelabs.com/v1/global/organizations/{id}
-confidence: 55
-reasoning: list sibling fail-open 200+11B with NO header re-confirmed (675ms slow replica); {id} path discriminates (malformed→400, nil-uuid→404 DB lookup); control 401. Only known UUID is not a real org, so data-bearing unproven.
-evidence_needed: real org UUID → 200 + org record (name/branding/contacts) no-auth.
-verify_steps: AUTH_HELPED/HUMAN: `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` NO Authorization header → 200+record; passive fallback none (UUID space not passively enumerable).
-impact: unauthenticated tenant org-record/PII disclosure from gated namespace; HIGH.
-testability: HUMAN_ONLY
+## 2026-08-09 00:39:10 UTC [api] (model bigpickle)
 [HYP] Cross-origin write on auth-free regions controller
 class: AUTH
 asset: api.sparelabs.com/v1/global/regions
 confidence: 50
-reasoning: GET Bearer x → 200+725B+ACAO+ACAC (3ms); OPTIONS PUT preflight re-confirmed 204 + write methods + ACAH:Authorization on same path; per-route middleware omission proven house pattern; mutating behavior unproven.
-evidence_needed: PUT/PATCH/POST/DELETE with Bearer x/no-auth → 2xx/400-schema vs 401/403.
+reasoning: GET `Bearer x` → 200+725B+ACAO:https://evil.example.com+ACAC:true (350ms, re-confirmed live); OPTIONS → 204 + allow-methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization on same path; per-route middleware omission is the proven house pattern; mutating behavior unproven.
+evidence_needed: PUT/PATCH/POST/DELETE `/v1/global/regions` (or `/{id}`) no-auth → 2xx/400-schema vs 401/403.
 verify_steps: AUTH_HELPED: inert unchanged `PUT https://api.sparelabs.com/v1/global/regions` no-auth → 2xx vs 401/403.
-impact: unauthenticated cross-origin region/config tampering via victim browser; CRITICAL if mutating responds.
+impact: unauthenticated cross-origin region/config tampering via victim browser (CORS reflect+ACAC); CRITICAL if mutating responds.
 testability: PASSIVE (preflight done) / AUTH_HELPED (write)
-[HYP] Multi-version LB replica skew on /v1/public/terms — auth-free replica reachable
+[HYP] Auth-free {id} returns full org record for a real org UUID
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations/{id}
+confidence: 50
+reasoning: list sibling fail-open 200+11B zero-header (1275ms slow replica, live); {id} discriminates malformed→400/nil-uuid→404 DB-lookup; control journeys 401. KB rejection applies to non-real UUIDs only; real-org record path never tested (UUID space not passively enumerable).
+evidence_needed: real existing org UUID → 200 + org record (name/branding/contacts) no-auth.
+verify_steps: HUMAN: request program test-org UUID → `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` NO Authorization → expect 200+record; passive fallback none.
+impact: unauthenticated tenant org-record/PII disclosure from gated namespace; HIGH.
+testability: HUMAN_ONLY
+[HYP] Public-namespace sweep reveals a data-bearing registered route
 class: BUSLOGIC
-asset: api.sparelabs.com/v1/public/terms
-confidence: 42
-reasoning: 3 spaced probes this session all 200 on 7-10ms fast replica — 401-flip NOT captured; historical evidence has same request 401 on ~703ms replica; replicas disagree on public-namespace auth. Unobserved, downgraded.
-evidence_needed: capture 401-state on identical request to confirm split persists.
-verify_steps: PASSIVE — 2.5s-spaced alternating `?mobileAppId=<nil-uuid>`/`?organizationId=<nil-uuid>` GETs logging status+x-envoy-upstream-service-time until flip.
-impact: confirms divergent auth enforcement across replicas → timing fingerprint; low-medium.
+asset: api.sparelabs.com/v1/public/*
+confidence: 45
+reasoning: this session `/v1/public/users` + known `/v1/public/organizations` return 400 "not found" auth-free (registered-not-implemented); `/v1/public/{terms,organization}` are data-bearing; public namespace has more registered routes than documented.
+evidence_needed: a registered public route returning 200/400-schema with a body ≠ "not found".
+verify_steps: PASSIVE — spaced 1.2s GET sweeps of `/v1/public/{token,reset,password,verify,email,invite,member,driver,fleet,company,vehicle}` logging status+size, then follow any non-404.
+impact: discover an additional unauthenticated data endpoint; MEDIUM.
 testability: PASSIVE
+[NEXT] HUMAN: Request a program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` with NO Authorization header + `Origin: https://evil.example.com` → 200+record proves HIGH-severity unauthenticated tenant PII disclosure (the highest-impact open item; zero passive fallback exists).
+[RISK] api.sparelabs.com: 72 — two distinct auth-free bypasses on /v1/global (scheme-only + complete zero-header) + reflect-any-origin credentials on ALL /v1 incl. write methods advertised; severity capped by near-empty payloads (`{"data":[]}` 11B, 725B region registry, terms URLs) | platform.sparelabs.com: 45 — CSP/frame-src infra leak (prod admin Vercel apps + Metabase prod+staging + full cloud stack) enables precise targeting; mitigated by strict HTML CSP, x-frame DENY, static SPA | routing.sparelabs.com: 12 — envoy 404 across all paths; no discoverable surface, dead | forms.sparelabs.com: 30 — strict CSP + x-frame DENY SPA; infra leak confined to JS bundle main.71d52314.js; staging variants dead | web (spare.com/sparelabs.com): 15 — static Webflow behind Cloudflare, frame-ancestors 'self' + HSTS; footer links leak only OOS subdomains.

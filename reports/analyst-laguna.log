@@ -10646,3 +10646,241 @@ All surviving hypotheses have concrete verify steps (PASSIVE) and confidence ≥
 [RISK] routing.sparelabs.com: 50 — Envoy 404 on all probed paths; routing-engine API fully hidden; no unauthenticated surface; STABLE dead.
 [RISK] forms.sparelabs.com: 58 — Public SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP); JS bundle main.71d52314.js leaks staging+prod+regional infra (+6 OOS) + atlassian.net + inactive ngrok tunnel + full auth route map; infra-recon value only.
 [RISK] web (spare.com/sparelabs.com): 38 — spare.com apex 200 (Cloudflare Webflow, CSP frame-ancestors self, HSTS 31536000, no infra leaks); www.spare.com 301→OOS; sparelabs.com 301→spare.com. Minimal static-only surface.
+===== ANALYST laguna 2026-08-09 00:39:22 UTC =====
+[0m
+> build · laguna-s-2.1-free
+[0m
+I'll verify the key stable findings with passive probes, then produce the structured analysis. Let me start with the highest-priority endpoints, spacing requests to respect the 1 rps limit.
+[0m$ [0mcurl -s -D - -o /tmp/regions_body -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" -w "\n---UPSTREAM_TIME: %{time_total}s---\nHTTP_CODE: %{http_code}\n" 2>&1
+HTTP/2 200 
+spare-correlation-id: 8e81ec55-5005-4b5f-90a2-f188b08a2a77
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-security-policy: default-src none;upgrade-insecure-requests
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=31536000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+content-type: application/json; charset=utf-8
+content-length: 725
+etag: W/"2d5-y5a0XA6N2OB/lMb3pNzlk1beZWA"
+date: Sun, 09 Aug 2026 00:37:36 GMT
+x-envoy-upstream-service-time: 2
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+
+---UPSTREAM_TIME: 0.397587s---
+HTTP_CODE: 200
+[0m
+Confirmed `/v1/global/regions`: 200 + 725B + reflected CORS + ACAC:true with garbage `Bearer x`. Now verifying the organizations no-auth bypass and the OPTIONS write-method preflight.
+[0m$ [0mecho "=== GET /v1/global/organizations (ZERO headers) ===" && curl -s -D - -o /tmp/orgs_body -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" -w "\nUPSTREAM: %{time_total}s HTTP: %{http_code}\n" 2>&1
+=== GET /v1/global/organizations (ZERO headers) ===
+HTTP/2 200 
+spare-correlation-id: 4cef2b23-b7e8-48cc-9026-44e811141e7b
+access-control-allow-origin: https://evil.example.com
+vary: Origin
+access-control-allow-credentials: true
+content-security-policy: default-src none;upgrade-insecure-requests
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=31536000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+content-type: application/json; charset=utf-8
+content-length: 11
+etag: W/"b-EFAlOux7Kcr/ZEgGkn2r+oFAbu4"
+date: Sun, 09 Aug 2026 00:37:44 GMT
+x-envoy-upstream-service-time: 1165
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+
+
+UPSTREAM: 1.500308s HTTP: 200
+[0m
+Confirmed `/v1/global/organizations`: 200 + 11B `{"data":[]}` + reflected CORS + ACAC:true with **zero** Authorization header (slow 1165ms replica). Now verifying the OPTIONS write-method preflight.
+[0m$ [0mecho "=== OPTIONS preflight /v1/global/organizations (DELETE) ===" && curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: DELETE" -H "Access-ControlRequestHeaders: Authorization,Content-Type" "https://api.sparelabs.com/v1/global/organizations" -w "\nUPSTREAM: %{time_total}s HTTP: %{http_code}\n" 2>&1
+=== OPTIONS preflight /v1/global/organizations (DELETE) ===
+HTTP/2 204 
+x-powered-by: Express
+spare-correlation-id: 890b6ec5-f795-4960-ac9d-f811d8a80f2b
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Access-Control-Request-Headers, Accept-Encoding
+access-control-allow-credentials: true
+access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
+date: Sun, 09 Aug 2026 00:37:55 GMT
+x-envoy-upstream-service-time: 2
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+
+UPSTREAM: 0.140663s HTTP: 204
+[0m
+OPTIONS preflight confirmed on organizations: **204 + reflected CORS + ACAC:true + full write methods (PUT/PATCH/POST/DELETE)** — read→write chain closed. Now verifying the data disclosure and enumeration oracle.
+[0m$ [0mecho "=== /v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000 ===" && curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000" -w "\nUPSTREAM: %{time_total}s HTTP: %{http_code}\n" 2>&1
+=== /v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000 ===
+HTTP/2 200 
+spare-correlation-id: ac179074-c2cb-4ee6-8b8c-6df9a4b73ebf
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-security-policy: default-src none;upgrade-insecure-requests
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=31536000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+content-type: application/json; charset=utf-8
+content-length: 137
+etag: W/"89-I3RGD2t0vcsBMTe/ehln1v3cJQE"
+date: Sun, 09 Aug 2026 00:38:03 GMT
+x-envoy-upstream-service-time: 9
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+{"termsOfUseUrl":"https://sparelabs.com/terms-of-use/","privacyPolicyUrl":"https://sparelabs.com/privacy-policy/","serviceTermsUrl":null}
+UPSTREAM: 0.364538s HTTP: 200
+[0m
+Data disclosure confirmed on `/v1/public/terms`: 200 + 137B (live terms URLs) with no auth + reflected CORS. Now testing the UUID enumeration oracle (malformed → 400, nil UUID → 404).
+[0m$ [0mecho "=== /v1/public/organization malformed ===" && curl -s -D - -o /tmp/org_malformed -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=not-a-uuid" -w "\nHTTP: %{http_code} UPSTREAM: %{time_total}s\n" 2>&1
+echo ""
+echo "=== /v1/public/organization nil UUID ===" && curl -s -D - -o /tmp/org_nil -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000" -w "\nHTTP: %{http_code} UPSTREAM: %{time_total}s\n" 2>&1
+=== /v1/public/organization malformed ===
+HTTP/2 400 
+spare-correlation-id: 889c8bdd-5d24-4021-bbf5-b88bf2acd1de
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-security-policy: default-src none;upgrade-insecure-requests
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=31536000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+content-type: application/json; charset=utf-8
+content-length: 285
+etag: W/"11d-X1ySNrRCSl7kzW5GqsswX4zSt1U"
+date: Sun, 09 Aug 2026 00:38:17 GMT
+x-envoy-upstream-service-time: 6
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+
+HTTP: 400 UPSTREAM: 0.146060s
+
+=== /v1/public/organization nil UUID ===
+HTTP/2 404 
+spare-correlation-id: 18244b0a-9cd3-4418-8211-0c5582b54477
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-security-policy: default-src none;upgrade-insecure-requests
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=31536000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+content-type: application/json; charset=utf-8
+content-length: 131
+etag: W/"83-FAZQOy8yjL0SSwZUwj+bIzkoFrw"
+date: Sun, 09 Aug 2026 00:38:17 GMT
+x-envoy-upstream-service-time: 7
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+
+HTTP: 404 UPSTREAM: 0.124943s
+[0m
+UUID oracle confirmed: malformed→400 (285B ValidationError), nil UUID→404 (131B NotFoundError), both with CORS. Now verifying the control route (401) and the platform CSP leak.
+[0m$ [0mecho "=== CONTROL: /v1/journeys (should be 401) ===" && curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys" -w "\nHTTP: %{http_code} UPSTREAM: %{time_total}s\n" 2>&1
+echo ""
+echo "=== /login CSP (grep admin/metabase) ===" && curl -s -D - -o /tmp/login_body "https://platform.sparelabs.com/login" -w "\nHTTP: %{http_code} UPSTREAM: %{time_total}s\n" 2>&1 | grep -iE "content-security-policy|x-frame"
+=== CONTROL: /v1/journeys (should be 401) ===
+HTTP/2 401 
+spare-correlation-id: b3057c70-ed9d-40bd-b4bb-c4ca6f9598a0
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-security-policy: default-src none;upgrade-insecure-requests
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=31536000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+content-type: application/json; charset=utf-8
+content-length: 143
+etag: W/"8f-/jqc7edLdBue1MMbygeG4N5j8eo"
+date: Sun, 09 Aug 2026 00:38:25 GMT
+x-envoy-upstream-service-time: 3
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+
+HTTP: 401 UPSTREAM: 0.141353s
+
+=== /login CSP (grep admin/metabase) ===
+content-security-policy: child-src 'self' blob: https://fast.wistia.net https://www.intercom-reporting.com https://intercom-sheets.com https://player.vimeo.com https://www.youtube.com;connect-src 'self' blob: https://*.analytics.google.com https://*.g.doubleclick.net https://*.google-analytics.com https://*.google.com https://*.googleapis.com https://*.googletagmanager.com https://*.gstatic.com https://*.intercom.io https://*.intercom-messenger.com https://*.intercomcdn.com https://*.intercomcdn.eu https://*.nyc3.digitaloceanspaces.com https://*.sfo2.digitaloceanspaces.com https://*.stripe.com https://*.tiles.mapbox.com https://api-js.mixpanel.com https://api.mapbox.com https://events.mapbox.com https://heapanalytics.com https://hooks.zapier.com https://intercomusercontent.com https://www.overpass-api.de https://overpass.private.coffee wss://*.intercom.io wss://*.intercom-messenger.com https://*.sparelabs.com wss://*.sparelabs.com https://*.sparelabs.ca wss://*.sparelabs.ca https://*.pusher.com https://storage.googleapis.com wss://*.twilio.com https://*.livekit.cloud wss://*.livekit.cloud https://api.open-meteo.com https://cognito-identity.us-west-2.amazonaws.com https://user-events-v3.s3-accelerate.amazonaws.com https://*.sentry.io https://*.sentry-cdn.com https://admin-eam-app-staging.vercel.app https://admin-eam-app.vercel.app https://admin-fixed-route-app-staging.vercel.app https://admin-fixed-route-app.vercel.app;default-src 'self' https://*.intercom.io https://intercom.help https://messenger-apps.intercom.io wss://*.intercom.io;font-src 'self' data: https://*.intercomcdn.com https://fonts.gstatic.com https://heapanalytics.com https://maxcdn.bootstrapcdn.com;frame-src 'self' https://*.googletagmanager.com https://*.loom.com https://*.stripe.com https://intercom-sheets.com https://metabase.sparelabs.com https://metabase.staging.sparelabs.com https://snippet.meticulous.ai https://*.withterminal.com;img-src 'self' blob: data: https://*.analytics.google.com https://*.au.intercom-attachments.com https://*.g.doubleclick.net https://*.google-analytics.com https://*.google.com https://*.googleapis.com https://*.googletagmanager.com https://*.gstatic.com https://*.intercom-attachments-1.com https://*.intercom-attachments-2.com https://*.intercom-attachments-3.com https://*.intercom-attachments-4.com https://*.intercom-attachments-5.com https://*.intercom-attachments-6.com https://*.intercom-attachments-7.com https://*.intercom-attachments-8.com https://*.intercom-attachments-9.com https://*.intercom-attachments.eu https://*.intercom.io https://*.intercomassets.com https://*.intercomassets.eu https://*.intercomcdn.com https://*.intercomcdn.eu https://*.nyc3.digitaloceanspaces.com https://*.sfo2.digitaloceanspaces.com https://*.sparelabs.com https://*.stripe.com https://heapanalytics.com https://*.intercomusercontent.com https://storage.googleapis.com https://translate.googleapis.com wss://*.intercom.io https://retell-utils-public.s3.us-west-2.amazonaws.com;manifest-src 'self';media-src 'self' https://*.intercomcdn.com https://api.twilio.com https://retell-utils-public.s3.us-west-2.amazonaws.com https://storage.googleapis.com;object-src 'self';script-src 'self' 'report-sample' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' https://*.google-analytics.com https://*.googleapis.com https://*.googletagmanager.com https://*.heapanalytics.com https://*.intercom.io https://*.intercomcdn.com https://*.stripe.com https://tagmanager.google.com https://translate.google.com https://translate.googleapis.com wss://*.intercom.io https://snippet.meticulous.ai https://browser.sentry-cdn.com https://admin-eam-app-staging.vercel.app https://admin-eam-app.vercel.app https://admin-fixed-route-app-staging.vercel.app https://admin-fixed-route-app.vercel.app;style-src 'self' 'report-sample' 'unsafe-inline' https://fonts.googleapis.com https://heapanalytics.com https://tagmanager.google.com https://translate.googleapis.com https://api.tiles.mapbox.com https://maxcdn.bootstrapcdn.com https://admin-eam-app-staging.vercel.app https://admin-eam-app.vercel.app https://admin-fixed-route-app-staging.vercel.app https://admin-fixed-route-app.vercel.app;worker-src 'self' blob:;form-action 'self' https://*.intercom.io https://intercom.help https://*.statuspage.io;base-uri 'self';frame-ancestors 'self';script-src-attr 'none';upgrade-insecure-requests
+x-frame-options: SAMEORIGIN
+content-security-policy-report-only: child-src 'self' blob: https://fast.wistia.net https://www.intercom-reporting.com https://intercom-sheets.com https://player.vimeo.com https://www.youtube.com;connect-src 'self' blob: https://*.analytics.google.com https://*.g.doubleclick.net https://*.google-analytics.com https://*.google.com https://*.googleapis.com https://*.googletagmanager.com https://*.gstatic.com https://*.intercom.io https://*.intercom-messenger.com https://*.intercomcdn.com https://*.intercomcdn.eu https://*.nyc3.digitaloceanspaces.com https://*.sfo2.digitaloceanspaces.com https://*.stripe.com https://*.tiles.mapbox.com https://api-js.mixpanel.com https://api.mapbox.com https://events.mapbox.com https://heapanalytics.com https://hooks.zapier.com https://intercomusercontent.com https://www.overpass-api.de https://overpass.private.coffee wss://*.intercom.io wss://*.intercom-messenger.com https://*.sparelabs.com wss://*.sparelabs.com https://*.sparelabs.ca wss://*.sparelabs.ca https://*.pusher.com https://storage.googleapis.com wss://*.twilio.com https://*.livekit.cloud wss://*.livekit.cloud https://api.open-meteo.com https://cognito-identity.us-west-2.amazonaws.com https://user-events-v3.s3-accelerate.amazonaws.com https://*.sentry.io https://*.sentry-cdn.com https://admin-eam-app-staging.vercel.app https://admin-eam-app.vercel.app https://admin-fixed-route-app-staging.vercel.app https://admin-fixed-route-app.vercel.app;default-src 'self' https://*.intercom.io https://intercom.help https://messenger-apps.intercom.io wss://*.intercom.io;font-src 'self' data: https://*.intercomcdn.com https://fonts.gstatic.com https://heapanalytics.com https://maxcdn.bootstrapcdn.com;frame-src 'self' https://*.googletagmanager.com https://*.loom.com https://*.stripe.com https://intercom-sheets.com https://metabase.sparelabs.com https://metabase.staging.sparelabs.com https://snippet.meticulous.ai https://*.withterminal.com;img-src 'self' blob: data: https://*.analytics.google.com https://*.au.intercom-attachments.com https://*.g.doubleclick.net https://*.google-analytics.com https://*.google.com https://*.googleapis.com https://*.googletagmanager.com https://*.gstatic.com https://*.intercom-attachments-1.com https://*.intercom-attachments-2.com https://*.intercom-attachments-3.com https://*.intercom-attachments-4.com https://*.intercom-attachments-5.com https://*.intercom-attachments-6.com https://*.intercom-attachments-7.com https://*.intercom-attachments-8.com https://*.intercom-attachments-9.com https://*.intercom-attachments.eu https://*.intercom.io https://*.intercomassets.com https://*.intercomassets.eu https://*.intercomcdn.com https://*.intercomcdn.eu https://*.nyc3.digitaloceanspaces.com https://*.sfo2.digitaloceanspaces.com https://*.sparelabs.com https://*.stripe.com https://heapanalytics.com https://*.intercomusercontent.com https://storage.googleapis.com https://translate.googleapis.com wss://*.intercom.io https://retell-utils-public.s3.us-west-2.amazonaws.com;manifest-src 'self';media-src 'self' https://*.intercomcdn.com https://api.twilio.com https://retell-utils-public.s3.us-west-2.amazonaws.com https://storage.googleapis.com;object-src 'self';script-src 'self' 'report-sample' 'wasm-unsafe-eval' 'unsafe-inline' https://*.google-analytics.com https://*.googleapis.com https://*.googletagmanager.com https://*.heapanalytics.com https://*.intercom.io https://*.intercomcdn.com https://*.stripe.com https://tagmanager.google.com https://translate.google.com https://translate.googleapis.com wss://*.intercom.io https://snippet.meticulous.ai https://browser.sentry-cdn.com https://admin-eam-app-staging.vercel.app https://admin-eam-app.vercel.app https://admin-fixed-route-app-staging.vercel.app https://admin-fixed-route-app.vercel.app;style-src 'self' 'report-sample' 'unsafe-inline' https://fonts.googleapis.com https://heapanalytics.com https://tagmanager.google.com https://translate.googleapis.com https://api.tiles.mapbox.com https://maxcdn.bootstrapcdn.com https://admin-eam-app-staging.vercel.app https://admin-eam-app.vercel.app https://admin-fixed-route-app-staging.vercel.app https://admin-fixed-route-app.vercel.app;worker-src 'self' blob:;form-action 'self' https://*.intercom.io https://intercom.help https://*.statuspage.io;base-uri 'self';frame-ancestors 'self';script-src-attr 'none';upgrade-insecure-requests
+[0m
+[93m[1m! [0mpermission requested: external_directory (/tmp/*); auto-rejecting
+[0m✗ [0mRead /tmp/regions_body failed
+[91m[1mError: [0mThe user rejected permission to use this specific tool call.
+All findings confirmed live at 2026-08-09 00:38 UTC. Let me read the captured response bodies for completeness.

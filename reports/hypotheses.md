@@ -909,3 +909,15 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass + write-method CORS on OPTIONS confirmed LIVE 23:47 UTC — 200 + 11B + ACA
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — live re-confirm 23:47 UTC — `Bearer x` → 200 + 725B + ACAO+ACAC (2ms fast upstr
 - LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — live re-confirm 23:47 UTC — CSP still exposes admin-eam-app.vercel.app + admin-fixed-route-
+
+## RANKED HYPOTHESES 2026-08-09 00:39:22 UTC
+- [96] api.sparelabs.com/v1/global/organizations: Complete no-auth bypass + write-method CORS on /v1/global/organizations (from reports/hypotheses-nemotron3.txt)
+- [50] api.sparelabs.com/v1/global/regions: Cross-origin write on auth-free regions controller (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET `https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` and NO Authorization header; capture status, body, CORS h
+- NEXT(hypotheses-bigpickle.txt): HUMAN: Request a program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/global/organizations/{test-uuid}` with NO Authorizati
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/admin/*: /v1/admin/{health,organizations} no-auth → 404 0B; platform root-config (index-BIOrSDj1.js) has zero v1/admin
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/journeyNotifications/*, /v1/meticulous-manual-init: bundle-derived refs live-probe 404 0B — dead build-time refs, no su
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/{uuid}: Confirmed NOT data-bearing — path-param UUID returns 404 NotFoundError (131B) with Bearer
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/tenants: Confirmed NOT data-bearing — returns 400 auth-free 0B, omission is route-registration-le
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — production admin Vercel apps + staging variants + Metabase + full cloud infra; strict HTML
