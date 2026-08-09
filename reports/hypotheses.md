@@ -933,3 +933,22 @@
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/{uuid}: Confirmed NOT data-bearing — path-param UUID returns 404 NotFoundError (131B) with Bearer
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/tenants: Confirmed NOT data-bearing — returns 400 auth-free 0B, omission is route-registration-le
 - LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — production admin Vercel apps + staging variants + Metabase + full cloud infra; strict HTML
+
+## RANKED HYPOTHESES 2026-08-09 04:10:40 UTC
+- [96] api.sparelabs.com/v1/global/organizations: Complete no-auth bypass + write-method CORS on fail-open org controller (zero-header) (from reports/hypotheses-laguna.txt)
+- [96] api.sparelabs.com/v1/global/organizations: Complete no-auth bypass + write-method CORS on /v1/global/organizations (from reports/hypotheses-nemotron3.txt)
+- [50] api.sparelabs.com/v1/public/organizations/{id}: Auth-free real-org record disclosure via new public path-param route (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET `https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` and NO Authorization header; capture status, body, CORS h
+- NEXT(hypotheses-bigpickle.txt): HUMAN: Request a program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organizations/{test-uuid}` AND `GET https://ap
+- NEXT(hypotheses-laguna.txt): PROBE: GET `https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000` with `Origin: https://evil.example.com` and NO
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/admin/*: /v1/admin/{health,organizations} no-auth → 404 0B; platform root-config (index-BIOrSDj1.js) has zero v1/admin
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/journeyNotifications/*, /v1/meticulous-manual-init: bundle-derived refs live-probe 404 0B — dead build-time refs, no su
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/{uuid}: Confirmed NOT data-bearing — path-param UUID returns 404 NotFoundError (131B) with Bearer
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations/tenants: Confirmed NOT data-bearing — returns 400 auth-free 0B, omission is route-registration-le
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP leak STABLE — production admin Vercel apps + staging variants + Metabase + full cloud infra; strict HTML
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass STABLE re-confirmed live 2026-08-09 04:08 UTC — 200 + 11B {"data":[]} + A
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE re-confirmed live 2026-08-09 04:08 UTC — Bearer x → 200 + 725B + ACAO+ACAC (1ms f
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC on 200 (regions/organizations), 401 (journeys), 400 (no-param) paths
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — ?mobileAppId=<nil-uuid> → 200 + 137B + ACAO+ACAC no-auth — re-confirmed 2026-08
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP leak STABLE — prod admin-eam-app + admin-fixed-route-app + staging + Metabase + full cloud infra (Cognito
