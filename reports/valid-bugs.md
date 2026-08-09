@@ -319,3 +319,17 @@
   - | 5 | UUID enumeration /v1/public/organization | **VALID** | No — already reported STABLE |
   - | 6 | CSP leak platform.sparelabs.com | **VALID** | No — already reported STABLE |
   - | 7 | JS bundle leak forms.sparelabs.com | **VALID** | No — already reported STABLE |
+
+- 12 lead(s) marked VALID at 2026-08-09 18:02:01 UTC
+  - | Q5 Novel? | **NO** — already VALID since 2026-08-07 22:00 UTC (CVSS 8.1 High). Reconfirmed 30+ times. |
+  - **Verdict: Already VALID (reconfirmation only — no delta)**
+  - | Q5 Novel? | **NO** — already VALID since 2026-08-08 08:06 UTC (CVSS 5.3 Medium). |
+  - **Verdict: Already VALID (reconfirmation only — no delta)**
+  - | Q5 Novel? | **NO** — already VALID since 2026-08-08 01:50 UTC (CVSS 5.3 Medium). |
+  - **Verdict: Already VALID (reconfirmation only — no delta)**
+  - | Q5 Novel? | **NO** — already VALID since 2026-08-07 22:59 UTC (CVSS 5.3 Medium). |
+  - **Verdict: Already VALID (reconfirmation only — no delta)**
+  - | Q5 Novel? | **NO** — already VALID since 2026-08-08 11:47 UTC (CVSS 5.3 Medium). |
+  - **Verdict: Already VALID (reconfirmation only — no delta)**
+  - | Q3 Real impact? | **UNPROVEN** — 400 alone indicates route registration, not data disclosure. No body content captured. Parallel to /v1/public/terms which also 400s without params but that endpoint'
+  - | **Already VALID** (reconfirmation, no delta) | 5 | CORS reflect-any-origin+creds (8.1), scheme-only bypass /v1/global/regions (5.3), complete no-auth bypass /v1/global/organizations (5.3), UUID enum
