@@ -344,3 +344,22 @@
   - | **Q5 Novel?** | ❌ **NO** — already VALID as A5 parameter-vector variant (documented 2026-08-08 11:47 UTC, "new param-vector data disclosure") |
   - | **Q6 Not always-rejected?** | ⚠️ Borderline — health endpoints that return only status are best-practice/info-disclosure. Only valid if body contains sensitive data. |
   - | **VALID** | 0 | — |
+
+- 17 lead(s) marked VALID at 2026-08-09 21:57:23 UTC
+  - | 1 | api /v1/global/organizations 200 `{"data":[]}` | Yes | Yes | Low (empty) | Yes | No — A4 | Yes | Yes | **VALID (dup)** | Reconfirmation of A4 |
+  - | 4 | api /v1/public/terms?mobileAppId= 200 137B | Yes | Yes | Low | Yes | No — A5 | Yes | Yes | **VALID (dup)** | Reconfirmation of A5 param-vector |
+  - | 7 | api /v1/public/organization?uuid= 400 | Yes | Yes | Medium | Yes | No — A3 | Yes | Yes | **VALID (dup)** | Reconfirmation of A3 |
+  - | 12 | api /v1/public/terms?organizationId=0606efa8-... 200 | Yes | Yes | Low | Yes | No — A5 | Yes | Yes | **VALID (dup)** | Reconfirmation of A5 |
+  - | bigpickle | Organizations controller auth omission (stable 200) | **VALID (dup)** | A4 reconfirmation — empty payload persists, no new data-bearing subroute |
+  - | bigpickle | MFE-manifest XSS (sink scan negative) | **HOLD** | Q4 — sink scan negative; needs bundle-trace evidence before VALID |
+  - | laguna | CORS reflect-any-origin+creds /v1/** | **VALID (dup)** | A1 reconfirmation — STABLE |
+  - | laguna | UUID enum oracle /v1/public/organization | **VALID (dup)** | A3 reconfirmation — STABLE |
+  - | laguna | CSP leak platform /login | **VALID (dup)** | A6 reconfirmation — STABLE |
+  - | ling3 | API CORS + fail-open global orgs | **VALID (dup)** | A1+A4 reconfirmation |
+  - | ling3 | CSP leak platform /login | **VALID (dup)** | A6 reconfirmation |
+  - | ling3 | JS bundle leak forms.sparelabs.com | **VALID (dup)** | A7 reconfirmation |
+  - | nemotron3 | CORS reflect-any-origin+creds /v1/** | **VALID (dup)** | A1 reconfirmation |
+  - | nemotron3 | /v1/public/* data-on-401 | **VALID (dup)** | A5 reconfirmation (data now returned as 200, not 401 — behavior flapped but same finding) |
+  - | nemotron3 | CSP leak platform + staging admin apps | **VALID (dup)** | A6 reconfirmation |
+  - | VALID (new) | 0 | No novel findings |
+  - | VALID (reconfirmation) | 10 | A1–A7 reconfirmed STABLE |
