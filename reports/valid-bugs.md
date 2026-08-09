@@ -263,3 +263,24 @@
   - | A3 | UUID enumeration oracle /v1/public/organization (400 malformed / 404 not-found / 200 found) | 5.3 Medium | VALID — STABLE |
   - | A4 | /v1/global/organizations fail-open (200 + {"data":[]} + CORS, route-specific) | 5.3 Medium | VALID — STABLE |
   - | A5 | /v1/public/terms data disclosure (200 + live terms URLs via mobileAppId|organizationId, no auth) | 5.3 Medium | VALID — STABLE |
+
+- 19 lead(s) marked VALID at 2026-08-09 14:28:00 UTC
+  - | Q5 Novel? | **NO** — already VALID as A1 since 2026-08-07 22:00 UTC |
+  - **Verdict: Already VALID (A1).** Reconfirmed stable. CVSS 8.1 High. Reporting channel: Spare security (TBD).
+  - | Q3 | **YES** — returns live region registry (apiUrl/routingHost mappings) without valid auth |
+  - | Q5 | **NO** — already VALID as A2 |
+  - **Verdict: Already VALID (A2).** CVSS 5.3 Med. Stable across 10+ probe samples.
+  - | Q3 | **YES** — 400 (malformed) / 404 (valid-unfound) / 200 (found) = reliable org UUID existence oracle |
+  - | Q4 | **YES** — GET with malformed vs valid-format UUIDs |
+  - | Q5 | **NO** — already VALID as A3 |
+  - **Verdict: Already VALID (A3).** CVSS 5.3 Med.
+  - | Q5 | **NO** — already VALID as A4 |
+  - **Verdict: Already VALID (A4).** CVSS 5.3 Med. Empty payload persists; write-method variant merged (no handler proven).
+  - | Q5 | **NO** — already VALID as A5 |
+  - **Verdict: Already VALID (A5).** CVSS 5.3 Med (param-vector variant 3.1 Low).
+  - | Q2 | **PARTIAL** — portal is public, but cross-tenant read needs ≥2 valid tokens |
+  - | Q4 | **NO** — requires AUTH_HELPED (valid test token); rules forbid `no_account_creation` without program approval |
+  - **Verdict: HOLD** — IDOR potential exists but cross-tenant test requires ≥2 valid test tokens. Escalate only if program provides test credentials.
+  - | Q2 | **PARTIAL** — needs valid Bearer token |
+  - | Q4 | **NO** — requires AUTH_HELPED (valid non-superAdmin Bearer token) |
+  - | **Already VALID** | 5 | A1 CORS (8.1), A2 regions bypass (5.3), A3 UUID enum (5.3), A4 orgs fail-open (5.3), A5 terms disclosure (5.3) |
