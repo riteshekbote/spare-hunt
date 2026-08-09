@@ -451,3 +451,4 @@
 - 2026-08-09 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed STABLE live 15:49 UTC — `Bearer x` → 200 + 725B (7 regions, 6 OOS), no-auth → 400.
 - 2026-08-09 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure re-confirmed STABLE live 15:49 UTC — 200 + 137B + ACAO+ACAC no-auth on both `?mobileAppId` and `?organizationId` nil-uuid params.
 - 2026-08-09 REJECTED (pipeline) @ GitHub sparelabs repo scan: 0 files scanned at 15:47 UTC — scan-target misconfig (gladiaio org) persists; no code-surface delta until clone target fixed.
+- 2026-08-09 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID oracle DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError (was 404 NotFoundError); valid-org confirmation requires HUMAN_ONLY authorized UUID under scope rules; auth-free validation-error disclosure + CORS still persists.

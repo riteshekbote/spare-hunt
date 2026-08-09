@@ -1402,3 +1402,15 @@
 - LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan 2026-08-09 12:03 UTC: 0 hits — scan-target misconfigured (gladiaio org instead of sparelabs) — persists; no cod
 - LEARN: REJECTED (web) @ spare.com: spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks) — 
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths, NO_DELTA since 2026-08-07, confirmed again this session.
+
+## RANKED HYPOTHESES 2026-08-09 17:02:27 UTC
+- [97] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read+write CORS chain on /v1/global/organizations (from reports/hypotheses-laguna.txt)
+- [96] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read/write CORS chain on fail-open organization controller (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -w "\n%{http_code}\n%{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=not
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID oracle DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError (was 404 NotFoundErro
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE zero-header bypass STABLE — confirmed live 2026-08-09 13:10–15:00 UTC; OPTIONS 204 advertise
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — confirmed live 2026-08-09 15:00 UTC; Bearer x → 200 + 725B region registry (7 r
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true uniform on OPTIONS 204 + GET 200/401
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — prod admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app + staging variants +
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com HTML CSP: STABLE — SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN); infra leak lives in JS bundle main.71d5
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
