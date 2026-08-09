@@ -1610,3 +1610,27 @@
 - LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE confirmed live 2026-08-09 22:28 UTC — same infra leak: api.staging.sparelabs.com + a
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
 - LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: 0 code/config files scanned (reposcan-raw/sparelabs dir empty) — no code-surface delta; fix repo clone target 
+
+## RANKED HYPOTHESES 2026-08-09 23:43:08 UTC
+- [98] api.sparelabs.com/v1/global/organizations: Zero-header auth omission on organizations reaches live org records with a valid session (from reports/hypotheses-bigpickle.txt)
+- [98] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read/write CORS chain on fail-open organizations controller (from reports/hypotheses-laguna.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: DELETE" -H "Access-ControlRequestHeaders: A
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + full read+write CORS STABLE confirmed live 2026-08-09 22:28 UTC — `Bearer x` → 200 + 7
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE confirmed live 2026-08-09 22:28 UTC — ACAO:https://evil.example.com + ACAC:true 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE confirmed live 2026-08-09 22:28 UTC — `?mobileAppId=00000000-0000-0000-0000-00000
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle 3-way STABLE confirmed live 2026-08-09 22:28 UTC — malformed→400 Validati
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE confirmed live 2026-08-09 22:28 UTC — CSP still discloses admin-eam-app.vercel.app + ad
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE confirmed live 2026-08-09 22:28 UTC — same infra leak: api.staging.sparelabs.com + a
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: 0 code/config files scanned (reposcan-raw/sparelabs dir empty) — no code-surface delta; fix repo clone target 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass STABLE — 200+11B+ACAO+ACAC with NO Authorization header confirmed
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + full read+write CORS STABLE re-confirmed live — Bearer x → 200+725B+ACAO+ACAC (body sh
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com+ACAC:true uniform on OPTIONS 204 (/regions,/orga
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE re-confirmed live — ?mobileAppId=nil-uuid → 200+137B (termsOfUseUrl→sparelabs.com
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle 3-way STABLE — malformed→400 ValidationError; nil-uuid→404 NotFoundError;
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — prod admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (both loadable 200) 
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — same infra leak (staging+prod+regional + atlassian.net + inactive ngrok).
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: 0 code/config files scanned (reposcan-raw/sparelabs dir empty) — no code-surface delta; fix repo clone target 
