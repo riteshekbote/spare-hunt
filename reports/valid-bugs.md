@@ -203,3 +203,17 @@
   - | Q7 Triager accept? | Would be VALID if novel |
   - | Q3 Real impact? | **Yes** — 3-way differential (malformed→400 ValidationError, valid-unfound→404, found→200) confirms org UUID existence |
   - | Q7 Triager accept? | Would be VALID if novel |
+
+- 12 lead(s) marked VALID at 2026-08-09 07:47:30 UTC
+  - **Verdict: ✅ VALID — CVSS 8.1 (High)**
+  - **Verdict: ✅ VALID — CVSS 5.3 (Medium)**
+  - **Verdict: ✅ VALID — CVSS 5.3 (Medium)**
+  - | Q3 Real impact? | **MEDIUM** — 400 ValidationError (malformed) vs 404 NotFoundError (valid-unfound) vs 200 (found) = reliable org UUID existence oracle |
+  - | Q7 Triager accept? | **BORDERLINE but YES** — many programs accept UUID enumeration as low-end valid |
+  - **Verdict: ✅ VALID (low) — CVSS 5.3 (Medium)**
+  - **Verdict: ✅ VALID (low) — CVSS 3.1 (Low)**
+  - | Q2 Attacker-reachable? | **PARTIAL** — public SPA shell, but cross-tenant read requires ≥2 valid Bearer tokens |
+  - | Q4 Passive proof? | **NO** — requires AUTH_HELPED (valid test token); rules forbid `no_account_creation` without program approval |
+  - **Verdict: 🔶 HOLD** — IDOR potential on cross-tenant read, but requires ≥2 valid test tokens. No test token available within program rules. Escalate only if program provides test credentials.
+  - | Q5 Novel? | **NO** — already VALID as informational finding since 2026-08-07 22:00 UTC |
+  - | ✅ **VALID** | **5** | CORS reflect-any-origin+creds (CVSS 8.1), scheme-only bypass `/v1/global/regions` (CVSS 5.3), complete no-auth bypass `/v1/global/organizations` (CVSS 5.3), UUID enumeration or
