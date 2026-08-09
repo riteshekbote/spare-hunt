@@ -191,3 +191,6 @@
   - | Q4 Passive-proof? | **NO** — requires AUTH_HELPED (valid non-superAdmin Bearer token). |
   - | Q7 Reasonable triager? | **Needs AUTH_HELPED** — edge checks only token-type presence; role check on a valid token is unproven. |
   - | **VALID** | 5 | CORS reflect-any-origin+creds (5.3), organizations controller auth omission (5.3, escalated), UUID org enumeration (5.3), **/v1/global/regions scheme-only bypass (5.3) ★NEW★**, **/v1
+
+- 1 lead(s) marked VALID at 2026-08-09 05:43:14 UTC
+  - | **Already VALID** (reconfirmation, no delta) | 5 | CORS reflect-any-origin+creds (8.1), scheme-only bypass /v1/global/regions (5.3), complete no-auth bypass /v1/global/organizations (5.3), UUID enum
