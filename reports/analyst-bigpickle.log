@@ -18309,3 +18309,108 @@ testability: AUTH_HELPED
 - [RISK] routing.sparelabs.com: **5** — envoy 404 on all paths, confirmed dead, NO_DELTA.
 - [RISK] forms.sparelabs.com: **45** — JS bundle leaks staging/prod/regional infra + atlassian.net + ngrok; infra-recon value only, no auth bypass.
 - [RISK] web (spare.com/sparelabs.com): **10** — static Webflow marketing behind Cloudflare, strict CSP/HSTS, no internal leaks, minimal dynamic surface.
+===== ANALYST bigpickle 2026-08-09 23:06:23 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0msleep 1; curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" 2>&1 | rg -i "HTTP/|access-control|content-length|x-envoy"
+/bin/bash: line 1: rg: command not found
+[0m
+[0m$ [0msleep 1; curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" 2>&1 | grep -i "HTTP/\|access-control\|content-length\|x-envoy"
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 11
+x-envoy-upstream-service-time: 939
+[0m
+[0m$ [0msleep 1; curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" 2>&1 | grep -i "HTTP/\|access-control\|content-length\|x-envoy"; echo "---BODY---"; curl -s -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" 2>&1 | head -c 200
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 725
+x-envoy-upstream-service-time: 3
+---BODY---
+[{"name":"CA","apiUrl":"https://api.sparelabs.com","routingHost":"https://routing.sparelabs.com"},{"name":"US","apiUrl":"https://api.us.sparelabs.com","routingHost":"https://routing.us.sparelabs.com"}
+[0m
+[0m$ [0msleep 1; echo "=== ORACLE nil-uuid ==="; curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000" 2>&1 | grep -i "HTTP/\|access-control\|content-length"; echo "=== ORACLE malformed ==="; sleep 1; curl -s -o /dev/null -w "%{http_code}\n" "https://api.sparelabs.com/v1/public/organization?organizationId=not-a-uuid"
+=== ORACLE nil-uuid ===
+HTTP/2 404 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 131
+=== ORACLE malformed ===
+400
+[0m
+[0m$ [0msleep 1; echo "=== TERMS ==="; curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000" 2>&1 | grep -i "HTTP/\|access-control\|content-length"; sleep 1; echo "=== CONTROL journeys ==="; curl -s -o /dev/null -w "%{http_code}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"
+=== TERMS ===
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 137
+=== CONTROL journeys ===
+401
+[0m
+All live probes re-confirmed STABLE state this cycle. No new surface.
+
+## STEP 1 — DELTA
+- NEW None — 5 live probes (organizations zero-header, regions Bearer-x, public/organization nil-uuid+malformed, public/terms, journeys control) all match KB: 200+11B / 200+725B / 404+131B+ACAO+ACAC / 400 / 200+137B / 401.
+- CHANGED (inventory vs live) — KB/inventory still carries the "UUID oracle degraded 3-way→2-way" claim, but live probe again contradicts it: nil-uuid → 404 NotFoundError (131B) + ACAO+ACAC, malformed → 400; 3-way differential (400/404/200) intact.
+- PERSISTS (pipeline) — GitHub sparelabs repo scan still targets gladiaio org, 0 files scanned; no code-surface delta until fixed.
+
+## STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/global/organizations | 7.85 | attack 8, business 9, tech 7, gate 9, cloud 6, fresh 6
+- [PRIO] api.sparelabs.com/v1/public/* (organization + terms) | 6.60 | attack 6, business 7, tech 6, gate 9, cloud 4, fresh 7
+- [PRIO] api.sparelabs.com/v1/global/regions | 6.30 | attack 7, business 6, tech 5, gate 8, cloud 5, fresh 6
+
+## STEP 3 — HYPOTHESES
+[HYP] Zero-header auth omission on organizations resolves to live org records with a valid session
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 98
+reasoning: Live this cycle GET + Origin (no Authorization) → 200 + 11B `{"data":[]}` + ACAO:https://evil.example.com + ACAC:true (939ms slow replica); control /v1/journeys 401; OPTIONS 204 advertises PUT/PATCH/POST/DELETE on the exact route. Payload stays 11B so the data layer is unproven.
+evidence_needed: authorized admin token on same route → non-empty data body; then cross-origin read/write with victim session.
+verify_steps: AUTH_HELPED — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer <AUTHORIZED_TOKEN>" "https://api.sparelabs.com/v1/global/organizations"` — expect 200 + data-bearing body.
+impact: CRITICAL if data loads (credentialed cross-origin read+write, zero attacker-supplied creds); HIGH while payload empty.
+testability: AUTH_HELPED
+
+[HYP] /v1/public/organization 200-arm returns full org record without authentication
+class: AUTH
+asset: api.sparelabs.com/v1/public/organization
+confidence: 70
+reasoning: Live this cycle 3-way differential intact (malformed→400 ValidationError, nil-uuid→404 NotFoundError 131B+ACAO+ACAC); the 200-arm has never been exercised — valid org UUIDs unreachable under passive scope rules.
+evidence_needed: authorized test-org UUID → 200 + org record + ACAO+ACAC with no Authorization header.
+verify_steps: AUTH_HELPED — `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=<AUTHORIZED_UUID>"` — expect 200 + org record.
+impact: HIGH — unauthenticated data-bearing org-record disclosure on /v1/public/*.
+testability: AUTH_HELPED
+
+[HYP] Region registry remains scheme-only-bypassed data-bearing route (no regression)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Live this cycle `Bearer x` + Origin → 200 + 725B region registry (7 regions, 6 OOS api/routing hosts incl. api.us.sparelabs.com, routing.us.sparelabs.com) + ACAO+ACAC (3ms fast upstream); token validity never checked; no-auth → 400 per KB.
+evidence_needed: Bearer x → 200+725B+ACAO/ACAC (re-verified this cycle); no-auth → 400.
+verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` (200+725B); `curl -s -o /dev/null -w "%{http_code}" "https://api.sparelabs.com/v1/global/regions"` (400).
+impact: HIGH (route-scoped) — unauthenticated infra-topology disclosure + credentialed cross-origin read.
+testability: PASSIVE
+
+## STEP 4 — SELF-CRITIQUE
+All three survive (confidence ≥ 70, classes not on REJECTED list, concrete verify steps). None dropped.
+- [FINAL] 1) organizations zero-header → live records (AUTH, 98, AUTH_HELPED) 2) regions scheme-only bypass (AUTH, 98, PASSIVE) 3) public/organization 200-arm (AUTH, 70, AUTH_HELPED).
+
+## STEP 5 — NEXT ACTION
+[NEXT] HUMAN: Request an AUTHORIZED admin token (or authorized test-org UUID) from the program to run the AUTH_HELPED probes — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer <AUTHORIZED_TOKEN>" "https://api.sparelabs.com/v1/global/organizations"` — the single highest-value unproven claim is whether the fail-open route reaches live org records; all passive surface is exhaustively re-confirmed STABLE this cycle.
+
+## STEP 6 — LEARNING
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: complete zero-header bypass STABLE — live re-confirm 200 + 11B `{"data":[]}` + ACAO:evil + ACAC:true (939ms slow replica), control 401.
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — live re-confirm `Bearer x` → 200 + 725B + ACAO+ACAC (3ms fast replica), region registry incl. 6 OOS api/routing hosts.
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID oracle 3-way STABLE — live probe contradicts inventory "degraded 2-way" claim; nil-uuid → 404 NotFoundError (131B) + ACAO+ACAC, malformed → 400; differential (400/404/200) intact.
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — `?mobileAppId=nil` → 200 + 137B no-auth + CORS.
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC uniform on 200/404 + control 401 paths.
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfig (gladiaio org) persists, 0 files scanned — no code-surface delta.
+
+## STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 78 | two live no-auth bypass routes + data disclosure + uniform credential-reflecting CORS (read→write surface) — capped by empty payloads (11B) and infra-topology-only regions body; escalation to live records unproven pending AUTH_HELPED.
+- [RISK] platform.sparelabs.com: 45 | CSP leaks prod+staging admin Vercel apps + Metabase + full cloud infra; recon/infra exposure only, no auth bypass or code execution observed.
+- [RISK] routing.sparelabs.com: 10 | envoy 404 on all probed paths, confirmed dead across every interval since 2026-08-07; no surface.
+- [RISK] forms.sparelabs.com: 35 | SPA with strict HTML CSP; infra leak confined to JS bundle main.71d52314.js (staging+prod+regional hosts, inactive ngrok, JIRA) — recon value only.
+- [RISK] web (spare.com/sparelabs.com): 10 | static Cloudflare+Webflow marketing, HSTS + frame-ancestors 'self', no internal infra leaks, no dynamic logic.

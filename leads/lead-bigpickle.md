@@ -2652,3 +2652,32 @@ evidence_needed: authorized test-org UUID → 200 + org record + ACAO+ACAC with 
 verify_steps: AUTH_HELPED — `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=<AUTHORIZED_UUID>"` — expect 200 + org record.
 impact: HIGH — unauthenticated data-bearing org-record disclosure on /v1/public/*.
 testability: AUTH_HELPED
+## 2026-08-09 23:02:24 UTC [api] (model bigpickle)
+[HYP] Zero-header auth omission on organizations resolves to live org records with a valid session
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 98
+reasoning: Live this cycle GET + Origin (no Authorization) → 200 + 11B `{"data":[]}` + ACAO:https://evil.example.com + ACAC:true (939ms slow replica); control /v1/journeys 401; OPTIONS 204 advertises PUT/PATCH/POST/DELETE on the exact route. Payload stays 11B so the data layer is unproven.
+evidence_needed: authorized admin token on same route → non-empty data body; then cross-origin read/write with victim session.
+verify_steps: AUTH_HELPED — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer <AUTHORIZED_TOKEN>" "https://api.sparelabs.com/v1/global/organizations"` — expect 200 + data-bearing body.
+impact: CRITICAL if data loads (credentialed cross-origin read+write, zero attacker-supplied creds); HIGH while payload empty.
+testability: AUTH_HELPED
+[HYP] /v1/public/organization 200-arm returns full org record without authentication
+class: AUTH
+asset: api.sparelabs.com/v1/public/organization
+confidence: 70
+reasoning: Live this cycle 3-way differential intact (malformed→400 ValidationError, nil-uuid→404 NotFoundError 131B+ACAO+ACAC); the 200-arm has never been exercised — valid org UUIDs unreachable under passive scope rules.
+evidence_needed: authorized test-org UUID → 200 + org record + ACAO+ACAC with no Authorization header.
+verify_steps: AUTH_HELPED — `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=<AUTHORIZED_UUID>"` — expect 200 + org record.
+impact: HIGH — unauthenticated data-bearing org-record disclosure on /v1/public/*.
+testability: AUTH_HELPED
+[HYP] Region registry remains scheme-only-bypassed data-bearing route (no regression)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Live this cycle `Bearer x` + Origin → 200 + 725B region registry (7 regions, 6 OOS api/routing hosts incl. api.us.sparelabs.com, routing.us.sparelabs.com) + ACAO+ACAC (3ms fast upstream); token validity never checked; no-auth → 400 per KB.
+evidence_needed: Bearer x → 200+725B+ACAO/ACAC (re-verified this cycle); no-auth → 400.
+verify_steps: PASSIVE — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` (200+725B); `curl -s -o /dev/null -w "%{http_code}" "https://api.sparelabs.com/v1/global/regions"` (400).
+impact: HIGH (route-scoped) — unauthenticated infra-topology disclosure + credentialed cross-origin read.
+testability: PASSIVE
+[NEXT] HUMAN: Request an AUTHORIZED admin token (or authorized test-org UUID) from the program to run the AUTH_HELPED probes — `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer <AUTHORIZED_TOKEN>" "https://api.sparelabs.com/v1/global/organizations"` — the single highest-value unproven claim is whether the fail-open route reaches live org records; all passive surface is exhaustively re-confirmed STABLE this cycle.

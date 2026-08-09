@@ -135,3 +135,4 @@ testability: PASSIVE
 [NEXT] PROBE forms.sparelabs.com main.71d52314.js
 [RISK] api.sparelabs.com: 90 | CORS reflect-any-origin+credentials on all /v1 endpoints; fail-open org controller with complete no-auth bypass; 3-way UUID enumeration oracle | platform.sparelabs.com: 80 | CSP + /login prefetch leaking production admin Vercel apps + Metabase + full cloud infra | routing.sparelabs.com: 5 | envoy 404 on all probed paths — confirmed dead, no surface | forms.sparelabs.com: 50 | JS bundle leaks staging+prod infra URLs but no auth bypass | web (spare.com/sparelabs.com): 10 | Static Webflow marketing site, no internal infra leaks in HTML/JS, minimal surface
 ## 2026-08-09 22:27:06 UTC [forms] (model ling3)
+## 2026-08-09 23:01:34 UTC [forms] (model ling3)
