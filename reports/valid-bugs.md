@@ -175,3 +175,19 @@
 
 - 1 lead(s) marked VALID at 2026-08-09 03:21:56 UTC
   - | **Already VALID** (reconfirmation, no delta) | 5 | CORS reflect-any-origin+creds (8.1), scheme-only bypass `/v1/global/regions` (5.3), complete no-auth bypass `/v1/global/organizations` (5.3), UUID 
+
+- 14 lead(s) marked VALID at 2026-08-09 04:48:16 UTC
+  - | Q5 Novel? | **RE-CONFIRMED** — previously accepted VALID; this batch re-confirms stability with zero regression. |
+  - **Verdict: VALID (re-confirmed) — CVSS 5.3 (Medium)**
+  - **Verdict: VALID (escalated) — CVSS 5.3 (Medium)**
+  - | Q5 Novel? | **RE-CONFIRMED** — previously accepted VALID; stable across all scan intervals. |
+  - **Verdict: VALID (re-confirmed) — CVSS 5.3 (Medium)**
+  - **Verdict: VALID — CVSS 5.3 (Medium)**
+  - | Q3 Real impact? | **YES** — returns live terms URLs: `{"termsOfUseUrl":"https://sparelabs.com/terms-of-use/","privacyPolicyUrl":"https://sparelabs.com/privacy-policy/","serviceTermsUrl":null}`. Whil
+  - | Q5 Novel? | **YES** — NEW finding. Prior reports mentioned this endpoint in passing but did not triage it as a separate VALID finding. |
+  - **Verdict: VALID — CVSS 3.1 (Low)**
+  - | Q3 Real impact? | **HIGH if proven** — {id} subroute returns real 404 `NotFoundError` (DB lookup, not stub) with correlationId for valid-unfound UUIDs, and 400 OpenAPI ValidationError for malformed 
+  - | Q4 Passive-proof? | **PARTIAL** — PASSIVE oracle confirmed (400 malformed → 404 valid-unfound = real DB lookup). Data-bearing for real org UUIDs requires AUTH_HELPED (test org UUID). |
+  - | Q4 Passive-proof? | **NO** — requires AUTH_HELPED (valid non-superAdmin Bearer token). |
+  - | Q7 Reasonable triager? | **Needs AUTH_HELPED** — edge checks only token-type presence; role check on a valid token is unproven. |
+  - | **VALID** | 5 | CORS reflect-any-origin+creds (5.3), organizations controller auth omission (5.3, escalated), UUID org enumeration (5.3), **/v1/global/regions scheme-only bypass (5.3) ★NEW★**, **/v1
