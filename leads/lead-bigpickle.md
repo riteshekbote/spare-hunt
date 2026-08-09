@@ -2477,3 +2477,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: **50** — Envoy 404 on all probed paths; routing engine hidden; no unauthenticated surface; STABLE dead.
 [RISK] forms.sparelabs.com: **58** — Public SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP); JS bundle main.71d52314.js leaks staging+prod+regional infra + atlassian.net + inactive ngrok; infra-recon only, no auth bypass.
 [RISK] web (spare.com/sparelabs.com): **38** — spare.com apex 200 static Webflow marketing (Cloudflare, CSP frame-ancestors 'self', HSTS); www.spare.com 301 OOS; sparelabs.com 301→spare.com; static-only, minimal surface.
+## 2026-08-09 16:18:01 UTC [api] (model bigpickle)

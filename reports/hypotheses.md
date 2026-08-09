@@ -1388,3 +1388,17 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed STABLE live 15:49 UTC — `Bearer x` → 200 + 725B (7 regions, 6 OOS), no-auth
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure re-confirmed STABLE live 15:49 UTC — 200 + 137B + ACAO+ACAC no-auth on both `?mobileAppI
 - LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: 0 files scanned at 15:47 UTC — scan-target misconfig (gladiaio org) persists; no code-surface delta until clon
+
+## RANKED HYPOTHESES 2026-08-09 16:21:49 UTC
+- [96] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read/write CORS chain on fail-open organization controller (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorizati
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: COMPLETE no-auth bypass confirmed STABLE — 200 + `{"data":[]}` + ACAO+ACAC returned with NO Authoriza
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + full read+write CORS STABLE confirmed live 2026-08-09 13:12 UTC — `Bearer x` → 200 + 7
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + full methods uniform on OPTIONS 20
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?mobileAppId=<nil-uuid>: Data disclosure confirmed live 2026-08-09 13:10 UTC — 200 + 137B (termsOfUseUrl →
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE confirmed live 2026-08-09 13:12 UTC — CSP still exposes admin-eam-app.vercel.app + admi
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE confirmed live 2026-08-09 13:12 UTC — same infra leak (staging+prod+regional + atlas
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle differential DEGRADED — nil-uuid now returns 400 ValidationError (was 404
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan 2026-08-09 12:03 UTC: 0 hits — scan-target misconfigured (gladiaio org instead of sparelabs) — persists; no cod
+- LEARN: REJECTED (web) @ spare.com: spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks) — 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths, NO_DELTA since 2026-08-07, confirmed again this session.
