@@ -1426,3 +1426,4 @@ verify_steps: PASSIVE: HEAD platform.sparelabs.com/assets/index-*.js + GET /logi
 impact: new module enumeration; LOW.
 testability: PASSIVE
 [NEXT] HUMAN: Request a program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` AND `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → 200+org-record proves HIGH unauthenticated tenant PII disclosure via the now-2-route oracle set (highest-value open item; zero passive fallback). If 404: AUTH_HELPED `PUT https://api.sparelabs.com/v1/global/regions` no-auth write test.
+## 2026-08-09 08:03:49 UTC [api] (model bigpickle)
