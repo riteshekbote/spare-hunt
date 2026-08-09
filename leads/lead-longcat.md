@@ -58,3 +58,48 @@
 ## 2026-08-09 10:57:21 UTC [routing] (model longcat)
 ## 2026-08-09 11:34:41 UTC [routing] (model longcat)
 ## 2026-08-09 12:00:15 UTC [routing] (model longcat)
+## 2026-08-09 13:11:27 UTC [routing] (model longcat)
+[PRIO] api.sparelabs.com/v1/global/organizations — 6.90 (attack:8 business:7 tech:7 gate:10 cloud:4 fresh:2)
+[PRIO] api.sparelabs.com/v1/** (CORS reflection) — 6.10 (attack:9 business:5 tech:8 gate:6 cloud:3 fresh:2)
+[PRIO] platform.sparelabs.com/login (CSP leak) — 6.05 (attack:6 business:7 tech:5 gate:9 cloud:5 fresh:2)
+[PRIO] api.sparelabs.com/v1/global/regions — 5.95 (attack:7 business:6 tech:6 gate:8 cloud:4 fresh:2)
+[PRIO] api.sparelabs.com/v1/public/organization — 5.40 (attack:6 business:5 tech:5 gate:10 cloud:2 fresh:2)
+[HYP] platform.sparelabs.com own admin/API route exposure
+class: MISCONFIG
+asset: platform.sparelabs.com
+confidence: 50
+reasoning: CSP leak on /login confirms platform is an MFE shell loading admin Vercel apps. Platform's own /admin, /api, /v1, or /internal routes are untested — may proxy or expose admin functionality directly on the in-scope host.
+evidence_needed: 200/301/405 (not 404) on platform-owned admin/API paths
+verify_steps: `curl -s -o /dev/null -w "%{http_code}" https://platform.sparelabs.com/admin` ; same for /api, /v1, /internal, /graphql, /config, /env, /status, /health, /metrics
+impact: direct admin access or data exposure on in-scope platform host; severity depends on route
+testability: PASSIVE
+[HYP] forms.sparelabs.com data-bearing API endpoints behind SPA catch-all
+class: MISCONFIG
+asset: forms.sparelabs.com
+confidence: 45
+reasoning: forms.sparelabs.com is an SPA catch-all returning index.html for arbitrary paths, but specific API routes (/api/*, /v1/*, /graphql, /export, /webhook) may return structured data. JS bundle leak confirms staging+prod infra but forms' own API surface is unexplored.
+evidence_needed: non-HTML JSON/XML response on a specific path
+verify_steps: `curl -s -H "Accept: application/json" https://forms.sparelabs.com/api/health` ; same for /api/v1, /graphql, /webhooks, /export, /status, /config
+impact: unauthenticated data disclosure or API access on in-scope forms host
+testability: PASSIVE
+[HYP] api.sparelabs.com/v1/global/organizations write methods process bodies without auth
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: OPTIONS 204 confirms PUT/PATCH/POST/DELETE + ACAO+ACAC on the fail-open route. GET returns 200+empty with zero auth. Knowledge base confirms CORS chain but never tested whether write handlers actually process request bodies — if they do, cross-origin state modification is possible via victim browser.
+evidence_needed: 200/201/4xx-with-body on POST/PUT (not just OPTIONS 204)
+verify_steps: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" https://api.sparelabs.com/v1/global/organizations` (passive re-confirm) ; active body test requires AUTH_HELPED
+impact: cross-origin write (create/update/delete org records) without auth via victim browser; high if confirmed
+testability: PASSIVE (OPTIONS re-confirm) / AUTH_HELPED (body test)
+[PARKED] api.sparelabs.com/v1/global/organizations write methods process bodies without auth: confidence 55 but passive verification only re-confirms already-documented OPTIONS surface; actual write processing requires active body send (non-passive). Downgraded to informational — CORS chain already accepted.
+[FINAL] 1. platform.sparelabs.com own admin/API route exposure (conf 50, PASSIVE-testable)
+[FINAL] 2. forms.sparelabs.com data-bearing API endpoints behind SPA catch-all (conf 45, PASSIVE-testable)
+[NEXT] PROBE: `curl -s -o /dev/null -w "%{http_code} %{redirect_url}" https://platform.sparelabs.com/admin && echo && curl -s -o /dev/null -w "%{http_code}" https://platform.sparelabs.com/api && echo && curl -s -o /dev/null -w "%{http_code}" https://platform.sparelabs.com/graphql && echo && curl -s -o /dev/null -w "%{http_code}" https://forms.sparelabs.com/api/health && echo && curl -s -o /dev/null -w "%{http_code}" https://forms.sparelabs.com/graphql`
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths, NO_DELTA since 2026-08-07, confirmed again this session.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header no-auth bypass STABLE — 200+11B+ACAO+ACAC with NO Authorization, confirmed live 12:01 UTC.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — Bearer x → 200+725B+ACAO+ACAC, confirmed live 12:01 UTC.
+[RISK] api.sparelabs.com: 85 — multiple auth bypasses (zero-header + scheme-only), universal CORS credential reflection, UUID oracle, data disclosure, multi-version LB flapping; highest exposure in program
+[RISK] platform.sparelabs.com: 60 — CSP leak exposes production admin Vercel apps + staging + Metabase + full cloud infra; admin surface reachable but OOS third-party hosts limit direct exploitation
+[RISK] routing.sparelabs.com: 5 — envoy 404 on all paths, no discoverable surface, effectively dead
+[RISK] forms.sparelabs.com: 40 — JS bundle leaks staging+prod+regional infra + inactive ngrok; SPA catch-all limits direct attack surface
+[RISK] web (spare.com/sparelabs.com): 10 — static Webflow marketing on Cloudflare, strict CSP, HSTS, no internal infra leaks; minimal surface
