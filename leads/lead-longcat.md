@@ -639,3 +639,42 @@ testability: PASSIVE (format discrimination) / HUMAN_ONLY (real-UUID 200-branch)
 [RISK] routing.sparelabs.com: **5** — envoy 404 on ALL paths, no discoverable surface, effectively dead across 3+ days of continuous probing
 [RISK] forms.sparelabs.com: **35** — JS bundle main.71d52314.js leaks staging+prod+regional infra (api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com, atlassian.net, ngrok.io); SPA catch-all confirmed no direct API attack surface; infra-recon value only
 [RISK] web (spare.com/sparelabs.com): **10** — static Webflow marketing on Cloudflare, strict CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks; minimal static-only surface
+## 2026-08-10 18:30:17 UTC [routing] (model longcat)
+[PRIO] api.sparelabs.com/v1/public/mobileApps/{id} — **6.85** (attack:7 business:7 tech:6 gate:9 cloud:3 fresh:8)
+[PRIO] api.sparelabs.com/v1/public/riders/{id} — **6.30** (attack:7 business:8 tech:6 gate:9 cloud:2 fresh:7)
+[PRIO] api.sparelabs.com/v1/public/vehicles/{id} — **6.00** (attack:7 business:7 tech:6 gate:9 cloud:2 fresh:6)
+[HYP] /v1/public/mobileApps/{id} UUID enumeration oracle parallel to org oracle
+class: AUTH
+asset: api.sparelabs.com/v1/public/mobileApps/{id}
+confidence: 48
+reasoning: /v1/public/organization confirmed 3-way UUID oracle (400 malformed / 404 not-found / 200 found) + auth-free + CORS. /v1/public/terms?mobileAppId=<uuid> proves mobileApp is a real entity with validated UUID param. If subroute mirrors org validation pattern, parallel oracle exists. Spare is mobility platform — mobileApp is core business object.
+evidence_needed: 400 ValidationError on malformed input (proves format-checking like org oracle) OR 404 vs 200 discrimination
+verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps/not-a-uuid"` ; `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps/00000000-0000-0000-0000-000000000000"`
+impact: mobileApp UUID enumeration oracle; enables discovery of valid mobileApp IDs for pivot to authenticated mobileApp-scoped endpoints or IDOR
+testability: PASSIVE (format discrimination) / HUMAN_ONLY (real-UUID 200-branch)
+[HYP] /v1/public/riders/{id} UUID enumeration oracle on rider namespace
+class: AUTH
+asset: api.sparelabs.com/v1/public/riders/{id}
+confidence: 42
+reasoning: /v1/public/organization confirmed 3-way UUID oracle. Rider namespace is higher-value PII target in mobility platform (rider accounts, trip history, payment methods). No prior probing of this path in knowledge base. If route exists with same validation pattern, parallel oracle possible.
+evidence_needed: 400 ValidationError on malformed input OR 404 vs 200 discrimination
+verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/riders/not-a-uuid"` ; `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/riders/00000000-0000-0000-0000-000000000000"`
+impact: rider UUID enumeration oracle; rider PII likely higher-value than org data; enables pivot to authenticated rider endpoints
+testability: PASSIVE (format discrimination) / HUMAN_ONLY (real-UUID 200-branch)
+[HYP] /v1/public/vehicles/{id} UUID enumeration oracle on vehicle namespace
+class: AUTH
+asset: api.sparelabs.com/v1/public/vehicles/{id}
+confidence: 40
+reasoning: Same pattern as org oracle. Vehicles are core fleet business objects in mobility platform. No prior probing in knowledge base. If route exists with same validation pattern, third parallel oracle possible.
+evidence_needed: 400 ValidationError on malformed input OR 404 vs 200 discrimination
+verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/vehicles/not-a-uuid"` ; `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/vehicles/00000000-0000-0000-0000-000000000000"`
+impact: vehicle UUID enumeration oracle; fleet data exposure; enables pivot to vehicle-scoped endpoints
+testability: PASSIVE (format discrimination) / HUMAN_ONLY (real-UUID 200-branch)
+[PARKED] (none dropped — all three meet threshold)
+[FINAL] Surviving hypotheses (ranked):
+[NEXT] PROBE: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps/not-a-uuid"` && `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps/00000000-0000-0000-0000-000000000000"` — test for format discrimination (400 vs 404) that would confirm parallel UUID enumeration oracle on mobileApp namespace. If malformed→400 + nil-uuid→404, oracle confirmed (mirrors org pattern exactly).
+[RISK] api.sparelabs.com: **90** — multiple confirmed auth bypasses (zero-header + scheme-only), universal CORS credential reflection across all /v1, UUID oracle, data disclosure, multi-version LB flapping; highest exposure in program with 3 distinct AUTH/MISCONFIG classes accepted stable 84h+; chain amplification (CORS + auth bypass + org enum) enables full cross-origin data exfil + potential state mutation
+[RISK] platform.sparelabs.com: **55** — CSP infra leak exposes production admin Vercel apps + staging + Metabase + full cloud infra (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit); admin surface reachable but OOS third-party hosts limit direct exploitation; SPA catch-all confirmed no direct API surface
+[RISK] routing.sparelabs.com: **5** — envoy 404 on ALL paths, no discoverable surface, effectively dead across 3+ days of continuous probing
+[RISK] forms.sparelabs.com: **35** — JS bundle main.71d52314.js leaks staging+prod+regional infra (api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com, atlassian.net, ngrok.io); SPA catch-all confirmed no direct API attack surface; infra-recon value only
+[RISK] web (spare.com/sparelabs.com): **10** — static Webflow marketing on Cloudflare, strict CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks; minimal static-only surface
