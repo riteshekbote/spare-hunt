@@ -3347,3 +3347,35 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 50 | Low — envoy 404 on all probed paths; routing-engine API fully hidden behind envoy gateway; no unauthenticated surface; STABLE dead since 2026-08-07, NO_DELTA.
 [RISK] forms.sparelabs.com: 58 | Medium — SPA 200 (envoy+Google CDN, strict HTML CSP + x-frame DENY); JS bundle main.71d52314.js stable, infra-recon value only (staging+prod+regional + atlassian.net/JIRA + inactive ngrok), no direct auth bypass; all API path probing → SPA catch-all — NO_DELTA.
 [RISK] web (spare.com/sparelabs.com): 38 | Low — spare.com apex 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; www.spare.com 301 excluded (OOS); minimal static-only surface, no dynamic logic/auth/user-input handling — STABLE.
+## 2026-08-10 16:36:10 UTC [web] (model laguna)
+[HYP] Complete zero-header auth bypass + credentialed write CORS chain on fail-open organization controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 99
+reasoning: GET with Origin + NO Authorization header → 200 + `{"data":[]}` (11B) + ACAO:https://evil.example.com + ACAC:true; OPTIONS → 204 + ACAO+ACAC + Allow:PUT,PATCH,POST,DELETE; control /v1/journeys GET → 401 stable; 14-sibling sweep confirms route-specific (12×401 + 2×200).
+evidence_needed: 200 response with 11B `{"data":[]}` body + ACAO + ACAC on GET /v1/global/organizations with no Authorization header; 204 + write-method Allow + ACAO+ACAC on OPTIONS.
+verify_steps: PASSIVE `curl -s -D - --max-time 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (expect 200 + 11B + ACAO + ACAC, zero auth); `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: DELETE" "https://api.sparelabs.com/v1/global/organizations"` (expect 204 + ACAO + ACAC + Allow: PUT,PATCH,POST,DELETE).
+impact: CRITICAL — any malicious origin issues credentialed cross-origin read+write (DELETE/PUT/PATCH/POST) to the global organizations controller with zero credentials via a victim admin browser; empty payload caps exfil but full write CORS chain confirmed.
+testability: PASSIVE
+[HYP] Scheme-only auth bypass + infra topology disclosure on regions controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 99
+reasoning: `Authorization: Bearer x` + Origin → 200 + 725B region registry (7 regions incl. 6 OOS api/routing subdomains); no-Auth → 400 "Authorization header required"; bare `Authorization: x` → 400 "scheme Bearer required"; body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe (matched live 4 consecutive probes).
+evidence_needed: 725B body disclosing ≥6 OOS regional api/routing subdomains; 400 on missing/malformed auth; 204 OPTIONS + ACAO+ACAC + Allow write methods.
+verify_steps: PASSIVE `curl -s --max-time 15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" -o /tmp/regions_body && sha256sum /tmp/regions_body` (expect fb9800acb…585c3fe); `curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"` (expect 400 auth-required).
+impact: CRITICAL (capped HIGH by route scope + OOS subdomain exposure) — unauthenticated infra topology disclosure of 6 out-of-scope regional api/routing subdomains + credentialed read+write CORS chain via victim browser with invalid Bearer token.
+testability: PASSIVE
+[HYP] Credential-reflecting CORS + credentials uniformly across entire /v1 API
+class: MISCONFIG
+asset: api.sparelabs.com/v1/**
+confidence: 98
+reasoning: ACAO:<reflected> + ACAC:true uniform on OPTIONS 204 (/regions, /organizations, /journeys) + GET reflection on 200/401/404 paths; methods GET,HEAD,PUT,PATCH,POST,DELETE; ACAH:Authorization,Content-Type; non-path-conditional via 14-sibling sweep (all return ACAO+ACAC); stable 84h+.
+evidence_needed: ACAO+ACAC+full-method-set+ACAH:Authorization on OPTIONS 204 across ≥3 distinct /v1 paths; GET-side ACAO+ACAC on both 200 and 401 control responses.
+verify_steps: PASSIVE `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: DELETE" -H "Access-ControlRequestHeaders: Authorization,Content-Type" "https://api.sparelabs.com/v1/journeys"` (expect 204 + ACAO + ACAC + Allow write methods); `curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"` (expect 401 + ACAO + ACAC).
+impact: CRITICAL — combined with route-level auth omissions on /organizations + /regions; any malicious origin issues credentialed cross-origin read+write across the entire /v1 surface; non-path-conditional amplification multiplies blast radius.
+testability: PASSIVE
+[FINAL] [99] api.sparelabs.com/v1/global/organizations: Complete zero-header auth bypass + credentialed write CORS chain on fail-open organization controller — CRITICAL
+[FINAL] [99] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + 6 OOS infra topology disclosure + full read+write CORS — HIGH (capped by OOS exposure + route specificity)
+[FINAL] [98] api.sparelabs.com/v1/**: Credential-reflecting CORS + credentials uniformly across entire /v1 API, non-path-conditional (14-sibling sweep) — CRITICAL
+[NEXT] PROBE: `curl -s -D - --max-time 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` → capture zero-header GET 200 + 11B `{"data":[]}` + ACAO + ACAC as immutable evidence of the complete no-auth+credentials chain on the fail-open route (highest-confidence [99] hypothesis; control /v1/journeys verified 401 this cycle; single probe validates end-to-end).

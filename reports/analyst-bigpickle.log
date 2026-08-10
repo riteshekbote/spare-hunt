@@ -21875,3 +21875,300 @@ STEP 7 — RISK SCORE
 - [RISK] routing.sparelabs.com: 10 — envoy 404 on all probed paths since 2026-08-07; no discoverable surface.
 - [RISK] forms.sparelabs.com: 38 — JS bundle infra leak (staging+prod+regional hosts, atlassian.net, inactive ngrok) persists; pure SPA catch-all, no API endpoints; recon value only.
 - [RISK] web (spare.com/sparelabs.com): 15 — Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS, no internal leaks; sparelabs.com 301→spare.com; no dynamic surface.
+===== ANALYST bigpickle 2026-08-10 16:39:32 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mprobe() {
+  name="$1"; shift
+  echo "=== $name ==="
+  code=$(curl -s -o /tmp/opencode/body -D /tmp/opencode/hdr -w "%{http_code}" --max-time 15 "$@")
+  echo "status=$code bytes=$(wc -c < /tmp/opencode/body) sha=$(sha256sum /tmp/opencode/body | cut -d' ' -f1)"
+  grep -iE 'access-control-allow|content-type:|x-envoy|x-frame' /tmp/opencode/hdr | head -6
+  sleep 1
+}
+B="https://api.sparelabs.com"
+NIL="00000000-0000-0000-0000-000000000000"
+probe "orgs zero-header GET" -H "Origin: https://evil.example.com" "$B/v1/global/organizations"
+probe "regions Bearer x GET" -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "$B/v1/global/regions"
+probe "terms mobileAppId nil" -H "Origin: https://evil.example.com" "$B/v1/public/terms?mobileAppId=$NIL"
+probe "public/organization q nil" -H "Origin: https://evil.example.com" "$B/v1/public/organization?organizationId=$NIL"
+probe "public/organizations/{uuid} PATH" -H "Origin: https://evil.example.com" "$B/v1/public/organizations/$NIL"
+probe "public/organization/{uuid} PATH" -H "Origin: https://evil.example.com" "$B/v1/public/organization/$NIL"
+=== orgs zero-header GET ===
+status=200 bytes=11 sha=8fe32e407a1038ee38753b70e5374b3a46d6ae9d5f16cd5b73c53abaca8f5ed0
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-frame-options: SAMEORIGIN
+content-type: application/json; charset=utf-8
+x-envoy-upstream-service-time: 783
+=== regions Bearer x GET ===
+status=200 bytes=725 sha=fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-frame-options: SAMEORIGIN
+content-type: application/json; charset=utf-8
+x-envoy-upstream-service-time: 14
+=== terms mobileAppId nil ===
+status=200 bytes=137 sha=a4e8516879463354955edf146458b47dd86bc693c950d07d30c9f67ffcb5a234
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-frame-options: SAMEORIGIN
+content-type: application/json; charset=utf-8
+x-envoy-upstream-service-time: 267
+=== public/organization q nil ===
+status=404 bytes=131 sha=748ffb8512e75040b9cd9d3280d86167ffd3c48605a84ecd4cba8b5b620d0bfe
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-frame-options: SAMEORIGIN
+content-type: application/json; charset=utf-8
+x-envoy-upstream-service-time: 215
+=== public/organizations/{uuid} PATH ===
+status=404 bytes=131 sha=9cd242f5d61b1332c414011b47d6b78dedb8e05e643d0df025e8eef54c3beac4
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-frame-options: SAMEORIGIN
+content-type: application/json; charset=utf-8
+x-envoy-upstream-service-time: 8
+=== public/organization/{uuid} PATH ===
+status=400 bytes=221 sha=dfcfc8067ecea018c05180abec30c123f243de2352155746f38d88c18977e9e6
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-frame-options: SAMEORIGIN
+content-type: application/json; charset=utf-8
+x-envoy-upstream-service-time: 12
+[0m
+New surface: singular `/v1/public/organization/{uuid}` path-param returns 400 (221B) — not in KB. Let me inspect the bodies.
+[0m$ [0mNIL="00000000-0000-0000-0000-000000000000"
+B="https://api.sparelabs.com"
+echo "--- public/organizations/{uuid} 404 body ---"
+curl -s --max-time 15 -H "Origin: https://evil.example.com" "$B/v1/public/organizations/$NIL"; echo
+sleep 1
+echo "--- public/organization/{uuid} 400 body ---"
+curl -s --max-time 15 -H "Origin: https://evil.example.com" "$B/v1/public/organization/$NIL"; echo
+sleep 1
+echo "--- public/organization/{uuid} malformed body ---"
+curl -s --max-time 15 -H "Origin: https://evil.example.com" "$B/v1/public/organization/not-a-uuid"; echo
+sleep 1
+echo "--- public/organizations/{uuid} malformed body ---"
+curl -s --max-time 15 -H "Origin: https://evil.example.com" "$B/v1/public/organizations/not-a-uuid"; echo
+sleep 1
+echo "--- OPTIONS public/organization/{uuid} ---"
+curl -s -D - -o /dev/null --max-time 15 -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization,Content-Type" "$B/v1/public/organization/$NIL" | grep -iE 'HTTP/|access-control-allow'
+--- public/organizations/{uuid} 404 body ---
+{"name":"NotFoundError","message":"Organization was not found","metadata":{"correlationId":"bea8ce93-22e5-40ca-a56e-cbf4b2516a9e"}}
+--- public/organization/{uuid} 400 body ---
+{"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organization/00000000-0000-0000-0000-000000000000","message":"not found"}],"correlationId":"7cdee352-dd1b-4706-9c0c-4fa251b3580a"}}
+--- public/organization/{uuid} malformed body ---
+{"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organization/not-a-uuid","message":"not found"}],"correlationId":"d9a25543-d208-4c58-af00-c756cc70678f"}}
+--- public/organizations/{uuid} malformed body ---
+{"name":"ValidationError","message":"request/params/id must match format \"uuid\"","metadata":{"errors":[{"path":"/params/id","message":"must match format \"uuid\"","errorCode":"format.openapi.validation"}],"correlationId":"36e2b2e2-29f4-4d00-89f0-728482f35019"}}
+--- OPTIONS public/organization/{uuid} ---
+HTTP/2 204 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
+access-control-allow-headers: Authorization,Content-Type
+[0m
+New delta found. Let me quickly re-confirm the other host surfaces for delta before analysis.
+[0m$ [0mecho "=== routing.sparelabs.com /v1/ ==="
+curl -s -o /tmp/opencode/r -D - --max-time 15 "https://routing.sparelabs.com/v1/" | grep -iE 'HTTP/|content-type|server:' ; echo "body=$(wc -c < /tmp/opencode/r)B"
+sleep 1
+echo "=== platform.sparelabs.com /login CSP ==="
+curl -s -o /dev/null -D - --max-time 15 "https://platform.sparelabs.com/login" | grep -iE 'HTTP/|content-security-policy|x-frame' | cut -c1-160
+sleep 1
+echo "=== forms.sparelabs.com bundle hash ==="
+curl -s --max-time 15 "https://forms.sparelabs.com/static/js/main.71d52314.js" -o /tmp/opencode/f.js; echo "status done bytes=$(wc -c < /tmp/opencode/f.js) sha=$(sha256sum /tmp/opencode/f.js | cut -d' ' -f1)"
+=== routing.sparelabs.com /v1/ ===
+HTTP/2 404 
+server: envoy
+body=0B
+=== platform.sparelabs.com /login CSP ===
+HTTP/2 200 
+content-security-policy: child-src 'self' blob: https://fast.wistia.net https://www.intercom-reporting.com https://intercom-sheets.com https://player.vimeo.com 
+x-frame-options: SAMEORIGIN
+content-security-policy-report-only: child-src 'self' blob: https://fast.wistia.net https://www.intercom-reporting.com https://intercom-sheets.com https://playe
+=== forms.sparelabs.com bundle hash ===
+status done bytes=7159661 sha=efca1ebbea1b9346ffca10240ae69a1622fc6b27e0fafd4a7afe28dc452ff743
+[0m
+[0m$ [0mcurl -s -o /dev/null -D - --max-time 15 "https://platform.sparelabs.com/login" | grep -i 'content-security-policy:' | grep -oiE 'https://[a-z0-9.-]*(vercel\.app|sparelabs\.com|stripe|sentry|intercom|mapbox|pusher|twilio|livekit|wistia|vimeo)[a-z0-9./-]*' | sort -u | head -40
+https://admin-eam-app-staging.vercel.app
+https://admin-eam-app.vercel.app
+https://admin-fixed-route-app-staging.vercel.app
+https://admin-fixed-route-app.vercel.app
+https://api.mapbox.com
+https://api.tiles.mapbox.com
+https://api.twilio.com
+https://browser.sentry-cdn.com
+https://events.mapbox.com
+https://fast.wistia.net
+https://intercom-sheets.com
+https://intercom.help
+https://intercomusercontent.com
+https://messenger-apps.intercom.io
+https://metabase.sparelabs.com
+https://metabase.staging.sparelabs.com
+https://player.vimeo.com
+https://www.intercom-reporting.com
+[0m
+CSP leak confirmed intact (prod+staging admin Vercel apps, Metabase). Let me run one passive namespace sweep on `/v1/public/*` to test for undiscovered leaves, since this session found a new one.
+[0m$ [0mB="https://api.sparelabs.com"
+for p in settings health config features countries cities zones regions appConfig mobileApps versions status docs support; do
+  out=$(curl -s -o /tmp/opencode/b -D /tmp/opencode/h -w "%{http_code}" --max-time 12 -H "Origin: https://evil.example.com" "$B/v1/public/$p")
+  echo "$p -> $out $(wc -c < /tmp/opencode/b)B $(head -c 80 /tmp/opencode/b | tr -d '\n')"
+  sleep 1
+done
+settings -> 404 0B 
+health -> 404 0B 
+config -> 404 0B 
+features -> 404 0B 
+countries -> 404 0B 
+cities -> 404 0B 
+zones -> 404 0B 
+regions -> 404 0B 
+appConfig -> 404 0B 
+mobileApps -> 401 135B {"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"
+versions -> 404 0B 
+status -> 404 0B 
+docs -> 404 0B 
+support -> 404 0B
+[0m
+`/v1/public/mobileApps` → 401 (new auth-gated leaf in public namespace, undocumented). Probing related variants and OPTIONS.
+[0m$ [0mB="https://api.sparelabs.com"
+echo "--- OPTIONS /v1/public/mobileApps ---"
+curl -s -D - -o /dev/null --max-time 12 -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: GET" "$B/v1/public/mobileApps" | grep -iE 'HTTP/|access-control-allow'
+sleep 1
+echo "--- GET /v1/public/mobileApps body ---"
+curl -s --max-time 12 -H "Origin: https://evil.example.com" "$B/v1/public/mobileApps"; echo
+sleep 1
+for p in mobileApp mobileapps mobile-app mobileAppId mobileapps2; do
+  out=$(curl -s -o /tmp/opencode/b -D /tmp/opencode/h -w "%{http_code}" --max-time 12 -H "Origin: https://evil.example.com" "$B/v1/public/$p")
+  echo "$p -> $out $(wc -c < /tmp/opencode/b)B"
+  sleep 1
+done
+echo "--- GET /v1/public/mobileApps/00000000-0000-0000-0000-000000000000 ---"
+curl -s -o /tmp/opencode/b -D /tmp/opencode/h -w "%{http_code}" --max-time 12 -H "Origin: https://evil.example.com" "$B/v1/public/mobileApps/00000000-0000-0000-0000-000000000000"; echo " $(wc -c < /tmp/opencode/b)B $(head -c 120 /tmp/opencode/b | tr -d '\n')"
+--- OPTIONS /v1/public/mobileApps ---
+HTTP/2 204 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
+--- GET /v1/public/mobileApps body ---
+{"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"correlationId":"9e57242a-2504-4f42-9316-8d4b2d6cce11"}}
+mobileApp -> 404 0B
+mobileapps -> 404 0B
+mobile-app -> 404 0B
+mobileAppId -> 404 0B
+mobileapps2 -> 404 0B
+--- GET /v1/public/mobileApps/00000000-0000-0000-0000-000000000000 ---
+404 128B {"name":"NotFoundError","message":"MobileApp was not found","metadata":{"correlationId":"2846e851-a08a-4355-a4da-e5a8fb7
+[0m
+`/v1/public/mobileApps/{id}` is auth-free and discriminates (404 "MobileApp was not found"). Checking the malformed branch for a 3-way oracle.
+[0m$ [0mB="https://api.sparelabs.com"
+echo "--- malformed id ---"
+curl -s --max-time 12 -H "Origin: https://evil.example.com" "$B/v1/public/mobileApps/not-a-uuid"; echo
+sleep 1
+echo "--- nil-uuid id ---"
+curl -s --max-time 12 -H "Origin: https://evil.example.com" "$B/v1/public/mobileApps/00000000-0000-0000-0000-000000000000"; echo
+sleep 1
+echo "--- no auth variant: random v4 uuid ---"
+curl -s --max-time 12 -H "Origin: https://evil.example.com" "$B/v1/public/mobileApps/5b1c2a1e-9d4f-4e2a-8b3f-1a2b3c4d5e6f"; echo
+sleep 1
+echo "--- OPTIONS on leaf ---"
+curl -s -D - -o /dev/null --max-time 12 -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: GET" "$B/v1/public/mobileApps/00000000-0000-0000-0000-000000000000" | grep -iE 'HTTP/|access-control-allow'
+--- malformed id ---
+{"name":"NotFoundError","message":"MobileApp was not found","metadata":{"correlationId":"c3eb2f3c-9224-41b6-b11f-e1f123ed9caf"}}
+--- nil-uuid id ---
+{"name":"NotFoundError","message":"MobileApp was not found","metadata":{"correlationId":"66252a96-5212-49f0-8eac-3f730520ae38"}}
+--- no auth variant: random v4 uuid ---
+{"name":"NotFoundError","message":"MobileApp was not found","metadata":{"correlationId":"2fc087bf-24a9-408a-8c91-f4f2e83639f9"}}
+--- OPTIONS on leaf ---
+HTTP/2 204 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
+[0m
+[0m$ [0mrg -o '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' /tmp/opencode/f.js | sort | uniq -c | sort -rn | head -20; echo "---total uuids---"; rg -o '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' /tmp/opencode/f.js | wc -l
+/bin/bash: line 1: rg: command not found
+---total uuids---
+0
+/bin/bash: line 1: rg: command not found
+[0m
+All non-found inputs → identical 404 (no format check) — a 2-way existence oracle. The forms bundle (downloaded earlier) serves per-mobileAppId config; let me check it for embedded mobile-app UUIDs that could exercise the 200-branch.
+[0m$ [0mgrep -oaE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' /tmp/opencode/f.js | sort | uniq -c | sort -rn | head; echo "---count---"; grep -oaE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' /tmp/opencode/f.js | wc -l
+2 00000000-0000-0000-0000-000000000000
+---count---
+2
+[0m
+Analysis complete. All probes passive, read-only, ≤1 rps.
+
+## STEP 1 — DELTA
+- [NEW] `api.sparelabs.com/v1/public/mobileApps/{id}`: auth-free 2-way existence oracle — malformed/nil/random-v4 all → 404 `NotFoundError "MobileApp was not found"` (128B, no format check, no auth), credentialed CORS (`ACAO:evil`+`ACAC:true`), OPTIONS 204 advertises write methods; 200-branch (MobileApp record) unobserved.
+- [NEW] `api.sparelabs.com/v1/public/mobileApps` (list): registered but properly gated — 401 `UnauthorizedError` (135B) + OPTIONS 204 ACAO+ACAC+write-methods; new controller in public namespace, surface expansion only.
+- [NEW] `api.sparelabs.com/v1/public/organization/{uuid}` (singular path): 400 `ValidationError "not found"` path-echo for ALL inputs — route-registered-not-implemented, no discrimination, not data-bearing.
+- NO_DELTA (re-confirmed with hashes): orgs zero-header 200+11B (sha `8fe32e40…`); regions `Bearer x` 200+725B (sha `fb9800acb…585c3fe`); terms 200+137B (sha `a4e85168…`); org query oracle nil→404+131B (sha `748ffb85…`); routing 404 0B envoy; platform `/login` CSP leak intact (prod+staging admin-eam-app/admin-fixed-route-app, metabase prod+staging, mapbox/twilio/sentry/intercom/wistia/vimeo); forms bundle `main.71d52314.js` unchanged (sha `efca1ebb…`).
+
+## STEP 2 — PRIORITIZE
+- [PRIO] `api.sparelabs.com/v1/global/organizations` score 7.75 | attack 8, business 9, tech 7, gate 9, cloud 6, fresh 5
+- [PRIO] `api.sparelabs.com/v1/public/mobileApps/{id}` score 6.90 | attack 6, business 7, tech 6, gate 9, cloud 5, fresh 9
+- [PRIO] `platform.sparelabs.com/login` score 5.90 | attack 4, business 7, tech 5, gate 8, cloud 7, fresh 5
+- [PRIO] `forms.sparelabs.com` bundle score 5.20 | attack 3, business 6, tech 5, gate 8, cloud 6, fresh 4
+
+## STEP 3 — HYPOTHESES
+[HYP] Write handler auth on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 60
+reasoning: zero-header GET → 200+11B+ACAO+ACAC STABLE (re-confirmed live this session, 783ms slow replica); OPTIONS 204 on exact route advertises PUT/PATCH/POST/DELETE+ACAC; write verbs never probed (parked pending approval).
+evidence_needed: POST/PUT/PATCH/DELETE no-auth → 2xx/400-schema vs 401/403 on fail-open route.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED — no_data_modification): `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser; CRITICAL if a write responds.
+testability: AUTH_HELPED
+
+[HYP] Data-bearing 200-branch on auth-free /v1/public/mobileApps/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/mobileApps/{id}
+confidence: 55
+reasoning: NEW this session — leaf returns 404 `NotFoundError "MobileApp was not found"` auth-free for malformed/nil/random-v4 with credentialed CORS + write-methods on OPTIONS; list route 401-gated (leaf/list asymmetry identical to accepted /v1/public/organization oracle family); /v1/public/terms?mobileAppId= proves MobileApp UUIDs gate terms configs.
+evidence_needed: real existing MobileApp UUID → 200 + record (name/platform/terms config) without auth.
+verify_steps: HUMAN_ONLY (request a program test MobileApp/organization UUID from authorized contact): GET `https://api.sparelabs.com/v1/public/mobileApps/<uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200+record; cross-check `?mobileAppId=` on /v1/public/terms.
+impact: unauthenticated tenant MobileApp-record disclosure via public namespace; HIGH.
+testability: HUMAN_ONLY
+
+[HYP] Additional auth-free leaves in /v1/public/* namespace
+class: AUTH
+asset: api.sparelabs.com/v1/public/*
+confidence: 45
+reasoning: this session's 12-path sweep surfaced two previously-undocumented routes (mobileApps 401 + mobileApps/{id} auth-free 404/200), proving the public namespace is richer than the 3 documented endpoints; leaf-list auth asymmetry is a recurring pattern.
+evidence_needed: another leaf returning non-404/non-401 (or a 200-with-data variant) without auth.
+verify_steps: PASSIVE: extend noun sweep `GET https://api.sparelabs.com/v1/public/{appConfig,config,regions,apps,application,mobileApp,organizations}` + `/{term,mobileApp,organization,region}/{id}` at ≤1 rps with `Origin: https://evil.example.com`; flag any non-404.
+impact: further unauthenticated data/record disclosure or controllers; MEDIUM-HIGH.
+testability: PASSIVE
+
+## STEP 4 — SELF-CRITIQUE
+- [PARKED] platform.sparelabs.com import-map MFE module enumeration (dropped): platform root-config was already pulled for the v1/admin reference check and module surface is exhausted per KB; MFE-rotation hypothesis previously REJECTED; no new evidence vector — below actionability bar.
+- [FINAL]
+  1. [60] Write handler auth on /v1/global/organizations — AUTH_HELPED
+  2. [55] Data-bearing 200-branch on /v1/public/mobileApps/{id} — HUMAN_ONLY
+  3. [45] Additional /v1/public/* auth-free leaves — PASSIVE
+
+## STEP 5 — NEXT ACTION
+[NEXT] PROBE: extend the public-namespace leaf sweep to close the new mobileApps vector and hunt siblings — `GET https://api.sparelabs.com/v1/public/{appConfig,config,regions,apps,application,mobileApp,organizations}` and `GET https://api.sparelabs.com/v1/public/{mobileApp,application,terms,region}/{id}` (≤1 rps, `Origin: https://evil.example.com`, NO Authorization), logging status/body-size/CORS; flag every non-404 for manual validation. (Write-verb POST on /v1/global/organizations remains parked pending operator write-approval.)
+
+## STEP 6 — LEARNING
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/mobileApps/{id}: NEW auth-free 2-way existence oracle — 404 `NotFoundError "MobileApp was not found"` for malformed/nil/random-v4 (no format check), credentialed CORS + write-methods on OPTIONS; 200-branch (record disclosure) unobserved; same bug family as accepted /v1/public/organization oracle.
+- [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/mobileApps: list route properly 401-gated (135B UnauthorizedError) — confirms new registered public-namespace controller; leaf/list auth asymmetry pattern.
+- [LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization/{uuid} (singular path): 400 `ValidationError "not found"` path-echo for all inputs, no discrimination, 0-byte-info — registered-not-implemented, not exploitable (same class as /v1/global/regions/{id}).
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header bypass re-confirmed live (200+11B sha 8fe32e40, 783ms slow replica) — STABLE.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed (200+725B sha fb9800acb…585c3fe) — STABLE.
+- [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection re-confirmed uniform (ACAO:evil+ACAC:true+write methods) — STABLE.
+- [LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 0B — STABLE dead.
+- [LEARN] ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak re-confirmed (prod+staging admin Vercel apps + Metabase + mapbox/twilio/sentry/intercom) — STABLE.
+- [LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle main.71d52314.js unchanged (7.16MB, sha efca1ebb) — STABLE.
+
+## STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 85 — two STABLE auth omissions (zero-header orgs 200, scheme-only regions 725B data-bearing), full credentialed read+write CORS chain, two enumeration oracles (+new mobileApps/{id} leaf), unauthenticated terms data disclosure; write-verb handler auth on fail-open route unproven.
+- [RISK] platform.sparelabs.com: 45 — CSP/import-map leaks prod+staging admin Vercel apps + Metabase + full cloud infra; MFE shell only, no API surface, no direct auth bypass.
+- [RISK] routing.sparelabs.com: 5 — envoy 404 on all paths, no surface since 2026-08-07.
+- [RISK] forms.sparelabs.com: 40 — SPA catch-all; JS bundle leaks staging/prod/regional infra + atlassian + inactive ngrok; infra-recon value only.
+- [RISK] web (spare.com/sparelabs.com): 15 — static Cloudflare+Webflow marketing, no dynamic logic, no internal leaks.
