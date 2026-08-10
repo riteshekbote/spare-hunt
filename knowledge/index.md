@@ -633,3 +633,6 @@
 - 2026-08-10 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure remains STABLE — Bearer x → 200 + 725B (sha256 fb9800acb…585c3fe), 6 OOS subdomains in body — no change.
 - 2026-08-10 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404 across all /v1, non-path-conditional via 14-sibling sweep — no change.
 - 2026-08-10 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surface, NO_DELTA since 2026-08-07.
+- 2026-08-10 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass remains STABLE — 200 + 11B + ACAO+ACAC with NO Authorization header; OPTIONS advertises write methods — no change.
+- 2026-08-10 REJECTED MISCONFIG @ platform.sparelabs.com (admin paths): All 10 admin/API paths (/admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metrics) return 200 + text/html (SPA catch-all) — no real API surface, MFE shell only.
+- 2026-08-10 REJECTED MISCONFIG @ forms.sparelabs.com (API paths): All 8 API paths (/api/health,/api/v1,/graphql,/webhooks,/export,/status,/config,/v1) return 200 + text/html (index.html) — SPA catch-all, no real API endpoints.
