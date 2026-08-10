@@ -445,3 +445,15 @@ https://api.sparelabs.com/v1/global/regions` -> HTTP 400
 https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` -> HTTP 400
 https://api.sparelabs.com/v1/public/organizations/<test-uuid>` -> HTTP 400
 https://sparelabs.com/ -> 200 len=? type=text/html; charset=utf-8
+
+## 2026-08-10 04:19:44 UTC
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/journeys -> HTTP 401
+https://api.sparelabs.com/v1/public/mobileApps/<test-uuid>` -> HTTP 404
+https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` -> HTTP 400
+https://sparelabs.com/terms-of-use/ -> 200 len=? type=text/html; charset=utf-8
+https://sparelabs.com/privacy-policy/ -> 200 len=? type=text/html; charset=utf-8
+https://api.sparelabs.com/v1/global/regions` -> HTTP 400
+https://api.sparelabs.com/v1/global/organizations` -> HTTP 400
+https://platform.sparelabs.com/ -> 200 len=5555 type=text/html; charset=UTF-8

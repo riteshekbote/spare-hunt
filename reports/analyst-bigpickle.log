@@ -19338,3 +19338,152 @@ STEP 7 — RISK SCORE
 [RISK] forms.sparelabs.com: 38 — JS bundle infra leak (staging+prod+regional+atlassian+ngrok); HTML strict CSP + x-frame DENY, no auth vector.
 [RISK] web (spare.com/sparelabs.com): 12 — static Webflow marketing site, no internal infra leaks.
 ```
+===== ANALYST bigpickle 2026-08-10 04:19:42 UTC =====
+[0m
+> build · big-pickle
+[0m
+I'll verify the newest signal (the claimed `/v1/public/mobileApps/{id}` no-auth expansion) with passive GETs before writing the analysis.
+[0m$ [0mcurl -s -D /tmp/opencode/mob_h.txt -o /tmp/opencode/mob_b.txt -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/mobileApps/00000000-0000-0000-0000-000000000000"; echo "---HEADERS---"; cat /tmp/opencode/mob_h.txt; echo "---BODY---"; cat /tmp/opencode/mob_b.txt
+---HEADERS---
+HTTP/2 404 
+spare-correlation-id: 3642ac64-2b5d-467e-b733-bc0269f278a0
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-security-policy: default-src none;upgrade-insecure-requests
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=31536000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+content-type: application/json; charset=utf-8
+content-length: 128
+etag: W/"80-Wvrw7iSyVghWMsHOj65yChp8Mek"
+date: Mon, 10 Aug 2026 04:16:56 GMT
+x-envoy-upstream-service-time: 10
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+---BODY---
+{"name":"NotFoundError","message":"MobileApp was not found","metadata":{"correlationId":"3642ac64-2b5d-467e-b733-bc0269f278a0"}}
+[0m
+404 no-auth "MobileApp was not found" — route is live and auth-free. Let me probe validation behavior and the collection route.
+[0m$ [0msleep 1.2; echo "=== no-id ==="; curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/mobileApps" | tail -5; echo; sleep 1.2; echo "=== malformed-id ==="; curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/mobileApps/not-a-uuid" | tail -8; echo; sleep 1.2; echo "=== OPTIONS ==="; curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type" "https://api.sparelabs.com/v1/public/mobileApps/00000000-0000-0000-0000-000000000000" | tail -10
+=== no-id ===
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+{"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"correlationId":"2fdd1bf0-9596-4dbb-ade2-7df1501f1cf2"}}
+=== malformed-id ===
+etag: W/"80-3w4kX/FJ6/VRCuFIHMzAPypA1uk"
+date: Mon, 10 Aug 2026 04:17:07 GMT
+x-envoy-upstream-service-time: 8
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+{"name":"NotFoundError","message":"MobileApp was not found","metadata":{"correlationId":"9e58bc23-63c8-460a-80c4-e18582304ec1"}}
+=== OPTIONS ===
+vary: Origin, Access-Control-Request-Headers, Accept-Encoding
+access-control-allow-credentials: true
+access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
+access-control-allow-headers: Authorization,Content-Type
+date: Mon, 10 Aug 2026 04:17:09 GMT
+x-envoy-upstream-service-time: 2
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+[0m
+The `/v1/public/mobileApps/{id}` leaf is auth-free (404 no-auth) but the collection route is 401-gated, and there's no format discrimination (nil and malformed both 404) — a third instance of the registered-not-implemented pattern. Quick re-confirm of the core bypasses:
+[0m$ [0msleep 1.2; echo "=== orgs zero-header ==="; curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" | grep -Ei "HTTP/|access-control-allow-origin|access-control-allow-credentials|x-envoy-upstream-service-time" ; curl -s -X GET "https://api.sparelabs.com/v1/global/organizations" | head -c 120; echo; echo; sleep 1.2; echo "=== regions scheme-only ==="; curl -s -D - -X GET -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" | grep -Ei "HTTP/|access-control-allow-origin|access-control-allow-credentials|x-envoy-upstream-service-time|content-length"; echo; sleep 1.2; echo "=== control journeys ==="; curl -s -D - -o /dev/null -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys" | grep -Ei "HTTP/|access-control-allow-origin|access-control-allow-credentials"
+=== orgs zero-header ===
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-envoy-upstream-service-time: 1062
+{"data":[]}
+
+=== regions scheme-only ===
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 725
+x-envoy-upstream-service-time: 3
+
+=== control journeys ===
+HTTP/2 401 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+[0m
+All three core findings re-confirmed live this cycle, plus a new leaf surfaced. Analysis follows.
+
+**STEP 1 — DELTA**
+- [NEW] api.sparelabs.com/v1/public/mobileApps/{id}: auth-free leaf confirmed live — no-auth GET `<nil-uuid>` → 404 NotFoundError "MobileApp was not found" + ACAO:evil + ACAC:true (spare-correlation-id present); collection `/v1/public/mobileApps` → 401 (properly gated); malformed id → identical 404 (NO format discrimination, not an oracle). Third instance of the registered-not-implemented auth-free leaf pattern (after /v1/global/regions/{id}, /v1/global/organizations/key/{x}).
+- Everything else: NO_DELTA — all prior ACCEPTED/REJECTED classes stable.
+
+**STEP 2 — PRIORITIZE**
+- [PRIO] api.sparelabs.com/v1/global/organizations — score 7.1 — attack 8, business 8, tech 6, gate 10 (zero-header 200, OPTIONS 204 advertises PUT/PATCH/POST/DELETE+ACAC), cloud 4, fresh 3
+- [PRIO] api.sparelabs.com/v1/global/regions — score 6.45 — attack 7, business 7, tech 6, gate 9 (scheme-only Bearer x, token never validated), cloud 4, fresh 3
+- [PRIO] api.sparelabs.com/v1/public/organization (oracle) — score 5.8 — attack 6, business 7, tech 5, gate 8 (no-auth), cloud 3, fresh 3
+- [PRIO] api.sparelabs.com/v1/public/mobileApps/{id} — score 5.6 — attack 5, business 5, tech 5, gate 9 (no-auth leaf), cloud 3, fresh 7 (new this session)
+
+**STEP 3 — HYPOTHESES**
+- [HYP] Real mobileApp UUID returns 200 + config via auth-free leaf
+  class: AUTH
+  asset: api.sparelabs.com/v1/public/mobileApps/{id}
+  confidence: 45
+  reasoning: Leaf confirmed auth-free live this session (no-auth GET → 404 NotFoundError + ACAO:evil + ACAC:true); collection route 401-gated proves leaf registered OUTSIDE auth gate; 404-for-not-found implies 200 + record for an existing id (mirrors /v1/public/organization found-branch). Not an oracle (nil/malformed identical 404), so only a real UUID can close the branch.
+  evidence_needed: real mobileApp UUID → 200 + app config (name/platform/keys?) no-auth.
+  verify_steps: HUMAN_ONLY: request program test mobileApp UUID from authorized contact → `GET https://api.sparelabs.com/v1/public/mobileApps/<uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record.
+  impact: unauthenticated tenant mobile-app config disclosure from public namespace; MEDIUM-HIGH.
+  testability: HUMAN_ONLY
+- [HYP] Cross-origin write on complete zero-header bypass /v1/global/organizations
+  class: AUTH
+  asset: api.sparelabs.com/v1/global/organizations
+  confidence: 60
+  reasoning: Zero-header GET re-confirmed live this cycle (200 + `{"data":[]}` + ACAO:evil + ACAC:true, 1062ms slow replica); OPTIONS 204 previously confirmed PUT/PATCH/POST/DELETE + ACAC on exact fail-open path; write verbs never probed; control /v1/journeys stable 401.
+  evidence_needed: POST/PUT/PATCH/DELETE /v1/global/organizations no-auth → 2xx/400-schema vs 401/403.
+  verify_steps: AUTH_HELPED (program-authorized, inert no-body): `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + NO Authorization → observe status/body.
+  impact: unauthenticated cross-origin org-data write/tamper via victim browser; CRITICAL if write responds.
+  testability: AUTH_HELPED
+- [HYP] Write escalation on scheme-only /v1/global/regions
+  class: AUTH
+  asset: api.sparelabs.com/v1/global/regions
+  confidence: 50
+  reasoning: `Bearer x` → 200 + 725B + ACAO+ACAC re-confirmed live (3ms fast replica); gate is header+scheme presence-only, token never validated; omission family systemic (organizations zero-header, regions scheme-only, mobileApps/{id} fully auth-free) — write handlers may be registered auth-free.
+  evidence_needed: PUT/PATCH/POST/DELETE /v1/global/regions (or /{id}) no-auth → 2xx/400-schema vs 401/403.
+  verify_steps: AUTH_HELPED (program-authorized, inert unchanged-body): `PUT https://api.sparelabs.com/v1/global/regions` with NO Authorization → observe 2xx vs 401/403.
+  impact: unauthenticated cross-origin region/config tampering; CRITICAL if mutating responds.
+  testability: AUTH_HELPED
+
+**STEP 4 — SELF-CRITIQUE**
+- [PARKED] mobileApps/{id} as enumeration oracle: nil and malformed both return identical 404 NotFoundError — no format discrimination, same negative as /v1/global/organizations/key/{x} (REJECTED class). Kept only as HUMAN_ONLY real-UUID disclosure (conf 45, above floor).
+- [FINAL] 1) Cross-origin write on complete zero-header bypass /v1/global/organizations (conf 60, AUTH_HELPED) 2) Write escalation on scheme-only /v1/global/regions (conf 50, AUTH_HELPED) 3) Real mobileApp UUID → 200 config via auth-free /v1/public/mobileApps/{id} (conf 45, HUMAN_ONLY)
+
+**STEP 5 — NEXT ACTION**
+[NEXT] HUMAN: Request program test mobileApp UUID AND test-org UUID from the authorized contact (GET-only, passive-compliant), then GET `https://api.sparelabs.com/v1/public/mobileApps/<test-uuid>` AND `https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → 200 + record on either closes a never-observed data-bearing branch of the auth-free leaf family (no passive fallback — mobileApps leaf is not an oracle and bundles are nil-UUID-only). If operator grants write approval first, run the conf-60 inert no-body `POST /v1/global/organizations` probe instead (AUTH_HELPED).
+
+**STEP 6 — LEARNING**
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header no-auth bypass re-confirmed live this cycle — 200 + `{"data":[]}` + ACAO:evil + ACAC:true (1062ms slow replica); control /v1/journeys 401.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed live this cycle — `Bearer x` → 200 + 725B + ACAO+ACAC (3ms fast replica); no-auth → 400.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/mobileApps/{id}: auth-free leaf confirmed live — 404 NotFoundError + ACAO:evil + ACAC:true with no auth; collection `/v1/public/mobileApps` → 401; omission family now spans 3 controllers.
+- [LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/mobileApps: not an enumeration oracle (nil/malformed identical 404), not data-bearing with nil — registered-not-implemented leaf; real-UUID 200-branch untestable passively (HUMAN_ONLY).
+- [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection re-confirmed live this cycle — ACAO:evil + ACAC:true uniform on 200/401/404 paths.
+- [LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: no re-probe this cycle; remains envoy 404 across all paths, dead.
+
+**STEP 7 — RISK SCORE**
+- [RISK] api.sparelabs.com: 88 — systemic auth-omission family now spans 3 controllers (organizations zero-header, regions scheme-only, mobileApps/{id} fully auth-free) + full read/write CORS reflect-credentials chain; severity capped only by empty/registered-not-implemented payloads and route-specific scope; real-UUID 200-branches and unprobed write verbs hold escalation headroom.
+- [RISK] platform.sparelabs.com: 60 — CSP leak of prod+staging admin Vercel apps + Metabase + full cloud infra; recon surface only, no auth bypass.
+- [RISK] routing.sparelabs.com: 10 — envoy 404 on all paths, dead, no surface.
+- [RISK] forms.sparelabs.com: 38 — JS bundle infra leak (staging+prod+regional+atlassian+ngrok); HTML strict CSP + x-frame DENY, no auth vector.
+- [RISK] web (spare.com/sparelabs.com): 12 — static Webflow marketing site, no internal infra leaks.

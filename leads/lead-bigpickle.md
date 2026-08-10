@@ -3149,3 +3149,5 @@ testability: HUMAN_ONLY
 [RISK] routing.sparelabs.com: 10 — envoy 404 on all paths, dead, no surface.
 [RISK] forms.sparelabs.com: 38 — JS bundle infra leak (staging+prod+regional+atlassian+ngrok); HTML strict CSP + x-frame DENY, no auth vector.
 [RISK] web (spare.com/sparelabs.com): 12 — static Webflow marketing site, no internal infra leaks.
+## 2026-08-10 04:18:07 UTC [api] (model bigpickle)
+[NEXT] HUMAN: Request program test mobileApp UUID AND test-org UUID from the authorized contact (GET-only, passive-compliant), then GET `https://api.sparelabs.com/v1/public/mobileApps/<test-uuid>` AND `https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → 200 + record on either closes a never-observed data-bearing branch of the auth-free leaf family (no passive fallback — mobileApps leaf is not an oracle and bundles are nil-UUID-only). If operator grants write approval first, run the conf-60 inert no-body `POST /v1/global/organizations` probe instead (AUTH_HELPED).
