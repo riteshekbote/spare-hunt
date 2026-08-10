@@ -378,3 +378,22 @@
   - | 4 | /v1/public/org UUID enumeration oracle | **VALID** | MEDIUM | No |
   - | 5 | CSP + MFE manifest infra leak | **VALID** | LOW | No |
   - | 6 | JS bundle staging infra leak | **VALID** | LOW | No |
+
+- 17 lead(s) marked VALID at 2026-08-10 02:44:12 UTC
+  - valid UUID → 200. 3-way differential confirms org UUID existence.
+  - VERDICT: VALID (dup) — A1 reconfirmation, no delta
+  - VERDICT: VALID (dup) — A4 reconfirmation, empty payload persists
+  - VERDICT: VALID (dup) — A1 reconfirmation
+  - VERDICT: VALID (dup) — A3 reconfirmation
+  - VERDICT: VALID (dup) — A6 reconfirmation
+  - VERDICT: VALID (dup) — A5 reconfirmation
+  - VERDICT: VALID (dup) — A1-A5 reconfirmation
+  - VERDICT: VALID (dup) — A6 reconfirmation
+  - VERDICT: VALID (dup) — A7 reconfirmation
+  - VERDICT: VALID (dup) — A1 + A4 reconfirmation
+  - VERDICT: VALID (dup) — A6 reconfirmation
+  - VERDICT: VALID (dup) — A7 reconfirmation
+  - VALID (new):     0
+  - VALID (dup):    ~30 (all map to A1–A7)
+  - | VALID (new) | 0 | No novel findings |
+  - | VALID (dup) | ~30 | All reconfirm A1–A7 |
