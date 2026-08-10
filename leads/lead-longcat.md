@@ -174,3 +174,32 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404 on all paths, no discoverable surface, effectively dead
 [RISK] forms.sparelabs.com: 35 — JS bundle leaks staging+prod+regional infra + inactive ngrok; SPA catch-all confirmed no direct attack surface
 [RISK] web (spare.com/sparelabs.com): 10 — static Webflow marketing on Cloudflare, strict CSP, HSTS, no internal infra leaks; minimal surface
+## 2026-08-10 05:50:23 UTC [routing] (model longcat)
+[HYP] api.sparelabs.com/v1/global/regions replica convergence — is the 725B region registry disclosure now stable across LB replicas (was flapping 400↔200)?
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 90
+reasoning: Live probe THIS turn confirms 200 + 7 regions with `Bearer x` (no valid auth), 147ms upstream, full body matches sha256 fb9800acb…7585c3fe. Multi-version LB flapping documented over 3+ days — current state is 200 on the probed replica.
+evidence_needed: 200 + 7-region JSON body with `Bearer x` (no valid token)
+verify_steps: `curl -s -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'regions={len(d)}')"`
+impact: Full internal infra topology disclosure (7 regions, 6 OOS api/routing subdomains) without valid auth — enables targeted recon against regional API hosts
+testability: PASSIVE
+[HYP] api.sparelabs.com/v1/global/organizations zero-header write CORS — does POST/PUT process bodies despite empty GET?
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: OPTIONS 204 advertises PUT/PATCH/POST/DELETE + ACAO+ACAC on exact route. GET returns 200+`{"data":[]}` with zero Authorization header (complete route-level auth omission). Write handlers may have separate auth middleware — unverified.
+evidence_needed: 200/201/4xx-with-body on POST/PUT (not just OPTIONS 204)
+verify_steps: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" https://api.sparelabs.com/v1/global/organizations` (passive re-confirm)
+impact: Cross-origin state modification (create/update/delete org records) without auth via victim admin browser session
+testability: PASSIVE (OPTIONS only; body send = AUTH_HELPED)
+[HYP] api.sparelabs.com/v1/public/organization 3-way UUID oracle — differential still intact after documented degradation flap?
+class: AUTH
+asset: api.sparelabs.com/v1/public/organization
+confidence: 85
+reasoning: KB documents nil-uuid → 404 NotFoundError (131B + correlationId), malformed → 400 ValidationError "must match format uuid" (285B). Prior inventory claimed degradation to 2-way (400/200) but live probes 2026-08-09 18:38 UTC contradicted — 3-way differential confirmed intact. Multi-version LB may re-flap.
+evidence_needed: 3 distinct HTTP status codes for malformed vs nil-uuid vs valid-found UUID inputs
+verify_steps: `curl -s -o /dev/null -w "%{http_code}" https://api.sparelabs.com/v1/public/organization?organizationId=not-a-uuid` AND `curl -s -o /dev/null -w "%{http_code}" https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000`
+impact: Organization enumeration oracle — attacker can discover valid org UUIDs via binary discrimination (404 vs 200), then pivot to authenticated endpoints
+testability: PASSIVE
+[NEXT] PROBE: `curl -s -w "\nHTTP:%{http_code}" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations` — re-confirm zero-header bypass still returns 200 + `{"data":[]}` (live turn check for LB flapping delta)

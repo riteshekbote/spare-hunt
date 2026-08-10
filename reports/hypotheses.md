@@ -1745,3 +1745,22 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass STABLE — 200 + `{"data":[]}` (11B) + ACAO+ACAC (814ms slow replica). Veri
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true on 200 (regions/organizations) + 401
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths (/, /v1/, /api/, /routing/), NO_DELTA since 2026-08-07.
+
+## RANKED HYPOTHESES 2026-08-10 05:50:57 UTC
+- [98] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read/write CORS chain on fail-open organization controller (from reports/hypotheses-nemotron3.txt)
+- [90] api.sparelabs.com/v1/global/regions: api.sparelabs.com/v1/global/regions replica convergence — is the 725B region registry disclosure now stable across LB replicas (was flapping 400↔200)? (from reports/hypotheses-longcat.txt)
+- [60] api.sparelabs.com/v1/global/organizations: Cross-origin write on complete zero-header bypass /v1/global/organizations (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization
+- NEXT(hypotheses-bigpickle.txt): HUMAN: Request a program test mobileApp UUID AND test-org UUID from the authorized contact (GET-only, passive-compliant), then GET `https://api.sparelabs.com/v1
+- NEXT(hypotheses-longcat.txt): PROBE: `curl -s -w "\nHTTP:%{http_code}" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations` —
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass STABLE — 200 + `{"data":[]}` + ACAO+ACAC with NO Authorization he
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + full read+write CORS STABLE confirmed live 2026-08-10 04:17 — `Bearer x` → 200 + 725B 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE confirmed live 2026-08-10 04:17 — ACAO:https://evil.example.com + ACAC:true + me
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE confirmed live 2026-08-10 04:17 — `?mobileAppId=00000000-0000-0000-0000-000000000
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle 3-way STABLE confirmed live 2026-08-10 04:17 — malformed→400 ValidationEr
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE confirmed live 2026-08-10 04:17 — CSP discloses admin-eam-app.vercel.app + admin-fixed-
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE confirmed live 2026-08-10 04:17 — same infra leak: api.staging.sparelabs.com + api.s
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com: All 10 admin/API paths (/admin, /api, /graphql, /v1, /internal, /config, /env, /status, /health, /metrics) return 2
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: All 8 API paths (/api/health, /api/v1, /graphql, /webhooks, /export, /status, /config, /v1) return 200 + `text/html` (
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfig (gladiaio org) persists, 0 files scanned — no code-surface delta.

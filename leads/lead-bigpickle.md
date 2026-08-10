@@ -3151,3 +3151,32 @@ testability: HUMAN_ONLY
 [RISK] web (spare.com/sparelabs.com): 12 — static Webflow marketing site, no internal infra leaks.
 ## 2026-08-10 04:18:07 UTC [api] (model bigpickle)
 [NEXT] HUMAN: Request program test mobileApp UUID AND test-org UUID from the authorized contact (GET-only, passive-compliant), then GET `https://api.sparelabs.com/v1/public/mobileApps/<test-uuid>` AND `https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → 200 + record on either closes a never-observed data-bearing branch of the auth-free leaf family (no passive fallback — mobileApps leaf is not an oracle and bundles are nil-UUID-only). If operator grants write approval first, run the conf-60 inert no-body `POST /v1/global/organizations` probe instead (AUTH_HELPED).
+## 2026-08-10 05:50:42 UTC [api] (model bigpickle)
+[HYP] Cross-origin write on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 60
+reasoning: Zero-header GET → 200 + 11B + ACAO:evil + ACAC:true re-confirmed live this cycle (722ms slow replica); OPTIONS 204 previously confirmed PUT/PATCH/POST/DELETE + ACAC on the exact fail-open path; write verbs never probed.
+evidence_needed: POST/PUT/PATCH/DELETE /v1/global/organizations no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED (program-authorized, inert no-body): `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + NO Authorization → observe status/body.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser (preflight gate closed by ACAO+ACAC); CRITICAL if write responds.
+testability: AUTH_HELPED
+[HYP] Write escalation on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: `Bearer x` → 200 + 725B + ACAO:evil + ACAC:true re-confirmed live this cycle (3ms); gate is header+scheme presence-only, token never validated; the same presence-only omission family covers /v1/global/organizations (zero-header) → write handlers may be registered auth-free.
+evidence_needed: PUT/PATCH/POST/DELETE /v1/global/regions (or /{id}) no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED (program-authorized, inert unchanged-body): `PUT https://api.sparelabs.com/v1/global/regions` with NO Authorization → observe 2xx vs 401/403.
+impact: unauthenticated cross-origin region/config tampering via victim browser; CRITICAL if mutating responds.
+testability: AUTH_HELPED
+[HYP] Real-UUID returns data-bearing record on /v1/public/mobileApps/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/mobileApps/{id}
+confidence: 45
+reasoning: nil-uuid → 404 NotFoundError + ACAO+ACAC confirmed live this cycle → leaf is live and auth-free; 200-branch never observed; UUID space not passively enumerable (bundles are nil-UUID-only, mobileApps leaf shows no format discrimination).
+evidence_needed: real existing mobileApp UUID → 200 + app/org record no-auth.
+verify_steps: HUMAN_ONLY: request program test mobileApp UUID from authorized contact → GET `https://api.sparelabs.com/v1/public/mobileApps/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record.
+impact: unauthenticated tenant app/org-record disclosure from public namespace; HIGH.
+testability: HUMAN_ONLY
+[NEXT] HUMAN: Request a program test mobileApp UUID AND test-org UUID from the authorized contact (GET-only, passive-compliant), then GET `https://api.sparelabs.com/v1/public/mobileApps/<test-uuid>` AND `https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → a 200 + record on either closes the sole unobserved data-bearing branch of the auth-free public family (no passive fallback exists — mobileApps leaf is not an oracle and bundles are nil-UUID-only). If the operator grants write-method approval first, run the conf-60 inert no-body `POST /v1/global/organizations` probe instead (AUTH_HELPED).

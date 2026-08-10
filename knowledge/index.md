@@ -597,3 +597,4 @@
 - 2026-08-10 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass STABLE — 200 + `{"data":[]}` (11B) + ACAO+ACAC (814ms slow replica). Verified live 2026-08-10 04:17 UTC.
 - 2026-08-10 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true on 200 (regions/organizations) + 401 (journeys control) paths. Verified live 2026-08-10 04:17 UTC.
 - 2026-08-10 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths (/, /v1/, /api/, /routing/), NO_DELTA since 2026-08-07.
+- 2026-08-10 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass STABLE — 200 + `{"data":[]}` + ACAO+ACAC with NO Authorization header confirmed across multiple probes; OPTIONS 204 confirms write methods + CORS credentials — severity refined from "scheme-only" to "complete route-level omission"
