@@ -777,3 +777,4 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging+prod+regional infra (api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com, atlassian.net, ngrok.io). SPA catch-all confirmed no direct API attack surface. Infra-recon value only.
 [RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing on Cloudflare, strict CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks. Minimal static-only surface.
 ## 2026-08-10 21:07:59 UTC [routing] (model longcat)
+## 2026-08-10 21:57:40 UTC [routing] (model longcat)

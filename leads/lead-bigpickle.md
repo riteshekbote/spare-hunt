@@ -3556,3 +3556,32 @@ verify_steps: HUMAN_ONLY (request program test-MobileApp UUID from authorized co
 impact: unauthenticated tenant MobileApp-record disclosure; MEDIUM-HIGH.
 testability: HUMAN_ONLY
 [NEXT] HUMAN: Request ONE program test-org UUID and ONE test-MobileApp UUID from the authorized contact; then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` and `GET https://api.sparelabs.com/v1/public/mobileApps/<uuid>` (NO Authorization + `Origin: https://evil.example.com`, ≤1 rps) — closes the last two unobserved 200-branches on auth-free public leaves. If the contact instead grants operator write-approval, the POST probe on /v1/global/organizations supersedes this (CRITICAL if a write responds).
+## 2026-08-10 21:57:53 UTC [api] (model bigpickle)
+[HYP] Write-handler auth on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: zero-header GET → 200+11B+ACAO+ACAC live this cycle (505ms slow replica); OPTIONS 204 on exact route advertises PUT/PATCH/POST/DELETE + ACAC; GET handler has no auth gate at all, so write handlers are the unobserved branch.
+evidence_needed: POST/PUT/PATCH/DELETE no-auth → 2xx/400-schema vs 401/403 on the fail-open route.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED per no_data_modification): `POST https://api.sparelabs.com/v1/global/organizations` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser; CRITICAL if any write responds.
+testability: AUTH_HELPED
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 65
+reasoning: 3-way discriminator CONFIRMED live this cycle (400 format.uuid / 404 NotFoundError, ACAO+ACAC on both); handler runs real no-auth org lookup; distinct from degraded singular route; identical signature to previously-accepted oracle whose valid-found branch returned 200+record.
+evidence_needed: real existing org UUID → 200 + org record (name/branding/contacts) without auth.
+verify_steps: HUMAN_ONLY (request program test-org UUID from authorized contact): `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` NO Authorization + `Origin: https://evil.example.com`; cross-check `?organizationId=` on /v1/public/terms.
+impact: unauthenticated tenant org-record disclosure via public namespace; HIGH.
+testability: HUMAN_ONLY
+[HYP] Module-registry delta on platform /login root-config may reveal new MFE surfaces
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 45
+reasoning: CSP+manifest disclosed admin-eam-app/admin-fixed-route-app (prod+staging) + Metabase; root-config import-map is the registration point; all admin paths on the host itself are SPA catch-all (rejected), so only NEW registrations add surface.
+evidence_needed: import-map diff vs KB manifest shows new MFE module hosts (in-scope or loadable).
+verify_steps: PASSIVE — re-fetch `https://platform.sparelabs.com/` + root-config (index-*.js) + `platform.sparelabs.com/login` once, diff `import-map`/`module` names against KB list; ≤1 rps.
+impact: early warning of new admin/API surface; LOW (infra-recon only).
+testability: PASSIVE
+[NEXT] HUMAN: Request ONE program test-org UUID from the authorized contact; then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` AND `GET https://api.sparelabs.com/v1/public/organization/<uuid>` (NO Authorization + `Origin: https://evil.example.com`, ≤1 rps) — closes the last unobserved 200-branch on the highest-confidence live discriminator. (Passive noun/leaf sweep now exhausted; write-verb POST on /v1/global/organizations remains parked pending operator write-approval — CRITICAL if granted.)

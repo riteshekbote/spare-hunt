@@ -22868,3 +22868,112 @@ testability: HUMAN_ONLY
 - [RISK] routing.sparelabs.com: 10 — envoy 404 on all probed paths since 2026-08-07; no surface, no auth context.
 - [RISK] forms.sparelabs.com: 30 — JS bundle main.71d52314.js leaks staging/prod/regional hosts + atlassian.net + inactive ngrok (infra-recon); strict HTML CSP, SPA catch-all only.
 - [RISK] web (spare.com/sparelabs.com): 15 — static Webflow marketing behind Cloudflare, CSP frame-ancestors 'self', HSTS, no internal infra leaks; minimal dynamic surface.
+===== ANALYST bigpickle 2026-08-10 21:59:04 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mcurl -s -o /tmp/opencode/p1_body.txt -D /tmp/opencode/p1_hdr.txt -w "HTTP:%{http_code} time:%{time_total}s size:%{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"; sleep 1.2; curl -s -o /tmp/opencode/p2_body.txt -D /tmp/opencode/p2_hdr.txt -w "HTTP:%{http_code} time:%{time_total}s size:%{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"; sleep 1.2; curl -s -o /tmp/opencode/p3_body.txt -D /tmp/opencode/p3_hdr.txt -w "HTTP:%{http_code} time:%{time_total}s size:%{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization/00000000-0000-0000-0000-000000000000"; sleep 1.2; curl -s -o /tmp/opencode/p4_body.txt -D /tmp/opencode/p4_hdr.txt -w "HTTP:%{http_code} time:%{time_total}s size:%{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"
+HTTP:404 time:0.386819s size:131
+HTTP:400 time:0.125805s size:263
+HTTP:400 time:0.182217s size:221
+HTTP:200 time:0.860129s size:11
+[0m
+[0m$ [0mecho "=== p1 (plural nil-uuid) 404 ==="; cat /tmp/opencode/p1_body.txt; echo; grep -iE "access-control|content-type|correlation|upstream" /tmp/opencode/p1_hdr.txt; echo "=== p2 (plural malformed) 400 ==="; cat /tmp/opencode/p2_body.txt; echo; grep -iE "access-control|content-type|correlation|upstream" /tmp/opencode/p2_hdr.txt; echo "=== p3 (singular nil-uuid) 400 ==="; cat /tmp/opencode/p3_body.txt; echo; grep -iE "access-control|content-type|correlation|upstream" /tmp/opencode/p3_hdr.txt; echo "=== p4 (global orgs zero-header) 200 ==="; cat /tmp/opencode/p4_body.txt; echo; grep -iE "access-control|content-type|correlation|upstream" /tmp/opencode/p4_hdr.txt
+=== p1 (plural nil-uuid) 404 ===
+{"name":"NotFoundError","message":"Organization was not found","metadata":{"correlationId":"f28baf61-5acc-439f-91ab-02ae0f9a56bd"}}
+spare-correlation-id: f28baf61-5acc-439f-91ab-02ae0f9a56bd
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-content-type-options: nosniff
+content-type: application/json; charset=utf-8
+x-envoy-upstream-service-time: 11
+=== p2 (plural malformed) 400 ===
+{"name":"ValidationError","message":"request/params/id must match format \"uuid\"","metadata":{"errors":[{"path":"/params/id","message":"must match format \"uuid\"","errorCode":"format.openapi.validation"}],"correlationId":"2fb0870e-c021-4729-9b29-b4ddd8000086"}}
+spare-correlation-id: 2fb0870e-c021-4729-9b29-b4ddd8000086
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-content-type-options: nosniff
+content-type: application/json; charset=utf-8
+x-envoy-upstream-service-time: 18
+=== p3 (singular nil-uuid) 400 ===
+{"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organization/00000000-0000-0000-0000-000000000000","message":"not found"}],"correlationId":"bf35036c-a156-48bb-9b98-1c536251beb3"}}
+spare-correlation-id: bf35036c-a156-48bb-9b98-1c536251beb3
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-content-type-options: nosniff
+content-type: application/json; charset=utf-8
+x-envoy-upstream-service-time: 7
+=== p4 (global orgs zero-header) 200 ===
+{"data":[]}
+spare-correlation-id: e799798a-4ce4-4c39-b0db-a5548b0f8031
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-content-type-options: nosniff
+content-type: application/json; charset=utf-8
+x-envoy-upstream-service-time: 505
+[0m
+Live read-only probes this cycle (≤1 rps, GET, Origin: https://evil.example.com) confirmed the plural-route oracle and current singular degradation.
+
+## STEP 1 — DELTA
+- [CHANGED] api.sparelabs.com/v1/public/organization (singular): status-code oracle degraded to 2-way — nil-uuid → `400 ValidationError "not found"` (was 404 NotFoundError); malformed → 400 `must match format "uuid"`. Message-level differential PERSISTS (live probe this cycle, x-envoy 7ms).
+- [NEW] api.sparelabs.com/v1/public/organizations/{id} (plural): 3-way discriminator CONFIRMED live this cycle — malformed→400 `format.openapi.validation` (263B+correlationId+ACAO+ACAC), nil-uuid→404 `NotFoundError "Organization was not found"` (131B+correlationId+ACAO+ACAC); valid-found 200-branch still unobserved.
+- [STABLE] api.sparelabs.com/v1/global/organizations: zero-header → 200 + `{"data":[]}` (11B) + ACAO+ACAC re-confirmed (505ms slow replica).
+
+## STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/global/organizations | 7.15 | attack:7 business:9 tech:5 gate:10(no-auth) cloud:2 fresh:7
+- [PRIO] api.sparelabs.com/v1/public/organizations/{id} | 6.60 | attack:6 business:8 tech:4 gate:10 cloud:2 fresh:8
+- [PRIO] platform.sparelabs.com/login | 5.75 | attack:4 business:6 tech:5 gate:10 cloud:6 fresh:4
+- [PRIO] api.sparelabs.com/v1/public/terms | 4.85 | attack:4 business:5 tech:4 gate:10 cloud:2 fresh:3
+
+## STEP 3 — HYPOTHESES
+[HYP] Write-handler auth on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: zero-header GET → 200+11B+ACAO+ACAC live this cycle (505ms slow replica); OPTIONS 204 on exact route advertises PUT/PATCH/POST/DELETE + ACAC; GET handler has no auth gate at all, so write handlers are the unobserved branch.
+evidence_needed: POST/PUT/PATCH/DELETE no-auth → 2xx/400-schema vs 401/403 on the fail-open route.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED per no_data_modification): `POST https://api.sparelabs.com/v1/global/organizations` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser; CRITICAL if any write responds.
+testability: AUTH_HELPED
+
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 65
+reasoning: 3-way discriminator CONFIRMED live this cycle (400 format.uuid / 404 NotFoundError, ACAO+ACAC on both); handler runs real no-auth org lookup; distinct from degraded singular route; identical signature to previously-accepted oracle whose valid-found branch returned 200+record.
+evidence_needed: real existing org UUID → 200 + org record (name/branding/contacts) without auth.
+verify_steps: HUMAN_ONLY (request program test-org UUID from authorized contact): `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` NO Authorization + `Origin: https://evil.example.com`; cross-check `?organizationId=` on /v1/public/terms.
+impact: unauthenticated tenant org-record disclosure via public namespace; HIGH.
+testability: HUMAN_ONLY
+
+[HYP] Module-registry delta on platform /login root-config may reveal new MFE surfaces
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 45
+reasoning: CSP+manifest disclosed admin-eam-app/admin-fixed-route-app (prod+staging) + Metabase; root-config import-map is the registration point; all admin paths on the host itself are SPA catch-all (rejected), so only NEW registrations add surface.
+evidence_needed: import-map diff vs KB manifest shows new MFE module hosts (in-scope or loadable).
+verify_steps: PASSIVE — re-fetch `https://platform.sparelabs.com/` + root-config (index-*.js) + `platform.sparelabs.com/login` once, diff `import-map`/`module` names against KB list; ≤1 rps.
+impact: early warning of new admin/API surface; LOW (infra-recon only).
+testability: PASSIVE
+
+## STEP 4 — SELF-CRITIQUE
+- [PARKED] MFE rotation prediction: rejected in KB (bundle stable 3+ sessions) — reframed as periodic delta-check only, not a rotation claim.
+- [PARKED] /v1/public/mobileApps/{id} 200-branch: no format discrimination (404 for both variants, confirmed) — not an oracle; merged into the same HUMAN test-UUID request as secondary target, deprioritized behind org UUID.
+- [FINAL] 1) plural /v1/public/organizations/{id} 200-branch (65) | 2) /v1/global/organizations write-handler auth (55, parked on write-approval) | 3) platform module-registry delta (45)
+
+## STEP 5 — NEXT ACTION
+[NEXT] HUMAN: Request ONE program test-org UUID from the authorized contact; then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` AND `GET https://api.sparelabs.com/v1/public/organization/<uuid>` (NO Authorization + `Origin: https://evil.example.com`, ≤1 rps) — closes the last unobserved 200-branch on the highest-confidence live discriminator. (Passive noun/leaf sweep now exhausted; write-verb POST on /v1/global/organizations remains parked pending operator write-approval — CRITICAL if granted.)
+
+## STEP 6 — LEARNING
+- ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: plural-route 3-way discriminator (400 format.uuid / 404 NotFoundError / 200 unobserved) CONFIRMED live this cycle, distinct from degraded singular route.
+- REJECTED AUTH @ api.sparelabs.com/v1/public/riders/{id}: 404 0B both variants — route does not exist, no surface.
+- REJECTED AUTH @ api.sparelabs.com/v1/public/vehicles/{id}: 404 0B both variants — route does not exist, no surface.
+- REJECTED AUTH @ api.sparelabs.com/v1/public/mobileApps/{id}: 404 NotFoundError both variants — no format discrimination, not an oracle.
+- CHANGED @ api.sparelabs.com/v1/public/organization: status-code oracle degraded 3-way→2-way (nil-uuid→400 "not found"); message-level differential vs malformed ("must match format uuid") persists.
+
+## STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 85 — zero-header no-auth bypass (/global/organizations) + scheme-only bypass (/global/regions) + full CORS credential reflection incl. write methods + live 3-way org enumeration oracle + terms data disclosure; all STABLE 84h+.
+- [RISK] platform.sparelabs.com: 45 — pure MFE shell (all admin paths SPA catch-all), but CSP leaks prod+staging admin Vercel apps + Metabase + full cloud infra; no direct in-scope exploit.
+- [RISK] routing.sparelabs.com: 5 — envoy 404 on all paths, dead since 2026-08-07, no surface.
+- [RISK] forms.sparelabs.com: 35 — SPA catch-all only, but JS bundle leaks staging+regional hosts + atlassian.net + ngrok; infra-recon value, no auth bypass.
+- [RISK] web (spare.com/sparelabs.com): 10 — static Webflow marketing, Cloudflare + HSTS, no dynamic surface.
