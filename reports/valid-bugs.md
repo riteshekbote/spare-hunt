@@ -397,3 +397,19 @@
   - VALID (dup):    ~30 (all map to A1–A7)
   - | VALID (new) | 0 | No novel findings |
   - | VALID (dup) | ~30 | All reconfirm A1–A7 |
+
+- 14 lead(s) marked VALID at 2026-08-10 04:24:48 UTC
+  - | Q7 Triager accept? | **YES** — valid CORS misconfig (OWASP A05:2021) |
+  - | Q3 Real impact? | **YES** — full region registry (apiUrl/routingHost mappings, 6 OOS hosts) leaked without valid auth |
+  - | Q3 Real impact? | **MEDIUM** — 3-way differential (400 malformed / 404 valid-unfound / 200 found) confirms org UUID existence |
+  - | Q4 Passive proof? | **YES** — GET with malformed vs valid-format UUIDs |
+  - | Q7 Triager accept? | **YES** (low-end valid) |
+  - | Q2 Attacker-reachable? | **PARTIAL** — portal public, cross-tenant test needs ≥2 valid tokens |
+  - | Q4 Passive proof? | **NO** — requires AUTH_HELPED (valid test token); rules forbid `no_account_creation` without program approval |
+  - | Q6 Not rejected? | **YES** — IDOR is valid class |
+  - **Verdict: HOLD** — Q4 — cross-tenant IDOR test requires ≥2 valid Bearer tokens; no test token available within program rules. Escalate only if program provides test credentials.
+  - | Q2 Attacker-reachable? | **PARTIAL** — path live, 401-gated; needs valid token to test role check |
+  - | Q4 Passive proof? | **NO** — requires AUTH_HELPED (valid non-superAdmin Bearer) |
+  - | Q7 Triager accept? | **Needs AUTH_HELPED** — edge checks token-type presence only; role check on valid token unproven |
+  - **Verdict: HOLD** — Q4 — highest-priority AUTH_HELPED test. With a program-obtained valid tenant/rider token, POST empty body → 2xx proves missing role check (critical); 401/403 means enforced. No tes
+  - | **VALID (new)** | **0** | No novel findings this cycle |
