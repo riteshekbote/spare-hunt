@@ -3061,3 +3061,4 @@ testability: PASSIVE
 [LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — same infra leak (staging+prod+regional + atlassian.net + inactive ngrok).
 [LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surface, NO_DELTA since 2026-08-07.
 [LEARN] REJECTED (pipeline) @ GitHub sparelabs repo scan: 0 code/config files scanned (reposcan-raw/sparelabs dir empty) — no code-surface delta; fix repo clone target before trusting next scan.
+## 2026-08-10 00:06:37 UTC [web] (model laguna)
