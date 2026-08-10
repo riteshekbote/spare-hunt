@@ -473,3 +473,17 @@
   - | A7 | JS bundle leak forms.sparelabs.com | **VALID** (reconf) | CVSS 3.1 — STABLE |
   - | — | No new VALID findings this cycle | — | — |
   - | /v1/global/regions | 200 + 725B (scheme-only) | 400 in latest probes (LB flapping) | STABLE — A2 still valid (intermittent 200/400 from multi-version LB) |
+
+- 12 lead(s) marked VALID at 2026-08-10 20:33:51 UTC
+  - | A1 | CORS reflect-any-origin + credentials on /v1/** (all methods + Authorization header, uniform via envoy) | 8.1 High | VALID — STABLE |
+  - | A2 | Scheme-only auth bypass /v1/global/regions (200 + 725B region registry with garbage Bearer; middleware validates scheme only, never token) | 5.3 Medium | VALID — STABLE |
+  - | A3 | UUID enumeration oracle /v1/public/organization (400 malformed / 404 not-found / 200 found) | 5.3 Medium | VALID — STABLE |
+  - | A4 | /v1/global/organizations fail-open (200 + {"data":[]} + CORS, route-specific) | 5.3 Medium | VALID — STABLE |
+  - | A5 | /v1/public/terms data disclosure (200 + live terms URLs via mobileAppId|organizationId, no auth) | 5.3 Medium | VALID — STABLE |
+  - | Q3 Real impact? | **YES** — full internal infra topology (7 regions, 6 OOS api/routing hosts) disclosed without valid auth |
+  - | Q3 Real impact? | **YES** — enumerate valid org UUIDs without auth |
+  - | Q2 Attacker-reachable? | **PARTIAL** — needs valid Bearer token |
+  - | /v1/global/organizations | 200 {"data":[]} (stable fail-open) | **200 {"data":[]}** (still stable) | No change — A4 remains valid |
+  - | /v1/public/terms | 200 + data | **200 + data** (stable) | No change — A5 remains valid |
+  - | /v1/public/organizations | 400/404 oracle | **400/404 oracle** (stable) | No change — A3 remains valid |
+  - | — | No new VALID findings this cycle | — | — |
