@@ -624,3 +624,8 @@
 - 2026-08-10 REJECTED MISCONFIG @ api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, api.us.sparelabs.com, api-spare.ngrok.io, api-staking.sparelabs.com, admin-spare.ngrok.io: All 404/inactive(OOS)/SPA-404 — remain dead; no independent in-scope exploitation vector.
 - 2026-08-10 REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfig (gladiaio org) persists, 0 files scanned — no code-surface delta; fix repo clone target before trusting next scan.
 - 2026-08-10 REJECTED (web) @ spare.com: spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); minimal static-only surface — no new dynamic logic.
+- 2026-08-10 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass remains STABLE — 200 + 11B + ACAO+ACAC with zero Authorization, OPTIONS advertises write methods (verified 2026-08-10 11:21 UTC).
+- 2026-08-10 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure remains STABLE — Bearer x → 200 + 725B (sha256 fb9800acb…585c3fe), 6 OOS subdomains in body (verified 2026-08-10 11:21 UTC).
+- 2026-08-10 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection remains STABLE — uniform across all /v1 paths including 401/404 (verified 2026-08-10 11:21 UTC).
+- 2026-08-10 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths, NO_DELTA since 2026-08-07.
+- 2026-08-10 REJECTED MISCONFIG @ platform.sparelabs.com (admin paths /admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metrics): All return SPA catch-all 200 text/html — no real API surface behind platform host, MFE shell only.
