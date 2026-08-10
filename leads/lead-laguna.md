@@ -3522,3 +3522,4 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 58 | Medium — SPA 200 (envoy+Google CDN, strict HTML CSP + x-frame DENY); JS bundle main.71d52314.js stable, infra-recon value only (staging+prod+regional + atlassian.net/JIRA + inactive ngrok); all 8 API paths → SPA catch-all; no direct auth bypass; NO_DELTA.
 [RISK] web (spare.com/sparelabs.com): 38 | Low — spare.com apex 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; www.spare.com 301 excluded (OOS); minimal static-only surface, no dynamic logic/auth/user-input; STABLE.
 ## 2026-08-10 20:20:21 UTC [web] (model laguna)
+## 2026-08-10 21:13:09 UTC [web] (model laguna)
