@@ -3209,3 +3209,59 @@ verify_steps: AUTH_HELPED (operator write-approval REQUIRED — no_data_modifica
 impact: unauthenticated cross-origin region/config tampering via victim browser; CRITICAL if mutating responds.
 testability: AUTH_HELPED
 [NEXT] HUMAN: Request program test mobileApp UUID AND test-org UUID from the authorized contact (GET-only, passive-compliant), then GET `https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` AND `https://api.sparelabs.com/v1/public/mobileApps/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → a 200 + record on either closes the sole unobserved data-bearing 200-branch of the auth-free public family and proves HIGH unauthenticated tenant-record disclosure (no passive fallback exists — bundles are nil-UUID-only, mobileApps shows no format discrimination). If the operator grants write-method approval first, run the conf-60 inert no-body `POST /v1/global/organizations` probe instead (AUTH_HELPED).
+## 2026-08-10 08:52:40 UTC [api] (model bigpickle)
+[HYP] Cross-origin write on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 60
+reasoning: Zero-header GET → 200 + 11B + ACAO+ACAC re-confirmed live 07:00 UTC (1.29s slow replica); OPTIONS 204 previously confirmed PUT/PATCH/POST/DELETE + ACAC on the exact fail-open path; write verbs never probed.
+evidence_needed: POST/PUT/PATCH/DELETE no-auth → 2xx/400-schema vs 401/403 on the fail-open route.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED — program rule no_data_modification): `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + NO Authorization, inert empty body → observe status/body.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser (preflight gate closed by ACAO+ACAC); CRITICAL if a write responds.
+testability: AUTH_HELPED
+[HYP] Real-UUID returns data-bearing record on public namespace leaves
+class: AUTH
+asset: api.sparelabs.com/v1/public/organization?organizationId= AND /v1/public/mobileApps/{id}
+confidence: 50
+reasoning: mobileApps leaf live at 404 (no format discrimination); organization leaf differential confirmed live 07:00 UTC (nil→404, malformed→400); 200-branch never observed — UUID space not passively enumerable (bundles are nil-UUID-only).
+evidence_needed: real existing org/mobileApp UUID → 200 + record (name/branding/contacts) no-auth on either route.
+verify_steps: HUMAN_ONLY: request program test mobileApp AND test-org UUID from authorized contact → GET `https://api.sparelabs.com/v1/public/organization?organizationId=<uuid>` AND `https://api.sparelabs.com/v1/public/mobileApps/<uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record.
+impact: unauthenticated tenant org/app-record disclosure from public namespace; HIGH.
+testability: HUMAN_ONLY
+[HYP] Write escalation on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: `Bearer x` → 200 + 725B + ACAO+ACAC re-confirmed live 07:00 UTC (0.12s fast replica); gate is header+scheme presence-only, token never validated; same presence-only omission family hosts the zero-header /organizations bypass → write handlers may be registered auth-free.
+evidence_needed: PUT/PATCH/POST/DELETE /v1/global/regions (or /{id}) no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED — no_data_modification): `PUT https://api.sparelabs.com/v1/global/regions` with NO Authorization → observe 2xx vs 401/403.
+impact: unauthenticated cross-origin region/config tampering via victim browser; CRITICAL if mutating responds.
+testability: AUTH_HELPED
+[NEXT] HUMAN: Request program test mobileApp UUID AND test-org UUID from the authorized contact (GET-only, passive-compliant), then GET `https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` AND `https://api.sparelabs.com/v1/public/mobileApps/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → a 200 + record on either closes the sole unobserved data-bearing 200-branch of the auth-free public family and proves HIGH unauthenticated tenant-record disclosure (no passive fallback exists — bundles are nil-UUID-only, mobileApps shows no format discrimination). If the operator grants write-method approval first, run the conf-60 inert no-body `POST /v1/global/organizations` probe instead (AUTH_HELPED).
+[HYP] Cross-origin write on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 60
+reasoning: Zero-header GET → 200 + 11B + ACAO+ACAC re-confirmed live this session (1.09s slow replica); OPTIONS 204 this session re-confirms PUT/PATCH/POST/DELETE + ACAC on exact fail-open path; write verbs never probed.
+evidence_needed: POST/PUT/PATCH/DELETE no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED (program write-approval REQUIRED — no_data_modification): `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization → observe status/body.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser (preflight gate closed by ACAO+ACAC); CRITICAL if a write responds.
+testability: AUTH_HELPED
+[HYP] Write escalation on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: `Bearer x` → 200 + 725B + ACAO+ACAC re-confirmed live this session (150ms); gate is header+scheme presence-only, token never validated; same omission family hosts the zero-header /organizations bypass → write handlers may be registered auth-free.
+evidence_needed: PUT/PATCH/POST/DELETE /v1/global/regions (or /{id}) no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `PUT https://api.sparelabs.com/v1/global/regions` with NO Authorization → observe 2xx vs 401/403.
+impact: unauthenticated cross-origin region/config tampering via victim browser; CRITICAL if mutating responds.
+testability: AUTH_HELPED
+[HYP] Real-UUID returns data-bearing record on /v1/public/mobileApps/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/mobileApps/{id}
+confidence: 45
+reasoning: nil-uuid → 404 NotFoundError (128B) + ACAO+ACAC re-confirmed live this session → leaf live and auth-free; 200-branch never observed; UUID space not passively enumerable (bundles nil-UUID-only, no format discrimination).
+evidence_needed: real existing mobileApp UUID → 200 + app/org record no-auth.
+verify_steps: HUMAN_ONLY: request program test mobileApp UUID from authorized contact → GET `https://api.sparelabs.com/v1/public/mobileApps/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record.
+impact: unauthenticated tenant app/org-record disclosure from public namespace; HIGH.
+testability: HUMAN_ONLY

@@ -327,3 +327,5 @@
 - NEW forms.sparelabs.com: All 8 API paths (/api/health, /api/v1, /graphql, /webhooks, /export, /status, /config, /v1) return 200 + `text/html` (index.html) — confirmed SPA catch-all, no real API surface (2
 
 ## 2026-08-10 07:03:56 UTC
+
+## 2026-08-10 08:52:58 UTC

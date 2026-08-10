@@ -604,3 +604,8 @@
 - 2026-08-10 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE live this turn — `?mobileAppId=nil-uuid` → 200 + 137B (termsOfUseUrl→sparelabs.com/terms-of-use/, privacyPolicyUrl→sparelabs.com/privacy-policy/) no-auth + CORS
 - 2026-08-10 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE on OPTIONS 204 /v1/global/regions
 - 2026-08-10 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/, /v1/, /api/, /routing/, /v2/, /graphql, /map, /directions, /router, /api/v1, /api/routing, /openapi.json, /swagger.json, /docs, /health, /status); no surface, NO_DELTA since 2026-08-07
+- 2026-08-10 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS) + ACAO+ACAC; body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe
+- 2026-08-10 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass STABLE — 200 + 11B `{"data":[]}` + ACAO+ACAC with NO Authorization header
+- 2026-08-10 ACCEPTED AUTH @ api.sparelabs.com/v1/public/organization: 3-way UUID oracle STABLE — malformed→400 ValidationError (285B), nil-uuid→404 NotFoundError (131B), 3-way differential intact
+- 2026-08-10 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — `?mobileAppId=nil-uuid` → 200 + 137B (termsOfUseUrl→sparelabs.com/terms-of-use/, privacyPolicyUrl→sparelabs.com/privacy-policy/) no-auth + CORS
+- 2026-08-10 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths; no surface, NO_DELTA since 2026-08-07

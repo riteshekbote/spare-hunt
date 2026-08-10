@@ -1776,3 +1776,14 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE live this turn — `?mobileAppId=nil-uuid` → 200 + 137B (termsOfUseUrl→sparelabs.co
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE on 
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/, /v1/, /api/, /routing/, /v2/, /graphql, /map, /directions, /router, /
+
+## RANKED HYPOTHESES 2026-08-10 08:52:58 UTC
+- [98] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read/write CORS chain on fail-open organization controller (from reports/hypotheses-nemotron3.txt)
+- [60] api.sparelabs.com/v1/global/organizations: Cross-origin write on complete zero-header bypass /v1/global/organizations (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-bigpickle.txt): HUMAN: Request program test mobileApp UUID AND test-org UUID from the authorized contact (GET-only, passive-compliant), then GET `https://api.sparelabs.com/v1/p
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS) + ACAO+ACAC; body sh
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass STABLE — 200 + 11B `{"data":[]}` + ACAO+ACAC with NO Authorizatio
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organization: 3-way UUID oracle STABLE — malformed→400 ValidationError (285B), nil-uuid→404 NotFoundError (131B), 3-
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — `?mobileAppId=nil-uuid` → 200 + 137B (termsOfUseUrl→sparelabs.com/terms-of-use/
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE on 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths; no surface, NO_DELTA since 2026-08-07
