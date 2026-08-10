@@ -487,3 +487,16 @@
   - | /v1/public/terms | 200 + data | **200 + data** (stable) | No change — A5 remains valid |
   - | /v1/public/organizations | 400/404 oracle | **400/404 oracle** (stable) | No change — A3 remains valid |
   - | — | No new VALID findings this cycle | — | — |
+
+- 11 lead(s) marked VALID at 2026-08-10 21:33:42 UTC
+  - valid-bugs.md
+  - ### Verdict: **VALID**
+  - ### Verdict: **VALID** (as a reliable auth-bypass with current data-light impact)
+  - | Q4 Passive proof | ✅ YES — `Authorization: Bearer x` is a valid GET |
+  - ### Verdict: **VALID** ⭐ (strongest standalone auth-bypass finding)
+  - ### Verdict: **VALID**
+  - ### Verdict: **VALID** (as part of the unauthenticated surface cluster)
+  - ### Verdict: **VALID** (as reconnaissance/infrastructure inventory disclosure)
+  - ### Verdict: **VALID** (as infrastructure reconnaissance)
+  - | api.sparelabs.com/v1/auth/token/superAdmin role-check bypass | **HOLD** | Requires AUTH_HELPED (valid token); auth-gated at edge per probe; unproven |
+  - | Engage portal IDOR (cross-tenant journey/booking) | **HOLD** | Requires AUTH_HELPED (valid rider token); object-level auth unproven |
