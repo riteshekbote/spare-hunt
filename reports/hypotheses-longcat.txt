@@ -1,4 +1,4 @@
-## 2026-08-10 10:07:55 UTC [routing] (model longcat)
+## 2026-08-10 11:20:39 UTC [routing] (model longcat)
 [PRIO] api.sparelabs.com/v1/global/organizations — 6.90 (attack:8 business:7 tech:7 gate:10 cloud:4 fresh:2)
 [PRIO] api.sparelabs.com/v1/** (CORS reflection) — 6.10 (attack:9 business:5 tech:8 gate:6 cloud:3 fresh:2)
 [PRIO] platform.sparelabs.com/login (CSP leak) — 6.05 (attack:6 business:7 tech:5 gate:9 cloud:5 fresh:2)
@@ -8,34 +8,34 @@
 class: AUTH
 asset: api.sparelabs.com/v1/global/organizations
 confidence: 55
-reasoning: OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on exact fail-open route. GET returns 200+11B with zero Authorization header. CORS chain (A1) + zero-header bypass (A4) both accepted. Write handler execution never tested — if POST/PUT process bodies without auth, cross-origin state mutation is possible via victim browser.
-evidence_needed: OPTIONS 204 + ACAO+ACAC + write-methods on /v1/global/organizations (passive preflight chain); 2xx on POST requires AUTH_HELPED
-verify_steps: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type" https://api.sparelabs.com/v1/global/organizations` ; body write test requires AUTH_HELPED
+reasoning: OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on exact fail-open route. GET returns 200+11B with zero Authorization header. CORS chain (A1) + zero-header bypass (A4) both accepted. Write handler execution never tested — if POST/PUT process bodies without auth, cross-origin state mutation possible via victim browser.
+evidence_needed: OPTIONS 204 + ACAO+ACAC + write-methods on /v1/global/organizations (passive preflight); 2xx on POST requires AUTH_HELPED
+verify_steps: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization,Content-Type" https://api.sparelabs.com/v1/global/organizations`
 impact: Cross-origin state modification (create/update/delete org records) without auth via victim admin browser; elevates accepted read bypass to write
 testability: PASSIVE (OPTIONS re-confirm) / AUTH_HELPED (body send)
-[HYP] /v1/public/mobileApps/{id} auth-free data-bearing branch
+[HYP] /v1/public/mobileApps/{id} UUID enumeration oracle parallel to org oracle
 class: AUTH
 asset: api.sparelabs.com/v1/public/mobileApps/{id}
 confidence: 45
-reasoning: New endpoint discovered 2026-08-10 — nil-uuid returns 404 (auth-free, route registered, real DB lookup) but 200-branch never observed. Parallel to org UUID oracle (A3) but for mobileApp namespace. No format discrimination observed yet.
-evidence_needed: 200 response with real mobileApp UUID or UUID-format discrimination (400 vs 404)
-verify_steps: `curl -s -o /dev/null -w "%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps/not-a-uuid"` AND `curl -s -o /dev/null -w "%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps/00000000-0000-0000-0000-000000000000"`
+reasoning: /v1/public/mobileApps/00000000-0000-0000-0000-000000000000 returns 404 auth-free (route registered, real DB lookup). /v1/public/organization has confirmed 3-way UUID oracle (400/404/200). If mobileApp namespace mirrors org, a parallel oracle exists. No 200-branch observed yet.
+evidence_needed: 200 response with real mobileApp UUID or format discrimination (400 malformed vs 404 not-found)
+verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps/not-a-uuid"` ; `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps/00000000-0000-0000-0000-000000000000"`
 impact: mobileApp record disclosure or new UUID enumeration oracle; enables pivot to authenticated mobileApp-scoped endpoints
 testability: PASSIVE (real-UUID branch needs HUMAN_ONLY)
-[HYP] /v1/global/organizations/tenants data-bearing subroute on fail-open controller
-class: AUTH
-asset: api.sparelabs.com/v1/global/organizations/tenants
-confidence: 40
-reasoning: New subroute on already-vulnerable controller (A4). Returns 400 (route registered, requires params). May accept UUID param and return tenant records without auth — parallel to /v1/global/organizations/{id} which returned 404 auth-free.
-evidence_needed: non-400 response (200/404-with-body) with valid org UUID param
-verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/global/organizations/tenants?organizationId=00000000-0000-0000-0000-000000000000"`
-impact: Tenant-record disclosure without auth; expands A4 controller exposure
-testability: PASSIVE (data-bearing branch needs AUTH_HELPED)
-[PARKED] Cross-origin write execution on /v1/global/organizations: confidence 55 — passive verification only re-confirms already-documented OPTIONS surface (A1 CORS + A4 zero-header both accepted). Actual write processing requires active body send (non-passive, AUTH_HELPED). Downgraded to informational.
-[PARKED] /v1/public/mobileApps/{id} auth-free data-bearing branch: confidence 45 — 404 alone not a vulnerability; no 200-branch observed; real-UUID branch needs HUMAN_ONLY. Downgraded to HOLD.
-[PARKED] /v1/global/organizations/tenants data-bearing subroute: confidence 40 — 400 alone not a vulnerability; data-bearing unproven; parallel to already-documented A4 subroutes. Downgraded to HOLD.
+[HYP] routing.sparelabs.com deep-path re-check via alternate ingress
+class: BUSLOGIC
+asset: routing.sparelabs.com
+confidence: 15
+reasoning: routing.sparelabs.com has been envoy 404 on ALL paths for 3+ days. No alternate ingress (cdn, api-gateway, subdomain variant) has been tested. If the routing API lives behind a different host (e.g., via api.sparelabs.com/v1/routing/*), the asset may be reachable indirectly. Confidence low given 3+ days negative evidence.
+evidence_needed: 2xx/3xx/401 (not 404) on any routing host/path variant
+verify_steps: `curl -s -o /dev/null -w "%{http_code}" https://api.sparelabs.com/v1/routing/status` ; `curl -s -o /dev/null -w "%{http_code}" https://api.sparelabs.com/v1/directions`
+impact: If routing API is reachable behind api host, full routing/auth surface opens (in-scope high-value target)
+testability: PASSIVE
+[PARKED] Cross-origin write execution on /v1/global/organizations: confidence 55 — passive verification only re-confirms already-documented OPTIONS surface (A1 CORS + A4 zero-header both accepted). Actual write processing requires active body send (non-passive, AUTH_HELPED). Downgraded to informational escalation note on A4 — not a new finding.
+[PARKED] /v1/public/mobileApps/{id} UUID enumeration oracle: confidence 45 — 404 alone not a vulnerability; no 200-branch observed; real-UUID branch needs HUMAN_ONLY. Downgraded to HOLD.
+[PARKED] routing.sparelabs.com deep-path re-check: confidence 15 — below threshold. Already rejected BUSLOGIC on routing since 2026-08-07 with 40+ negative probes. Downgraded to dead-asset confirmation.
 [FINAL] No surviving hypotheses above confidence 40 with passive proof path. All 7 accepted findings (A1–A7) remain the complete valid surface. No new reportable findings this cycle.
-[NEXT] PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type" https://api.sparelabs.com/v1/global/organizations` — re-confirm write CORS chain convergence (DELETE method advertised with ACAO+ACAC on exact fail-open route). This closes the read→write escalation gap via passive OPTIONS alone, elevating A4 from "read-only empty payload" to "full read+write CORS surface" without requiring AUTH_HELPED body send. If ACAO+ACAC + DELETE confirmed, report as escalation note on A4.
+[NEXT] PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization,Content-Type" https://api.sparelabs.com/v1/global/organizations` — re-confirm write CORS chain convergence (POST method advertised with ACAO+ACAC on exact fail-open route). If ACAO+ACAC + POST confirmed, add escalation note to A4 (read→write surface) without requiring AUTH_HELPED body send.
 [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type on OPTIONS 204 + GET (200/401/400) uniformly across /v1 — re-confirmed 84h+ stable
 [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS) + ACAO+ACAC; body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe
 [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass STABLE — 200 + 11B `{"data":[]}` + ACAO+ACAC with NO Authorization header; OPTIONS 204 confirms PUT/PATCH/POST/DELETE advertised

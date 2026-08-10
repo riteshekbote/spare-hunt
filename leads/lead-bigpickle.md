@@ -3304,3 +3304,32 @@ testability: HUMAN_ONLY
 [RISK] routing.sparelabs.com: 15 — envoy 404 on all probed paths, no discoverable surface.
 [RISK] forms.sparelabs.com: 40 — JS bundle leaks staging+prod+regional infra + JIRA + ngrok tunnel; SPA catch-all only, no API surface, no auth bypass.
 [RISK] web (spare.com/sparelabs.com): 15 — static Webflow marketing (Cloudflare, HSTS, frame-ancestors 'self'), minimal surface, no infra leaks.
+## 2026-08-10 11:21:14 UTC [api] (model bigpickle)
+[HYP] Cross-origin write on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 60
+reasoning: zero-header GET → 200 + 11B `{"data":[]}` + ACAO+ACAC stable across all sessions; OPTIONS 204 on exact path advertises PUT/PATCH/POST/DELETE + ACAC; write verbs never probed (KB parks write probes pending approval).
+evidence_needed: POST/PUT/PATCH/DELETE no-auth → 2xx/400-schema vs 401/403 on fail-open route.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED — program no_data_modification): `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization → observe status/body.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser (preflight gate closed by ACAO+ACAC); CRITICAL if a write responds.
+testability: AUTH_HELPED
+[HYP] Write escalation on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: `Bearer x` → 200 + 725B + ACAO+ACAC (gate is header+scheme presence-only, token never validated); same omission family hosts the zero-header bypass on /organizations → write handlers may be registered auth-free.
+evidence_needed: PUT/PATCH/POST/DELETE /v1/global/regions (or /{id}) no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `PUT https://api.sparelabs.com/v1/global/regions` with NO Authorization → observe 2xx vs 401/403.
+impact: unauthenticated cross-origin region/config tampering via victim browser; CRITICAL if mutating responds.
+testability: AUTH_HELPED
+[HYP] Data-bearing 200-branch on /v1/public/* leaves
+class: AUTH
+asset: api.sparelabs.com/v1/public/{organization,mobileApps}
+confidence: 50
+reasoning: nil-uuid → 404 NotFoundError (131B) + ACAO+ACAC, malformed → 400 ValidationError — leaves live and auth-free; 200-branch never observed; UUID space not passively enumerable (bundles nil-UUID-only, no format discrimination).
+evidence_needed: real existing org/mobileApp UUID → 200 + record (name/branding/contacts) no-auth.
+verify_steps: HUMAN_ONLY: request program test mobileApp AND test-org UUID from authorized contact (GET-only, passive-compliant) → GET `https://api.sparelabs.com/v1/public/organization?organizationId=<uuid>` AND `https://api.sparelabs.com/v1/public/mobileApps/<uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record.
+impact: unauthenticated tenant org/app-record disclosure from public namespace; HIGH.
+testability: HUMAN_ONLY
+[NEXT] PROBE: Passive GET enumeration of the /v1/public namespace (GET-only, ≤1 rps, `Origin: https://evil.example.com`), the only in-scope namespace proven to return data without auth: `/v1/public/regions`, `/v1/public/config`, `/v1/public/countries`, `/v1/public/currencies`, `/v1/public/mobile-apps`, `/v1/public/branding`, `/v1/public/settings`, with `/v1/public/organizations` (known 400) as control — observe status + body + ACAO/ACAC; any 200 with a non-empty body = new auth-free data-bearing endpoint. Write probes (org/regions) remain parked pending operator approval per program no_data_modification.
