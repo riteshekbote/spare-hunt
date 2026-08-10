@@ -413,3 +413,16 @@
   - | Q7 Triager accept? | **Needs AUTH_HELPED** — edge checks token-type presence only; role check on valid token unproven |
   - **Verdict: HOLD** — Q4 — highest-priority AUTH_HELPED test. With a program-obtained valid tenant/rider token, POST empty body → 2xx proves missing role check (critical); 401/403 means enforced. No tes
   - | **VALID (new)** | **0** | No novel findings this cycle |
+
+- 11 lead(s) marked VALID at 2026-08-10 06:00:07 UTC
+  - | A1 | CORS reflect-any-origin + credentials on entire /v1/** (all methods + Authorization header, uniform envoy middleware) | 8.1 High (AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N) | VALID — STABLE 72h+ |
+  - | A2 | Scheme-only auth bypass /v1/global/regions (200 + 725B region registry with garbage Bearer; middleware validates scheme only, never token) | 5.3 Medium (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | V
+  - | A3 | UUID enumeration oracle /v1/public/organization (400 malformed / 404 not-found / 200 found) | 5.3 Medium (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE |
+  - | A4 | /v1/global/organizations fail-open (200 + {"data":[]} + CORS, route-specific, zero-header) | 5.3 Medium (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE (intermittent 400 from LB flapping
+  - | A5 | /v1/public/terms data disclosure (200 + live terms URLs via mobileAppId/organizationId, no auth + CORS) | 5.3 Medium (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE |
+  - | A6 | CSP + MFE manifest infra leak platform.sparelabs.com/login (prod+staging admin Vercel apps + Metabase + full cloud infra) | 3.1 Low (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE |
+  - | A7 | JS bundle staging infra leak forms.sparelabs.com (main.71d52314.js — staging+prod+regional + atlassian + inactive ngrok) | 3.1 Low (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE |
+  - **Verdict: Already VALID (reconfirmation only — no delta).** No new report needed.
+  - | L6: Laguna reconfirmation batch | **Already VALID** | Maps to A1-A5, no delta |
+  - **VALID (new):** 0
+  - **VALID (reconfirmation):** 7 (A1-A7)
