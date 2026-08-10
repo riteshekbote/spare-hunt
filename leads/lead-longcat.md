@@ -289,3 +289,54 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: **5** — envoy 404 on ALL paths, no discoverable surface, effectively dead across 3+ days of continuous probing
 [RISK] forms.sparelabs.com: **35** — JS bundle main.71d52314.js leaks staging+prod+regional infra (api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com, atlassian.net, ngrok.io); SPA catch-all confirmed no direct API attack surface; infra-recon value only
 [RISK] web (spare.com/sparelabs.com): **10** — static Webflow marketing on Cloudflare, strict CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks; minimal static-only surface
+## 2026-08-10 10:07:55 UTC [routing] (model longcat)
+[PRIO] api.sparelabs.com/v1/global/organizations — 6.90 (attack:8 business:7 tech:7 gate:10 cloud:4 fresh:2)
+[PRIO] api.sparelabs.com/v1/** (CORS reflection) — 6.10 (attack:9 business:5 tech:8 gate:6 cloud:3 fresh:2)
+[PRIO] platform.sparelabs.com/login (CSP leak) — 6.05 (attack:6 business:7 tech:5 gate:9 cloud:5 fresh:2)
+[PRIO] api.sparelabs.com/v1/global/regions — 5.95 (attack:7 business:6 tech:6 gate:8 cloud:4 fresh:2)
+[PRIO] api.sparelabs.com/v1/public/organization — 5.40 (attack:6 business:5 tech:5 gate:10 cloud:2 fresh:2)
+[HYP] Cross-origin write execution on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on exact fail-open route. GET returns 200+11B with zero Authorization header. CORS chain (A1) + zero-header bypass (A4) both accepted. Write handler execution never tested — if POST/PUT process bodies without auth, cross-origin state mutation is possible via victim browser.
+evidence_needed: OPTIONS 204 + ACAO+ACAC + write-methods on /v1/global/organizations (passive preflight chain); 2xx on POST requires AUTH_HELPED
+verify_steps: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type" https://api.sparelabs.com/v1/global/organizations` ; body write test requires AUTH_HELPED
+impact: Cross-origin state modification (create/update/delete org records) without auth via victim admin browser; elevates accepted read bypass to write
+testability: PASSIVE (OPTIONS re-confirm) / AUTH_HELPED (body send)
+[HYP] /v1/public/mobileApps/{id} auth-free data-bearing branch
+class: AUTH
+asset: api.sparelabs.com/v1/public/mobileApps/{id}
+confidence: 45
+reasoning: New endpoint discovered 2026-08-10 — nil-uuid returns 404 (auth-free, route registered, real DB lookup) but 200-branch never observed. Parallel to org UUID oracle (A3) but for mobileApp namespace. No format discrimination observed yet.
+evidence_needed: 200 response with real mobileApp UUID or UUID-format discrimination (400 vs 404)
+verify_steps: `curl -s -o /dev/null -w "%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps/not-a-uuid"` AND `curl -s -o /dev/null -w "%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps/00000000-0000-0000-0000-000000000000"`
+impact: mobileApp record disclosure or new UUID enumeration oracle; enables pivot to authenticated mobileApp-scoped endpoints
+testability: PASSIVE (real-UUID branch needs HUMAN_ONLY)
+[HYP] /v1/global/organizations/tenants data-bearing subroute on fail-open controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations/tenants
+confidence: 40
+reasoning: New subroute on already-vulnerable controller (A4). Returns 400 (route registered, requires params). May accept UUID param and return tenant records without auth — parallel to /v1/global/organizations/{id} which returned 404 auth-free.
+evidence_needed: non-400 response (200/404-with-body) with valid org UUID param
+verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/global/organizations/tenants?organizationId=00000000-0000-0000-0000-000000000000"`
+impact: Tenant-record disclosure without auth; expands A4 controller exposure
+testability: PASSIVE (data-bearing branch needs AUTH_HELPED)
+[PARKED] Cross-origin write execution on /v1/global/organizations: confidence 55 — passive verification only re-confirms already-documented OPTIONS surface (A1 CORS + A4 zero-header both accepted). Actual write processing requires active body send (non-passive, AUTH_HELPED). Downgraded to informational.
+[PARKED] /v1/public/mobileApps/{id} auth-free data-bearing branch: confidence 45 — 404 alone not a vulnerability; no 200-branch observed; real-UUID branch needs HUMAN_ONLY. Downgraded to HOLD.
+[PARKED] /v1/global/organizations/tenants data-bearing subroute: confidence 40 — 400 alone not a vulnerability; data-bearing unproven; parallel to already-documented A4 subroutes. Downgraded to HOLD.
+[FINAL] No surviving hypotheses above confidence 40 with passive proof path. All 7 accepted findings (A1–A7) remain the complete valid surface. No new reportable findings this cycle.
+[NEXT] PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type" https://api.sparelabs.com/v1/global/organizations` — re-confirm write CORS chain convergence (DELETE method advertised with ACAO+ACAC on exact fail-open route). This closes the read→write escalation gap via passive OPTIONS alone, elevating A4 from "read-only empty payload" to "full read+write CORS surface" without requiring AUTH_HELPED body send. If ACAO+ACAC + DELETE confirmed, report as escalation note on A4.
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type on OPTIONS 204 + GET (200/401/400) uniformly across /v1 — re-confirmed 84h+ stable
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS) + ACAO+ACAC; body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass STABLE — 200 + 11B `{"data":[]}` + ACAO+ACAC with NO Authorization header; OPTIONS 204 confirms PUT/PATCH/POST/DELETE advertised
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/organization: 3-way UUID oracle STABLE — malformed→400 ValidationError "must match format uuid" (285B + correlationId); nil-uuid→404 NotFoundError (131B + correlationId)
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — `?mobileAppId=<nil-uuid>` → 200 + 137B (termsOfUseUrl→sparelabs.com/terms-of-use/, privacyPolicyUrl→sparelabs.com/privacy-policy/) no-auth + CORS
+[LEARN] ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — prod admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (both 200) + staging variants + Metabase prod+staging (200) + Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit in CSP
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — leaking api.staging.sparelabs.com + api.staging.us.sparelabs.com + forms.staging.sparelabs.com + forms.staging.us.sparelabs.com + atlassian.net + ngrok.io
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths; no surface, NO_DELTA since 2026-08-07
+[RISK] api.sparelabs.com: **90** — multiple confirmed auth bypasses (zero-header + scheme-only), universal CORS credential reflection across all /v1, UUID oracle, data disclosure, multi-version LB flapping; highest exposure in program with 3 distinct AUTH/MISCONFIG classes accepted stable 84h+; chain amplification (CORS + auth bypass + org enum) enables full cross-origin data exfil + potential state mutation
+[RISK] platform.sparelabs.com: **55** — CSP infra leak exposes production admin Vercel apps + staging + Metabase + full cloud infra (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit); admin surface reachable but OOS third-party hosts limit direct exploitation; SPA catch-all confirmed no direct API surface
+[RISK] routing.sparelabs.com: **5** — envoy 404 on ALL paths, no discoverable surface, effectively dead across 3+ days of continuous probing
+[RISK] forms.sparelabs.com: **35** — JS bundle main.71d52314.js leaks staging+prod+regional infra (api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com, atlassian.net, ngrok.io); SPA catch-all confirmed no direct API attack surface; infra-recon value only
+[RISK] web (spare.com/sparelabs.com): **10** — static Webflow marketing on Cloudflare, strict CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks; minimal static-only surface

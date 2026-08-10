@@ -3265,3 +3265,42 @@ evidence_needed: real existing mobileApp UUID → 200 + app/org record no-auth.
 verify_steps: HUMAN_ONLY: request program test mobileApp UUID from authorized contact → GET `https://api.sparelabs.com/v1/public/mobileApps/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record.
 impact: unauthenticated tenant app/org-record disclosure from public namespace; HIGH.
 testability: HUMAN_ONLY
+## 2026-08-10 10:05:42 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/global/organizations: score 7.2 — attack 8, business 9, tech 5, gate 10, cloud 5, fresh 2 (zero-header bypass + full read/write CORS chain, sole unprobed write surface)
+[PRIO] api.sparelabs.com/v1/global/regions: score 6.0 — attack 7, business 6, tech 5, gate 8, cloud 6, fresh 2 (scheme-only bypass discloses 725B region registry incl. 6 OOS hosts; write handlers unprobed)
+[PRIO] api.sparelabs.com/v1/public/{terms,organization,mobileApps}: score 5.9 — attack 6, business 7, tech 4, gate 9, cloud 4, fresh 3 (auth-free data disclosure + 3-way UUID oracle; data-bearing 200-branch unobserved)
+[HYP] Cross-origin write on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 60
+reasoning: zero-header GET → 200 + 11B `{"data":[]}` + ACAO+ACAC stable across all sessions; OPTIONS 204 on exact path advertises PUT/PATCH/POST/DELETE + ACAC; write verbs never probed (KB confirms prior write hypotheses PARKED pending approval).
+evidence_needed: POST/PUT/PATCH/DELETE no-auth → 2xx/400-schema vs 401/403 on fail-open route.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED — program no_data_modification): `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization → observe status/body.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser (preflight gate closed by ACAO+ACAC); CRITICAL if a write responds.
+testability: AUTH_HELPED
+[HYP] Write escalation on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 50
+reasoning: `Bearer x` → 200 + 725B + ACAO+ACAC (gate is header+scheme presence-only, token never validated); same omission family hosts the zero-header bypass on /organizations → write handlers may be registered auth-free.
+evidence_needed: PUT/PATCH/POST/DELETE /v1/global/regions (or /{id}) no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `PUT https://api.sparelabs.com/v1/global/regions` with NO Authorization → observe 2xx vs 401/403.
+impact: unauthenticated cross-origin region/config tampering via victim browser; CRITICAL if mutating responds.
+testability: AUTH_HELPED
+[HYP] Real-UUID returns data-bearing record on public namespace leaves
+class: AUTH
+asset: api.sparelabs.com/v1/public/organization?organizationId= AND /v1/public/mobileApps/{id}
+confidence: 50
+reasoning: nil-uuid → 404 NotFoundError (131B) + ACAO+ACAC, malformed → 400 ValidationError — leaves live and auth-free; 200-branch never observed; UUID space not passively enumerable (bundles nil-UUID-only, no format discrimination).
+evidence_needed: real existing org/mobileApp UUID → 200 + record (name/branding/contacts) no-auth on either route.
+verify_steps: HUMAN_ONLY: request program test mobileApp AND test-org UUID from authorized contact (GET-only, passive-compliant) → GET `https://api.sparelabs.com/v1/public/organization?organizationId=<uuid>` AND `https://api.sparelabs.com/v1/public/mobileApps/<uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record.
+impact: unauthenticated tenant org/app-record disclosure from public namespace; HIGH.
+testability: HUMAN_ONLY
+[PARKED] None — all three hypotheses ≥40 confidence, none on the knowledge REJECTED list, all with concrete verify_steps. The nemotron3 [98] "complete zero-header no-auth bypass + full read/write CORS chain" is already ACCEPTED in KB, so it is folded into the conf-60 write-surface hypothesis (only the write branch remains unproven) rather than emitted standalone.
+[FINAL] 1) Cross-origin write on /v1/global/organizations (60) 2) Write escalation on /v1/global/regions (50) 3) Real-UUID data-bearing record on public leaves (50)
+[NEXT] HUMAN: Request program test mobileApp UUID AND test-org UUID from the authorized contact (GET-only, passive-compliant), then GET `https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` AND `https://api.sparelabs.com/v1/public/mobileApps/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → a 200 + record on either closes the sole unobserved data-bearing 200-branch of the auth-free public family and proves HIGH unauthenticated tenant-record disclosure (no passive fallback exists). If the operator grants write-method approval first, run the conf-60 inert no-body `POST /v1/global/organizations` probe instead (AUTH_HELPED).
+[RISK] api.sparelabs.com: 85 — CORS credential reflection on all /v1 + complete zero-header no-auth bypass (/organizations) + scheme-only bypass (/regions) + auth-free public data disclosure + 3-way UUID oracle; full read+write CORS chain present though empty payload caps current exploitability.
+[RISK] platform.sparelabs.com: 55 — CSP infra leak (prod+staging admin Vercel apps + Metabase + full cloud stack); strict HTML CSP + x-frame SAMEORIGIN, pure MFE SPA shell, no auth bypass.
+[RISK] routing.sparelabs.com: 15 — envoy 404 on all probed paths, no discoverable surface.
+[RISK] forms.sparelabs.com: 40 — JS bundle leaks staging+prod+regional infra + JIRA + ngrok tunnel; SPA catch-all only, no API surface, no auth bypass.
+[RISK] web (spare.com/sparelabs.com): 15 — static Webflow marketing (Cloudflare, HSTS, frame-ancestors 'self'), minimal surface, no infra leaks.
