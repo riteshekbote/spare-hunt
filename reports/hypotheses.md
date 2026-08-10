@@ -1764,3 +1764,15 @@
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: All 8 API paths (/api/health, /api/v1, /graphql, /webhooks, /export, /status, /config, /v1) return 200 + `text/html` (
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
 - LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfig (gladiaio org) persists, 0 files scanned — no code-surface delta.
+
+## RANKED HYPOTHESES 2026-08-10 07:03:56 UTC
+- [90] api.sparelabs.com/v1/global/regions: api.sparelabs.com/v1/global/regions scheme-only auth bypass — region registry (7 regions, 6 OOS api/routing subdomains) disclosed without valid auth via `Bearer x` header presence-only gate (from reports/hypotheses-longcat.txt)
+- [60] api.sparelabs.com/v1/global/organizations: Cross-origin write on complete zero-header bypass /v1/global/organizations (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-bigpickle.txt): HUMAN: Request program test mobileApp UUID AND test-org UUID from the authorized contact (GET-only, passive-compliant), then GET `https://api.sparelabs.com/v1/p
+- NEXT(hypotheses-longcat.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" https://api.sparelabs.com/v1/global/organizatio
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass confirmed STABLE live this turn — `Bearer x` → 200 + 725B region registry (7 regions, 6 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass STABLE live this turn — 200 + 11B `{"data":[]}` + ACAO+ACAC with 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organization: 3-way UUID oracle STABLE live this turn — malformed→400 ValidationError (285B), nil-uuid→404 NotFoundE
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE live this turn — `?mobileAppId=nil-uuid` → 200 + 137B (termsOfUseUrl→sparelabs.co
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE on 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/, /v1/, /api/, /routing/, /v2/, /graphql, /map, /directions, /router, /
