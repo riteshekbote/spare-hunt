@@ -778,3 +778,52 @@ testability: PASSIVE
 [RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing on Cloudflare, strict CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks. Minimal static-only surface.
 ## 2026-08-10 21:07:59 UTC [routing] (model longcat)
 ## 2026-08-10 21:57:40 UTC [routing] (model longcat)
+## 2026-08-10 22:42:02 UTC [routing] (model longcat)
+[PRIO] api.sparelabs.com/v1/public/organizations/{id} — 5.95 (attack:7 business:7 tech:6 gate:9 cloud:2 fresh:9)
+[PRIO] api.sparelabs.com/v1/public/terms (param expansion) — 3.90 (attack:4 business:5 tech:6 gate:9 cloud:2 fresh:6)
+[PRIO] api.sparelabs.com/v1/public/mobileApps — 4.30 (attack:5 business:6 tech:6 gate:9 cloud:2 fresh:7)
+[HYP] Plural org UUID enumeration oracle on /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 45
+reasoning: Singular /v1/public/organization confirmed UUID oracle (400/404→400/200 differential) + auth-free + CORS. Plural /v1/public/organizations (no param) confirmed auth-free route (400 "not found"). Path-param variant /v1/public/organizations/{id} UNTESTED — if it mirrors singular validation pattern, parallel oracle exists with potentially different data exposure (org details vs existence check).
+evidence_needed: 400 ValidationError on malformed input OR 404 vs 200 discrimination on nil-uuid vs valid-UUID
+verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"` ; `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"`
+impact: Parallel org UUID enumeration; potential org data disclosure on 200-branch; enables pivot to authenticated org endpoints
+testability: PASSIVE (format discrimination) / HUMAN_ONLY (real-UUID 200-branch)
+[HYP] Unauthenticated mobileApp collection disclosure
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/mobileApps
+confidence: 30
+reasoning: /v1/public/terms?mobileAppId=<uuid> proves mobileApp is real entity with validated UUID. /v1/public/mobileApps/{id} returns 404 for all inputs (dead). Collection endpoint /v1/public/mobileApps (no param) UNTESTED — could return mobileApp list without auth if route exists.
+evidence_needed: 200 response with data (proves unauthenticated list disclosure)
+verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps"`
+impact: Unauthenticated mobileApp enumeration; mobileApp IDs enable pivot to authenticated endpoints
+testability: PASSIVE
+[HYP] Terms endpoint parameter expansion data disclosure
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/terms
+confidence: 25
+reasoning: Endpoint currently returns termsOfUseUrl+privacyPolicyUrl with mobileAppId or organizationId params. Additional params (fields, expand, include, format) could return richer data (full org config, feature flags, internal URLs) without auth.
+evidence_needed: 200 response with additional data fields beyond terms URLs
+verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000&fields=all"` ; `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000&expand=true"`
+impact: Additional unauthenticated data disclosure beyond terms URLs
+testability: PASSIVE
+[PARKED] Unauthenticated mobileApp collection disclosure: Confidence 30 < 40 threshold. Low prior — most collection endpoints auth-gated, and path-param variant already confirmed dead (uniform 404).
+[PARKED] Terms endpoint parameter expansion data disclosure: Confidence 25 < 40 threshold. Speculative param-pollution with no evidence of additional accepted params.
+[FINAL] Surviving hypotheses (ranked):
+[NEXT] PROBE: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"` && `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` — test plural org path-param variant for format discrimination (400 vs 404) that would confirm parallel UUID enumeration oracle on plural namespace. If malformed→400 + nil-uuid→404, oracle confirmed.
+[LEARN] CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 404 NotFoundError); malformed and nil-uuid now indistinguishable.
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/public/riders/{id}: 404 0B for both malformed and nil-uuid — route does not exist, no surface.
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/public/vehicles/{id}: 404 0B for both malformed and nil-uuid — route does not exist, no surface.
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/public/mobileApps/{id}: 404 NotFoundError (with body) for both malformed and nil-uuid — no format discrimination, not an oracle.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass STABLE — 200 + 11B `{"data":[]}` + ACAO+ACAC (659ms slow replica).
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS) + ACAO+ACAC (2ms fast replica).
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE on OPTIONS 204.
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — ?mobileAppId=nil-uuid → 200 + 137B terms URLs no-auth + CORS.
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/ (0B). NO_DELTA since 2026-08-07.
+[RISK] api.sparelabs.com: 90 — Multiple confirmed auth bypasses (zero-header + scheme-only), universal CORS credential reflection across all /v1, UUID oracle (degraded but alive), data disclosure, multi-version LB flapping. Highest exposure in program with 3 distinct AUTH/MISCONFIG classes accepted stable 84h+. Chain amplification (CORS + auth bypass + org enum) enables cross-origin data exfil + potential state mutation.
+[RISK] platform.sparelabs.com: 55 — CSP infra leak exposes production admin Vercel apps + staging + Metabase + full cloud infra (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit). Admin surface reachable but OOS third-party hosts limit direct exploitation. SPA catch-all confirmed no direct API surface.
+[RISK] routing.sparelabs.com: 5 — envoy 404 on ALL paths, no discoverable surface, effectively dead across 3+ days of continuous probing.
+[RISK] forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging+prod+regional infra (api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com, atlassian.net, ngrok.io). SPA catch-all confirmed no direct API attack surface. Infra-recon value only.
+[RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing on Cloudflare, strict CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks. Minimal static-only surface.
