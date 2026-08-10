@@ -2022,3 +2022,26 @@
 - LEARN: REJECTED @ api.sparelabs.com/v1/directions: 404, no surface.
 - LEARN: ACCEPTED @ platform.sparelabs.com & forms.sparelabs.com admin/API path sweeps: 10/8 paths return SPA catch-all 200 text/html (index.html) — confirmed pure MFE s
 - LEARN: REJECTED @ api.sparelabs.com/v1/routing/status: 401 (gated), not bypassable from current surface — auth properly enforced on this sibling route.
+
+## RANKED HYPOTHESES 2026-08-10 19:38:39 UTC
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header auth bypass + credentialed write CORS chain on fail-open organization controller (from reports/hypotheses-laguna.txt)
+- [60] api.sparelabs.com/v1/public/organizations/{id}: Data-bearing 200-branch on auth-free /v1/public/organizations/{id} plural oracle (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-bigpickle.txt): HUMAN: request ONE program test-org UUID AND one test-MobileApp UUID from the authorized contact; then `GET https://api.sparelabs.com/v1/public/organizations/<u
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - --max-time 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" -o /tmp/orgs_zero && sha256sum /tmp
+- NEXT(hypotheses-longcat.txt): PROBE: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"` && `curl -s -w "\nHTTP:%{http_code}" "https://api.spare
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass STABLE — 200+11B+`{"data":[]}`+ACAO+ACAC with NO Authorization header (49
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — `Bearer x`→200+725B+ACAO+ACAC (sha256 fb9800acb…585c3fe, 6 OOS subdomains in bo
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401 across /regions+/organizations+
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com (admin paths /admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metrics): All return SPA catch-all 200
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com (API paths /api/health,/api/v1,/graphql,/webhooks,/export,/status,/config,/v1): All return SPA catch-all 200 text/html 
+- LEARN: REJECTED @ api.sparelabs.com/v1/routing/status: 401 (gated), auth properly enforced — not bypassable.
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way. nil-uuid now returns 400 ValidationError "not found" (was 404
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/public/riders/{id}: 404 0B for both malformed and nil-uuid — route does not exist, no surface.
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/public/vehicles/{id}: 404 0B for both malformed and nil-uuid — route does not exist, no surface.
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/public/mobileApps/{id}: 404 NotFoundError (with body) for both malformed and nil-uuid — no format discrimination, not an or
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS) + ACAO+ACAC (2ms fas
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass STABLE — 200 + 11B `{"data":[]}` + ACAO+ACAC (659ms slow replica). Re-con
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE on 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — ?mobileAppId=nil-uuid → 200 + 137B terms URLs no-auth + CORS. Re-confirmed live
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/ (0B). NO_DELTA since 2026-08-07.

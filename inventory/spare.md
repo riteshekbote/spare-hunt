@@ -349,3 +349,9 @@
 
 ## 2026-08-10 18:32:52 UTC
 - NEW NO_DELTA — inventory scan 2026-08-10 11:21 UTC reports no surface changes; all prior ACCEPTED/REJECTED classes in knowledge base remain stable through 2026-08-10 05:50 UTC live re-confirmations
+
+## 2026-08-10 19:38:39 UTC
+- CHANGED api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED — nil-uuid now returns 400 ValidationError "not found" (was 404 NotFoundError). 3-way (400/404/200) → 2-way (400/200). Malfo
+- NEW api.sparelabs.com/v1/public/riders/{id}: Confirmed DEAD — 404 0B for both malformed and nil-uuid. Route does not exist.
+- NEW api.sparelabs.com/v1/public/vehicles/{id}: Confirmed DEAD — 404 0B for both malformed and nil-uuid. Route does not exist.
+- NEW api.sparelabs.com/v1/public/mobileApps/{id}: Confirmed DEAD — 404 NotFoundError (with body) for both malformed and nil-uuid. No format discrimination → not an oracle.
