@@ -500,3 +500,19 @@
   - ### Verdict: **VALID** (as infrastructure reconnaissance)
   - | api.sparelabs.com/v1/auth/token/superAdmin role-check bypass | **HOLD** | Requires AUTH_HELPED (valid token); auth-gated at edge per probe; unproven |
   - | Engage portal IDOR (cross-tenant journey/booking) | **HOLD** | Requires AUTH_HELPED (valid rider token); object-level auth unproven |
+
+- 14 lead(s) marked VALID at 2026-08-10 22:27:04 UTC
+  - **Verdict: VALID**
+  - **Verdict: VALID (Medium, capped by empty payload)**
+  - **Verdict: VALID (High)**
+  - | Q3 | **YES** — 400 (malformed) vs 404 (nil-uuid) vs 200 (valid-found) enables binary discrimination to discover live org UUIDs; pivot to authenticated endpoints |
+  - **Verdict: VALID (Medium)**
+  - **Verdict: VALID (Low-Medium)**
+  - **Verdict: VALID (Low)**
+  - | `/v1/auth/token/superAdmin` role-check bypass | Requires AUTH_HELPED (POST with a valid non-superAdmin token). Impact would be critical if confirmed, but out of scope for passive-only rules. HOLD fo
+  - | 1 | api.sparelabs.com | CORS reflect-any-origin+creds on all /v1 | **VALID** | 7.6 |
+  - | 2 | api.sparelabs.com | /v1/global/organizations zero-header bypass (empty) | **VALID** | 5.3 |
+  - | 3 | api.sparelabs.com | /v1/global/regions scheme-only bypass → 725B leak | **VALID** | 7.5 |
+  - | 4 | api.sparelabs.com | /v1/public/organization UUID enumeration oracle | **VALID** | 5.3 |
+  - | 6 | platform.sparelabs.com | CSP + MFE prefetch infra leak | **VALID** | 4.3 |
+  - | 7 | forms.sparelabs.com | JS bundle staging/infra URL leak | **VALID** | 4.3 |
