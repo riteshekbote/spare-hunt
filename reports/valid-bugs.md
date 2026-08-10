@@ -435,3 +435,6 @@
   - | A5 | /v1/public/terms data disclosure (200 + live terms URLs via mobileAppId/organizationId, no auth + CORS) | 3.1 Low (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE |
   - | A6 | CSP + MFE manifest infra leak platform.sparelabs.com/login (prod+staging admin Vercel apps + Metabase + full cloud infra) | 3.1 Low (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE |
   - | A7 | JS bundle staging infra leak forms.sparelabs.com (main.71d52314.js — staging+prod+regional + atlassian + inactive ngrok) | 3.1 Low (AV:N/AC:L/PR:N/UI:N/S:U:C:L/I:N/A:N) | VALID — STABLE |
+
+- 1 lead(s) marked VALID at 2026-08-10 10:02:18 UTC
+  - | **VALID** | 7 | All reconfirmations of already-accepted A1-A7 (no new VALID findings) |
