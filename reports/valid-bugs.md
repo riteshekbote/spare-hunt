@@ -453,3 +453,23 @@
   - | L10 CORS reflection reconfirmation | **Already VALID (A1)** | No delta |
   - **VALID (new):** 0
   - **VALID (reconfirmation):** 3 (A1, A2, A4)
+
+- 18 lead(s) marked VALID at 2026-08-10 18:53:20 UTC
+  - | A1 | CORS reflect-any-origin + credentials on /v1/** (all methods + Authorization header, uniform envoy middleware) | 8.1 High (AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N) | VALID — STABLE 96h+ |
+  - | A2 | Scheme-only auth bypass /v1/global/regions (200 + 725B region registry with garbage Bearer; middleware validates scheme only, never token) | 5.3 Medium (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | V
+  - | A3 | UUID enumeration oracle /v1/public/organization (400 malformed / 404 not-found / 200 found) | 5.3 Medium (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE |
+  - | A4 | /v1/global/organizations fail-open (200 + {"data":[]} + CORS, zero-header, route-specific) | 5.3 Medium (AV:N/AC:L/PR:N/UI:N/S:U:C:L/I:N/A:N) | VALID — STABLE |
+  - | A5 | /v1/public/terms data disclosure (200 + live terms URLs via mobileAppId/organizationId, no auth + CORS) | 3.1 Low (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE |
+  - | A6 | CSP + MFE manifest infra leak platform.sparelabs.com/login (prod+staging admin Vercel apps + Metabase + full cloud infra) | 3.1 Low (AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE |
+  - | A7 | JS bundle staging infra leak forms.sparelabs.com (main.71d52314.js — staging+prod+regional + atlassian + inactive ngrok) | 3.1 Low (AV:N/AC:L/PR:N/UI:N/S:U:C:L/I:N/A:N) | VALID — STABLE |
+  - | Q3 Real impact? | **UNPROVEN** — 400 alone doesn't confirm oracle or data disclosure. No format discrimination observed yet (only test-UUID probed, not malformed vs valid-format). |
+  - **Verdict: HOLD** — new auth-free route variant on public namespace. Need format discrimination test (malformed UUID vs valid-format UUID). If 400/404 differential confirmed, it's a duplicate of A3 (s
+  - | A1 | CORS reflect-any-origin+creds /v1/** | **VALID** (reconf) | CVSS 8.1 — STABLE 96h+ |
+  - | A2 | Scheme-only bypass /v1/global/regions | **VALID** (reconf) | CVSS 5.3 — STABLE |
+  - | A3 | UUID enum oracle /v1/public/organization | **VALID** (reconf) | CVSS 5.3 — STABLE |
+  - | A4 | /v1/global/organizations fail-open | **VALID** (reconf) | CVSS 5.3 — STABLE |
+  - | A5 | /v1/public/terms data disclosure | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | A6 | CSP infra leak platform /login | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | A7 | JS bundle leak forms.sparelabs.com | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | — | No new VALID findings this cycle | — | — |
+  - | /v1/global/regions | 200 + 725B (scheme-only) | 400 in latest probes (LB flapping) | STABLE — A2 still valid (intermittent 200/400 from multi-version LB) |
