@@ -3302,3 +3302,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 50 | Low — envoy 404 on all probed paths; routing-engine API fully hidden behind envoy gateway; no unauthenticated surface; STABLE dead since 2026-08-07, NO_DELTA.
 [RISK] forms.sparelabs.com: 58 | Medium — SPA 200 (envoy+Google CDN, strict HTML CSP + x-frame DENY); JS bundle main.71d52314.js stable, infra-recon value only (staging+prod+regional + atlassian.net/JIRA + inactive ngrok), no direct auth bypass; all API path probing → SPA catch-all — NO_DELTA.
 [RISK] web (spare.com/sparelabs.com): 38 | Low — spare.com apex 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; www.spare.com 301 excluded (OOS); minimal static-only surface, no dynamic logic/auth/user-input handling — STABLE.
+## 2026-08-10 14:44:14 UTC [web] (model laguna)
