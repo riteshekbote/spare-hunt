@@ -535,3 +535,10 @@ https://api.sparelabs.com/v1/public/mobileApps/not-a-uuid -> HTTP 404
 https://api.sparelabs.com/v1/public/mobileApps/00000000-0000-0000-0000-000000000000 -> HTTP 404
 https://api.sparelabs.com/v1/routing/status` -> HTTP 401
 https://api.sparelabs.com/v1/directions` -> HTTP 404
+
+## 2026-08-10 13:42:08 UTC
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/journeys -> HTTP 401
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://sparelabs.com/terms-of-use/ -> 200 len=? type=text/html; charset=utf-8
+https://sparelabs.com/privacy-policy/ -> 200 len=? type=text/html; charset=utf-8

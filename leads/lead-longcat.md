@@ -442,3 +442,6 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: **5** — envoy 404 on ALL paths, no discoverable surface, effectively dead across 3+ days of continuous probing
 [RISK] forms.sparelabs.com: **35** — JS bundle main.71d52314.js leaks staging+prod+regional infra (api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com, atlassian.net, ngrok.io); SPA catch-all confirmed no direct API attack surface; infra-recon value only
 [RISK] web (spare.com/sparelabs.com): **10** — static Webflow marketing on Cloudflare, strict CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks; minimal static-only surface
+## 2026-08-10 13:39:52 UTC [routing] (model longcat)
+[PRIO] api.sparelabs.com/v1/global/organizations (zero-header bypass + write CORS) — 6.90 (attack:8 business:7 tech:7 gate:10 cloud:4 fresh:2)
+[PRIO] api.sparelabs.com/v1/** (universal CORS credential reflection) — 6.10 (attack:9

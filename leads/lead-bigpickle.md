@@ -3362,3 +3362,4 @@ verify_steps: HUMAN_ONLY: request program test-org UUID from authorized contact 
 impact: unauthenticated tenant org-record disclosure from public namespace; HIGH.
 testability: HUMAN_ONLY
 [NEXT] AUTH_HELPED: `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization (operator write-approval REQUIRED per program no_data_modification). Preflight gate confirmed closed this session (POST+content-type+authorization → 204 + ACAO+ACAC); the sole remaining unknown is handler-level auth on write verbs. If approval is denied, fall back to [NEXT] HUMAN: request a test-org UUID from the authorized contact and GET `/v1/public/organization?organizationId=<uuid>` (passive, closes the last unobserved 200-branch).
+## 2026-08-10 13:41:49 UTC [api] (model bigpickle)
