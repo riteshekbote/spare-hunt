@@ -3449,3 +3449,60 @@ verify_steps: PASSIVE: extend noun sweep `GET https://api.sparelabs.com/v1/publi
 impact: further unauthenticated data/record disclosure or controllers; MEDIUM-HIGH.
 testability: PASSIVE
 [NEXT] PROBE: extend the public-namespace leaf sweep to close the new mobileApps vector and hunt siblings — `GET https://api.sparelabs.com/v1/public/{appConfig,config,regions,apps,application,mobileApp,organizations}` and `GET https://api.sparelabs.com/v1/public/{mobileApp,application,terms,region}/{id}` (≤1 rps, `Origin: https://evil.example.com`, NO Authorization), logging status/body-size/CORS; flag every non-404 for manual validation. (Write-verb POST on /v1/global/organizations remains parked pending operator write-approval.)
+## 2026-08-10 17:36:23 UTC [api] (model bigpickle)
+[HYP] Write handler auth on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 60
+reasoning: zero-header GET → 200+11B+ACAO+ACAC STABLE (re-confirmed live this session, 783ms slow replica); OPTIONS 204 on exact route advertises PUT/PATCH/POST/DELETE+ACAC; write verbs never probed (parked pending approval).
+evidence_needed: POST/PUT/PATCH/DELETE no-auth → 2xx/400-schema vs 401/403 on fail-open route.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED — no_data_modification): `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser; CRITICAL if a write responds.
+testability: AUTH_HELPED
+[HYP] Data-bearing 200-branch on auth-free /v1/public/mobileApps/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/mobileApps/{id}
+confidence: 55
+reasoning: NEW this session — leaf returns 404 `NotFoundError "MobileApp was not found"` auth-free for malformed/nil/random-v4 with credentialed CORS + write-methods on OPTIONS; list route 401-gated (leaf/list asymmetry identical to accepted /v1/public/organization oracle family); /v1/public/terms?mobileAppId= proves MobileApp UUIDs gate terms configs.
+evidence_needed: real existing MobileApp UUID → 200 + record (name/platform/terms config) without auth.
+verify_steps: HUMAN_ONLY (request a program test MobileApp/organization UUID from authorized contact): GET `https://api.sparelabs.com/v1/public/mobileApps/<uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200+record; cross-check `?mobileAppId=` on /v1/public/terms.
+impact: unauthenticated tenant MobileApp-record disclosure via public namespace; HIGH.
+testability: HUMAN_ONLY
+[HYP] Additional auth-free leaves in /v1/public/* namespace
+class: AUTH
+asset: api.sparelabs.com/v1/public/*
+confidence: 45
+reasoning: this session's 12-path sweep surfaced two previously-undocumented routes (mobileApps 401 + mobileApps/{id} auth-free 404/200), proving the public namespace is richer than the 3 documented endpoints; leaf-list auth asymmetry is a recurring pattern.
+evidence_needed: another leaf returning non-404/non-401 (or a 200-with-data variant) without auth.
+verify_steps: PASSIVE: extend noun sweep `GET https://api.sparelabs.com/v1/public/{appConfig,config,regions,apps,application,mobileApp,organizations}` + `/{term,mobileApp,organization,region}/{id}` at ≤1 rps with `Origin: https://evil.example.com`; flag any non-404.
+impact: further unauthenticated data/record disclosure or controllers; MEDIUM-HIGH.
+testability: PASSIVE
+[NEXT] PROBE: extend the public-namespace leaf sweep to close the new mobileApps vector and hunt siblings — `GET https://api.sparelabs.com/v1/public/{appConfig,config,regions,apps,application,mobileApp,organizations}` and `GET https://api.sparelabs.com/v1/public/{mobileApp,application,terms,region}/{id}` (≤1 rps, `Origin: https://evil.example.com`, NO Authorization), logging status/body-size/CORS; flag every non-404 for manual validation. (Write-verb POST on /v1/global/organizations remains parked pending operator write-approval.)
+[HYP] Write handler auth on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 60
+reasoning: zero-header GET → 200 + 11B + ACAO+ACAC live this session; OPTIONS 204 on exact route advertises PUT/PATCH/POST/DELETE + ACAC; write verbs never probed (parked pending approval).
+evidence_needed: POST/PUT/PATCH/DELETE no-auth → 2xx/400-schema vs 401/403 on fail-open route.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED — no_data_modification): `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization → observe status/body.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser; CRITICAL if a write responds.
+testability: AUTH_HELPED
+[HYP] Data-bearing 200-branch on auth-free /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 55
+reasoning: 2-way format oracle live this session (400 malformed / 404 valid-unfound); handler executes real org lookup without auth; query-param sibling's valid-org 200-branch documented but never passively exercised.
+evidence_needed: real existing org UUID → 200 + org record (name/branding/contacts) no-auth.
+verify_steps: HUMAN_ONLY (request program test-org UUID from authorized contact): `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` with NO Authorization + `Origin: https://evil.example.com`; cross-check `?organizationId=` form.
+impact: unauthenticated tenant org-record disclosure via public namespace; HIGH.
+testability: HUMAN_ONLY
+[HYP] Data-bearing 200-branch on auth-free /v1/public/mobileApps/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/mobileApps/{id}
+confidence: 45
+reasoning: leaf live this session — auth-free 404 `NotFoundError "MobileApp was not found"` for all UUID variants (handler runs real lookup, no format gate); list route properly 401; /v1/public/terms?mobileAppId= proves MobileApp UUIDs gate configs.
+evidence_needed: real existing MobileApp UUID → 200 + record without auth.
+verify_steps: HUMAN_ONLY (request program test MobileApp UUID from authorized contact): `GET https://api.sparelabs.com/v1/public/mobileApps/<uuid>` NO Authorization + `Origin: https://evil.example.com`; cross-check `?mobileAppId=` on /v1/public/terms.
+impact: unauthenticated tenant MobileApp-record disclosure; MEDIUM-HIGH.
+testability: HUMAN_ONLY
+[NEXT] AUTH_HELPED: `POST https://api.sparelabs.com/v1/global/organizations` with `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization (operator write-approval REQUIRED per no_data_modification). Preflight gate is closed (OPTIONS POST → 204 + ACAO+ACAC, verified across sessions); the sole remaining unknown is handler-level auth on write verbs — this is the highest-value outstanding probe (CRITICAL if a write responds). If approval denied → [NEXT] HUMAN: request a program test-org UUID + test-MobileApp UUID from the authorized contact and passively GET `/v1/public/organizations/<uuid>` and `/v1/public/mobileApps/<uuid>` (closes the last two unobserved 200-branches).
