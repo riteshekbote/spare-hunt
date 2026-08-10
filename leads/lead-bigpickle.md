@@ -3526,3 +3526,4 @@ verify_steps: HUMAN_ONLY (request program test MobileApp UUID from authorized co
 impact: unauthenticated tenant MobileApp-record disclosure; MEDIUM-HIGH.
 testability: HUMAN_ONLY
 [NEXT] HUMAN: request ONE program test-org UUID AND one test-MobileApp UUID from the authorized contact; then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` and `GET https://api.sparelabs.com/v1/public/mobileApps/<uuid>` (NO Authorization + `Origin: https://evil.example.com`, ≤1 rps) — closes the last two unobserved 200-branches on auth-free public leaves. (Passive noun/leaf sweep now exhausted; write-verb POST on /v1/global/organizations remains parked pending operator write-approval.)
+## 2026-08-10 20:20:10 UTC [api] (model bigpickle)

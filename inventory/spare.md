@@ -355,3 +355,6 @@
 - NEW api.sparelabs.com/v1/public/riders/{id}: Confirmed DEAD — 404 0B for both malformed and nil-uuid. Route does not exist.
 - NEW api.sparelabs.com/v1/public/vehicles/{id}: Confirmed DEAD — 404 0B for both malformed and nil-uuid. Route does not exist.
 - NEW api.sparelabs.com/v1/public/mobileApps/{id}: Confirmed DEAD — 404 NotFoundError (with body) for both malformed and nil-uuid. No format discrimination → not an oracle.
+
+## 2026-08-10 20:21:33 UTC
+- NEW api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 404 NotFoundError); malformed and nil-uuid now indis
