@@ -4346,3 +4346,22 @@ verify_steps: AUTH_HELPED (operator write-approval REQUIRED): each of PATCH/PUT/
 impact: region-registry modification if any write responds; HIGH. Near-certain 401 parity closes it.
 testability: AUTH_HELPED
 ## 2026-08-11 14:12:20 UTC [api] (model bigpickle)
+## 2026-08-11 15:18:41 UTC [api] (model bigpickle)
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: Live this session: malformed→400/263B ValidationError + correlationId, nil-uuid→404/131B NotFoundError, both ACAO+ACAC — 3-way intact while singular sibling is 2-way degraded. Only a real org UUID opens the unobserved 200-branch (84h+); known test UUID 0606efa8-59e1-4d08-9e1e-3b5e6a1f6e00 returns 404.
+evidence_needed: one program test-org UUID → 200 + org record (name/branding/contacts) with NO Authorization header.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check `?organizationId=<uuid>` on /v1/public/terms.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Write-verb parity on /v1/global/regions PATCH/PUT/DELETE
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 45
+reasoning: GET gate is presence-only (`Bearer x`→200+725B, token never validated); only POST probed → 401 last session. PATCH/PUT/DELETE on the scheme-only bypass route are the last untested write branches on /v1/global/*; org siblings show uniform write-gating (all 401).
+evidence_needed: PATCH/PUT/DELETE with `Bearer x` → 2xx/400-schema vs 401.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): each of PATCH/PUT/DELETE `https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body.
+impact: region-registry modification if any write responds; HIGH. Near-certain 401 parity closes it.
+testability: AUTH_HELPED

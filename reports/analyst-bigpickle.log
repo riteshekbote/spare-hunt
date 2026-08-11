@@ -25356,3 +25356,93 @@ MALFORMED HTTP 400 | 263B | 0.161639s
 [93m[1m! [0mpermission requested: external_directory (/tmp/*); auto-rejecting
 [0m✗ [0mgrep -iE "access-control|content-type" /tmp/organizations_hdr.txt /tmp/organizations_plural_hdr.txt /tmp/organizations_malformed_hdr.txt; echo "---regions---"; curl -s -o /tmp/regions_resp.txt -D /tmp/regions_hdr.txt -w "REGIONS HTTP %{http_code} | %{size_download}B | %{time_total}s\n" -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"; echo "---body---"; cat /tmp/organizations_resp.txt; sha256sum /tmp/regions_resp.txt failed
 [91m[1mError: [0mThe user rejected permission to use this specific tool call.
+===== ANALYST bigpickle 2026-08-11 15:22:33 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mcurl -s -D - -o /tmp/opencode/probe1.txt -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid" | rg -i "^HTTP|content-length|access-control" ; sleep 1; curl -s -D - -o /tmp/opencode/probe2.txt -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" | rg -i "^HTTP|content-length|access-control"
+/bin/bash: line 1: rg: command not found
+/bin/bash: line 1: rg: command not found
+[0m
+[0m$ [0mcurl -s -D - -o /tmp/opencode/probe1.txt -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid" | grep -iE "^HTTP|content-length|access-control"; echo "---BODY1---"; wc -c /tmp/opencode/probe1.txt; sleep 1; curl -s -D - -o /tmp/opencode/probe2.txt -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" | grep -iE "^HTTP|content-length|access-control"; echo "---BODY2---"; wc -c /tmp/opencode/probe2.txt
+HTTP/2 400 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 263
+---BODY1---
+263 /tmp/opencode/probe1.txt
+HTTP/2 404 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 131
+---BODY2---
+131 /tmp/opencode/probe2.txt
+[0m
+[0m$ [0msleep 1; curl -s -D - -o /tmp/opencode/probe3.txt -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" | grep -iE "^HTTP|content-length|access-control|x-envoy"; echo "---BODY3---"; wc -c /tmp/opencode/probe3.txt; sleep 1; curl -s -D - -o /tmp/opencode/probe4.txt -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" | grep -iE "^HTTP|content-length|access-control|x-envoy"; echo "---BODY4---"; wc -c /tmp/opencode/probe4.txt; sha256sum /tmp/opencode/probe3.txt /tmp/opencode/probe4.txt
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 725
+x-envoy-upstream-service-time: 4
+---BODY3---
+725 /tmp/opencode/probe3.txt
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 11
+x-envoy-upstream-service-time: 663
+---BODY4---
+11 /tmp/opencode/probe4.txt
+fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe  /tmp/opencode/probe3.txt
+8fe32e407a1038ee38753b70e5374b3a46d6ae9d5f16cd5b73c53abaca8f5ed0  /tmp/opencode/probe4.txt
+[0m
+Live probes (2026-08-11, ≤1 rps, GET only) confirm stability of the entire top surface. Analysis follows.
+
+STEP 1 — DELTA
+- NO_DELTA — live probes this session match KB exactly: plural oracle `/v1/public/organizations/{id}` → malformed 400/263B + nil-uuid 404/131B (both `ACAO:https://evil.example.com` + `ACAC:true`); `/v1/global/regions` `Bearer x` → 200/725B (`sha256 fb9800acb…585c3fe` match, 4ms fast upstream); `/v1/global/organizations` no-auth → 200/11B (663ms slow upstream). Nothing new, nothing changed.
+
+STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/global/regions — 7.30 — attack 8, business 6, tech 6 (custom Node error schema, envoy, multi-version LB), gate 10 (Bearer x), cloud 5 (6 OOS infra hosts in body), fresh 9
+- [PRIO] api.sparelabs.com/v1/public/organizations/{id} — 6.95 — attack 6, business 8 (org-record disclosure), tech 5, gate 10 (no auth), cloud 3, fresh 9
+- [PRIO] api.sparelabs.com/v1/global/organizations — 5.85 — attack 6, business 4 (empty `{"data":[]}` caps), tech 5, gate 10, cloud 3, fresh 8
+
+STEP 3 — HYPOTHESES
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: Live this session: malformed→400/263B ValidationError + correlationId, nil-uuid→404/131B NotFoundError, both ACAO+ACAC — 3-way intact while singular sibling is 2-way degraded. Only a real org UUID opens the unobserved 200-branch (84h+); known test UUID 0606efa8-59e1-4d08-9e1e-3b5e6a1f6e00 returns 404.
+evidence_needed: one program test-org UUID → 200 + org record (name/branding/contacts) with NO Authorization header.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check `?organizationId=<uuid>` on /v1/public/terms.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+
+[HYP] Write-verb parity on /v1/global/regions PATCH/PUT/DELETE
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 45
+reasoning: GET gate is presence-only (`Bearer x`→200+725B, token never validated); only POST probed → 401 last session. PATCH/PUT/DELETE on the scheme-only bypass route are the last untested write branches on /v1/global/*; org siblings show uniform write-gating (all 401).
+evidence_needed: PATCH/PUT/DELETE with `Bearer x` → 2xx/400-schema vs 401.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): each of PATCH/PUT/DELETE `https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body.
+impact: region-registry modification if any write responds; HIGH. Near-certain 401 parity closes it.
+testability: AUTH_HELPED
+
+STEP 4 — SELF-CRITIQUE
+- [PARKED] Zero-header data-bearing replica on /v1/global/organizations: confidence 38 < 40; empty `{"data":[]}` for 84h+, params ignored every probe, multi-version LB documented — low signal.
+- [FINAL] 1. Data-bearing 200-branch on plural /v1/public/organizations/{id} (conf 80) — 2. Write-verb parity on /v1/global/regions PATCH/PUT/DELETE (conf 45).
+
+STEP 5 — NEXT ACTION
+- [NEXT] HUMAN: Request ONE program-authorized test-org UUID from the Spare program contact; then `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` NO Authorization + `Origin: https://evil.example.com` (≤1 rps), cross-check `?organizationId=<test-uuid>` on `/v1/public/terms`.
+
+STEP 6 — LEARNING
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle still discriminating live this session (400/263B vs 404/131B, both ACAO+ACAC) — STABLE, no degradation vs singular.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass + body sha256 fb9800acb…585c3fe re-confirmed live (4ms fast replica) — STABLE.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass re-confirmed live (200/11B, 663ms slow replica) — STABLE.
+- [LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — NO_DELTA, no re-probe delta.
+
+STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 78 — two live auth-bypass routes (data-bearing regions 725B incl. OOS hosts; zero-header orgs fail-open), universal credentialed CORS reflection with write-method advertisement across /v1 (writes token-gated), live 3-way UUID enumeration oracle, unauthenticated /public/terms disclosure, multi-version LB.
+- [RISK] platform.sparelabs.com: 45 — CSP infra leak (prod+staging admin Vercel apps, Metabase, full cloud infra) is the only finding; rest is SPA catch-all, no API surface.
+- [RISK] routing.sparelabs.com: 8 — envoy 404 on all paths, dead since 2026-08-07.
+- [RISK] forms.sparelabs.com: 35 — JS-bundle infra leak (staging+prod+regional + atlassian.net + ngrok) only; strict HTML CSP, SPA catch-all, no API endpoints.
+- [RISK] web (spare.com/sparelabs.com): 12 — static Cloudflare+Webflow marketing, HSTS, no internal leaks.

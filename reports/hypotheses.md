@@ -2437,3 +2437,27 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle STABLE — malformed→400 ValidationError (285B + correlationId); nil
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — Bearer x → 200 + 725B + ACAO+ACAC; stable 84h+.
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths since 2026-08-07, NO_DELTA.
+
+## RANKED HYPOTHESES 2026-08-11 15:22:33 UTC
+- [99] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + infra topology disclosure + credentialed CORS on /v1/global/regions (from reports/hypotheses-laguna.txt)
+- [98] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on /v1/global/organizations (read-only, write methods gated) (from reports/hypotheses-nemotron3.txt)
+- [95] api.sparelabs.com/v1/public/organizations/{id}: Universal CORS credential reflection on plural UUID oracle path extends the /v1 pattern to enumeration oracle (from reports/hypotheses-longcat.txt)
+- [80] api.sparelabs.com/v1/public/organizations/{id}: Data-bearing 200-branch on plural /v1/public/organizations/{id} (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-laguna.txt): HUMAN: Request ONE program-authorized test-org UUID from the Spare program contact, then run:
+- NEXT(hypotheses-longcat.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorizati
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — re-confirmed live 2026-08-11 15:18 UTC (295ms respo
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass STABLE — re-confirmed live 2026-08-11 15:18 UTC (GET NO-Auth → 20
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — re-confirmed live 2026-08-11 15:18 UTC across /regions (options 204 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle STABLE — re-confirmed live 2026-08-11 15:18 UTC (malformed→400 Val
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle remains DEGRADED 3-way→2-way — nil-uuid returns 400 ValidationError "not found" (indi
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — re-confirmed live 2026-08-11 15:18 UTC; CSP discloses admin-eam-app.vercel.app + admi
+- LEARN: REJECTED MISCONFIG (controller-wide) @ api.sparelabs.com/v1/global/*: /v1/global/* omission is NOT controller-wide — 14-sibling sweep confirms route-specific sc
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10 probed paths (/admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metric
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com (API path sweep): All 8 probed paths (/api/health,/api/v1,/graphql,/webhooks,/export,/status,/config,/v1) return SPA ca
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/,/openapi.
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — confirmed live 2026-08-11 14:12 UTC on plural oracle path (OPTIONS 2
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle STABLE — malformed→400 ValidationError "must match format uuid" + 
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 40
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header read-only bypass STABLE — GET no-auth → 200 + 11B + ACAO+ACAC; POST/PUT/PATCH/DE
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — Bearer x → 200 + 725B region registry (7 regions, 6
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map/,/directions/); NO_DELTA
