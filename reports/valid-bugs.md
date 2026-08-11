@@ -550,3 +550,9 @@
   - | A8 | JS bundle leak forms.sparelabs.com main.71d52314.js (staging+prod+regional infra + atlassian.net + ngrok) | 4.3 Low (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — informational |
   - | Q4 Passive proof? | NO — requires AUTH_HELPED (POST with a valid non-superAdmin Bearer token); passive GET returns 401 |
   - **Verdict: HOLD** — Q4 fails (requires AUTH_HELPED write testing). Endpoint confirmed live at edge (401-gated with garbage Bearer, OPTIONS 204 advertises POST). Per-route auth omissions are the proven
+
+- 4 lead(s) marked VALID at 2026-08-11 17:50:54 UTC
+  - | A4 | IDOR | api.sparelabs.com/v1/public/organizations/{id} | 3-way UUID enumeration oracle — malformed→400, nil→404, valid→200 | ACCEPTED |
+  - | Q3 Real impact? | YES — full internal infra topology disclosure (7 regions, 6 OOS api/routing subdomains) without valid auth |
+  - | Q3 Real impact? | YES — 3-way differential (malformed→400, nil→404, valid→200) enables org UUID enumeration |
+  - | Q4 Provable passive? | **NO** — requires AUTH_HELPED valid tenant token to test role check |
