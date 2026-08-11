@@ -5030,3 +5030,26 @@ testability: PASSIVE (malformed/nil), HUMAN_ONLY (valid org confirmation)
 [RISK] routing.sparelabs.com: 50 reason — Envoy 404 on all probed paths (/v1/,/api/); routing-engine API fully hidden; no unauthenticated surface; STABLE dead. No live exposure beyond 404
 [RISK] forms.sparelabs.com: 58 reason — Public SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP, no infra leak in HTML); JS bundle main.71d52314.js STABLE leaks staging+prod+regional infra (incl. 6 OOS) + atlassian.net/JIRA + inactive ngrok tunnel; infra-recon value only, no direct auth bypass
 [RISK] web (spare.com/sparelabs.com): 38 reason — spare.com apex 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors self, HSTS 31536000, no internal infra leaks); www.spare.com 301→OOS (excluded); sparelabs.com 301→spare.com; minimal static-only surface
+## 2026-08-11 09:05:12 UTC [platform] (model nemotron3)
+[CHANGED] api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 404 NotFoundError); malformed and nil-uuid now indistinguishable
+[CHANGED] api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError with garbage Bearer x) — bypass is READ-ONLY (GET only), not read+write; CORS OPTIONS still advertises write methods with credentials
+[NEW] api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED (plural namespace) — malformed→400 ValidationError "must match format uuid" + correlationId; nil-uuid→404 NotFoundError "Organization was not found"; auth-free + CORS; superior discrimination vs degraded singular
+[PRIO] api.sparelabs.com/v1/global/organizations, 9.85, attack=10 business=10 tech=10 gate=10 cloud=9 fresh=9
+[PRIO] api.sparelabs.com/v1/global/regions, 9.45, attack=10 business=9 tech=9 gate=10 cloud=9 fresh=9
+[PRIO] api.sparelabs.com/v1/public/organizations/{id}, 9.15, attack=9 business=8 tech=8 gate=10 cloud=7 fresh=10
+[PRIO] api.sparelabs.com/v1/**, 9.30, attack=10 business=8 tech=10 gate=10 cloud=8 fresh=9
+[PRIO] platform.sparelabs.com/login, 8.30, attack=8 business=9 tech=7 gate=10 cloud=8 fresh=7
+[HYP] Complete zero-header no-auth bypass on /v1/global/organizations (read-only, write methods gated)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 98
+reasoning: GET with NO Authorization header returns 200 + `{"data":[]}` + ACAO+ACAC (live 2026-08-11 09:03: 1476ms slow replica); OPTIONS 204 advertises PUT,PATCH,POST,DELETE with reflected CORS+credentials; POST with garbage Bearer returns 401 InvalidTokenError; control /v1/journeys stable 401; complete route-level auth omission for GET only
+evidence_needed: Confirm zero-header GET bypass stability; verify write methods actually enforce auth (401) despite CORS advertisement
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/organizations with `Origin: https://evil.example.com` and NO Authorization header ×3 spaced 2s; capture status, body, CORS headers; POST same with `Authorization: Bearer x` and JSON body to confirm 401
+impact: Unauthenticated read access to global organizations list via any origin; combined with credential-reflecting CORS enables cross-origin data theft from victim browsers; severity CRITICAL (read) / MEDIUM (write surface advertised but gated)
+testability: PASSIVE
+[HYP] Scheme-only auth bypass + infra topology disclosure on /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: GET with `Authorization: Bearer x` returns 200 + 725B region registry (7 regions with apiUrl+routingHost incl. 6 OOS subdomains); no-Auth→400 "header required"; `Auth:x`→400 "scheme Bearer required"; token validity never checked; OPTIONS returns full write methods with reflected CORS+credentials (live 202
