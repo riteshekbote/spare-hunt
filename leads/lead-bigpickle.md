@@ -4508,3 +4508,4 @@ evidence_needed: a query param → 200 + non-empty data array.
 verify_steps: PASSIVE: GET with {regionId,tenantId,status,includeDeleted} + `Bearer x` + Origin, ≤1 rps, log code+size; promote only 200+non-empty.
 impact: org-list data exposure if any; MEDIUM.
 testability: PASSIVE
+## 2026-08-11 20:09:06 UTC [api] (model bigpickle)
