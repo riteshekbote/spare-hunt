@@ -4452,3 +4452,31 @@ verify_steps: PASSIVE: `GET https://api.sparelabs.com/v1/public/{regions,config,
 impact: additional unauthenticated data disclosure; MEDIUM.
 testability: PASSIVE
 [NEXT] PROBE: `GET https://api.sparelabs.com/v1/public/{regions,config,countries,settings,health,organizations,features}` + `Origin: https://evil.example.com`, ≤1 rps, 2 samples each, record code + body size; promote only 200 + non-empty bodies to leads.
+## 2026-08-11 18:12:06 UTC [api] (model bigpickle)
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: 3-way oracle intact (malformed→400/263B ValidationError+correlationId; nil→404/131B NotFoundError+correlationId) while singular sibling is 2-way degraded; known test UUID 0606efa8-59e1-4d08-9e1e-3b5e6a1f6e00 → 404. 200-branch unobserved 84h+.
+evidence_needed: one program test-org UUID → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check `?organizationId=<uuid>` on /v1/public/terms.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Write-verb parity on /v1/global/regions PATCH/PUT/DELETE
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 45
+reasoning: GET gate is presence-only (`Bearer x`→200+725B, token never validated); POST→401 last session; PATCH/PUT/DELETE on the scheme-only bypass route are the last untested write branches on /v1/global/*.
+evidence_needed: PATCH/PUT/DELETE with `Bearer x` → 2xx/400-schema vs 401.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): each of PATCH/PUT/DELETE `https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body.
+impact: region-registry modification if any write responds; HIGH. Near-certain 401 parity closes it.
+testability: AUTH_HELPED
+[HYP] Bare plural collection query-param behavior
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations
+confidence: 40
+reasoning: Bare collection returns 400 ValidationError (not found) + correlationId + CORS no-auth — route registered at router level; `/{id}` 3-way oracle proves plural namespace routes exist, query-param variant untested.
+evidence_needed: a query param → non-400/200 + non-empty body no-auth.
+verify_steps: PASSIVE: `GET https://api.sparelabs.com/v1/public/organizations?<k>=<v>` for k in {name,status,slug,code,key} with Origin, ≤1 rps, log code+size; promote only 200+non-empty.
+impact: unauthenticated org-list/collection data; MEDIUM.
+testability: PASSIVE
