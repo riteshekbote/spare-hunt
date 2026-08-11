@@ -538,3 +538,15 @@
 
 - 1 lead(s) marked VALID at 2026-08-11 05:58:10 UTC
   - | **L18** | `api.sparelabs.com/v1/public/organizations/{id}` (data-bearing) | **HOLD** | Q4 200-branch needs valid UUID; extends A6. |
+
+- 10 lead(s) marked VALID at 2026-08-11 09:31:01 UTC
+  - | A1 | CORS reflect-any-origin + credentials on /v1/** (all methods + Authorization, uniform envoy middleware) | 8.1 High (CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N) | VALID — STABLE 96h+ |
+  - | A2 | Scheme-only auth bypass /v1/global/regions (200 + 725B region registry with garbage Bearer; middleware validates scheme only, never token) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N
+  - | A3 | UUID enumeration oracle /v1/public/organization (2-way: 400 malformed / 200 found; nil-uuid now also 400) | 3.1 Low (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — reduced severity |
+  - | A4 | /v1/global/organizations fail-open (200 + {"data":[]} + CORS, route-specific, READ-ONLY — write path enforces auth) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N) | VALID — write-p
+  - | A5 | /v1/public/terms data disclosure (200 + live terms URLs via mobileAppId|organizationId, no auth) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE 96h+ |
+  - | A6 | /v1/public/organizations/{id} UUID enumeration oracle (3-way: 400 malformed / 404 nil-uuid / 200 found) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE, best discri
+  - | A7 | CSP infra leak platform.sparelabs.com/login (prod+staging admin Vercel apps + Metabase + full cloud infra) | 4.3 Low (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — informational |
+  - | A8 | JS bundle leak forms.sparelabs.com main.71d52314.js (staging+prod+regional infra + atlassian.net + ngrok) | 4.3 Low (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — informational |
+  - | Q4 Passive proof? | NO — requires AUTH_HELPED (POST with a valid non-superAdmin Bearer token); passive GET returns 401 |
+  - **Verdict: HOLD** — Q4 fails (requires AUTH_HELPED write testing). Endpoint confirmed live at edge (401-gated with garbage Bearer, OPTIONS 204 advertises POST). Per-route auth omissions are the proven
