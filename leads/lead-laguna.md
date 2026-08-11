@@ -3814,3 +3814,32 @@ testability: PASSIVE (malformed/nil-uuid branches), HUMAN_ONLY (valid-org 200 co
 [RISK] routing.sparelabs.com: 10 — STABLE dead; envoy 404 on ALL probed paths; no surface, no auth context, no data; NO_DELTA since 2026-08-07.
 [RISK] forms.sparelabs.com: 52 — SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN) on host; but JS bundle main.71d52314.js leaks 6 staging+prod+regional infra hosts + atlassian.net + inactive ngrok tunnel; staging portals live (200).
 [RISK] web (spare.com/sparelabs.com): 12 — spare.com apex HTTP 200 static Webflow marketing (Cloudflare, CSP frame-ancestors 'self', HSTS 31536000); sparelabs.com 301→spare.com; minimal static-only surface, no internal infra leaks, no dynamic logic; www.spare.com excluded OOS.
+## 2026-08-11 12:55:46 UTC [web] (model laguna)
+[HYP] Scheme-only auth bypass + infra topology disclosure + credentialed CORS on /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 99
+reasoning: Live GET `Bearer x` → 200 + 725B region registry (7 regions incl. 6 OOS api/routing subdomains) + ACAO:https://evil.example.com + ACAC:true. No-Auth → 400 "Authorization header required"; `Authorization: x` → 400 "scheme Bearer required" (token validity never checked). POST `Bearer x` → 401 (write methods enforced, read-only cap). Body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe. Control /v1/journeys stable 401.
+evidence_needed: 200 + 725B + ACAO + ACAC with `Bearer x`; 400 on missing/wrong-scheme; 401 on POST; 401 on control /v1/journeys.
+verify_steps: PASSIVE `curl -s -D - --max-time 15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` → expect 200 + ACAO+ACAC + body; `curl -s -D - --max-time 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"` → expect 400; `curl -s -D - -o /dev/null -X POST --max-time 15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -H "Content-Type: application/json" -d '{}' "https://api.sparelabs.com/v1/global/regions"` → expect 401.
+impact: Unauthenticated infra topology disclosure of 6 OOS regional API/routing endpoints incl. apiUrl + routingHost; scheme-only presence gate + credentialed CORS enables authenticated-browser cross-origin read of region registry from any malicious origin. Severity HIGH (capped by OOS exposure + route-specific + write methods enforced read-only).
+testability: PASSIVE
+[HYP] Complete zero-header no-auth GET bypass (read-only) + credentialed CORS write-method preflight on /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 99
+reasoning: Live GET with NO Authorization header + Origin → 200 + 11B `{"data":[]}` + ACAO + ACAC:true (638-971ms slow upstream vs 2-4ms on gated routes — multi-version envoy LB confirmed). POST/PUT/PATCH/DELETE `Bearer x` → 401 InvalidTokenError (write methods properly enforced). OPTIONS → 204 + Allow:PUT,PATCH,POST,DELETE + ACAO + ACAC. Control /v1/journeys stable 401. 14-sibling sweep confirms route-specific (12×401 + 2×200).
+evidence_needed: 200 + 11B + ACAO + ACAC with zero Authorization header; 401 on POST/PUT/PATCH/DELETE; OPTIONS 204 + write Allow + CORS.
+verify_steps: PASSIVE `curl -s -D - --max-time 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` → expect 200 + ACAO+ACAC + `{"data":[]}`; `curl -s -D - -o /dev/null -X POST --max-time 15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -H "Content-Type: application/json" -d '{}' "https://api.sparelabs.com/v1/global/organizations"` → expect 401.
+impact: Any malicious origin issues credentialed cross-origin GET to global organizations controller with zero credentials via victim browser; empty 11B `{"data":[]}` caps data exfiltration; write methods properly gated (401) — no state mutation vector; route-specific scope limits blast radius. Severity HIGH (capped by empty payload + read-only + route-specificity).
+testability: PASSIVE
+[HYP] 3-way UUID enumeration oracle on plural /v1/public/organizations/{id} (auth-free + CORS)
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: Confirmed live 2026-08-11: malformed UUID → 400 ValidationError "must match format uuid" + correlationId (263B); nil-uuid → 404 NotFoundError "Organization was not found" (131B + correlationId); valid UUID → 200 expected (unverified — requires program-authorized test-org UUID). Plural namespace retains superior 3-way discrimination vs degraded singular /v1/public/organization (nil→400, 2-way only). Auth-free + ACAO + ACAC per universal /v1 pattern.
+evidence_needed: 3-way differential (malformed→400 / nil→404 / valid→200) with correlationId consistency; ACAO + ACAC on all branches.
+verify_steps: PASSIVE `curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"` → expect 400 ValidationError + ACAO+ACAC; `curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` → expect 404 NotFoundError + ACAO+ACAC; HUMAN_ONLY: confirm 200-branch with program-authorized org UUID.
+impact: Unauthenticated tenant org existence enumeration via UUID format discrimination; credentialed CORS allows cross-origin enumeration from victim browsers; enables targeted recon (api URL + branding + contact discovery) against valid orgs. Severity MEDIUM-HIGH (capped by read-only + no PII in discovery; 200-branch requires HUMAN_ONLY authorized UUID).
+testability: PASSIVE (malformed/nil-uuid branches), HUMAN_ONLY (valid-org 200 confirmation)
+[FINAL] Ranked surviving hypotheses (top first):
