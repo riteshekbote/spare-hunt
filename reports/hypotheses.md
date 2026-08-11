@@ -2409,3 +2409,31 @@
 - LEARN: CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) now confirmed to enforce auth properly (401 InvalidTokenError) — bypa
 - LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 40
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map/,/directions/); no surfa
+
+## RANKED HYPOTHESES 2026-08-11 14:16:06 UTC
+- [99] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + infra topology disclosure + credentialed CORS on /v1/global/regions (from reports/hypotheses-laguna.txt)
+- [98] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on /v1/global/organizations (read-only, write methods gated) (from reports/hypotheses-nemotron3.txt)
+- [95] api.sparelabs.com/v1/**: Universal CORS credential reflection on all /v1 endpoints including enumeration oracle path (from reports/hypotheses-longcat.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid" && curl -s -D - -X GET -H "Orig
+- NEXT(hypotheses-laguna.txt): HUMAN: Request ONE program-authorized test-org UUID from the Spare program contact, then run:
+- NEXT(hypotheses-longcat.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorizati
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass confirmed STABLE — GET with NO auth → 200 + 11B `{"data":[]}` + A
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — `Bearer x` → 200 + 725B region registry (7 regions,
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError; nil-uuid→404 NotFoundEr
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE all return 401 InvalidTokenError with garbage Bearer x — auth gate
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 40
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DE
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions — scheme-only bypass STABLE (Bearer x → 200 + 725B + ACAO+ACAC, no-auth→400, POST→401; multi-version envoy L
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations — complete zero-header read-only bypass STABLE (GET no-auth → 200 + 11B + ACAO+ACAC; POST/PUT/PATCH/DE
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/** — CORS credential reflection STABLE (ACAO:reflected + ACAC:true + full methods on OPTIONS 204 + GET 200/401/404; no
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id} (plural) — 3-way UUID enumeration oracle CONFIRMED (malformed→400 ValidationError + correlationId
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization (singular) — oracle degraded 3-way→2-way (nil→400 ValidationError "not found", indistinguishable from malform
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com — STABLE dead (envoy 404 on ALL paths including /v1/,/api/,/routing/,/graphql,/map,/directions, etc.; no surface; NO_D
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions (write escalation) — POST Bearer x → 401; bypass read-only GET only, no write escalation path
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/organizations (write escalation) — POST/PUT/PATCH/DELETE Bearer x → 401 InvalidTokenError; OPTIONS advertises w
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep) — all 10 probed paths (/admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metri
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com (API path sweep) — all 8 probed paths (/api/health,/api/v1,/graphql,/webhooks,/export,/status,/config,/v1) return SPA c
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — confirmed live 2026-08-11 14:12 UTC on plural oracle path (OPTIONS 2
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle STABLE — malformed→400 ValidationError (285B + correlationId); nil
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — Bearer x → 200 + 725B + ACAO+ACAC; stable 84h+.
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths since 2026-08-07, NO_DELTA.

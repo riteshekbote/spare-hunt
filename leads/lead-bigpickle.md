@@ -4345,3 +4345,4 @@ evidence_needed: PATCH/PUT/DELETE with `Bearer x` → 2xx/400-schema vs 401.
 verify_steps: AUTH_HELPED (operator write-approval REQUIRED): each of PATCH/PUT/DELETE `https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body.
 impact: region-registry modification if any write responds; HIGH. Near-certain 401 parity closes it.
 testability: AUTH_HELPED
+## 2026-08-11 14:12:20 UTC [api] (model bigpickle)
