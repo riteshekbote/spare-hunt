@@ -1118,3 +1118,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404 on ALL paths, no discoverable surface, effectively dead across 4+ days of continuous probing.
 [RISK] forms.sparelabs.com: 35 — JS bundle leaks staging+prod+regional infra + inactive ngrok. SPA catch-all confirmed no direct API attack surface. Infra-recon value only.
 [RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing on Cloudflare, strict CSP, HSTS 31536000, no internal infra leaks. Minimal static-only surface.
+## 2026-08-11 07:57:08 UTC [routing] (model longcat)

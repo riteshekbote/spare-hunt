@@ -2300,3 +2300,13 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass re-confirmed live this session — Bearer x → 200 + 725B region registry (7 regions, CA→in
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Read-only zero-header bypass re-confirmed live this session — GET with NO auth → 200 + 11B + ACAO+ACA
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/ (0B), NO_DELTA since 2026-08-07, re-confirmed this session.
+
+## RANKED HYPOTHESES 2026-08-11 07:59:11 UTC
+- [98] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on /v1/global/organizations (read-only, write methods gated) (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -H "Authorization: Bearer x" -d '{"name":"test"}' "https:
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError "must match format uuid"
+- LEARN: CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) now confirmed to enforce auth properly (401 InvalidTokenError) — bypa
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 40
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE all return 401 InvalidTokenError with garbage Bearer x — auth gate
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations (read path): Complete zero-header no-auth bypass remains STABLE — GET with NO auth → 200 + 11B `{"data
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — `Bearer x` → 200 + 725B region registry (7 regions,

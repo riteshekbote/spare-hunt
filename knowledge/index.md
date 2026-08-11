@@ -748,3 +748,4 @@
 - 2026-08-11 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass re-confirmed live this session — Bearer x → 200 + 725B region registry (7 regions, CA→in-scope) + ACAO+ACAC.
 - 2026-08-11 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Read-only zero-header bypass re-confirmed live this session — GET with NO auth → 200 + 11B + ACAO+ACAC.
 - 2026-08-11 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/ (0B), NO_DELTA since 2026-08-07, re-confirmed this session.
+- 2026-08-11 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS api/routing subdomains in body) + ACAO+ACAC (4ms fast upstream). Multi-version envoy LB confirmed (fast vs slow replicas).

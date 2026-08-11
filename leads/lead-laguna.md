@@ -3696,3 +3696,4 @@ testability: PASSIVE (malformed/nil-uuid branches), HUMAN_ONLY (valid-org confir
 [LEARN] CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential degraded 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 404); malformed and nil-uuid indistinguishable; downgraded from oracle to validation-leak-only.
 [LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surface, NO_DELTA since 2026-08-07.
 [RISK] api.sparelabs.com: 85 — scheme-only auth bypass + zero-header fail-open on global controllers + 3-way UUID oracle + universal CORS credential reflection (84h+ stable, non-path-conditional); write methods enforced (read-only); route-specific scope; HIGH.
+## 2026-08-11 07:57:20 UTC [web] (model laguna)
