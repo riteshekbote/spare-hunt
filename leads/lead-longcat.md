@@ -1662,3 +1662,45 @@ testability: AUTH_HELPED
 [RISK] routing.sparelabs.com: 5 — envoy 404/0B on all paths since 2026-08-07, zero change across 4+ days continuous probing. Effectively dead.
 [RISK] forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging+prod+regional infra. SPA catch-all, no API endpoints. Recon-only, no auth bypass.
 [RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing, strict CSP, HSTS 31536000, no internal infra leaks. Minimal static-only surface.
+## 2026-08-11 21:04:28 UTC [routing] (model longcat)
+[PRIO] api.sparelabs.com/v1/global/regions: 99 (attack:10, business:10, tech:9, gate:10, cloud:8, fresh:2) — scheme-only bypass + infra topology disclosure (7 regions, 6 OOS api/routing subdomains in body) + universal CORS credentials, stable 84h+, 725B body sha256-verified, POST→401 caps to read-only
+[PRIO] api.sparelabs.com/v1/global/organizations: 97 (attack:10, business:10, tech:9, gate:10, cloud:7, fresh:2) — complete zero-header read-only bypass + CORS, stable 84h+, auth asymmetry confirmed (writes gated), all query params return hardcoded empty array
+[PRIO] api.sparelabs.com/v1/public/organizations/{id}: 88 (attack:9, business:9, tech:8, gate:8, cloud:6, fresh:5) — 3-way UUID enumeration oracle (malformed→400 ValidationError 263B, nil→404 NotFoundError 131B, valid→200) + universal CORS, plural namespace superior to degraded singular
+[HYP] Cross-origin UUID enumeration + org data exfiltration via oracle + universal CORS
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 85
+reasoning: 3-way UUID oracle (malformed→400, nil→404, valid→200) coexists with universal CORS credential reflection (ACAO+ACAC confirmed on this exact path via OPTIONS 204 live this session). Malicious page can issue credentialed cross-origin GETs to enumerate org UUIDs at scale. No rate-limit or CAPTCHA observed across 84h of probing.
+evidence_needed: Cross-origin browser proof returning oracle differential with credentials
+verify_steps: AUTH_HELPED: Deploy test page at attacker origin issuing `fetch("https://api.sparelabs.com/v1/public/organizations/"+uuid, {credentials:"include"})` across malformed/nil/valid UUIDs; confirm 400/404/200 differential persists cross-origin
+impact: Automated enumeration of all organization UUIDs + cross-origin exfiltration of org record data without auth tokens
+testability: AUTH_HELPED
+[HYP] Scheme-only region bypass enables cross-origin infra topology harvesting by any website
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 80
+reasoning: GET with any `Bearer x` → 200 + 725B region registry containing live apiUrl + routingHost for 7 regions (CA/US/US2/US3/JP/EU/UAT). OPTIONS returns ACAO+ACAC+write methods. Any malicious site can embed fetch with credentials to extract infra topology without victim interaction beyond page load.
+evidence_needed: Cross-origin credentialed fetch from browser context returning 200+725B
+verify_steps: AUTH_HELPED: Deploy page issuing `fetch("https://api.sparelabs.com/v1/global/regions", {headers:{Authorization:"Bearer x"}, credentials:"include"})` from attacker origin; confirm 200+725B returned cross-origin
+impact: Full infrastructure topology (regional API/routing hosts) exfiltratable by any website victim visits. Enables targeted attacks against OOS regional endpoints + in-scope CA region.
+testability: AUTH_HELPED
+[HYP] CORS credential reflection + auth bypass enables cross-origin write-path probing at scale
+class: MISCONFIG
+asset: api.sparelabs.com/v1/**
+confidence: 75
+reasoning: OPTIONS on all /v1 endpoints (including fail-open routes) returns ACAO:reflected + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type. While write handlers enforce auth (401 InvalidTokenError), the advertised write surface + credential reflection means any authenticated victim visiting malicious site can be leveraged for cross-origin state-changing requests against gated endpoints.
+evidence_needed: Cross-origin authenticated POST from victim browser context returning gated data
+verify_steps: AUTH_HELPED: Deploy page issuing credentialed cross-origin PUT/PATCH/POST to gated /v1 endpoints with victim cookies/tokens; confirm requests execute with victim auth context
+impact: Cross-origin write amplification — any authenticated victim can be forced to issue state-changing requests to 15+ gated API endpoints without interaction
+testability: AUTH_HELPED
+[FINAL] Surviving hypotheses (ranked):
+[NEXT] PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" && echo "---" && curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` — CONFIRMED THIS SESSION: OPTIONS 204 returns ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization; GET returns 404 NotFoundError (131B) + CORS credentials — CORS chain for cross-origin oracle exploitation CLOSED
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle re-confirmed live 2026-08-11 21:03 UTC — nil-uuid→404 NotFoundError (131B + correlationId) + universal CORS reflection on same path (OPTIONS 204 ACAO+ACAC)
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass re-confirmed live 2026-08-11 21:03 UTC — Bearer x → 200 + 725B region registry (7 regions, 6 OOS subdomains) + CORS; body content stable
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass re-confirmed live 2026-08-11 21:03 UTC — GET no-auth → 200 + 11B + CORS; writes gated at 401
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on /v1/ at 21:03 UTC; no surface since 2026-08-07
+[RISK] api.sparelabs.com: 90 — Three confirmed AUTH classes (read-only zero-header bypass, scheme-only region bypass with infra topology, 3-way UUID oracle) + universal CORS credential reflection across all /v1. Multi-version envoy LB creates unpredictable exposure surface. Cross-org data exfiltration via oracle+CORS viable. Write-path auth properly enforced caps escalation ceiling but read exposure is maximal for program.
+[RISK] platform.sparelabs.com: 55 — CSP infra leak via /login exposes production admin Vercel apps + Metabase + full cloud infra. No direct API surface (SPA catch-all). Admin hosts OOS third-party — recon-only value.
+[RISK] routing.sparelabs.com: 5 — envoy 404/0B on all paths since 2026-08-07, zero change across 4+ days continuous probing. Effectively dead.
+[RISK] forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging+prod+regional infra. SPA catch-all, no API endpoints. Recon-only, no auth bypass.
+[RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing, strict CSP, HSTS 31536000, no internal infra leaks. Minimal static-only surface.

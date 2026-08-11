@@ -2584,3 +2584,44 @@
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle re-confirmed live — malformed→400 ValidationError "must match form
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404 across all /v1 vi
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on /v1/ at 18:12 UTC; no surface since 2026-08-07.
+
+## RANKED HYPOTHESES 2026-08-11 21:06:41 UTC
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on organizations list endpoint (from reports/hypotheses-laguna.txt)
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on /v1/global/organizations (read-only) (from reports/hypotheses-nemotron3.txt)
+- [85] api.sparelabs.com/v1/public/organizations/{id}: Cross-origin UUID enumeration + org data exfiltration via oracle + universal CORS (from reports/hypotheses-longcat.txt)
+- [65] api.sparelabs.com/v1/global/organizations: Zero-header write bypass may exist on fail-open organizations route (GET vs POST auth asymmetry) (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid" && curl -s -D - -X GET -H "Orig
+- NEXT(hypotheses-bigpickle.txt): PASSIVE: Capture full CSP header from platform.sparelabs.com/login and parse all directives for in-scope api.sparelabs.com endpoints — `curl -s -D - -o /dev/nul
+- NEXT(hypotheses-longcat.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization"
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass confirmed STABLE — GET with NO auth → 200 + 11B `{"data":[]}` + A
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — `Bearer x` → 200 + 725B region registry (7 regions,
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError; nil-uuid→404 NotFoundEr
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE all return 401 InvalidTokenError with garbage Bearer x — auth gate
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 40
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DE
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{search,audit,exports,metrics,logs,webhooks,analytics,billing}: All 8 undocumented controllers returned HTTP 401 wit
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (query-param data leak): All 7 query params tested return identical 200 + 11B `{"data":[]}` — empty pa
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (query-param data leak): All 7 query params tested return identical 200 + 11B `{"data":[]}` — empty pa
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass re-confirmed live — GET no-auth → 200 + 11B `{"data":[]}` + ACAO+ACAC. Wr
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass re-confirmed live — Bearer x → 200 + 725B region registry (7 regions, CA→in-scope api/ro
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle re-confirmed live — malformed→400 ValidationError "must match form
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404 across all /v1 vi
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on /v1/ at 18:12 UTC; no surface since 2026-08-07.
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (query-param data leak): All 7 query params tested return identical 200 + 11B `{"data":[]}` — empty pa
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass re-confirmed live — GET no-auth → 200 + 11B `{"data":[]}` + ACAO+ACAC. Wr
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass re-confirmed live — Bearer x → 200 + 725B region registry (7 regions, CA→in-scope api/ro
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle re-confirmed live — malformed→400 ValidationError "must match form
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404 across all /v1 vi
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on /v1/ at 18:12 UTC; no surface since 2026-08-07.
+- LEARN: CONFIRMED STABLE: api.sparelabs.com/v1/global/organizations — complete zero-header no-auth bypass on GET returns 200 + 11B + ACAO+ACAC with zero Authorization h
+- LEARN: CONFIRMED STABLE: api.sparelabs.com/v1/global/regions — scheme-only bypass returns 200 + 725B region registry (7 regions incl 6 OOS api/routing subdomains) with
+- LEARN: CONFIRMED STABLE: api.sparelabs.com/v1/public/organizations/{id} — 3-way UUID enumeration oracle (malformed→400 ValidationError, nil→404 NotFoundError, valid→20
+- LEARN: CONFIRMED STABLE: api.sparelabs.com/v1/** — universal CORS credential reflection (ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DE
+- LEARN: CONFIRMED STABLE: api.sparelabs.com/v1/public/terms — data disclosure returns 200 + 137B (termsOfUseUrl+privacyPolicyUrl+serviceTermsUrl) without auth + CORS.
+- LEARN: CONFIRMED STABLE: platform.sparelabs.com/login — CSP infra leak exposes admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging) + Metabase (p
+- LEARN: REJECTED: api.sparelabs.com/v1/global/organizations write-bypass — POST/PUT/PATCH/DELETE with Bearer x returns 401 InvalidTokenError; auth gate active on write 
+- LEARN: REJECTED: Additional in-scope api.sparelabs.com endpoints in CSP — `connect-src` uses `*.sparelabs.com` wildcard, no discrete new endpoints discovered.
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle re-confirmed live 2026-08-11 21:03 UTC — nil-uuid→404 NotFoundErro
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass re-confirmed live 2026-08-11 21:03 UTC — Bearer x → 200 + 725B region registry (7 region
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass re-confirmed live 2026-08-11 21:03 UTC — GET no-auth → 200 + 11B + CORS; 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on /v1/ at 21:03 UTC; no surface since 2026-08-07

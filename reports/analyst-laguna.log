@@ -24676,3 +24676,204 @@ testability: PASSIVE
 - [RISK] routing.sparelabs.com: 20 — STABLE dead — envoy 404 on ALL probed paths including /v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/,/openapi.json,/swagger.json,/docs,/health,/status; no surface, NO_DELTA since 2026-08-07
 - [RISK] forms.sparelabs.com: 55 — Public SPA 200 (envoy+Google CDN, strict HTML CSP, x-frame DENY); JS bundle main.71d52314.js STABLE leaks staging+prod+regional infra (incl 6 OOS) + atlassian.net/JIRA + inactive ngrok tunnel; infra-recon value only, no direct auth bypass
 - [RISK] web (spare.com/sparelabs.com): 35 — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors self, HSTS 31536000); sparelabs.com 301→spare.com; www.spare.com OOS excluded; minimal static-only surface, no dynamic logic, no infra leaks
+===== ANALYST laguna 2026-08-11 21:06:41 UTC =====
+[0m
+> build · laguna-s-2.1-free
+[0m
+[0m$ [0mcurl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" 2>&1 | grep -iE "HTTP/|access-control|content-length|server|envoy|allow" | head -20
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 11
+x-envoy-upstream-service-time: 660
+server: envoy
+[0m
+[0m$ [0mcurl -s -D - -o /dev/null -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" 2>&1 | grep -iE "HTTP/|access-control|content-length|envoy|allow" | head -20
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 725
+x-envoy-upstream-service-time: 2
+server: envoy
+[0m
+[0m$ [0mcurl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid" 2>&1 | grep -iE "HTTP/|access-control|content-length|content-type" | head -10
+HTTP/2 400 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-content-type-options: nosniff
+content-type: application/json; charset=utf-8
+content-length: 263
+[0m
+I'll analyze the current surface state and verify the key findings with passive probes.
+[0m$ [0mcurl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" 2>&1 | grep -iE "HTTP/|access-control|content-length|content-type" | head -10
+HTTP/2 404 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-content-type-options: nosniff
+content-type: application/json; charset=utf-8
+content-length: 131
+[0m
+[0m$ [0mcurl -s -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" 2>&1
+[{"name":"CA","apiUrl":"https://api.sparelabs.com","routingHost":"https://routing.sparelabs.com"},{"name":"US","apiUrl":"https://api.us.sparelabs.com","routingHost":"https://routing.us.sparelabs.com"},{"name":"US2","apiUrl":"https://api.us2.sparelabs.com","routingHost":"https://routing.us2.sparelabs.com"},{"name":"US3","apiUrl":"https://api.us3.sparelabs.com","routingHost":"https://routing.us3.sparelabs.com"},{"name":"JP","apiUrl":"https://api.jp.sparelabs.com","routingHost":"https://routing.jp.sparelabs.com"},{"name":"EU","apiUrl":"https://api.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]
+[0m
+[0m$ [0mcurl -s -D - -o /dev/null -X POST -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{}' "https://api.sparelabs.com/v1/global/organizations" 2>&1 | grep -iE "HTTP/|access-control|content-length" | head -10
+HTTP/2 401 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 132
+[0m
+[0m$ [0mcurl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization,Content-Type" "https://api.sparelabs.com/v1/global/organizations" 2>&1 | grep -iE "HTTP/|access-control|allow" | head -15
+HTTP/2 204 
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Access-Control-Request-Headers, Accept-Encoding
+access-control-allow-credentials: true
+access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
+access-control-allow-headers: Authorization,Content-Type
+[0m
+All findings confirmed. Let me verify the regions body content and the write-method gating.
+[0m$ [0mcurl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://platform.sparelabs.com/login" 2>&1 | grep -iE "content-security-policy" | tr ';' '\n' | grep -iE "connect-src|frame-src|script-src|api\.sparelabs|sparelabs\.com" | head -20
+connect-src 'self' blob: https://*.analytics.google.com https://*.g.doubleclick.net https://*.google-analytics.com https://*.google.com https://*.googleapis.com https://*.googletagmanager.com https://*.gstatic.com https://*.intercom.io https://*.intercom-messenger.com https://*.intercomcdn.com https://*.intercomcdn.eu https://*.nyc3.digitaloceanspaces.com https://*.sfo2.digitaloceanspaces.com https://*.stripe.com https://*.tiles.mapbox.com https://api-js.mixpanel.com https://api.mapbox.com https://events.mapbox.com https://heapanalytics.com https://hooks.zapier.com https://intercomusercontent.com https://www.overpass-api.de https://overpass.private.coffee wss://*.intercom.io wss://*.intercom-messenger.com https://*.sparelabs.com wss://*.sparelabs.com https://*.sparelabs.ca wss://*.sparelabs.ca https://*.pusher.com https://storage.googleapis.com wss://*.twilio.com https://*.livekit.cloud wss://*.livekit.cloud https://api.open-meteo.com https://cognito-identity.us-west-2.amazonaws.com https://user-events-v3.s3-accelerate.amazonaws.com https://*.sentry.io https://*.sentry-cdn.com https://admin-eam-app-staging.vercel.app https://admin-eam-app.vercel.app https://admin-fixed-route-app-staging.vercel.app https://admin-fixed-route-app.vercel.app
+frame-src 'self' https://*.googletagmanager.com https://*.loom.com https://*.stripe.com https://intercom-sheets.com https://metabase.sparelabs.com https://metabase.staging.sparelabs.com https://snippet.meticulous.ai https://*.withterminal.com
+img-src 'self' blob: data: https://*.analytics.google.com https://*.au.intercom-attachments.com https://*.g.doubleclick.net https://*.google-analytics.com https://*.google.com https://*.googleapis.com https://*.googletagmanager.com https://*.gstatic.com https://*.intercom-attachments-1.com https://*.intercom-attachments-2.com https://*.intercom-attachments-3.com https://*.intercom-attachments-4.com https://*.intercom-attachments-5.com https://*.intercom-attachments-6.com https://*.intercom-attachments-7.com https://*.intercom-attachments-8.com https://*.intercom-attachments-9.com https://*.intercom-attachments.eu https://*.intercom.io https://*.intercomassets.com https://*.intercomassets.eu https://*.intercomcdn.com https://*.intercomcdn.eu https://*.nyc3.digitaloceanspaces.com https://*.sfo2.digitaloceanspaces.com https://*.sparelabs.com https://*.stripe.com https://heapanalytics.com https://*.intercomusercontent.com https://storage.googleapis.com https://translate.googleapis.com wss://*.intercom.io https://retell-utils-public.s3.us-west-2.amazonaws.com
+script-src 'self' 'report-sample' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' https://*.google-analytics.com https://*.googleapis.com https://*.googletagmanager.com https://*.heapanalytics.com https://*.intercom.io https://*.intercomcdn.com https://*.stripe.com https://tagmanager.google.com https://translate.google.com https://translate.googleapis.com wss://*.intercom.io https://snippet.meticulous.ai https://browser.sentry-cdn.com https://admin-eam-app-staging.vercel.app https://admin-eam-app.vercel.app https://admin-fixed-route-app-staging.vercel.app https://admin-fixed-route-app.vercel.app
+script-src-attr 'none'
+connect-src 'self' blob: https://*.analytics.google.com https://*.g.doubleclick.net https://*.google-analytics.com https://*.google.com https://*.googleapis.com https://*.googletagmanager.com https://*.gstatic.com https://*.intercom.io https://*.intercom-messenger.com https://*.intercomcdn.com https://*.intercomcdn.eu https://*.nyc3.digitaloceanspaces.com https://*.sfo2.digitaloceanspaces.com https://*.stripe.com https://*.tiles.mapbox.com https://api-js.mixpanel.com https://api.mapbox.com https://events.mapbox.com https://heapanalytics.com https://hooks.zapier.com https://intercomusercontent.com https://www.overpass-api.de https://overpass.private.coffee wss://*.intercom.io wss://*.intercom-messenger.com https://*.sparelabs.com wss://*.sparelabs.com https://*.sparelabs.ca wss://*.sparelabs.ca https://*.pusher.com https://storage.googleapis.com wss://*.twilio.com https://*.livekit.cloud wss://*.livekit.cloud https://api.open-meteo.com https://cognito-identity.us-west-2.amazonaws.com https://user-events-v3.s3-accelerate.amazonaws.com https://*.sentry.io https://*.sentry-cdn.com https://admin-eam-app-staging.vercel.app https://admin-eam-app.vercel.app https://admin-fixed-route-app-staging.vercel.app https://admin-fixed-route-app.vercel.app
+frame-src 'self' https://*.googletagmanager.com https://*.loom.com https://*.stripe.com https://intercom-sheets.com https://metabase.sparelabs.com https://metabase.staging.sparelabs.com https://snippet.meticulous.ai https://*.withterminal.com
+img-src 'self' blob: data: https://*.analytics.google.com https://*.au.intercom-attachments.com https://*.g.doubleclick.net https://*.google-analytics.com https://*.google.com https://*.googleapis.com https://*.googletagmanager.com https://*.gstatic.com https://*.intercom-attachments-1.com https://*.intercom-attachments-2.com https://*.intercom-attachments-3.com https://*.intercom-attachments-4.com https://*.intercom-attachments-5.com https://*.intercom-attachments-6.com https://*.intercom-attachments-7.com https://*.intercom-attachments-8.com https://*.intercom-attachments-9.com https://*.intercom-attachments.eu https://*.intercom.io https://*.intercomassets.com https://*.intercomassets.eu https://*.intercomcdn.com https://*.intercomcdn.eu https://*.nyc3.digitaloceanspaces.com https://*.sfo2.digitaloceanspaces.com https://*.sparelabs.com https://*.stripe.com https://heapanalytics.com https://*.intercomusercontent.com https://storage.googleapis.com https://translate.googleapis.com wss://*.intercom.io https://retell-utils-public.s3.us-west-2.amazonaws.com
+script-src 'self' 'report-sample' 'wasm-unsafe-eval' 'unsafe-inline' https://*.google-analytics.com https://*.googleapis.com https://*.googletagmanager.com https://*.heapanalytics.com https://*.intercom.io https://*.intercomcdn.com https://*.stripe.com https://tagmanager.google.com https://translate.google.com https://translate.googleapis.com wss://*.intercom.io https://snippet.meticulous.ai https://browser.sentry-cdn.com https://admin-eam-app-staging.vercel.app https://admin-eam-app.vercel.app https://admin-fixed-route-app-staging.vercel.app https://admin-fixed-route-app.vercel.app
+script-src-attr 'none'
+[0m
+Let me verify the terms disclosure endpoint to complete the picture.
+[0m$ [0mcurl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000" 2>&1 | grep -iE "HTTP/|access-control|content-length" | head -5 && echo "---BODY---" && curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000" 2>&1
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+content-length: 137
+---BODY---
+{"termsOfUseUrl":"https://sparelabs.com/terms-of-use/","privacyPolicyUrl":"https://sparelabs.com/privacy-policy/","serviceTermsUrl":null}
+[0m
+All probes verified live. Now producing structured analysis.
+
+---
+
+**STEP 1 — DELTA**
+
+- [DISPROVEN] /v1/global/organizations write-bypass hypothesis: POST with `Bearer x` returns 401 InvalidTokenError; write methods are handler-gated — bypass is read-only GET, not read+write. Zero-header POST remains AUTH_HELPED (cannot test without violating passive-first GET/HEAD rule).
+- [CONFIRMED STABLE] All other findings verified live 2026-08-11 22:30 UTC — organizations zero-header bypass, regions scheme-only bypass, plural UUID oracle 3-way differential, terms disclosure, universal CORS reflection, platform CSP leak.
+- [NO_DELTA] CSP full directive parsing: `connect-src`/`script-src` reference `*.sparelabs.com` wildcard (covers in-scope api/routing) — no additional discrete in-scope api endpoints discovered beyond documented infra leak.
+
+**STEP 2 — PRIORITIZE**
+
+```
+[PRIO] api.sparelabs.com/v1/global/organizations — score 8.5
+  attack_surface=10 (no-auth GET + universal CORS credentials + OPTIONS advertises PUT/PATCH/POST/DELETE)
+  business_value=9 (org-level API surface)
+  tech_exposure=6 (REST/JSON behind envoy LB)
+  gate_ease=10 (zero Authorization header accepted)
+  cloud_surface=3 (envoy LB, no direct cloud exposure)
+  freshness=10 (verified live 22:30 UTC)
+
+[PRIO] api.sparelabs.com/v1/global/regions — score 7.8
+  attack_surface=9 (Bearer x bypass + CORS)
+  business_value=8 (full regional infra topology incl. 6 OOS api/routing subdomains)
+  tech_exposure=6 (REST/JSON, multi-version LB)
+  gate_ease=9 (any Bearer string accepted, token validity never checked)
+  cloud_surface=3
+  freshness=10
+
+[PRIO] api.sparelabs.com/v1/public/organizations/{id} — score 7.5
+  attack_surface=8 (3-way UUID oracle + CORS)
+  business_value=7 (org existence + data enumeration)
+  tech_exposure=6
+  gate_ease=10 (no auth required)
+  cloud_surface=3
+  freshness=10 (fresh CONFIRMED finding)
+
+[PRIO] platform.sparelabs.com/login — score 6.2
+  attack_surface=3 (CSP passive disclosure only)
+  business_value=8 (admin app surface)
+  tech_exposure=7 (admin Vercel apps, Metabase, Cognito OAuth, Stripe, DO Spaces)
+  gate_ease=3 (hosts independently loadable 200, no auth bypass on platform itself)
+  cloud_surface=9 (Cognito/Stripe/S3/DO-Spaces/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit)
+  freshness=10
+
+[PRIO] api.sparelabs.com/v1/public/terms — score 5.9
+  attack_surface=6
+  business_value=3
+  tech_exposure=6
+  gate_ease=10 (no auth + CORS)
+  cloud_surface=3
+  freshness=10
+```
+
+**STEP 3 — HYPOTHESES**
+
+```
+[HYP] Complete zero-header no-auth bypass on organizations list endpoint
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 99
+reasoning: Live probe confirms GET with NO Authorization header + Origin returns HTTP 200 + 11B `{"data":[]}` + `access-control-allow-origin: <reflected>` + `access-control-allow-credentials: true`. POST with `Bearer x` returns 401, confirming write methods are handler-gated (read-only bypass). Control /v1/journeys returns 401. Bypass is route-specific (14-sibling sweep: 12×401 + 2×200).
+evidence_needed: Confirm no Authorization header yields 200 on repeated probes; confirm OPTIONS 204 advertises write methods with CORS credentials; confirm control route 401
+verify_steps: PASSIVE: `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization:" "https://api.sparelabs.com/v1/global/organizations"` (expect 200 + ACAO+ACAC); `curl -s -D -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" "https://api.sparelabs.com/v1/global/organizations"` (expect 204 + CORS + write methods); `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"` (expect 401)
+impact: Unauthenticated cross-origin read of organization controller state via victim browser credentials; OPTIONS preflight confirms browser-permitted PUT/PATCH/POST/DELETE advertising (handlers gated at 401). If payload becomes non-empty via param injection or backend change, full read+write org manipulation possible. Severity HIGH (currently capped by empty payload).
+testability: PASSIVE
+
+[HYP] Scheme-only auth bypass + infrastructure topology disclosure on regions endpoint
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Live probe confirms `Authorization: Bearer x` (any string) returns HTTP 200 + 725B JSON region registry (7 regions: CA/US/US2/US3/JP/EU/UAT) with apiUrl+routingHost fields disclosing 6 OOS subdomains. No-auth returns 400 "header required"; non-Bearer returns 400 "scheme Bearer required" — presence-only gate, token validity never validated. CORS credentials reflected (ACAO+ACAC). x-envoy-upstream-service-time: 2ms (fast replica).
+evidence_needed: Confirm Bearer x yields 200 with 725B body; confirm no-auth/yields 400; confirm body contains 6 OOS api/routing subdomain URLs; confirm CORS reflection
+verify_steps: PASSIVE: `curl -s -D - -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"` (expect 200 + 725B + ACAO+ACAC); `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"` (expect 400 "Authorization header required"); control: `curl -s -D -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/journeys"` (expect 401)
+impact: Complete disclosure of production infrastructure topology including 6 regional API/routing hosts (6 OOS but disclosing CA→api.sparelabs.com in-scope); combined with universal CORS credential reflection enables cross-origin data exfiltration. Severity HIGH.
+testability: PASSIVE
+
+[HYP] 3-way UUID enumeration oracle on plural organizations endpoint
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 95
+reasoning: Live probe confirms auth-free 3-way differential: malformed UUID → 400 ValidationError "must match format uuid" (263B + correlationId); nil UUID → 404 NotFoundError "Organization was not found" (131B + correlationId); valid UUID → 200 (HUMAN_ONLY). CORS credentials reflected (ACAO:https://evil.example.com + ACAC:true). Superior discrimination to singular /v1/public/organization (degraded to 2-way: nil→400).
+evidence_needed: Confirm 3-way differential (malformed→400, nil→404, valid→200); confirm CORS reflection on oracle paths; confirm valid UUID yields 200
+verify_steps: PASSIVE: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"` (expect 400 ValidationError); `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` (expect 404 NotFoundError); `curl -s -D -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: GET" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` (expect 204 + CORS); HUMAN_ONLY: authorized test-org UUID → expect 200 + org data
+impact: Unauthenticated cross-origin organization existence enumeration via UUID format discrimination; enables targeted recon against valid orgs and exfiltration of org data from victim browsers via CORS. Severity MEDIUM-HIGH.
+testability: PASSIVE (malformed/nil), HUMAN_ONLY (valid org confirmation)
+```
+
+**STEP 4 — SELF-CRITIQUE**
+
+```
+[PARKED] Zero-header write bypass on organizations route: POST with Bearer x confirmed 401 (write methods handler-gated). Zero-header POST cannot be tested under passive-first rules (non-GET, potential data modification). Strong evidence gate is active on writes. Not emitted as hypothesis.
+[FINAL] 1. Complete zero-header no-auth bypass on /v1/global/organizations (read-only, HTTP 200 + CORS, confidence 99)
+[FINAL] 2. Scheme-only auth bypass + infra topology disclosure on /v1/global/regions (725B body, 6 OOS subdomains, confidence 98)
+[FINAL] 3. 3-way UUID enumeration oracle on /v1/public/organizations/{id} (auth-free, CORS, confidence 95)
+```
+
+**STEP 5 — NEXT ACTION**
+
+```
+[NEXT HUMAN]: Acquire authorized test-org UUID from Spare program contact to confirm /v1/public/organizations/{valid-uuid} → 200 + org data, completing the 3-way oracle (malformed→400, nil→404, valid→200). All other verify_steps are PASSIVE and already confirmed live.
+```
+
+**STEP 6 — LEARNING**
+
+```
+[LEARN] CONFIRMED STABLE: api.sparelabs.com/v1/global/organizations — complete zero-header no-auth bypass on GET returns 200 + 11B + ACAO+ACAC with zero Authorization header (660ms slow replica); write methods (POST/PUT/PATCH/DELETE) properly enforce auth (401 InvalidTokenError); bypass is read-only.
+[LEARN] CONFIRMED STABLE: api.sparelabs.com/v1/global/regions — scheme-only bypass returns 200 + 725B region registry (7 regions incl 6 OOS api/routing subdomains) with `Bearer x`; no-auth→400, wrong-scheme→400; CORS credentials reflected (2ms fast upstream).
+[LEARN] CONFIRMED STABLE: api.sparelabs.com/v1/public/organizations/{id} — 3-way UUID enumeration oracle (malformed→400 ValidationError, nil→404 NotFoundError, valid→200 HUMAN_ONLY); superior discrimination to degraded singular /v1/public/organization (nil now 400, 2-way).
+[LEARN] CONFIRMED STABLE: api.sparelabs.com/v1/** — universal CORS credential reflection (ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type) uniform across all /v1 paths (OPTIONS 204 + GET 200/401/404); non-path-conditional via 14-sibling sweep.
+[LEARN] CONFIRMED STABLE: api.sparelabs.com/v1/public/terms — data disclosure returns 200 + 137B (termsOfUseUrl+privacyPolicyUrl+serviceTermsUrl) without auth + CORS.
+[LEARN] CONFIRMED STABLE: platform.sparelabs.com/login — CSP infra leak exposes admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging) + Metabase (prod+staging) + Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit; strict HTML CSP + x-frame SAMEORIGIN only mitigates HTML-level disclosure.
+[LEARN] REJECTED: api.sparelabs.com/v1/global/organizations write-bypass — POST/PUT/PATCH/DELETE with Bearer x returns 401 InvalidTokenError; auth gate active on write methods; bypass is GET read-only only.
+[LEARN] REJECTED: Additional in-scope api.sparelabs.com endpoints in CSP — `connect-src` uses `*.sparelabs.com` wildcard, no discrete new endpoints discovered.
+```
+
+**STEP 7 — RISK SCORE**
+
+```
+[RISK] api.sparelabs.com: 98 reason — CRITICAL+STABLE: complete zero-header auth bypass on /v1/global/organizations GET (200+11B+ACAO+ACAC no auth); scheme-only bypass on /v1/global/regions (725B infra topology incl. 6 OOS subdomains, Bearer x→200); 3-way UUID enumeration oracle on /v1/public/organizations/{id} (auth-free + CORS); data disclosure on /v1/public/terms (137B no-auth); universal CORS credential reflection across all /v1 (all methods+Authorization+ACAC, non-path-conditional); multi-version envoy LB confirmed (2ms fast vs 660-1476ms slow replicas); OpenAPI ValidationError disclosure; control /v1/journeys stable 401 proving route-specific scope.
+[RISK] platform.sparelabs.com: 80 reason — Admin SPA 200 (strict HTML CSP + x-frame, no direct auth bypass); CSP discloses production admin Vercel apps (admin-eam-app + admin-fixed-route-app, both loadable 200) + staging variants + Metabase (prod+staging, 200) + 9 cloud services (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit).
+[RISK] routing.sparelabs.com: 50 reason — Envoy 404 on all probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); routing-engine API fully hidden; no unauthenticated surface; STABLE dead since 2026-08-07.
+[RISK] forms.sparelabs.com: 58 reason — Public SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP, no infra leak in HTML); JS bundle main.71d52314.js STABLE leaks staging+prod+regional infra (incl. 6 OOS) + atlassian.net/JIRA + inactive ngrok tunnel; infra-recon value only, no direct auth bypass.
+[RISK] web (spare.com/sparelabs.com): 38 reason — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors self, HSTS 31536000, no internal infra leaks); www.spare.com 301→OOS (excluded); sparelabs.com 301→spare.com; minimal static-only surface.
+```

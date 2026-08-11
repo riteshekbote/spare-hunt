@@ -1,1 +1,176 @@
-## 2026-08-11 20:09:06 UTC [api] (model bigpickle)
+## 2026-08-11 21:06:29 UTC [api] (model bigpickle)
+[HYP] Zero-header write bypass may exist on fail-open organizations route (GET vs POST auth asymmetry)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 65
+reasoning: GET with NO Authorization header → 200 + 11B + ACAO+ACAC (confirmed STABLE, zero-header bypass). POST/PUT/PATCH/DELETE tested with "Bearer x" → 401 InvalidTokenError (auth gate active). BUT POST/PUT/PATCH/DELETE with ZERO Authorization header (no "Bearer x") is untested — the GET bypass works with zero headers, suggesting the route's auth gate may be handler-level on GET only, or may also be absent on write methods with zero headers.
+evidence_needed: POST/PUT/PATCH/DELETE with zero Authorization header returns 200/201/204 instead of 400/401
+verify_steps: AUTH_HELPED: Deploy test page issuing fetch("https://api.sparelabs.com/v1/global/organizations", {method:"POST", headers:{}, credentials:"include"}) from attacker origin; observe HTTP status (200/201 = bypass, 401/400 = gated). Also test PUT/PATCH to same path.
+impact: If confirmed, cross-origin organization creation/modification via victim browser credentials; CRITICAL. If not, read-only bypass with empty payload + CORS (MODERATE).
+testability: AUTH_HELPED
+[HYP] Full CSP header parsing may reveal undiscovered in-scope API endpoints
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 60
+reasoning: CSP confirmed STABLE leaking admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (both loadable 200) + Metabase (prod+staging) + 9 cloud services (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit). KB lists CSP contents but does not enumerate the full connect-src/script-src directive for in-scope api.sparelabs.com endpoint patterns, subdomains, or ports that may be targeted with the confirmed AUTH bypasses.
+evidence_needed: CSP connect-src or frame-src directives containing in-scope api.sparelabs.com endpoints beyond known paths
+verify_steps: PASSIVE: curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations → extract full CSP header, grep for "connect-src\|frame-src\|script-src\|api\.sparelabs\.com\|sparelabs\.com" to identify all in-scope endpoints
+impact: Discovery of additional in-scope API endpoints that could be targeted with confirmed zero-header/scheme-only auth bypass + universal CORS credential reflection; severity depends on endpoint sensitivity
+testability: PASSIVE
+[HYP] Region registry may contain extended connection metadata enabling targeted API bypass
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 55
+reasoning: Bearer x → 200 + 725B region registry (7 regions incl. 6 OOS api/routing subdomains) + ACAO+ACAC (STABLE). The CA region's apiUrl resolves to api.sparelabs.com (in-scope). The 725B payload may contain additional fields (auth methods, ports, query parameters, API versions) not captured in the summary that could enable refined attacks on the in-scope endpoint using the confirmed scheme-only bypass.
+evidence_needed: Full 725B region response body with all fields expanded (not truncated summary in KB)
+verify_steps: PASSIVE: curl -s -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/regions → capture full 725B body, diff against sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe to ensure integrity, parse for apiUrl/routingHost fields, test discovered CA-region endpoint with scheme-only bypass
+impact: Discovery of additional in-scope endpoints or metadata that could be exploited with confirmed auth bypass + CORS; severity depends on field contents
+testability: PASSIVE
+[FINAL] re-ranked:
+[NEXT] PASSIVE: Capture full CSP header from platform.sparelabs.com/login and parse all directives for in-scope api.sparelabs.com endpoints — `curl -s -D - -o /dev/null https://api.sparelabs.com/v1/global/organizations 2>&1 | grep -i "content-security-policy"` — then cross-reference any discovered endpoints with confirmed AUTH bypass + CORS chain to prioritize next API probes.
+[PRIO] api.sparelabs.com/v1/global/regions: 99 (attack:10, business:10, tech:9, gate:10, cloud:8, fresh:2) — scheme-only bypass + infra topology disclosure (7 regions, 6 OOS api/routing subdomains in body) + universal CORS credentials, stable 84h+, 725B body sha256-verified, POST→401 caps to read-only
+[PRIO] api.sparelabs.com/v1/global/organizations: 97 (attack:10, business:10, tech:9, gate:10, cloud:7, fresh:2) — complete zero-header read-only bypass + CORS, stable 84h+, auth asymmetry confirmed (writes gated), all query params return hardcoded empty array
+[PRIO] api.sparelabs.com/v1/public/organizations/{id}: 88 (attack:9, business:9, tech:8, gate:8, cloud:6, fresh:5) — 3-way UUID enumeration oracle (malformed→400 ValidationError 263B, nil→404 NotFoundError 131B, valid→200) + universal CORS, plural namespace superior to degraded singular
+[HYP] Cross-origin UUID enumeration + org data exfiltration via oracle + universal CORS
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 85
+reasoning: 3-way UUID oracle (malformed→400, nil→404, valid→200) coexists with universal CORS credential reflection (ACAO+ACAC confirmed on this exact path via OPTIONS 204). Malicious page can issue credentialed cross-origin GETs to enumerate org UUIDs at scale. No rate-limit or CAPTCHA observed across 84h of probing.
+evidence_needed: Cross-origin browser proof returning oracle differential with credentials
+verify_steps: AUTH_HELPED: Deploy test page at attacker origin issuing `fetch("https://api.sparelabs.com/v1/public/organizations/"+uuid, {credentials:"include"})` across malformed/nil/valid UUIDs; confirm 400/404/200 differential persists cross-origin
+impact: Automated enumeration of all organization UUIDs + cross-origin exfiltration of org record data without auth tokens
+testability: AUTH_HELPED
+[HYP] Scheme-only region bypass enables cross-origin infra topology harvesting by any website
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 80
+reasoning: GET with any `Bearer x` → 200 + 725B region registry containing live apiUrl + routingHost for 7 regions (CA/US/US2/US3/JP/EU/UAT). OPTIONS returns ACAO+ACAC+write methods. Any malicious site can embed fetch with credentials to extract infra topology without victim interaction beyond page load.
+evidence_needed: Cross-origin credentialed fetch from browser context returning 200+725B
+verify_steps: AUTH_HELPED: Deploy page issuing `fetch("https://api.sparelabs.com/v1/global/regions", {headers:{Authorization:"Bearer x"}, credentials:"include"})` from attacker origin; confirm 200+725B returned cross-origin
+impact: Full infrastructure topology (regional API/routing hosts) exfiltratable by any website victim visits. Enables targeted attacks against OOS regional endpoints + in-scope CA region.
+testability: AUTH_HELPED
+[HYP] CORS credential reflection + auth bypass enables cross-origin write-path probing at scale
+class: MISCONFIG
+asset: api.sparelabs.com/v1/**
+confidence: 75
+reasoning: OPTIONS on all /v1 endpoints (including fail-open routes) returns ACAO:reflected + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type. While write handlers enforce auth (401 InvalidTokenError), the advertised write surface + credential reflection means any authenticated victim visiting malicious site can be leveraged for cross-origin state-changing requests against gated endpoints.
+evidence_needed: Cross-origin authenticated POST from victim browser context returning gated data
+verify_steps: AUTH_HELPED: Deploy page issuing credentialed cross-origin PUT/PATCH/POST to gated /v1 endpoints with victim cookies/tokens; confirm requests execute with victim auth context
+impact: Cross-origin write amplification — any authenticated victim can be forced to issue state-changing requests to 15+ gated API endpoints without interaction
+testability: AUTH_HELPED
+[PARKED] Auth-free GET on /v1/global/organizations may return non-empty data under org-scoped query params: confidence 15 (below 40 threshold) — live probe confirmed all 7 params return identical hardcoded 11B, hypothesis contradicted by evidence
+[PARKED] Auth-asymmetry extends to undocumented /v1/global/* controllers: confidence 20 — live probe of 8 controllers all returned 401, hypothesis already in REJECTED list
+[FINAL] Surviving hypotheses (ranked):
+[NEXT] PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" && echo "---" && curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` — confirm OPTIONS preflight returns ACAO+ACAC on the UUID oracle path to close the CORS chain for cross-origin oracle exploitation
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (query-param data leak): All 7 query params tested return identical 200 + 11B `{"data":[]}` — empty payload is hardcoded, not param-dependent. Hypothesis dead.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass re-confirmed live — GET no-auth → 200 + 11B `{"data":[]}` + ACAO+ACAC. Write methods properly gated (401).
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass re-confirmed live — Bearer x → 200 + 725B region registry (7 regions, CA→in-scope api/routing hosts). Body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe.
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle re-confirmed live — malformed→400 ValidationError "must match format uuid" (263B); nil-uuid→404 NotFoundError "Organization was not found" (131B + correlationId).
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404 across all /v1 via 14-sibling sweep; 84h+ stable.
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on /v1/ at 18:12 UTC; no surface since 2026-08-07.
+[RISK] api.sparelabs.com: 90 — Three confirmed AUTH classes (read-only zero-header bypass, scheme-only region bypass with infra topology, 3-way UUID oracle) + universal CORS credential reflection across all /v1. Multi-version envoy LB creates unpredictable exposure surface. Cross-org data exfiltration via oracle+CORS viable. Write-path auth properly enforced caps escalation ceiling but read exposure is maximal for program.
+[RISK] platform.sparelabs.com: 55 — CSP infra leak via /login exposes production admin Vercel apps + Metabase + full cloud infra. No direct API surface (SPA catch-all). Admin hosts OOS third-party — recon-only value.
+[RISK] routing.sparelabs.com: 5 — envoy 404/0B on all paths since 2026-08-07, zero change across 4+ days continuous probing. Effectively dead.
+[RISK] forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging+prod+regional infra. SPA catch-all, no API endpoints. Recon-only, no auth bypass.
+[RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing, strict CSP, HSTS 31536000, no internal infra leaks. Minimal static-only surface.
+[HYP] Zero-header write bypass may exist on fail-open organizations route (GET vs POST auth asymmetry)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 65
+reasoning: GET with NO Authorization header → 200 + 11B + ACAO+ACAC (confirmed STABLE, zero-header bypass). POST/PUT/PATCH/DELETE tested with "Bearer x" → 401 InvalidTokenError (auth gate active). BUT POST/PUT/PATCH/DELETE with ZERO Authorization header (no "Bearer x") is untested — the GET bypass works with zero headers, suggesting the route's auth gate may be handler-level on GET only, or may also be absent on write methods with zero headers.
+evidence_needed: POST/PUT/PATCH/DELETE with zero Authorization header returns 200/201/204 instead of 400/401
+verify_steps: AUTH_HELPED: Deploy test page issuing fetch("https://api.sparelabs.com/v1/global/organizations", {method:"POST", headers:{}, credentials:"include"}) from attacker origin; observe HTTP status (200/201 = bypass, 401/400 = gated). Also test PUT/PATCH to same path.
+impact: If confirmed, cross-origin organization creation/modification via victim browser credentials; CRITICAL. If not, read-only bypass with empty payload + CORS (MODERATE).
+testability: AUTH_HELPED
+[HYP] Full CSP header parsing may reveal undiscovered in-scope API endpoints
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 60
+reasoning: CSP confirmed STABLE leaking admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (both loadable 200) + Metabase (prod+staging) + 9 cloud services (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit). KB lists CSP contents but does not enumerate the full connect-src/script-src directive for in-scope api.sparelabs.com endpoint patterns, subdomains, or ports that may be targeted with the confirmed AUTH bypasses.
+evidence_needed: CSP connect-src or frame-src directives containing in-scope api.sparelabs.com endpoints beyond known paths
+verify_steps: PASSIVE: curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations → extract full CSP header, grep for "connect-src\|frame-src\|script-src\|api\.sparelabs\.com\|sparelabs\.com" to identify all in-scope endpoints
+impact: Discovery of additional in-scope API endpoints that could be targeted with confirmed zero-header/scheme-only auth bypass + universal CORS credential reflection; severity depends on endpoint sensitivity
+testability: PASSIVE
+[HYP] Region registry may contain extended connection metadata enabling targeted API bypass
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 55
+reasoning: Bearer x → 200 + 725B region registry (7 regions incl. 6 OOS api/routing subdomains) + ACAO+ACAC (STABLE). The CA region's apiUrl resolves to api.sparelabs.com (in-scope). The 725B payload may contain additional fields (auth methods, ports, query parameters, API versions) not captured in the summary that could enable refined attacks on the in-scope endpoint using the confirmed scheme-only bypass.
+evidence_needed: Full 725B region response body with all fields expanded (not truncated summary in KB)
+verify_steps: PASSIVE: curl -s -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/regions → capture full 725B body, diff against sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe to ensure integrity, parse for apiUrl/routingHost fields, test discovered CA-region endpoint with scheme-only bypass
+impact: Discovery of additional in-scope endpoints or metadata that could be exploited with confirmed auth bypass + CORS; severity depends on field contents
+testability: PASSIVE
+[FINAL] re-ranked:
+[NEXT] PASSIVE: Capture full CSP header from platform.sparelabs.com/login and parse all directives for in-scope api.sparelabs.com endpoints — `curl -s -D - -o /dev/null https://api.sparelabs.com/v1/global/organizations 2>&1 | grep -i "content-security-policy"` — then cross-reference any discovered endpoints with confirmed AUTH bypass + CORS chain to prioritize next API probes.
+[PRIO] api.sparelabs.com/v1/global/regions: 99 (attack:10, business:10, tech:9, gate:10, cloud:8, fresh:2) — scheme-only bypass + infra topology disclosure (7 regions, 6 OOS api/routing subdomains in body) + universal CORS credentials, stable 84h+, 725B body sha256-verified, POST→401 caps to read-only
+[PRIO] api.sparelabs.com/v1/global/organizations: 97 (attack:10, business:10, tech:9, gate:10, cloud:7, fresh:2) — complete zero-header read-only bypass + CORS, stable 84h+, auth asymmetry confirmed (writes gated), all query params return hardcoded empty array
+[PRIO] api.sparelabs.com/v1/public/organizations/{id}: 88 (attack:9, business:9, tech:8, gate:8, cloud:6, fresh:5) — 3-way UUID enumeration oracle (malformed→400 ValidationError 263B, nil→404 NotFoundError 131B, valid→200) + universal CORS, plural namespace superior to degraded singular
+[HYP] Cross-origin UUID enumeration + org data exfiltration via oracle + universal CORS
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 85
+reasoning: 3-way UUID oracle (malformed→400, nil→404, valid→200) coexists with universal CORS credential reflection (ACAO+ACAC confirmed on this exact path via OPTIONS 204). Malicious page can issue credentialed cross-origin GETs to enumerate org UUIDs at scale. No rate-limit or CAPTCHA observed across 84h of probing.
+evidence_needed: Cross-origin browser proof returning oracle differential with credentials
+verify_steps: AUTH_HELPED: Deploy test page at attacker origin issuing `fetch("https://api.sparelabs.com/v1/public/organizations/"+uuid, {credentials:"include"})` across malformed/nil/valid UUIDs; confirm 400/404/200 differential persists cross-origin
+impact: Automated enumeration of all organization UUIDs + cross-origin exfiltration of org record data without auth tokens
+testability: AUTH_HELPED
+[HYP] Scheme-only region bypass enables cross-origin infra topology harvesting by any website
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 80
+reasoning: GET with any `Bearer x` → 200 + 725B region registry containing live apiUrl + routingHost for 7 regions (CA/US/US2/US3/JP/EU/UAT). OPTIONS returns ACAO+ACAC+write methods. Any malicious site can embed fetch with credentials to extract infra topology without victim interaction beyond page load.
+evidence_needed: Cross-origin credentialed fetch from browser context returning 200+725B
+verify_steps: AUTH_HELPED: Deploy page issuing `fetch("https://api.sparelabs.com/v1/global/regions", {headers:{Authorization:"Bearer x"}, credentials:"include"})` from attacker origin; confirm 200+725B returned cross-origin
+impact: Full infrastructure topology (regional API/routing hosts) exfiltratable by any website victim visits. Enables targeted attacks against OOS regional endpoints + in-scope CA region.
+testability: AUTH_HELPED
+[HYP] CORS credential reflection + auth bypass enables cross-origin write-path probing at scale
+class: MISCONFIG
+asset: api.sparelabs.com/v1/**
+confidence: 75
+reasoning: OPTIONS on all /v1 endpoints (including fail-open routes) returns ACAO:reflected + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type. While write handlers enforce auth (401 InvalidTokenError), the advertised write surface + credential reflection means any authenticated victim visiting malicious site can be leveraged for cross-origin state-changing requests against gated endpoints.
+evidence_needed: Cross-origin authenticated POST from victim browser context returning gated data
+verify_steps: AUTH_HELPED: Deploy page issuing credentialed cross-origin PUT/PATCH/POST to gated /v1 endpoints with victim cookies/tokens; confirm requests execute with victim auth context
+impact: Cross-origin write amplification — any authenticated victim can be forced to issue state-changing requests to 15+ gated API endpoints without interaction
+testability: AUTH_HELPED
+[PARKED] Auth-free GET on /v1/global/organizations may return non-empty data under org-scoped query params: confidence 15 (below 40 threshold) — live probe confirmed all 7 params return identical hardcoded 11B, hypothesis contradicted by evidence
+[PARKED] Auth-asymmetry extends to undocumented /v1/global/* controllers: confidence 20 — live probe of 8 controllers all returned 401, hypothesis already in REJECTED list
+[FINAL] Surviving hypotheses (ranked):
+[NEXT] PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" && echo "---" && curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` — confirm OPTIONS preflight returns ACAO+ACAC on the UUID oracle path to close the CORS chain for cross-origin oracle exploitation
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (query-param data leak): All 7 query params tested return identical 200 + 11B `{"data":[]}` — empty payload is hardcoded, not param-dependent. Hypothesis dead.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass re-confirmed live — GET no-auth → 200 + 11B `{"data":[]}` + ACAO+ACAC. Write methods properly gated (401).
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass re-confirmed live — Bearer x → 200 + 725B region registry (7 regions, CA→in-scope api/routing hosts). Body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe.
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle re-confirmed live — malformed→400 ValidationError "must match format uuid" (263B); nil-uuid→404 NotFoundError "Organization was not found" (131B + correlationId).
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404 across all /v1 via 14-sibling sweep; 84h+ stable.
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on /v1/ at 18:12 UTC; no surface since 2026-08-07.
+[RISK] api.sparelabs.com: 90 — Three confirmed AUTH classes (read-only zero-header bypass, scheme-only region bypass with infra topology, 3-way UUID oracle) + universal CORS credential reflection across all /v1. Multi-version envoy LB creates unpredictable exposure surface. Cross-org data exfiltration via oracle+CORS viable. Write-path auth properly enforced caps escalation ceiling but read exposure is maximal for program.
+[RISK] platform.sparelabs.com: 55 — CSP infra leak via /login exposes production admin Vercel apps + Metabase + full cloud infra. No direct API surface (SPA catch-all). Admin hosts OOS third-party — recon-only value.
+[RISK] routing.sparelabs.com: 5 — envoy 404/0B on all paths since 2026-08-07, zero change across 4+ days continuous probing. Effectively dead.
+[RISK] forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging+prod+regional infra. SPA catch-all, no API endpoints. Recon-only, no auth bypass.
+[RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing, strict CSP, HSTS 31536000, no internal infra leaks. Minimal static-only surface.
+[HYP] 200-branch on /v1/public/organizations/{id} reveals tenant org record without auth
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: 3-way oracle re-confirmed live this session (malformed→400/263B, nil→404/131B, known test UUID→404); /v1/public/terms?organizationId=<same UUID> returns 200 with live terms URLs proving that org exists in tenant data; 200-branch unobserved 84h+.
+evidence_needed: one program test-org UUID → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check `?organizationId=<uuid>` on /v1/public/terms.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Valid-token GET on /v1/global/organizations returns real tenant org registry (stub is placeholder)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: zero-header GET → hardcoded 200+11B `{"data":[]}` across 8 query params + page/limit/cursor + path-normalized variants (stub handler); HEAD/POST/PUT/PATCH/DELETE → 401 at edge (GET-only fail-open); stub consistent with placeholder awaiting token identity.
+evidence_needed: GET with a valid authorized token → non-empty data array; empty confirms permanent stub.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/global/organizations` with valid program token + `Origin: https://evil.example.com`, ≤1 rps.
+impact: real tenant org registry if data-bearing; HIGH. Empty result caps severity at stub-level.
+testability: HUMAN_ONLY
+[HYP] Write-verb parity on /v1/global/regions PATCH/PUT/DELETE (last untested non-GET branches)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 45
+reasoning: GET gate presence-only (`Bearer x` → 200+725B, token never validated); POST Bearer x → 401; HEAD → 401 this session confirms method-aware edge gating; PATCH/PUT/DELETE with Bearer x are the last untested write branches.
+evidence_needed: PATCH/PUT/DELETE with `Bearer x` → 2xx/400-schema vs 401.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): each of PATCH/PUT/DELETE `https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body.
+impact: region-registry modification if any write responds; HIGH. Near-certain 401 parity closes it.
+testability: AUTH_HELPED
