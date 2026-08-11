@@ -2160,3 +2160,25 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — ?mobileAppId=nil-uuid → 200 + 137B terms URLs no-auth + CORS.
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/ (0B). NO_DELTA since 2026-08-07.
 - LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 40
+
+## RANKED HYPOTHESES 2026-08-11 00:01:37 UTC
+- [98] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read/write CORS chain on fail-open organization controller (from reports/hypotheses-nemotron3.txt)
+- [75] api.sparelabs.com/v1/public/organizations/{id}: Plural org UUID enumeration oracle — 3-way differential on /v1/public/organizations/{id} (from reports/hypotheses-longcat.txt)
+- [58] api.sparelabs.com/v1/global/organizations: Write-handler auth on complete zero-header bypass /v1/global/organizations (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -H "Authorization: Bearer test" -d '{"name":"test"}' "htt
+- NEXT(hypotheses-longcat.txt): PROBE: `curl -s -w "\nHTTP:%{http_code}" -X POST -H "Authorization: Bearer x" -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"na
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass STABLE — 200 + `{"data":[]}` + ACAO+ACAC with NO Authorization he
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + full read+write CORS STABLE confirmed live 2026-08-10 23:20 — `Bearer x` → 200 + 725B 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DE
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com: All 10 admin/API paths (/admin, /api, /graphql, /v1, /internal, /config, /env, /status, /health, /metrics) return 2
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: All 8 API paths (/api/health, /api/v1, /graphql, /webhooks, /export, /status, /config, /v1) return 200 + `text/html` (
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 40
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/public/riders/{id}: 404 0B for both malformed and nil-uuid — route does not exist, no surface.
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/public/vehicles/{id}: 404 0B for both malformed and nil-uuid — route does not exist, no surface.
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/public/mobileApps/{id}: 404 NotFoundError (with body) for both malformed and nil-uuid — no format discrimination, not an or
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError "must match format uuid"
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass STABLE — 200 + 11B + ACAO+ACAC (KB-confirmed, no re-probe needed)
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — Bearer x → 200 + 725B (KB-confirmed, stable 84h+)
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — KB-confirmed 84h+
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — KB-confirmed

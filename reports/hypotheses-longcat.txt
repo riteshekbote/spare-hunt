@@ -1,46 +1,44 @@
-## 2026-08-10 23:20:20 UTC [routing] (model longcat)
-[PRIO] api.sparelabs.com/v1/public/organizations/{id} — 5.95 (attack:7 business:7 tech:6 gate:9 cloud:2 fresh:9)
-[PRIO] api.sparelabs.com/v1/public/terms (param expansion) — 3.90 (attack:4 business:5 tech:6 gate:9 cloud:2 fresh:6)
-[PRIO] api.sparelabs.com/v1/public/mobileApps — 4.30 (attack:5 business:6 tech:6 gate:9 cloud:2 fresh:7)
-[HYP] Plural org UUID enumeration oracle on /v1/public/organizations/{id}
+## 2026-08-10 23:57:15 UTC [routing] (model longcat)
+[PRIO] api.sparelabs.com/v1/public/organizations/{id} — 6.15 (attack:8 business:7 tech:6 gate:9 cloud:2 fresh:10)
+[PRIO] api.sparelabs.com/v1/global/organizations — 5.50 (attack:7 business:7 tech:6 gate:9 cloud:2 fresh:2)
+[PRIO] api.sparelabs.com/v1/global/regions — 5.40 (attack:7 business:7 tech:6 gate:9 cloud:2 fresh:2)
+[HYP] Plural org UUID enumeration oracle — 3-way differential on /v1/public/organizations/{id}
 class: AUTH
 asset: api.sparelabs.com/v1/public/organizations/{id}
-confidence: 45
-reasoning: Singular /v1/public/organization confirmed UUID oracle (degraded 2-way but alive) + auth-free + CORS. Plural /v1/public/organizations (no param) confirmed auth-free route (400 "not found"). Path-param variant /v1/public/organizations/{id} UNTESTED — if it mirrors singular validation pattern, parallel oracle exists with potentially different data exposure.
-evidence_needed: 400 ValidationError on malformed input OR 404 vs 200 discrimination on nil-uuid vs valid-UUID
-verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"` ; `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"`
-impact: Parallel org UUID enumeration; potential org data disclosure on 200-branch; enables pivot to authenticated org endpoints
-testability: PASSIVE (format discrimination) / HUMAN_ONLY (real-UUID 200-branch)
-[HYP] Unauthenticated mobileApp collection disclosure
-class: MISCONFIG
-asset: api.sparelabs.com/v1/public/mobileApps
-confidence: 30
-reasoning: /v1/public/terms?mobileAppId=<uuid> proves mobileApp is real entity with validated UUID. /v1/public/mobileApps/{id} returns 404 for all inputs (dead). Collection endpoint /v1/public/mobileApps (no param) UNTESTED.
-evidence_needed: 200 response with data (proves unauthenticated list disclosure)
-verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/mobileApps"`
-impact: Unauthenticated mobileApp enumeration; mobileApp IDs enable pivot to authenticated endpoints
+confidence: 75
+reasoning: Plural namespace /v1/public/organizations/{id} just confirmed 3-way differential (400 ValidationError on malformed, 404 NotFoundError on nil-uuid). This is BETTER than singular /v1/public/organization which degraded to 2-way. Auth-free + CORS ACAO+ACAC. Format discrimination enables passive org UUID enumeration without any auth token.
+evidence_needed: 400 ValidationError + 404 NotFoundError + confirmation that valid UUID returns 200 with org data
+verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"` (400 confirmed); `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` (404 confirmed)
+impact: Unauthenticated org UUID enumeration; each confirmed UUID enables pivot to authenticated org endpoints; high value for chaining with other auth-bypass routes
+testability: PASSIVE (400/404 discrimination) / HUMAN_ONLY (200-branch with valid UUID)
+[HYP] Write-method cross-origin mutation on fail-open /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 65
+reasoning: Route confirmed zero-header no-auth bypass + OPTIONS advertises PUT/PATCH/POST/DELETE with ACAO+ACAC. Read+write CORS chain fully converged. Actual write impact requires victim admin session cookies (cross-origin), but unauthenticated OPTIONS preflight confirms write-method surface is reachable.
+evidence_needed: 2xx/4xx response to unauthenticated PUT/PATCH/POST/DELETE with garbage Bearer or no auth
+verify_steps: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (204 + write methods confirmed in KB); `curl -s -w "\nHTTP:%{http_code}" -X POST -H "Authorization: Bearer x" -H "Content-Type: application/json" -d '{"name":"x"}' "https://api.sparelabs.com/v1/global/organizations"`
+impact: Cross-origin state mutation if victim admin session present; org creation/modification without attacker-side auth; requires CORS chain amplification
+testability: PASSIVE (OPTIONS confirms methods) / HUMAN_ONLY (actual write impact)
+[HYP] Region registry exfiltration via scheme-only bypass + CORS chain
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 70
+reasoning: Confirmed 725B region registry (7 regions, 6 OOS api/routing subdomains) returned with any `Bearer x`. Scheme-only gate (header presence + scheme check, token validity never checked). ACAO+ACAC on 200. OPTIONS advertises write methods. Stable 84h+.
+evidence_needed: Already confirmed in KB — this is a stable finding, not a new hypothesis
+verify_steps: `curl -s -w "\nHTTP:%{http_code}" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"`
+impact: Full infra topology disclosure (api/routing hosts per region); enables targeted pivoting to regional API surfaces; low severity (data already known) but confirms scheme-only bypass class
 testability: PASSIVE
-[HYP] Terms endpoint parameter expansion data disclosure
-class: MISCONFIG
-asset: api.sparelabs.com/v1/public/terms
-confidence: 25
-reasoning: Endpoint currently returns termsOfUseUrl+privacyPolicyUrl with mobileAppId or organizationId params. Additional params (fields, expand, include) could return richer data without auth.
-evidence_needed: 200 response with additional data fields beyond terms URLs
-verify_steps: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000&fields=all"`
-impact: Additional unauthenticated data disclosure beyond terms URLs
-testability: PASSIVE
-[PARKED] Unauthenticated mobileApp collection disclosure: Confidence 30 < 40 threshold. Low prior — path-param variant already confirmed dead (uniform 404), most collection endpoints auth-gated.
-[PARKED] Terms endpoint parameter expansion data disclosure: Confidence 25 < 40 threshold. Speculative param-pollution with no evidence of additional accepted params.
+[PARKED] None below threshold
 [FINAL] Surviving hypotheses (ranked):
-[NEXT] PROBE: `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"` && `curl -s -w "\nHTTP:%{http_code}" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` — test plural org path-param variant for format discrimination (400 vs 404) that would confirm parallel UUID enumeration oracle on plural namespace.
-[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass STABLE — 200 + 11B `{"data":[]}` + ACAO+ACAC (659ms slow replica).
-[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry + ACAO+ACAC (2ms fast replica).
-[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404.
-[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — ?mobileAppId=nil-uuid → 200 + 137B terms URLs no-auth + CORS.
-[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on /v1/ (0B). NO_DELTA since 2026-08-07.
-[LEARN] CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 404 NotFoundError); malformed and nil-uuid now indistinguishable.
-[RISK] api.sparelabs.com: 90 — Multiple confirmed auth bypasses (zero-header + scheme-only), universal CORS credential reflection across all /v1, UUID oracle (degraded but alive), data disclosure, multi-version LB flapping. Highest exposure in program with 3 distinct AUTH/MISCONFIG classes accepted stable 84h+. Chain amplification (CORS + auth bypass + org enum) enables cross-origin data exfil + potential state mutation.
-[RISK] platform.sparelabs.com: 55 — CSP infra leak exposes production admin Vercel apps + staging + Metabase + full cloud infra. Admin surface reachable but OOS third-party hosts limit direct exploitation. SPA catch-all confirmed no direct API surface.
-[RISK] routing.sparelabs.com: 5 — envoy 404 on ALL paths, no discoverable surface, effectively dead across 3+ days of continuous probing.
-[RISK] forms.sparelabs.com: 35 — JS bundle leaks staging+prod+regional infra + inactive ngrok. SPA catch-all confirmed no direct API attack surface. Infra-recon value only.
-[RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing on Cloudflare, strict CSP, HSTS 31536000, no internal infra leaks. Minimal static-only surface.
+[NEXT] PROBE: `curl -s -w "\nHTTP:%{http_code}" -X POST -H "Authorization: Bearer x" -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"name":"test"}' "https://api.sparelabs.com/v1/global/organizations"` — test if write methods are actually executable without valid auth (OPTIONS says yes, need to confirm POST behavior on the fail-open route)
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError "must match format uuid" + correlationId; nil-uuid→404 NotFoundError "Organization was not found". Plural namespace has BETTER discrimination than singular /v1/public/organization (degraded to 2-way). Auth-free + CORS (per pattern). Fresh finding this session.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass STABLE — 200 + 11B + ACAO+ACAC (KB-confirmed, no re-probe needed)
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — Bearer x → 200 + 725B (KB-confirmed, stable 84h+)
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — KB-confirmed 84h+
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — KB-confirmed
+[RISK] api.sparelabs.com: 92 — Multiple confirmed auth bypasses (zero-header + scheme-only + 3-way UUID oracle newly confirmed on plural namespace), universal CORS credential reflection across all /v1, data disclosure, multi-version LB flapping. Plural org oracle upgrade (vs degraded singular) adds fresh severity. Highest exposure in program with 3+ distinct AUTH/MISCONFIG classes accepted stable 84h+.
+[RISK] platform.sparelabs.com: 55 — CSP infra leak exposes production admin Vercel apps + staging + Metabase + full cloud infra. SPA catch-all confirmed no direct API surface.
+[RISK] routing.sparelabs.com: 5 — envoy 404 on ALL paths, no discoverable surface, effectively dead across 3+ days.
+[RISK] forms.sparelabs.com: 35 — JS bundle leaks staging+prod+regional infra + inactive ngrok. SPA catch-all confirmed no direct API attack surface.
+[RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing on Cloudflare, strict CSP, HSTS, no internal infra leaks.
