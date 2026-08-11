@@ -556,3 +556,6 @@
   - | Q3 Real impact? | YES — full internal infra topology disclosure (7 regions, 6 OOS api/routing subdomains) without valid auth |
   - | Q3 Real impact? | YES — 3-way differential (malformed→400, nil→404, valid→200) enables org UUID enumeration |
   - | Q4 Provable passive? | **NO** — requires AUTH_HELPED valid tenant token to test role check |
+
+- 1 lead(s) marked VALID at 2026-08-11 23:12:05 UTC
+  - | **Known VALID (A1–A7)** | CORS reflect-any-origin (8.1), scheme-only auth bypass (5.3), UUID enumeration (5.3), fail-open orgs (5.3), terms data disclosure (3.1–5.3), CSP/MFE infra leak (4.3), JS bu
