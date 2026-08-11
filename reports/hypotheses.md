@@ -2182,3 +2182,17 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — Bearer x → 200 + 725B (KB-confirmed, stable 84h+)
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — KB-confirmed 84h+
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — KB-confirmed
+
+## RANKED HYPOTHESES 2026-08-11 01:55:51 UTC
+- [98] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read/write CORS chain on fail-open organization controller (from reports/hypotheses-nemotron3.txt)
+- [80] api.sparelabs.com/v1/public/organizations/{id}: Data-bearing 200-branch on plural /v1/public/organizations/{id} (from reports/hypotheses-bigpickle.txt)
+- [55] api.sparelabs.com/v1/global/organizations: Write-method execution on zero-header fail-open /v1/global/organizations (from reports/hypotheses-longcat.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -H "Authorization: Bearer test" -d '{"name":"test"}' "htt
+- NEXT(hypotheses-longcat.txt): PROBE: `curl -s -w "\nHTTP:%{http_code}" -X POST -H "Authorization: Bearer x" -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"na
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError "must match format uuid"
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass STABLE — 200 + 11B `{"data":[]}` + ACAO+ACAC with NO Authorization header
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS) + ACAO+ACAC (body sh
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError "must match format uuid"
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404 across all /v1; non-path-co
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 40

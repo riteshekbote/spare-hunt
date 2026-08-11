@@ -375,3 +375,6 @@
 
 ## 2026-08-11 00:01:37 UTC
 - NEW None — inventory scan 2026-08-10 23:25 UTC reports NO_DELTA; all prior ACCEPTED/REJECTED classes in knowledge base remain stable through 2026-08-10 05:50 UTC live re-confirmations
+
+## 2026-08-11 01:55:51 UTC
+- NEW api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED (plural namespace) — malformed→400 ValidationError "must match format uuid" + correlationId; nil-uuid→404 NotFou

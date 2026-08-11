@@ -23650,3 +23650,92 @@ STEP 7 — RISK SCORE
 - [RISK] routing.sparelabs.com: 18 reason — envoy 404 on all probed paths, no live exposure, NO_DELTA since 2026-08-07
 - [RISK] forms.sparelabs.com: 46 reason — public SPA 200 (envoy+Google CDN, strict CSP); JS bundle main.71d52314.js leaks staging/prod/regional infra + atlassian.net + inactive ngrok; infra-recon value only
 - [RISK] web (spare.com/sparelabs.com): 15 reason — static Cloudflare+Webflow marketing, CSP frame-ancestors self, HSTS, no internal leaks, no dynamic surface
+===== ANALYST bigpickle 2026-08-11 01:55:51 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mcd /tmp/opencode && rm -f p_org_plural.txt p_org_singular.txt p_org_list.txt && \
+curl -s -D p1h.txt -o p_org_plural.txt -w "PLURAL-nil HTTP:%{http_code} bytes:%{size_download} t:%{time_total}\n" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" -H "Origin: https://evil.example.com"; sleep 1; \
+curl -s -D p2h.txt -o p_org_singular.txt -w "SINGULAR-nil HTTP:%{http_code} bytes:%{size_download} t:%{time_total}\n" "https://api.sparelabs.com/v1/public/organization/00000000-0000-0000-0000-000000000000" -H "Origin: https://evil.example.com"; sleep 1; \
+curl -s -D p3h.txt -o p_org_list.txt -w "PLURAL-LIST HTTP:%{http_code} bytes:%{size_download} t:%{time_total}\n" "https://api.sparelabs.com/v1/public/organizations" -H "Origin: https://evil.example.com"; \
+echo "--- plural body ---"; cat p_org_plural.txt; echo "--- singular body ---"; cat p_org_singular.txt; echo "--- list body ---"; cat p_org_list.txt
+PLURAL-nil HTTP:404 bytes:131 t:0.370427
+SINGULAR-nil HTTP:400 bytes:221 t:0.314407
+PLURAL-LIST HTTP:400 bytes:185 t:0.345469
+--- plural body ---
+{"name":"NotFoundError","message":"Organization was not found","metadata":{"correlationId":"41013a01-fab5-46c8-acc4-019b64698929"}}--- singular body ---
+{"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organization/00000000-0000-0000-0000-000000000000","message":"not found"}],"correlationId":"2172f676-df6b-4984-b04f-e5bf55f3f0f8"}}--- list body ---
+{"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organizations","message":"not found"}],"correlationId":"46550bc5-602b-4543-bcf9-ea32654c5fad"}}
+[0m
+[0m$ [0mcd /tmp/opencode && echo "--- plural headers ---"; grep -iE "access-control|content-type|x-envoy" p1h.txt; echo "--- terms cross-check ---"; curl -s -D p4h.txt -o p_terms.txt -w "TERMS HTTP:%{http_code} bytes:%{size_download} t:%{time_total}\n" "https://api.sparelabs.com/v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000" -H "Origin: https://evil.example.com"; grep -iE "access-control" p4h.txt; cat p_terms.txt; echo
+--- plural headers ---
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+x-content-type-options: nosniff
+content-type: application/json; charset=utf-8
+x-envoy-upstream-service-time: 6
+--- terms cross-check ---
+TERMS HTTP:200 bytes:137 t:0.177276
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+{"termsOfUseUrl":"https://sparelabs.com/terms-of-use/","privacyPolicyUrl":"https://sparelabs.com/privacy-policy/","serviceTermsUrl":null}
+[0m
+STEP 1 — DELTA
+- NO_DELTA — inventory 2026-08-10 23:25 UTC: all ACCEPTED/REJECTED classes stable; no new surface reported.
+- [CHANGED] api.sparelabs.com/v1/public/organization: singular oracle still degraded 2-way — live 2026-08-11 nil-uuid→400 `ValidationError "not found"` (221B), matching KB entry (was 404).
+- [LIVE] api.sparelabs.com/v1/public/organizations/{id}: plural 3-way intact — nil-uuid→404 `NotFoundError` (131B, correlationId 41013a01…) + ACAO:https://evil.example.com + ACAC:true (x-envoy 6ms); malformed→400.
+- [LIVE] api.sparelabs.com/v1/public/organizations (list): 400 `ValidationError "not found"` (185B) — no list surface, route-registered-only.
+- [LIVE] api.sparelabs.com/v1/public/terms?organizationId=nil-uuid: 200 + 137B (termsOfUseUrl/privacyPolicyUrl) + ACAO+ACAC no-auth — data disclosure STABLE.
+
+STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/public/organizations/{id}: 7.95 (attack 8, business 9, tech 6, gate 10, cloud 5, fresh 8) — only intact 3-way live discriminator; real-UUID 200-branch unobserved.
+- [PRIO] api.sparelabs.com/v1/global/organizations: 7.55 (attack 8, business 9, tech 6, gate 10, cloud 5, fresh 4) — complete zero-header bypass + write-method CORS chain; write handlers unobserved.
+- [PRIO] api.sparelabs.com/v1/global/regions: 5.85 (attack 6, business 6, tech 5, gate 8, cloud 6, fresh 3) — scheme-only bypass, infra-topology body; write gate parity unobserved.
+
+STEP 3 — HYPOTHESES
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: Live 2026-08-11 — nil-uuid→404 NotFoundError (131B, corrId 41013a01…) + ACAO+ACAC, malformed→400 ValidationError, x-envoy 6ms real lookup; /v1/public/terms?organizationId=nil-uuid→200 proves org-UUID-gated lookups run no-auth; plural is the only clean 3-way discriminator (singular degraded 2-way).
+evidence_needed: real existing org UUID → 200 + org record (name/branding/contacts) without Authorization.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check `?organizationId=<uuid>` on /v1/public/terms.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Write-handler auth on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 58
+reasoning: zero-header GET → 200 + 11B + ACAO+ACAC; OPTIONS 204 on exact route advertises PUT/PATCH/POST/DELETE + ACAC; GET gate absent, so write handlers are the unobserved branch.
+evidence_needed: POST/PUT/PATCH/DELETE no-auth → 2xx/400-schema vs 401/403.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED per no_data_modification): `POST https://api.sparelabs.com/v1/global/organizations` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser; CRITICAL if a write responds.
+testability: AUTH_HELPED
+[HYP] Write-handler gate parity on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 52
+reasoning: GET `Bearer x` → 200 + 725B + ACAO+ACAC; GET gate presence-only (token never validated); OPTIONS 204 advertises full write-method surface on same route.
+evidence_needed: POST/PUT with `Bearer x` → 2xx vs 401/403.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `POST https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Content-Type: application/json` + inert body.
+impact: unauthenticated region-registry modification; HIGH if write responds.
+testability: AUTH_HELPED
+
+STEP 4 — SELF-CRITIQUE
+- [PARKED] none — all 3 hypotheses ≥40 confidence, none on the REJECTED list, all with concrete verify_steps.
+- [FINAL] 1) plural /v1/public/organizations/{id} 200-branch (80) 2) /v1/global/organizations write-handler (58) 3) /v1/global/regions write-handler (52).
+
+STEP 5 — NEXT ACTION
+- [NEXT] HUMAN: Request ONE program test-org UUID from the authorized contact; then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` (PLURAL — 3-way intact live this cycle, NO Authorization + `Origin: https://evil.example.com`, ≤1 rps) and cross-check `?organizationId=<uuid>` on /v1/public/terms — closes the last unobserved 200-branch on the cleanest live discriminator. If the contact instead grants operator write-approval, `POST https://api.sparelabs.com/v1/global/organizations` with inert body supersedes this (CRITICAL if a write responds).
+
+STEP 6 — LEARNING
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way oracle intact live 2026-08-11 — nil-uuid→404 (131B) + ACAO+ACAC, malformed→400; plural confirmed as the only clean live discriminator.
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms?organizationId=nil-uuid: 200 + 137B + ACAO+ACAC no-auth live 2026-08-11 — data disclosure STABLE.
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: singular oracle remains degraded 2-way (400 "not found" nil + malformed) — matches KB 2026-08-10 19:38 entry, no reversion.
+
+STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 82 — complete zero-header auth omission on /v1/global/organizations + scheme-only bypass on /v1/global/regions + no-auth data-bearing endpoints (terms, 3-way org oracle) + uniform CORS credential reflection advertising full write-method surface; write handlers unverified but CORS chain is complete.
+- [RISK] platform.sparelabs.com: 45 — CSP leaks prod+staging admin Vercel apps, Metabase (prod+staging), and full cloud-infra list; pure MFE shell (10 admin paths → SPA catch-all), exposure is infra-recon only.
+- [RISK] routing.sparelabs.com: 10 — envoy 404 on all paths since 2026-08-07; no surface.
+- [RISK] forms.sparelabs.com: 35 — JS bundle leaks staging/prod/regional hosts + atlassian.net + ngrok tunnel; HTML CSP strict, SPA catch-all only, no API surface.
+- [RISK] web (spare.com/sparelabs.com): 15 — static Cloudflare/Webflow marketing, strict CSP (frame-ancestors 'self'), HSTS, no internal infra leaks; minimal static surface.
