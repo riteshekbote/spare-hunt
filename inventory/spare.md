@@ -400,3 +400,8 @@
 - CHANGED api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 404 NotFoundError); malformed and nil-uuid now indis
 - CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError with garbage Bearer x) — bypass is READ-ONLY (GET only), not 
 - NEW api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED (plural namespace) — malformed→400 ValidationError "must match format uuid" + correlationId; nil-uuid→404 NotFou
+
+## 2026-08-11 10:12:05 UTC
+- NEW api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED (plural namespace) — malformed→400 ValidationError "must match format uuid" + correlationId; nil-uuid→404 NotFou
+- CHANGED api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 404 NotFoundError); malformed and nil-uuid now indis
+- CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError with garbage Bearer x) — bypass is READ-ONLY (GET only), not 

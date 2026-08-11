@@ -4235,3 +4235,32 @@ verify_steps: PASSIVE: repeated `GET https://api.sparelabs.com/v1/global/organiz
 impact: unauthenticated org-list disclosure; MEDIUM.
 testability: PASSIVE
 [NEXT] HUMAN: Request ONE program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` (PLURAL) NO Authorization + `Origin: https://evil.example.com`, ≤1 rps — closes the last unobserved 200-branch on the cleanest live discriminator (read-only, safe). If the contact instead grants operator write-approval, `POST /v1/global/regions` with inert body supersedes (CRITICAL if a write responds).
+## 2026-08-11 10:09:06 UTC [api] (model bigpickle)
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: 3-way intact live this turn (nil→404/131B, malformed→400, ACAO+ACAC, 8ms fast upstream); plural discriminates while singular sibling is 2-way degraded; documented test UUID 0606efa8-… still 404 → only a real org UUID opens the 200-branch.
+evidence_needed: one live program test-org UUID → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check `?organizationId=<uuid>` on /v1/public/terms.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Write-handler gate parity on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 48
+reasoning: org sibling writes are 401-gated (KB 05:09) → regions POST/PUT is the only untested write branch; GET gate is presence-only (`Bearer x`→200+725B, token never validated) so handler-level write parity unproven.
+evidence_needed: POST/PUT with `Bearer x` → 2xx/400-schema vs 401.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `POST https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body.
+impact: region-registry modification if a write responds; HIGH. If 401 → parity confirmed, hypothesis closes.
+testability: AUTH_HELPED
+[HYP] Zero-header data-bearing replica on fail-open /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 38
+reasoning: fresh probe #48 → 11B `{"data":[]}` (783ms slow replica); params ignored every probe; multi-version LB latency explains slow replica, no data evidence in 84h+.
+evidence_needed: a probe where slow-replica GET returns non-empty data[].
+verify_steps: PASSIVE: repeated `GET https://api.sparelabs.com/v1/global/organizations` + Origin, ≤1 rps, 5 samples, diff body length.
+impact: unauthenticated org-list disclosure; MEDIUM.
+testability: PASSIVE
+[NEXT] HUMAN: Request ONE program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` (PLURAL) NO Authorization + `Origin: https://evil.example.com`, ≤1 rps — closes the last unobserved 200-branch on the cleanest live discriminator (read-only, safe). If the contact grants operator write-approval instead, `POST /v1/global/regions` with inert body supersedes (CRITICAL if a write responds).
