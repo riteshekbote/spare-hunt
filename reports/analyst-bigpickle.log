@@ -25189,3 +25189,63 @@ STEP 7 — RISK SCORE
 - [RISK] routing.sparelabs.com: 10 — envoy 404 on all paths, dead since 2026-08-07, no discoverable surface.
 - [RISK] forms.sparelabs.com: 30 — SPA catch-all behind envoy+Google CDN, strict HTML CSP + x-frame DENY; infra leak confined to JS bundle (staging/prod/regional hosts, atlassian.net, inactive ngrok); no auth surface.
 - [RISK] web (spare.com/sparelabs.com): 15 — static Cloudflare+Webflow marketing, CSP frame-ancestors 'self', HSTS; no dynamic logic, no internal infra leaks.
+===== ANALYST bigpickle 2026-08-11 12:00:04 UTC =====
+[0m
+> build · big-pickle
+[0m
+STEP 1 — DELTA
+- NO_DELTA on surface since last lead (11:06:45 UTC): plural `/v1/public/organizations/{id}` 3-way oracle CONFIRMED, singular `/v1/public/organization` 2-way degraded, and `/v1/global/organizations` write-method gating (401) are all already recorded in my state tail.
+- [NEW-HYP] only: `laguna` analyst ranks regions write-method enforcement as top hypothesis ([99]) — this is a new hypothesis, not a surface change; it merges into my HYP2 below.
+
+STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/public/organizations/{id}: 6.6 — attack 6, business 8, tech 5, gate 9, cloud 3, fresh 7 (only live 3-way discriminator left; last unobserved branch = real org 200)
+- [PRIO] api.sparelabs.com/v1/global/organizations: 5.6 — attack 5, business 6, tech 5, gate 10, cloud 3, fresh 3 (zero-header fail-open but empty 11B payload caps severity)
+- [PRIO] api.sparelabs.com/v1/global/regions: 5.55 — attack 7, business 5, tech 5, gate 8, cloud 3, fresh 3 (data-bearing 725B, scheme-only gate, only untested write branch)
+
+STEP 3 — HYPOTHESES
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: 3-way differential intact across sessions (malformed→400/263B, nil-uuid→404/131B, fast upstream ~0.19s); plural discriminates while singular sibling is permanently 2-way degraded; only a real org UUID opens the 200-branch, unobserved in 84h+ of probing.
+evidence_needed: one program test-org UUID → 200 + org record (name/branding/contacts) with NO Authorization header.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check `?organizationId=<uuid>` on /v1/public/terms.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Write-handler gate parity on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 48
+reasoning: org sibling writes proven 401-gated (POST→401/132B); regions GET gate is presence-only (`Bearer x`→200+725B, token never validated) so handler-level write parity unproven; regions POST/PUT is the only untested write branch on the whole /v1 surface.
+evidence_needed: POST/PUT with `Bearer x` → 2xx/400-schema vs 401.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `POST https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body.
+impact: region-registry modification if a write responds; HIGH. If 401 → parity confirmed, hypothesis closes.
+testability: AUTH_HELPED
+[HYP] Zero-header data-bearing replica on fail-open /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 38
+reasoning: fresh probe → 11B `{"data":[]}` on slow replica (600–1400ms vs 2–8ms gated); params ignored every probe; multi-version LB flapping documented; no non-empty data in 84h+.
+evidence_needed: a probe where slow-replica GET returns non-empty data[].
+verify_steps: PASSIVE: repeated `GET https://api.sparelabs.com/v1/global/organizations` + Origin, ≤1 rps, 5 samples, diff body length.
+impact: unauthenticated org-list disclosure; MEDIUM.
+testability: PASSIVE
+
+STEP 4 — SELF-CRITIQUE
+- [PARKED] Zero-header data-bearing replica on /v1/global/organizations: confidence 38 < 40 floor; 84h+ of repeated sampling found zero non-empty bodies — evidence expectation is speculative, passive re-probes add no signal.
+- HYP1 (80) and HYP2 (48) survive: both have concrete verify_steps, both off the REJECTED list, both close unobserved branches. No class dropped on REJECTED-list grounds.
+- [FINAL] 1) Data-bearing 200-branch on plural /v1/public/organizations/{id} (80); 2) Write-handler gate parity on /v1/global/regions (48).
+
+STEP 5 — NEXT ACTION
+- [NEXT] HUMAN: Request ONE program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` (PLURAL) NO Authorization + `Origin: https://evil.example.com`, ≤1 rps — closes the last unobserved 200-branch on the cleanest live discriminator (read-only, safe). If the contact instead grants operator write-approval, `POST /v1/global/regions` with inert body supersedes (CRITICAL if a write responds).
+
+STEP 6 — LEARNING
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations (read path): zero-header GET bypass remains STABLE and read-only — POST/PUT/PATCH/DELETE proven 401-gated with garbage Bearer; read→write escalation permanently closed.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: plural 3-way UUID oracle stable across sessions (malformed→400, nil→404, valid-found→200 unobserved); singular sibling /v1/public/organization remains 2-way degraded — plural is the sole viable discriminator.
+
+STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 78 — route-level auth omissions (regions scheme-only data-bearing 725B, organizations zero-header fail-open), universal CORS credential reflection across /v1 enabling cross-origin credentialed requests, live 3-way UUID enumeration oracle, unauthenticated terms disclosure; mitigated only by empty payloads and gated write handlers.
+- [RISK] platform.sparelabs.com: 35 — CSP leaks prod+staging admin Vercel apps and Metabase plus full cloud infra, but host is a pure MFE shell (SPA catch-all on all admin paths); no direct auth bypass.
+- [RISK] routing.sparelabs.com: 5 — envoy 404 on all paths, NO_DELTA since 2026-08-07, no discoverable surface.
+- [RISK] forms.sparelabs.com: 25 — JS bundle leaks staging/prod/regional hosts + ngrok + JIRA; strict HTML CSP + x-frame DENY, SPA catch-all only, no real API surface.
+- [RISK] web (spare.com/sparelabs.com): 10 — static Cloudflare+Webflow marketing, CSP frame-ancestors 'self', HSTS, no internal infra leaks.
