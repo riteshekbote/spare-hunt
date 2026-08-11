@@ -436,3 +436,9 @@
 - NEW None — inventory scan 2026-08-11 11:07 UTC reports no surface changes; all prior ACCEPTED/REJECTED classes stable through 2026-08-11 09:05 UTC live re-confirmations
 - CHANGED None — last live re-confirmation 2026-08-11 15:18 UTC shows all findings stable; no delta since prior analysis cycle
 - CHANGED REJECTED hypothesis: Auth-asymmetry does NOT extend to undocumented /v1/global/* controllers — all 8 probed (search, audit, exports, metrics, logs, webhooks, analytics, billing) returned HTTP 401 with
+
+## 2026-08-11 19:23:01 UTC
+- NEW None — inventory scan 2026-08-11 11:07 UTC reports no surface changes; all prior ACCEPTED/REJECTED classes stable through 2026-08-11 09:05 UTC live re-confirmations
+- CHANGED None — last live re-confirmation 2026-08-11 15:18 UTC shows all findings stable; no delta since prior analysis cycle
+- CHANGED REJECTED hypothesis: Auth-asymmetry does NOT extend to undocumented /v1/global/* controllers — all 8 probed (search, audit, exports, metrics, logs, webhooks, analytics, billing) returned HTTP 401 with
+- CHANGED REJECTED hypothesis: Query parameters on `/v1/global/organizations` do NOT produce non-empty responses — all 7 params tested (`orgId`, `tenantId`, `scope`, `organizationId`, `id`, `name`, `region`) re

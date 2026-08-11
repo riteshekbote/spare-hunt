@@ -4480,3 +4480,31 @@ evidence_needed: a query param → non-400/200 + non-empty body no-auth.
 verify_steps: PASSIVE: `GET https://api.sparelabs.com/v1/public/organizations?<k>=<v>` for k in {name,status,slug,code,key} with Origin, ≤1 rps, log code+size; promote only 200+non-empty.
 impact: unauthenticated org-list/collection data; MEDIUM.
 testability: PASSIVE
+## 2026-08-11 19:22:15 UTC [api] (model bigpickle)
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: live this session — malformed→400/263B ValidationError+correlationId; nil→404/131B NotFoundError+correlationId, both ACAO+ACAC no-auth; singular sibling 2-way degraded; known test UUID 0606efa8…→404. 200-branch unobserved 84h+.
+evidence_needed: one program test-org UUID → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Write-verb parity on /v1/global/regions PATCH/PUT/DELETE
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 45
+reasoning: GET gate is presence-only (Bearer x→200+725B, token never validated); POST probed→401; PATCH/PUT/DELETE on the scheme-only route are the last untested write branches; org siblings uniform write-gating 401.
+evidence_needed: PATCH/PUT/DELETE with `Bearer x` → 2xx/400-schema vs 401.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): each of PATCH/PUT/DELETE `https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body.
+impact: region-registry modification if any write responds; HIGH. Near-certain 401 parity closes it.
+testability: AUTH_HELPED
+[HYP] Fail-open orgs GET honors filters when LB routes to live backend
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 35
+reasoning: hardcoded `{"data":[]}` 11B, params historically ignored; multi-version LB serves fail-open from slow replica (591–1185ms), which may be a live backend honoring query filters.
+evidence_needed: a query param → 200 + non-empty data array.
+verify_steps: PASSIVE: GET with {regionId,tenantId,status,includeDeleted} + `Bearer x` + Origin, ≤1 rps, log code+size; promote only 200+non-empty.
+impact: org-list data exposure if any; MEDIUM.
+testability: PASSIVE
