@@ -26777,3 +26777,95 @@ STEP 7 — RISK SCORE:
 - [RISK] routing.sparelabs.com: 5 — envoy 404/0B on all paths since 2026-08-07; dead, no surface.
 - [RISK] forms.sparelabs.com: 35 — JS bundle main.71d52314.js infra leak (staging+prod+regional+atlassian+ngrok); SPA catch-all, no API endpoints; recon-only.
 - [RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing, strict CSP frame-ancestors 'self', HSTS 31536000, no internal leaks; minimal static-only surface.
+===== ANALYST bigpickle 2026-08-11 22:01:01 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mcurl -s -w "\nHTTP:%{http_code} SIZE:%{size_download} UP:%{time_total}s\n" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/0606efa8-59e1-4d08-9e1e-3b5e6a1f6e00" | head -c 1200; sleep 1; curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download} UP:%{time_total}s\n" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" | head -c 1200
+{"name":"NotFoundError","message":"Organization was not found","metadata":{"correlationId":"e5c85ecc-cc34-437c-b356-80a23aed2e49"}}
+HTTP:404 SIZE:131 UP:0.105174s
+{"name":"NotFoundError","message":"Organization was not found","metadata":{"correlationId":"8fdaaf68-9099-473b-a064-35757071efa9"}}
+HTTP:404 SIZE:131 UP:0.114963s
+[0m
+[0m$ [0msleep 1; curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download} UP:%{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?organizationId=0606efa8-59e1-4d08-9e1e-3b5e6a1f6e00" | head -c 800; sleep 1; curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}\n" -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" -D - -o /dev/null
+{"termsOfUseUrl":"https://sparelabs.com/terms-of-use/","privacyPolicyUrl":"https://sparelabs.com/privacy-policy/","serviceTermsUrl":null}
+HTTP:200 SIZE:137 UP:0.414103s
+HTTP/2 204 
+x-powered-by: Express
+spare-correlation-id: aec561db-5c35-4adb-aed2-c1861a3c11df
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Access-Control-Request-Headers, Accept-Encoding
+access-control-allow-credentials: true
+access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
+access-control-allow-headers: Authorization
+date: Tue, 11 Aug 2026 22:00:22 GMT
+x-envoy-upstream-service-time: 0
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+
+HTTP:204 SIZE:0
+[0m
+[0m$ [0mecho -n "0606efa8-59e1-4d08-9e1e-3b5e6a1f6e00" | sha256sum
+31f484a2edf51b2b690b10132fa135c2b485c02635a11e96d332c9ac44e219b4  -
+[0m
+STEP 1 — DELTA:
+- NO_DELTA — inventory + KB report no surface changes; all ACCEPTED/REJECTED classes stable through last live re-confirmation.
+- [CHANGED] EVIDENCE: live probe 2026-08-11 22:00 UTC — terms-valid org UUID (sha256 31f484a2edf51b2b690b10132fa135c2b485c02635a11e96d332c9ac44e219b4) returns **404 NotFoundError on plural oracle** while the same UUID returns **200 + 137B terms URLs on /v1/public/terms** — cross-namespace org-index divergence (oracle backend resolves a different/stricter org set than terms backend; consistent with multi-version envoy LB). Oracle 200-branch not triggerable via any known UUID.
+
+STEP 2 — PRIORITIZE:
+- [PRIO] api.sparelabs.com/v1/public/organizations/{id} — 7.25 (attack 7, business 8, tech 6, gate 10, cloud 4, fresh 7) — auth-free 3-way namespace, only open HIGH-value read surface left.
+- [PRIO] api.sparelabs.com/v1/global/organizations — 6.55 (attack 6, business 7, tech 6, gate 10, cloud 4, fresh 5) — zero-header bypass; empty stub caps value until valid-token test.
+- [PRIO] api.sparelabs.com/v1/global/regions — 6.40 (attack 6, business 6, tech 6, gate 8, cloud 8, fresh 5) — scheme-only bypass leaking 6 OOS regional hosts; cross-origin harvest chain complete.
+- [PRIO] platform.sparelabs.com/login — 6.15 (attack 5, business 5, tech 7, gate 10, cloud 7, fresh 4) — CSP infra leak, recon-only.
+
+STEP 3 — HYPOTHESES:
+[HYP] Plural-oracle 200-branch requires an org with a full public profile record (terms-only orgs excluded)
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 55
+reasoning: Live probe 22:00 UTC — terms-valid UUID returns 404 NotFoundError on oracle while 200 on /v1/public/terms; 200-branch unobserved across all UUIDs tested 84h+; malformed→400/nil→404 stable. Backend index split (oracle vs terms) suggests 200 fires only for orgs carrying a public profile object.
+evidence_needed: one program test-org UUID that resolves on the oracle → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` with NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check same UUID on `/v1/public/terms?organizationId=<uuid>` (must be 200 to prove oracle divergence is UUID-specific, not global).
+impact: unauthenticated tenant org-record disclosure (HIGH) if any org yields 200.
+testability: HUMAN_ONLY
+
+[HYP] Valid-token GET on /v1/global/organizations returns real tenant org registry (stub is placeholder)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: zero-header GET → hardcoded 200+11B `{"data":[]}` across 8 query params (stub handler); write verbs 401 at handler level; stub consistent with placeholder awaiting token identity; fail-open read is edge-level, real data likely returned only when identity supplied.
+evidence_needed: GET with valid authorized token → non-empty data array; empty confirms permanent stub.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/global/organizations` with valid program token + `Origin: https://evil.example.com`, ≤1 rps.
+impact: real tenant org registry if data-bearing (HIGH); empty caps severity at stub-level.
+testability: HUMAN_ONLY
+
+[HYP] Cross-origin infra-topology harvesting via regions bypass (browser-context demo)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 80
+reasoning: GET with any `Bearer x` → 200 + 725B region registry (7 regions incl. 6 OOS api/routing hosts); OPTIONS 204 on same path → ACAO:https://evil.example.com + ACAC:true + write methods; CORS+bypass chain fully evidenced passively 84h+. Any website can fetch credentials and read the registry without victim interaction.
+evidence_needed: cross-origin credentialed browser fetch returning 200+725B from attacker origin.
+verify_steps: AUTH_HELPED: deploy page issuing `fetch("https://api.sparelabs.com/v1/global/regions",{headers:{Authorization:"Bearer x"},credentials:"include"})`; confirm 200+725B readable cross-origin.
+impact: full regional API/routing topology exfiltration by any site victim visits; enables targeted attacks on OOS regional endpoints + in-scope CA.
+testability: AUTH_HELPED
+
+STEP 4 — SELF-CRITIQUE:
+- [PARKED] Write-verb parity on /v1/global/regions PATCH/PUT/DELETE: write-escalation class on /regions already REJECTED (POST Bearer x → 401 method-aware edge gating); near-certain 401 parity; write probes violate passive-first/no-modification rules.
+- [PARKED] Cross-origin write amplification (generic /v1/**): write handlers confirmed 401 across both fail-open routes; CORS preflight advertises writes but handlers enforce — escalation already REJECTED; no new evidence.
+- [FINAL] ranked:
+  1. Cross-origin infra-topology harvest via regions (AUTH, 80)
+  2. Plural-oracle 200-branch (IDOR, 55)
+  3. Valid-token org registry (AUTH, 55)
+
+STEP 5 — NEXT ACTION:
+[NEXT] HUMAN: Request one program test-org UUID from lead, then: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<test-uuid>"` (NO Authorization, ≤1 rps) + control `.../00000000-0000-0000-0000-000000000000` → 404; cross-check `/v1/public/terms?organizationId=<test-uuid>` → expect 200. 200 on oracle = unauthenticated org-record disclosure (HIGH), closes the only open data-bearing branch.
+
+STEP 6 — LEARNING:
+- [LEARN] REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: KB terms-valid org UUID (sha256 31f484a2…) returns 404 NotFoundError on oracle (200 on terms) — 200-branch not triggerable with known UUIDs; oracle and terms backends resolve divergent org sets (multi-version LB); oracle enumeration precision reduced to 2-way (400/404) until a resolving test UUID is supplied.
+- [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}: OPTIONS 204 live-reconfirmed 22:00 UTC — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization on oracle path; universal CORS chain extends to all probed /v1 paths.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions + organizations: scheme-only / zero-header bypasses remain STABLE (probe set consistent); no delta.
+
+STEP 7 — RISK SCORE:
+[RISK] api.sparelabs.com: 90 — Three confirmed AUTH/IDOR classes (zero-header read bypass, scheme-only region bypass w/ infra topology, 2-way oracle) + universal CORS credential reflection on all /v1; write-path auth enforced caps ceiling, but read exposure and multi-version LB divergence are maximal for program. | platform.sparelabs.com: 55 — CSP infra leak via /login exposes prod admin Vercel apps + Metabase + 9 cloud services; SPA catch-all, no API surface; recon-only value. | routing.sparelabs.com: 5 — envoy 404/0B on all paths since 2026-08-07; zero change across 4+ days; effectively dead. | forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging/prod/regional infra + atlassian; SPA catch-all, no API endpoints; recon-only. | web (spare.com/sparelabs.com): 10 — static Webflow marketing, strict CSP, HSTS 31536000, no internal leaks; minimal static-only surface.

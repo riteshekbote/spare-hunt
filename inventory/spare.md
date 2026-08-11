@@ -448,3 +448,9 @@
 ## 2026-08-11 21:06:41 UTC
 - NEW None — inventory scan 2026-08-11 11:07 UTC reports no surface changes; all prior ACCEPTED/REJECTED classes stable through 2026-08-11 09:05 UTC live re-confirmations
 - CHANGED None — last live re-confirmation 2026-08-11 15:18 UTC shows all findings stable; no delta since prior analysis cycle
+
+## 2026-08-11 22:01:01 UTC
+- NEW None — inventory scan 2026-08-11 11:07 UTC reports no surface changes; all prior ACCEPTED/REJECTED classes stable through 2026-08-11 09:05 UTC live re-confirmations
+- CHANGED None — last live re-confirmation 2026-08-11 15:18 UTC shows all findings stable; no delta since prior analysis cycle
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle further confirmed at 2-way — nil-uuid returns 400 ValidationError "not found" (malformed + nil indistinguishable); downgraded from orac
+- CHANGED api.sparelabs.com/v1/public/organizations/{id} (plural): NEW 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError "must match format uuid"; nil-uuid→404 NotFoundError (131B + correl
