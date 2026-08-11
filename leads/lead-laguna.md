@@ -3945,3 +3945,4 @@ testability: PASSIVE (malformed/nil-uuid branches), HUMAN_ONLY (valid-org 200 co
 [RISK] routing.sparelabs.com: 10 — STABLE dead; envoy 404 on ALL probed paths; no surface, no auth context, no data; NO_DELTA since 2026-08-07; zero exposure.
 [RISK] forms.sparelabs.com: 52 — SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN) on host; JS bundle main.71d52314.js leaks 6 staging+prod+regional infra hosts + atlassian.net + inactive ngrok tunnel; staging portals live (200); no auth bypass vector beyond recon value.
 [RISK] web (spare.com/sparelabs.com): 12 — spare.com apex HTTP 200 static Webflow marketing (Cloudflare, CSP frame-ancestors 'self', HSTS 31536000); sparelabs.com 301→spare.com; minimal static-only surface, no internal infra leaks in HTML/JS, no dynamic logic; www.spare.com excluded OOS.
+## 2026-08-11 16:22:35 UTC [web] (model laguna)
