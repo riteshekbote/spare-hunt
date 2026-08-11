@@ -4149,3 +4149,40 @@ verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `POST https://api.
 impact: unauthenticated region-registry modification; HIGH if write responds.
 testability: AUTH_HELPED
 [NEXT] HUMAN: Request ONE program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` (PLURAL) NO Authorization + `Origin: https://evil.example.com`, ≤1 rps, and cross-check `?organizationId=<uuid>` on /v1/public/terms — closes the last unobserved 200-branch on the cleanest live discriminator. If the contact instead grants operator write-approval, `POST /v1/global/organizations` with inert body supersedes (CRITICAL if a write responds).
+## 2026-08-11 05:50:13 UTC [api] (model bigpickle)
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: 3-way intact live 05:48 UTC (400/404, ACAO+ACAC, ~7–11ms envoy); plural is path-param while singular sibling is query-param and degraded 2-way; documented test UUID `0606efa8-…` returns 404 → only an unknown real org UUID opens the 200-branch.
+evidence_needed: one live program test-org UUID → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check `?organizationId=<uuid>` on /v1/public/terms (note: terms 200 is non-discriminating, plural 200 is the proof).
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Write-handler gate parity on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 48
+reasoning: GET gate is presence-only (`Bearer x` → 200+725B, token never validated); sibling /v1/global/organizations GET fails open but its write methods are 401-gated (KB 05:09:44); regions POST/PUT is the untested parallel branch.
+evidence_needed: POST/PUT with `Bearer x` → 2xx/400-schema vs 401.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `POST https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Content-Type: application/json` + inert empty body.
+impact: region-registry modification if a write responds; HIGH. If 401 → parity confirmed, hypothesis closes.
+testability: AUTH_HELPED
+[HYP] Zero-header data-bearing replica on fail-open /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 38
+reasoning: GET no-auth → 200 + 11B `{"data":[]}` on slow replica (600–1300ms) vs fast replica on gated routes (2–8ms); multi-version LB flapping documented; params ignored in every probe.
+evidence_needed: a probe where slow-replica GET returns non-empty data[].
+verify_steps: PASSIVE: repeated `GET https://api.sparelabs.com/v1/global/organizations` + `Origin: https://evil.example.com`, ≤1 rps, 5 samples, diff body length.
+impact: unauthenticated org-list disclosure; MEDIUM.
+testability: PASSIVE
+[HYP] Frameable staging admin/Metabase from platform CSP
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 30
+reasoning: CSP frame-src/script-src lists admin-eam-app + admin-fixed-route-app (prod+staging, all 200) and Metabase (200); but all four are OOS hosts (vercel.app / metabase.*.sparelabs.com) with no in-scope exploitation vector.
+evidence_needed: an in-scope consequence of framing the leaked origins.
+verify_steps: none in scope (all targets OOS).
+impact: infra-recon only; LOW.
+testability: HUMAN_ONLY
