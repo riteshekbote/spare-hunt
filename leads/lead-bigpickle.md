@@ -3747,3 +3747,37 @@ evidence_needed: POST/PUT with `Bearer x` → 2xx vs 401/403.
 verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `POST https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Content-Type: application/json` + inert body.
 impact: unauthenticated region-registry modification; HIGH if write responds.
 testability: AUTH_HELPED
+## 2026-08-11 03:31:13 UTC [api] (model bigpickle)
+reasoning: GET `Bearer x` → 200 + 725B + ACAO+ACAC; GET gate presence-only (token never validated); OPTIONS 204 advertises full write-method surface on same route.
+evidence_needed: POST/PUT with `Bearer x` → 2xx vs 401/403.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `POST https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Content-Type: application/json` + inert body.
+impact: unauthenticated region-registry modification; HIGH if write responds.
+testability: AUTH_HELPED
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: 3-way intact live 03:30 UTC (400/404/200) on a real lookup path (x-envoy ~6ms); /v1/public/terms?organizationId=nil-uuid→200 proves org-UUID-gated lookups run no-auth; singular sibling degraded to 2-way, plural is the only clean discriminator.
+evidence_needed: a real existing org UUID → 200 + org record (name/branding/contacts) without Authorization.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check `?organizationId=<uuid>` on /v1/public/terms.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Write-handler auth on complete zero-header bypass /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 58
+reasoning: GET zero-header → 200 + 11B + ACAO+ACAC (reconfirmed 03:30 UTC); OPTIONS 204 on exact route advertises PUT/PATCH/POST/DELETE + ACAC; GET gate absent, so write handlers are the unobserved branch.
+evidence_needed: POST/PUT/PATCH/DELETE no-auth → 2xx/400-schema vs 401/403 on the fail-open route.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `POST https://api.sparelabs.com/v1/global/organizations` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body + NO Authorization.
+impact: unauthenticated cross-origin org-data write/tamper via victim browser; CRITICAL if a write responds.
+testability: AUTH_HELPED
+[HYP] Write-handler gate parity on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 52
+reasoning: GET `Bearer x` → 200 + 725B + ACAO+ACAC (2–4ms fast replica); GET gate presence-only (token never validated); OPTIONS 204 advertises full write-method surface on same route.
+evidence_needed: POST/PUT with `Bearer x` → 2xx vs 401/403.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `POST https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Content-Type: application/json` + inert body.
+impact: unauthenticated region-registry modification; HIGH if write responds.
+testability: AUTH_HELPED
+[NEXT] HUMAN: Request ONE program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` (PLURAL) NO Authorization + `Origin: https://evil.example.com`, ≤1 rps, and cross-check `?organizationId=<uuid>` on /v1/public/terms — closes the last unobserved 200-branch on the cleanest live discriminator. If the contact instead grants operator write-approval, `POST /v1/global/organizations` with inert body supersedes (CRITICAL if a write responds).
