@@ -535,3 +535,6 @@
   - | L11 | api.sparelabs.com/v1/** (CORS) | all models | **Already VALID** | A1 reconfirmation |
   - | L12 | forms.sparelabs.com (JS bundle) | laguna, ling3, nemotron3 | **Already VALID** | A8 reconfirmation |
   - | L13 | platform.sparelabs.com (CSP leak) | laguna, ling3, nemotron3 | **Already VALID** | A7 reconfirmation |
+
+- 1 lead(s) marked VALID at 2026-08-11 05:58:10 UTC
+  - | **L18** | `api.sparelabs.com/v1/public/organizations/{id}` (data-bearing) | **HOLD** | Q4 200-branch needs valid UUID; extends A6. |
