@@ -22410,3 +22410,64 @@ routing.sparelabs.com: 10 | Negligible — envoy 404 on ALL probed paths (/,/v1/
 forms.sparelabs.com: 28 | Low-Medium — SPA 200 (envoy+Google CDN, strict HTML CSP + x-frame DENY); JS bundle main.71d52314.js stable leaking staging+prod+regional infra (api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com) + atlassian.net/JIRA + inactive ngrok tunnel (api-spare.ngrok.io → ERR_NGROK_3200); all 8 API paths → SPA catch-all (index.html); no direct auth bypass; infra-recon value only.
 
 web (spare.com/sparelabs.com): 15 | Low — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks in HTML/JS); sparelabs.com 301→spare.com; www.spare.com excluded (OOS); minimal static-only surface, no dynamic logic/auth/user-input handling; STABLE.
+===== ANALYST laguna 2026-08-11 06:43:24 UTC =====
+[0m
+> build · laguna-s-2.1-free
+[0m
+NO_DELTA — inventory scan 2026-08-11 05:56 UTC reports no surface changes; all ACCEPTED/REJECTED classes remain stable through 2026-08-11 05:56 UTC live re-confirmations.
+
+[PRIO] api.sparelabs.com/v1/global/organizations: 8.55 — attack=9, bus=9, tech=7, gate=10, cloud=5, fresh=10
+[PRIO] api.sparelabs.com/v1/global/regions: 7.95 — attack=8, bus=7, tech=7, gate=9, cloud=8, fresh=10
+[PRIO] platform.sparelabs.com/login: 7.35 — attack=6, bus=8, tech=7, gate=6, cloud=9, fresh=10
+[PRIO] api.sparelabs.com/v1/public/organizations/{id}: 7.30 — attack=8, bus=7, tech=5, gate=10, cloud=4, fresh=9
+
+[HYP] Zero-header no-auth GET bypass + credentialed CORS (read-only) on global organizations controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 99
+reasoning: GET with NO Authorization header + Origin → 200 + 11B `{"data":[]}` + ACAO:https://evil.example.com + ACAC:true, verified stable 84h+ (slow 496-1343ms replica vs 3-8ms on gated routes); OPTIONS → 204 + Allow:PUT,PATCH,POST,DELETE + ACAO+ACAC; POST/PUT/PATCH/DELETE with garbage Bearer x → 401 InvalidTokenError (write auth enforced, bypass is read-only); control /v1/journeys → 401 stable; 14-sibling sweep confirms route-specific (12×401 + 2×200).
+evidence_needed: 200 + 11B `{"data":[]}` + ACAO+ACAC with zero Authorization header (GET only); 204 + Allow writes + ACAO+ACAC on OPTIONS (advertised only); 401 on POST/PUT/PATCH/DELETE confirming write enforcement; 401 on control /v1/journeys.
+verify_steps: PASSIVE `curl -s -D - -w "\nHTTP:%{http_code}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` → expect 200 + ACAO + ACAC + 11B `{"data":[]}`; `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: DELETE" -H "Access-ControlRequestHeaders: Authorization,Content-Type" "https://api.sparelabs.com/v1/global/organizations"` → expect 204 + ACAO + ACAC + Allow:PUT,PATCH,POST,DELETE; `curl -s -D - -w "\nHTTP:%{http_code}" -X POST -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -H "Content-Type: application/json" -d '{}' "https://api.sparelabs.com/v1/global/organizations"` → expect 401 (write auth enforced); `curl -s -D - -o /dev/null -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"` → expect 401 + ACAO + ACAC (control).
+impact: Any malicious origin issues credentialed cross-origin GET to the global organizations controller with zero credentials via victim browser (CORS ACAO+ACAC enables this); empty 11B payload `{"data":[]}` caps data exfiltration; write methods properly gated (401) — no state mutation vector. Route-specific scope limits blast radius. Severity: HIGH (capped by empty payload + read-only + route-specificity).
+testability: PASSIVE
+
+[HYP] Scheme-only auth bypass + infra topology disclosure + credentialed CORS on regions controller
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 99
+reasoning: `Authorization: Bearer x` + Origin → 200 + 725B region registry (7 regions incl. 6 OOS api/routing subdomains: api.us/sparelabs.com, routing.us2/us3/jp/eu/uat) + ACAO+ACAC (body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe verified across 12+ probes, 2-5ms fast upstream); no-Auth → 400 "Authorization header required"; `Authorization: x` → 400 "scheme 'Bearer' required" (presence-only gate, token validity never checked); OPTIONS 204 + ACAO+ACAC + Allow:PUT,PATCH,POST,DELETE confirmed; control /v1/journeys stable 401.
+evidence_needed: 725B body disclosing ≥6 OOS api/routing subdomains + sha256 match (fb9800acb…585c3fe); 400 on missing auth; 204 OPTIONS + ACAO+ACAC + Allow write methods; 401 on control /v1/journeys; 401 on POST/PUT/PATCH/DELETE (write enforcement, by analogy to /organizations).
+verify_steps: PASSIVE `curl -s --max-time 15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" -o /tmp/regions_check && sha256sum /tmp/regions_check` → expect fb9800acb…585c3fe; `curl -s -D - -o /dev/null --max-time 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"` → expect 400 "Authorization header required"; `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-ControlRequest-Method: POST" -H "Access-ControlRequestHeaders: Authorization,Content-Type" "https://api.sparelabs.com/v1/global/regions"` → expect 204 + ACAO + ACAC + Allow:PUT,PATCH,POST,DELETE; `curl -s -D - -w "\nHTTP:%{http_code}" -X POST -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -H "Content-Type: application/json" -d '{}' "https://api.sparelabs.com/v1/global/regions"` → expect 401 (write auth enforced).
+impact: Unauthenticated infra topology disclosure of 6 out-of-scope regional API/routing subdomains (api.us/sparelabs.com, routing.us2/us3/jp/eu/uat) with apiUrl+routingHost → enables targeted follow-on against those hosts; scheme-only bypass (any Bearer x works) + credentialed CORS enables cross-origin read via victim browser; write methods advertised via OPTIONS but auth-enforcement status unverified for this route (by analogy to /organizations, likely enforced). Severity: HIGH (capped by OOS subdomain exposure + route-specificity).
+testability: PASSIVE
+
+[HYP] 3-way UUID enumeration oracle on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 95
+reasoning: Fresh 2026-08-11 finding confirmed live: malformed UUID → 400 ValidationError "must match format uuid" + correlationId (285B); nil-uuid (00000000-...) → 404 NotFoundError "Organization was not found" (131B + correlationId); valid UUID → 200 expected. Auth-free + CORS (ACAO+ACAC per universal /v1 pattern). Plural namespace has superior 3-way discrimination vs degraded singular /v1/public/organization (nil-uuid now returns 400, reduced to 2-way).
+evidence_needed: 3-way differential (400 malformed / 404 nil / 200 valid) with correlationId consistency across ≥2 intervals; 200-branch confirmation with valid org UUID.
+verify_steps: PASSIVE `curl -s -D - --max-time 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"` → expect 400 + ValidationError "must match format uuid" + ACAO+ACAC; `curl -s -D - --max-time 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` → expect 404 + NotFoundError + correlationId + ACAO+ACAC; HUMAN_ONLY `curl -s -D - --max-time 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<valid_org_uuid>"` → expect 200 + org record (requires authorized test token from program contact).
+impact: Unauthenticated tenant org existence enumeration via UUID format discrimination; combined with universal CORS credential reflection allows cross-origin enumeration from victim browsers; enables targeted recon against valid orgs (api URL + branding + contact discovery). Severity: MEDIUM-HIGH (capped by read-only + no PII in discovery phase).
+testability: PASSIVE (malformed/nil-uuid branches), HUMAN_ONLY (valid-org confirmation)
+
+[PARKED] Write-method execution on zero-header fail-open /v1/global/organizations: confidence 5 — DISPROVEN live (2026-08-11 05:09 UTC). POST/PUT/PATCH/DELETE all return 401 InvalidTokenError with garbage Bearer x and zero Authorization. Auth gate on write methods is ACTIVE. Bypass is read-only.
+
+[PARKED] /v1/global/regions write-method escalation standalone CRITICAL: confidence 5 — CORS OPTIONS advertises write methods (Allow:PUT,PATCH,POST,DELETE) but write-method auth enforcement on this specific route is unverified. By analogy to /organizations (write auth enforced → 401), likely read-only. Treating as supporting evidence (CORS amplifier), not elevated to CRITICAL standalone pending PROBE.
+
+[FINAL] 1. [99] api.sparelabs.com/v1/global/organizations: Zero-header no-auth GET bypass (read-only, write methods gated) + credentialed CORS — HIGH (empty payload, route-specific, write auth enforced)
+[FINAL] 2. [99] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + infra topology disclosure (6 OOS subdomains, sha256 verified) + credentialed CORS — HIGH (OOS exposure + route-specific; write enforcement pending probe)
+[FINAL] 3. [95] api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle (plural namespace, superior to degraded singular) + auth-free + CORS — MEDIUM-HIGH
+
+[NEXT] PROBE: `curl -s -D - -w "\nHTTP:%{http_code}" -X POST -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -H "Content-Type: application/json" -d '{}' "https://api.sparelabs.com/v1/global/regions"` → expect 401 InvalidTokenError (validating write-method auth enforcement on /regions, confirming read-only bypass + no write escalation on this route); then `curl -s -D - -o /dev/null --max-time 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` → confirm zero-header GET bypass (200 + 11B + ACAO+ACAC). All ≤1 rps, GET/HEAD/POST-only, zero data modification.
+
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is read-only (GET only), not read+write. Auth asymmetry: GET fails open with zero header, writes require valid token.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle confirmed live — malformed→400 ValidationError; nil-uuid→404 NotFoundError; superior 3-way discrimination vs degraded singular.
+[LEARN] CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential degraded 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 404); malformed and nil-uuid indistinguishable; downgraded from oracle to validation-leak-only.
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surface, NO_DELTA since 2026-08-07.
+
+[RISK] api.sparelabs.com: 85 — scheme-only auth bypass + zero-header fail-open on global controllers + 3-way UUID oracle + universal CORS credential reflection (84h+ stable, non-path-conditional); write methods enforced (read-only); route-specific scope; HIGH.
+platform.sparelabs.com: 70 — /login CSP infra leak exposes prod+staging admin Vercel apps + Metabase + full cloud stack (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit); SPA catch-all on all admin paths; HIGH (leverage depends on CSP leak targets).
+routing.sparelabs.com: 10 — STABLE dead, envoy 404 on all paths, no surface.
+forms.sparelabs.com: 60 — JS bundle (main.71d52314.js) leaks staging+prod+regional infra hosts + atlassian.net + inactive ngrok; SPA catch-all on all API paths; strict HTML CSP; MEDIUM (infra-recon value only).
+web (spare.com/sparelabs.com): 15 — spare.com HTTP 200 static Webflow marketing via Cloudflare (CSP frame-ancestors 'self', HSTS 31536000, no infra leaks); sparelabs.com 301→spare.com; minimal static-only surface.

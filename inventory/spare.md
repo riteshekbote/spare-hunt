@@ -391,3 +391,5 @@
 - CHANGED api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 404 NotFoundError); malformed and nil-uuid now indis
 - NEW `api.sparelabs.com/v1/public/organizations/{id}` (plural namespace): 3-way UUID enumeration oracle CONFIRMED live — malformed→400 ValidationError "must match format uuid" + correlationId; nil-uuid→404
 - CHANGED `api.sparelabs.com/v1/global/organizations` write methods: POST/PUT/PATCH/DELETE now confirmed to enforce auth properly (401 InvalidTokenError with garbage Bearer x) — bypass is **READ-ONLY (GET only)
+
+## 2026-08-11 06:43:24 UTC

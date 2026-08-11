@@ -24771,3 +24771,94 @@ testability: HUMAN_ONLY
 - [RISK] routing.sparelabs.com: 8 | envoy 404 on all paths, no surface, NO_DELTA since 2026-08-07
 - [RISK] forms.sparelabs.com: 38 | SPA catch-all + strict HTML CSP; JS bundle leaks staging/regional infra + atlassian.net + inactive ngrok; infra-recon value only
 - [RISK] web (spare.com/sparelabs.com): 12 | static Cloudflare+Webflow marketing, CSP frame-ancestors 'self', HSTS, no internal infra leaks
+===== ANALYST bigpickle 2026-08-11 06:43:24 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mecho "== orgs zero-header no-auth (3x, body length stability) =="
+for i in 1 2 3; do
+  curl -s -o /tmp/opencode/orgs.txt -w "orgs s$i: HTTP %{http_code} body=%{size_download}B up=%{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"
+  sha256sum /tmp/opencode/orgs.txt | awk '{print "  sha256:", $1}'
+  sleep 1
+done
+echo "== regions scheme-only bearer x =="
+curl -s -D /tmp/opencode/regions.hdr -o /tmp/opencode/regions.txt -w "regions: HTTP %{http_code} body=%{size_download}B up=%{time_total}s\n" -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"
+sha256sum /tmp/opencode/regions.txt | awk '{print "  sha256:", $1}'
+grep -iE "access-control-allow|allow:" /tmp/opencode/regions.hdr
+sleep 1
+echo "== plural oracle nil-uuid =="
+curl -s -o /tmp/opencode/o1.txt -w "nil: HTTP %{http_code} body=%{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"
+sleep 1
+echo "== plural oracle malformed =="
+curl -s -o /tmp/opencode/o2.txt -w "bad: HTTP %{http_code} body=%{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"
+sleep 1
+echo "== journeys control =="
+curl -s -o /dev/null -w "journeys: HTTP %{http_code} up=%{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"
+== orgs zero-header no-auth (3x, body length stability) ==
+orgs s1: HTTP 200 body=11B up=0.761603s
+  sha256: 8fe32e407a1038ee38753b70e5374b3a46d6ae9d5f16cd5b73c53abaca8f5ed0
+orgs s2: HTTP 200 body=11B up=0.980991s
+  sha256: 8fe32e407a1038ee38753b70e5374b3a46d6ae9d5f16cd5b73c53abaca8f5ed0
+orgs s3: HTTP 200 body=11B up=0.977903s
+  sha256: 8fe32e407a1038ee38753b70e5374b3a46d6ae9d5f16cd5b73c53abaca8f5ed0
+== regions scheme-only bearer x ==
+regions: HTTP 200 body=725B up=0.069027s
+  sha256: fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+== plural oracle nil-uuid ==
+nil: HTTP 404 body=131B
+== plural oracle malformed ==
+bad: HTTP 400 body=263B
+== journeys control ==
+journeys: HTTP 401 up=0.067042s
+[0m
+Probes done (7 req, ~8s, all GET/HEAD passive). Results confirm stability: orgs 200+11B x3 (sha256 8fe32e40…, slow replica ~0.8–1.0s), regions 200+725B (sha256 fb9800acb…, matches KB, ACAO+ACAC), plural oracle nil→404(131B)/malformed→400(263B), journeys control 401.
+
+STEP 1 — DELTA
+- NO_DELTA — live probes confirm every class already recorded in KB through 2026-08-11 05:56 UTC remains stable this turn; no new/changed surface items.
+
+STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/public/organizations/{id} (plural oracle): score 6.80 | surface 5, business 9 (tenant org records/contacts), tech 4 (UUID path-param + OpenAPI ValidationError), gate 10 (zero auth), cloud 2, fresh 10 (new 3-way this session)
+- [PRIO] api.sparelabs.com/v1/global/organizations (zero-header GET fail-open): score 5.40 | surface 4, business 6, tech 4, gate 10, cloud 2, fresh 6
+- [PRIO] api.sparelabs.com/v1/global/regions (scheme-only bypass, 725B registry): score 4.90 | surface 4, business 5 (infra topology, 6 OOS hosts), tech 4, gate 9, cloud 2, fresh 5
+
+STEP 3 — HYPOTHESES
+[HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: 3-way intact live this turn (nil→404 131B, malformed→400 263B, ACAO+ACAC, ~0.1s envoy); plural path-param discriminates better than degraded singular; documented test UUID 0606efa8-… still 404 → only a real existing org UUID opens the 200-branch.
+evidence_needed: one live program test-org UUID → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check `?organizationId=<uuid>` on /v1/public/terms (terms 200 is non-discriminating; plural 200 is the proof).
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Write-handler gate parity on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 45
+reasoning: org sibling write methods are 401-gated (KB 05:09) → parallel regions POST/PUT is the only untested branch; GET gate is presence-only (`Bearer x`→200+725B, token never validated) so handler-level gate parity is unproven.
+evidence_needed: POST/PUT with `Bearer x` → 2xx/400-schema vs 401.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `POST https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body.
+impact: region-registry modification if a write responds; HIGH. If 401 → parity confirmed, hypothesis closes.
+testability: AUTH_HELPED
+
+STEP 4 — SELF-CRITIQUE
+- [PARKED] Zero-header data-bearing replica on /v1/global/organizations: confidence 38 < 40 — 3 fresh samples this turn all 11B identical sha256 8fe32e40…; no non-empty slow-replica branch observed; empty payload cap persists.
+- [PARKED] Frameable staging admin/Metabase from platform CSP: confidence 30 < 40 — all leaked origins OOS (vercel.app / metabase.*.sparelabs.com), no in-scope consequence.
+- [FINAL] 1. Data-bearing 200-branch on plural /v1/public/organizations/{id} (80, HUMAN_ONLY). 2. Write-handler gate parity on /v1/global/regions (45, AUTH_HELPED).
+
+STEP 5 — NEXT ACTION
+- [NEXT] HUMAN: Request ONE program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` (PLURAL) NO Authorization + `Origin: https://evil.example.com`, ≤1 rps, and cross-check `?organizationId=<uuid>` on /v1/public/terms — closes the last unobserved 200-branch on the cleanest live discriminator (confidence 80, HIGH). If the contact instead grants operator write-approval, `POST /v1/global/organizations` with inert body supersedes (write-path parity on regions is the parallel test).
+
+STEP 6 — LEARNING
+- ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-verified live — 200+725B body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe (unchanged), ACAO+ACAC.
+- ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle re-verified live — nil→404(131B), malformed→400(263B), differential intact, auth-free.
+- REJECTED BUSLOGIC @ api.sparelabs.com/v1/global/organizations: zero-header bypass returns identical 11B `{"data":[]}` (sha256 8fe32e40…) across 3 consecutive samples — no data-bearing replica, payload remains empty.
+
+STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 78 | two live auth-free data-bearing leaks (regions 725B incl. 6 OOS hosts; orgs 200 fail-open) + CORS credential reflection on all /v1 + 3-way UUID oracle; caps: write methods 401-gated, org payload empty.
+- [RISK] platform.sparelabs.com: 35 | CSP infra leak (prod+staging admin Vercel apps, Metabase, full cloud stack) but pure MFE shell with strict HTML CSP; recon-only.
+- [RISK] routing.sparelabs.com: 5 | envoy 404 on all paths, dead since 2026-08-07.
+- [RISK] forms.sparelabs.com: 30 | JS bundle infra leak (staging/regional hosts, atlassian.net, ngrok) only; SPA catch-all, no API surface.
+- [RISK] web (spare.com/sparelabs.com): 10 | Cloudflare+Webflow static marketing, no dynamic surface, HSTS+CSP present.
