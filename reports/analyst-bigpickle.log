@@ -25105,3 +25105,87 @@ testability: PASSIVE
 - [RISK] routing.sparelabs.com: 5 — envoy 404 dead, NO_DELTA since 2026-08-07.
 - [RISK] forms.sparelabs.com: 30 — JS bundle infra leak (staging hosts, atlassian.net, ngrok), infra-recon only; strict HTML CSP + x-frame DENY.
 - [RISK] web (spare.com/sparelabs.com): 12 — static Webflow/Cloudflare, CSP frame-ancestors 'self', HSTS, no leaks.
+===== ANALYST bigpickle 2026-08-11 11:07:18 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mdate -u
+Tue Aug 11 11:04:19 UTC 2026
+[0m
+[0m$ [0mcurl -s -o /dev/null -w "plural-malformed: %{http_code} %{size_download}B %{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid" ; sleep 1.2
+plural-malformed: 400 263B 0.233868s
+[0m
+[0m$ [0mcurl -s -o /dev/null -w "plural-nil: %{http_code} %{size_download}B %{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" ; sleep 1.2
+plural-nil: 404 131B 0.189440s
+[0m
+[0m$ [0mcurl -s -o /dev/null -w "singular-nil: %{http_code} %{size_download}B %{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?id=00000000-0000-0000-0000-000000000000" ; sleep 1.2
+singular-nil: 400 308B 0.102276s
+[0m
+[0m$ [0mcurl -s -o /dev/null -w "regions: %{http_code} %{size_download}B %{time_total}s\n" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" ; sleep 1.2
+regions: 200 725B 0.176755s
+[0m
+[0m$ [0mcurl -s -o /dev/null -w "orgs-zeroheader: %{http_code} %{size_download}B %{time_total}s\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" ; sleep 1.2
+orgs-zeroheader: 200 11B 0.712607s
+[0m
+[0m$ [0mcurl -s -o /dev/null -w "orgs-write-POST: %{http_code} %{size_download}B %{time_total}s\n" -X POST -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{}' "https://api.sparelabs.com/v1/global/organizations"
+orgs-write-POST: 401 132B 0.098566s
+[0m
+All key surfaces re-confirmed live this turn (≤1 rps): plural oracle 400/404 intact, singular 2-way degraded (400/308B), regions 200+725B, orgs zero-header 200+11B, orgs POST 401/132B.
+
+STEP 1 — DELTA
+- NO_DELTA — all tracked surfaces re-confirmed live 2026-08-11 11:04 UTC matching KB tail (plural oracle 3-way, singular 2-way, regions/orgs bypasses, write gate 401, CORS reflection). No new or changed surface items.
+
+STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/public/organizations/{id} — 6.95 (attack 6 / business 8 / tech 5 / gate 10 / cloud 4 / fresh 8) — plural oracle is the cleanest live discriminator; unobserved 200-branch = tenant data.
+- [PRIO] api.sparelabs.com/v1/global/organizations — 5.95 (attack 7 / business 5 / tech 5 / gate 10 / cloud 4 / fresh 3) — stable 84h+ read fail-open, empty payload, writes gated.
+- [PRIO] api.sparelabs.com/v1/global/regions — 5.65 (attack 6 / business 6 / tech 5 / gate 8 / cloud 4 / fresh 3) — scheme-only bypass already data-bearing (725B).
+
+STEP 3 — HYPOTHESES
+- [HYP] Data-bearing 200-branch on plural /v1/public/organizations/{id}
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 80
+reasoning: Re-confirmed live this turn — malformed→400/263B, nil→404/131B (3-way intact, ~0.19s fast upstream); plural discriminates while singular sibling degraded (nil→400/308B). Test UUID 0606efa8-59e1-4d08-9e1e-3b5e6a1f6e00 still 404 → only a real org UUID opens the 200-branch.
+evidence_needed: one program test-org UUID → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` NO Authorization + `Origin: https://evil.example.com`, ≤1 rps; cross-check `?organizationId=<uuid>` on /v1/public/terms.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+- [HYP] Write-handler gate parity on scheme-only /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 48
+reasoning: Org sibling writes now proven 401-gated (live this turn POST→401/132B); regions GET gate is presence-only (`Bearer x`→200+725B, token never validated), so regions write parity is the only untested write branch.
+evidence_needed: POST/PUT on /v1/global/regions with `Bearer x` → 2xx/400-schema vs 401.
+verify_steps: AUTH_HELPED (operator write-approval REQUIRED): `POST https://api.sparelabs.com/v1/global/regions` + `Authorization: Bearer x` + `Origin: https://evil.example.com` + `Content-Type: application/json` + inert empty body.
+impact: region-registry modification if a write responds; HIGH. If 401 → parity confirmed, hypothesis closes.
+testability: AUTH_HELPED
+- [HYP] Zero-header data-bearing replica on /v1/global/organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 38
+reasoning: Live re-confirm this turn — zero-header GET→200+11B (0.71s slow replica); params ignored every probe; no non-empty data in 84h+.
+evidence_needed: probe where slow-replica GET returns non-empty data[].
+verify_steps: PASSIVE: repeated `GET https://api.sparelabs.com/v1/global/organizations` + Origin, ≤1 rps, 5 samples, diff body length.
+impact: unauthenticated org-list disclosure; MEDIUM.
+testability: PASSIVE
+
+STEP 4 — SELF-CRITIQUE
+- [PARKED] Zero-header data-bearing replica on /v1/global/organizations: confidence 38 < 40; 84h+ empty payloads with no drift signal; params ignored every probe; no fresh evidence vector to raise confidence.
+- [FINAL] 1) plural /v1/public/organizations/{id} 200-branch (80, HUMAN_ONLY) 2) /v1/global/regions write parity (48, AUTH_HELPED).
+
+STEP 5 — NEXT ACTION
+- [NEXT] HUMAN: Request ONE program test-org UUID from the authorized contact, then `GET https://api.sparelabs.com/v1/public/organizations/<uuid>` (PLURAL) NO Authorization + `Origin: https://evil.example.com`, ≤1 rps — closes the last unobserved 200-branch on the cleanest live discriminator (read-only, safe). If the contact instead grants operator write-approval, `POST /v1/global/regions` with inert body supersedes (CRITICAL if a write responds).
+
+STEP 6 — LEARNING
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: plural 3-way oracle re-confirmed live — malformed→400/263B, nil→404/131B; discrimination intact (KB tail holds).
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read fail-open re-confirmed live (200+11B, 0.71s slow replica) AND write gate re-confirmed (POST→401/132B) — bypass is read-only, not read+write.
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed live — Bearer x → 200+725B, no-auth→400.
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: singular 2-way degradation re-confirmed live — nil-uuid→400/308B (indistinguishable from malformed); validation-leak-only persists.
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST with garbage Bearer → 401 — handler-level auth active; no write escalation.
+
+STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 78 — three independent no-auth read surfaces (regions 725B data-bearing, orgs read fail-open, plural UUID oracle) + universal CORS credential reflection (ACAO+ACAC, write methods advertised); severity capped by empty payloads and 401-gated write handlers; 84h+ stable.
+- [RISK] platform.sparelabs.com: 45 — strict HTML CSP + x-frame SAMEORIGIN, pure MFE shell (all admin/API paths SPA catch-all 200); leak is infra-level via CSP header only (prod+staging admin Vercel apps, Metabase), no auth bypass.
+- [RISK] routing.sparelabs.com: 10 — envoy 404 on all paths, dead since 2026-08-07, no discoverable surface.
+- [RISK] forms.sparelabs.com: 30 — SPA catch-all behind envoy+Google CDN, strict HTML CSP + x-frame DENY; infra leak confined to JS bundle (staging/prod/regional hosts, atlassian.net, inactive ngrok); no auth surface.
+- [RISK] web (spare.com/sparelabs.com): 15 — static Cloudflare+Webflow marketing, CSP frame-ancestors 'self', HSTS; no dynamic logic, no internal infra leaks.
