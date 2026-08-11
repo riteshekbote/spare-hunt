@@ -380,3 +380,7 @@
 - NEW api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED (plural namespace) — malformed→400 ValidationError "must match format uuid" + correlationId; nil-uuid→404 NotFou
 
 ## 2026-08-11 03:47:59 UTC
+
+## 2026-08-11 05:09:44 UTC
+- CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) now confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY, not read+write as previously hypo
+- NEW api.sparelabs.com/v1/global/organizations: Auth asymmetry confirmed — GET fails open (200 + 0-auth) while POST/PUT/PATCH/DELETE enforce token validation (401 with garbage Bearer). The CORS OPTIONS pre

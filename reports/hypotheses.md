@@ -2214,3 +2214,41 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404 across all /v1; non-path-co
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
 - LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 40
+
+## RANKED HYPOTHESES 2026-08-11 05:09:44 UTC
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass + full read/write CORS chain on fail-open organization controller (from reports/hypotheses-laguna.txt)
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header auth bypass + credentialed write CORS chain on fail-open organization controller (from reports/hypotheses-bigpickle.txt)
+- [5] api.sparelabs.com/v1/global/organizations: Write-method execution on zero-header fail-open /v1/global/organizations (from reports/hypotheses-longcat.txt)
+- NEXT(hypotheses-bigpickle.txt): PROBE: `curl -s -D - --max-time 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` → capture zero-header GET 200 + 11
+- NEXT(hypotheses-longcat.txt): PROBE: `curl -s -w "\nHTTP:%{http_code}" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"` — re-
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass remains STABLE — 200 + 11B + ACAO+ACAC with NO Authorization head
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure remains STABLE — Bearer x → 200 + 725B (sha256 fb9800acb…585
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404 across all /v1, non-path-co
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surf
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com (admin paths): All 10 admin/API paths (/admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metrics) ret
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com (API paths): All 8 API paths (/api/health,/api/v1,/graphql,/webhooks,/export,/status,/config,/v1) return 200 + text/htm
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass re-confirmed live 2026-08-10 17:33 UTC — 200 + 11B `{"data":[]}` 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure re-confirmed live 2026-08-10 17:33 UTC — Bearer x → 200 + 72
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection re-confirmed live 2026-08-10 17:33 UTC — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths (/v1/, /api/, /routing/, /router, /v2/, /graphql, /map, /directions, /ope
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com (admin paths): All 10 admin/API paths (/admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metrics) ret
+- LEARN: REJECTED @ api.sparelabs.com/v1/public/mobileApps/*: 404, no enumeration surface (path sweep at probe 2026-08-10 17:36 UTC).
+- LEARN: REJECTED @ api.sparelabs.com/v1/directions: 404, no surface.
+- LEARN: ACCEPTED @ platform.sparelabs.com & forms.sparelabs.com admin/API path sweeps: 10/8 paths return SPA catch-all 200 text/html (index.html) — confirmed pure MFE s
+- LEARN: REJECTED @ api.sparelabs.com/v1/routing/status: 401 (gated), not bypassable from current surface — auth properly enforced on this sibling route.
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header bypass STABLE — 200+11B+`{"data":[]}`+ACAO+ACAC with NO Authorization header (49
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — `Bearer x`→200+725B+ACAO+ACAC (sha256 fb9800acb…585c3fe, 6 OOS subdomains in bo
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401 across /regions+/organizations+
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surfac
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com (admin paths /admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metrics): All return SPA catch-all 200
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com (API paths /api/health,/api/v1,/graphql,/webhooks,/export,/status,/config,/v1): All return SPA catch-all 200 text/html 
+- LEARN: REJECTED @ api.sparelabs.com/v1/routing/status: 401 (gated), auth properly enforced — not bypassable.
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError "must match format uuid"
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 40
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass remains STABLE — 200 + 11B `{"data":[]}` + ACAO+ACAC with NO Auth
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass remains STABLE — Bearer x → 200 + 7
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE all return 401 InvalidTokenError with garbage Bearer x — auth gate
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations (read path): GET with NO auth → 200 + 11B `{"data":[]}` + ACAO+ACAC — fail-open confirmed read-only. E
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED live this session — malformed→400 ValidationError "must 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DE
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all paths, NO_DELTA since 2026-08-07.
