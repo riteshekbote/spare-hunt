@@ -508,3 +508,6 @@
 
 ## 2026-08-12 19:52:21 UTC
 - NEW api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping between 2-way and 3-way — live probe shows nil→404 NotFoundError (3-way 400/404/200 intact) on fast replica; contradicts prior
+
+## 2026-08-12 20:31:15 UTC
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle differential now confirmed FLAPPING between 2-way and 3-way — nil-uuid returns 404 NotFoundError on fast envoy replica (3-way 400/404/2
