@@ -502,3 +502,6 @@
 
 ## 2026-08-12 17:46:34 UTC
 - NEW api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping — live probe shows nil→404 NotFoundError (3-way 400/404/200 intact); contradicts prior 2-way degradation claim; multi-version 
+
+## 2026-08-12 18:41:57 UTC
+- NEW api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping between 2-way and 3-way — live probe shows nil→404 NotFoundError (3-way intact: malformed→400, nil→404, valid→200) on fast rep

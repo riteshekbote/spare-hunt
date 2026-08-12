@@ -4900,3 +4900,29 @@ testability: HUMAN_ONLY
 [RISK] routing.sparelabs.com: 5 — envoy 404 on ALL probed paths, NO_DELTA since 2026-08-07.
 [RISK] forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging+prod+regional infra + atlassian.net + inactive ngrok; SPA 200 + strict HTML CSP + x-frame DENY, no API endpoints behind host.
 [RISK] web (spare.com/sparelabs.com): 10 — static Webflow marketing on Cloudflare, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks, minimal static-only surface.
+## 2026-08-12 18:41:48 UTC [web] (model laguna)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 99
+reasoning: GET with NO Authorization header returns 200 + 11B `{"data":[]}` + ACAO:https://evil.example.com + ACAC:true; control /v1/journeys returns 401; OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC — read→write CORS surface advertised on fail-open route.
+evidence_needed: cross-origin GET with zero Authorization header returning 200 + CORS-readable empty body from attacker origin; POST/PUT/PATCH/DELETE returning 401 confirming read-only scope.
+verify_steps: PROBE: `curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (expect 200 + ACAO+ACAC + `{"data":[]}`); `curl -s -D -X POST -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/organizations"` (expect 401 InvalidTokenError); `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"` (expect 401)
+impact: unauthenticated cross-origin read of tenant org registry via any victim browser; empty 11B stub payload caps severity at HIGH info-disclosure/auth-bypass; if non-empty data-bearing branch reachable then tenant enumeration
+testability: PASSIVE
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 80
+reasoning: `Authorization: Bearer x` returns 200 + 725B region registry (7 regions incl 6 OOS api/routing subdomains: api.us2.sparelabs.com, api.us3.sparelabs.com, api.jp.sparelabs.com, api.eu.sparelabs.com, api.uat.sparelabs.com, routing.us2.sparelabs.com) + ACAO+ACAC; body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable; no-auth→400, POST→401
+evidence_needed: cross-origin GET with `Bearer x` returning 200+725B readable from attacker origin with byte-stable body across probes.
+verify_steps: PROBE: `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` (expect 200 + 725B + ACAO+ACAC, body sha256 matches); `curl -s -D -X POST -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` (expect 401)
+impact: any victim browser visiting attacker page exfiltrates full regional API/routing topology incl 6 OOS subdomains; enables targeted follow-up on OOS endpoints from prior leak recon; OOS exploitation itself is out of scope
+testability: PASSIVE
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 85
+reasoning: 3-way differential stable 84h+: malformed→400 ValidationError "must match format uuid" (263B + correlationId); nil-uuid→404 NotFoundError "Organization was not found" (131B + correlationId); valid-found→200 expected HUMAN_ONLY; universal CORS (ACAO+ACAC:true) on same path confirms exfiltration vector.
+evidence_needed: program test-org UUID resolving with NO Authorization → 200 + org record + ACAO+ACAC, proving unauthenticated data-bearing branch.
+verify_steps: HUMAN: request one program test-org UUID from lead, then `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<test-uuid>"` (NO Authorization, ≤1rps) + control `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` (expect 404)
+impact: unauthenticated tenant org-record disclosure (name/branding/contacts) + cross-origin exfiltration from any attacker page; HIGH if 200-branch confirmed with real org data
+testability: HUMAN_ONLY
+[NEXT] PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/global/organizations"` — confirms write-method CORS preflight advertised on fail-open route (≤1 rps, HEAD/OPTIONS only)
