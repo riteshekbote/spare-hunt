@@ -4832,3 +4832,45 @@ impact: any site a victim visits exfiltrates full regional API/routing topology 
 testability: AUTH_HELPED
 [NEXT] HUMAN: Request one program test-org UUID from lead, then `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<test-uuid>"` (NO Authorization, ≤1 rps) + control nil-uuid→404; cross-check `/v1/public/terms?organizationId=<test-uuid>`. 200 on oracle = unauthenticated org-record disclosure (HIGH), closes the only open data-bearing branch. Regions-harvest AUTH_HELPED verification is the fallback.
 [RISK] api.sparelabs.com: 90 — three confirmed auth/IDOR classes (zero-header read bypass, scheme-only regions bypass w/ infra topology, 3-way UUID oracle) + universal CORS credential reflection on all /v1; write-path gating caps ceiling but read exposure + multi-version LB divergence are maximal for the program; only open escalation branches are HUMAN_ONLY. | platform.sparelabs.com: 55 — CSP infra leak via /login exposes prod admin Vercel apps + Metabase + 9 cloud services; SPA catch-all, no API surface; recon-only. | routing.sparelabs.com: 5 — envoy 404/0B on all paths since 2026-08-07; zero change across 5+ days; effectively dead. | forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging/prod/regional infra + atlassian; SPA catch-all, no API endpoints; recon-only. | web (spare.com/sparelabs.com): 10 — static Webflow marketing, strict CSP, HSTS 31536000, no internal leaks; minimal static-only surface.
+## 2026-08-12 06:40:51 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/global/organizations: 7.05 — attack 6, business 9, tech 6, gate 10, cloud 4, fresh 5 (confirmed zero-header GET bypass, read-only, empty payload caps severity)
+[PRIO] api.sparelabs.com/v1/public/organizations/{id}: 7.05 — attack 6, business 9, tech 6, gate 10, cloud 3, fresh 6 (3-way UUID oracle, only open data-bearing branch)
+[PRIO] api.sparelabs.com/v1/global/regions: 6.30 — attack 6, business 6, tech 6, gate 8, cloud 7, fresh 5 (scheme-only bypass + 6 OOS regional hosts disclosed)
+[PRIO] platform.sparelabs.com/login: 6.00 — attack 5, business 5, tech 6, gate 10, cloud 7, fresh 4 (CSP infra leak, recon-only)
+[PRIO] api.sparelabs.com/v1/public/terms: 5.15 — attack 4, business 5, tech 4, gate 10, cloud 3, fresh 5 (auth-free terms-URL disclosure, low value)
+[HYP] Valid-token GET on /v1/global/organizations returns real tenant org registry (11B stub is placeholder awaiting token identity)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: 06:40 UTC zero-header GET → hardcoded 200+11B `{"data":[]}` + ACAO+ACAC (673ms slow replica); identical body across 7 query params (hypothesis dead); writes gated 401 at handler. Stub consistent with placeholder handler on an old replica behind the multi-version envoy LB.
+evidence_needed: GET with valid authorized token → non-empty data array; empty confirms permanent stub.
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <token>" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (≤1 rps); compare body size vs 11B baseline.
+impact: real tenant org registry disclosure if data-bearing; HIGH. Empty caps severity at stub-level.
+testability: HUMAN_ONLY
+[HYP] Plural-oracle 200-branch requires an org carrying a full public-profile record (terms-only orgs return 404)
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 55
+reasoning: 06:40 UTC probe — malformed→400 ValidationError (263B), nil→404 NotFoundError (131B + correlationId), control /v1/journeys 401; 200-branch unobserved 84h+. 2026-08-11 22:00 probe: terms-valid UUID returns 404 on oracle while 200 on /v1/public/terms → backend index split; 200 fires only for orgs with a public-profile object.
+evidence_needed: one program test-org UUID resolving → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<test-uuid>"` (NO Authorization, ≤1 rps); control nil-uuid→404; cross-check `/v1/public/terms?organizationId=<test-uuid>` (expect 200).
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Cross-origin infra-topology harvesting via regions scheme-only bypass + universal CORS
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 80
+reasoning: 06:40 UTC — `Bearer x` → 200 + 725B (7 regions, 6 OOS api/routing hosts) + ACAO:https://evil.example.com + ACAC:true; body sha256 fb9800acb…c3fe verified (4ms fast replica). Scheme-only gate never validates token validity; OPTIONS 204 advertises write methods + CORS; chain stable 84h+.
+evidence_needed: cross-origin credentialed browser fetch returning 200+725B readable from attacker origin.
+verify_steps: AUTH_HELPED: deploy page issuing `fetch("https://api.sparelabs.com/v1/global/regions",{headers:{Authorization:"Bearer x"},credentials:"include"})`; confirm 200+725B readable cross-origin; control GET /v1/journeys (401) isolates the bypass route.
+impact: any site a victim visits exfiltrates full regional API/routing topology, enabling targeted attacks against the 6 OOS regional endpoints; HIGH.
+testability: AUTH_HELPED
+[PARKED] none — all 3 hypotheses ≥40 confidence, classes (AUTH/IDOR) on ACCEPTED list, concrete verify steps present.
+[FINAL] 1) regions cross-origin harvesting (80, AUTH_HELPED) 2) organizations valid-token registry (55, HUMAN_ONLY) 3) plural-oracle 200-branch (55, HUMAN_ONLY)
+[NEXT] HUMAN: Request one program test-org UUID from lead, then `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<test-uuid>"` (NO Authorization, ≤1 rps) + control nil-uuid→404; cross-check `/v1/public/terms?organizationId=<test-uuid>`. 200 on oracle = unauthenticated org-record disclosure (HIGH), closes the only open data-bearing branch. Regions-harvest AUTH_HELPED verification is the fallback.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — 06:40 UTC `Bearer x` → 200 + 725B, body sha256 fb9800acb…c3fe byte-identical (4ms fast replica); no-Auth→400; control 401.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — 06:40 UTC no-Auth GET → 200 + 11B `{"data":[]}` + ACAO+ACAC (673ms slow replica); multi-version LB divergence intact.
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE — 06:40 UTC nil→404 NotFoundError 131B + correlationId; malformed→400; 3-way differential intact.
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — 06:40 UTC ?mobileAppId=nil → 200 + 137B terms URLs + ACAO+ACAC no-auth.
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE — 06:40 UTC ACAO:https://evil.example.com + ACAC:true on all four probe paths (200/404/200/200), non-path-conditional.
+[RISK] api.sparelabs.com: 90 — three confirmed auth/IDOR classes (zero-header read bypass, scheme-only regions bypass with infra topology, 3-way UUID oracle) + universal CORS credential reflection; write-path gating caps ceiling but read exposure + multi-version LB divergence are maximal for the program; all open escalation branches HUMAN_ONLY. | platform.sparelabs.com: 55 — CSP infra leak via /login exposes prod admin Vercel apps + Metabase + 9 cloud services; SPA catch-all, no API surface; recon-only, no delta. | routing.sparelabs.com: 5 — envoy 404/0B on all paths since 2026-08-07; zero change across 5+ days; effectively dead. | forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging/prod/regional infra + atlassian; SPA catch-all, no API endpoints; recon-only. | web (spare.com/sparelabs.com): 10 — static Webflow marketing, strict CSP, HSTS 31536000, no internal leaks; minimal static-only surface.
