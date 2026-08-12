@@ -2715,3 +2715,8 @@
 - LEARN: CHANGED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle fully degraded 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (in
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE with Bearer x returns 401 InvalidTokenError; auth gate active on w
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on /v1/ at 22:54 UTC; no surface since 2026-08-07
+
+## RANKED HYPOTHESES 2026-08-12 00:45:07 UTC
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header read-only auth bypass on organizations controller (from reports/hypotheses-laguna.txt)
+- [85] api.sparelabs.com/v1/public/organizations/{id}: Cross-origin UUID enumeration + org data exfiltration via oracle + universal CORS (from reports/hypotheses-longcat.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization

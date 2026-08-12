@@ -1845,3 +1845,14 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map/,/directions/,/openapi.json,/swagger.json,/docs,/health,/status) since 2026-08-07, zero change across 4+ days continuous probing. Effectively dead — no surface, no auth context, no exploitation vector.
 [RISK] forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging+prod+regional infra (api.staging.sparelabs.com, api.staging.us.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com, atlassian.net, ngrok.io). SPA catch-all, no real API endpoints (all 8 API paths return 200 text/html index.html). Recon-only, no auth bypass, no direct exploitation.
 [RISK] web (spare.com/sparelabs.com): 10 — Static Webflow marketing (Cloudflare), strict CSP (frame-ancestors 'self'), HSTS 31536000, no internal infra leaks in HTML/JS. Minimal static-only surface, no dynamic logic, no auth surface.
+## 2026-08-12 00:43:13 UTC [routing] (model longcat)
+[PRIO] api.sparelabs.com/v1/public/organizations/{id}: 88 (attack:9, business:9, tech:8, gate:8, cloud:6, fresh:5) — 3-way UUID enumeration oracle (malformed→400 ValidationError, nil→404 NotFoundError, valid→200) + universal CORS credential reflection confirmed on same path, auth-free + cross-origin exploitable, full 400/404/200 discrimination that singular lost
+[PRIO] api.sparelabs.com/v1/global/regions: 99 (attack:10, business:10, tech:9, gate:10, cloud:8, fresh:2) — scheme-only bypass + infra topology disclosure (7 regions, 6 OOS api/routing subdomains in body) + universal CORS credentials, stable 84h+, 725B body, multi-version envoy LB confirmed
+[PRIO] api.sparelabs.com/v1/global/organizations: 97 (attack:10, business:10, tech:9, gate:10, cloud:7, fresh:2) — complete zero-header read-only bypass + universal CORS, stable 84h+, auth asymmetry confirmed (writes gated at 401 InvalidTokenError)
+[PRIO] api.sparelabs.com/v1/public/terms: 72 (attack:6, business:8, tech:6, gate:10, cloud:5, fresh:3) — unauthenticated data disclosure (termsOfUseUrl+privacyPolicyUrl) + CORS, no business logic exploitation, low attack surface
+[PRIO] platform.sparelabs.com/login: 55 (attack:4, business:7, tech:5, gate:6, cloud:9, fresh:2) — CSP infra leak exposes prod admin Vercel apps + Metabase + 9 cloud services, recon-only, no auth bypass
+[HYP] Cross-origin UUID enumeration + org data exfiltration via oracle + universal CORS
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 85
+reasoning: 3-way UUID

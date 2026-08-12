@@ -4773,3 +4773,4 @@ evidence_needed: GET with valid authorized token → non-empty data array; empty
 verify_steps: HUMAN_ONLY: `GET https://api.sparelabs.com/v1/global/organizations` with valid program token + `Origin: https://evil.example.com`, ≤1 rps; compare body size vs 11B baseline.
 impact: real tenant org registry if data-bearing; HIGH. Empty caps severity at stub-level.
 testability: HUMAN_ONLY
+## 2026-08-12 00:42:43 UTC [api] (model bigpickle)
