@@ -5216,3 +5216,31 @@ testability: HUMAN_ONLY
 [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE — live re-probe 16:39 UTC, nil→404 NotFoundError (131B), malformed→400.
 [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE — control /v1/journeys still 401 + ACAO+ACAC, 85h+ stable.
 [RISK] api.sparelabs.com: 90 — three confirmed auth/IDOR classes (zero-header read bypass, scheme-only regions bypass with infra topology disclosure incl. 6 OOS hosts, 3-way UUID oracle) + universal CORS credential reflection; write-path gating (401) caps ceiling but read exposure + multi-version envoy LB divergence (161ms fast vs 642ms slow) remain maximal; all escalation branches HUMAN_ONLY. | platform.sparelabs.com: 55 — CSP infra leak via /login exposes prod admin Vercel apps + Metabase + 9 cloud services; SPA catch-all, no API surface; recon-only, no delta. | routing.sparelabs.com: 5 — envoy 404/0B on all paths since 2026-08-07; zero change across 5+ days; effectively dead. | forms.sparelabs.com: 35 — JS bundle main.71d52314.js leaks staging/prod/regional infra + atlassian; SPA catch-all, no API endpoints; recon-only. | web (spare.com/sparelabs.com): 10 — static Webflow marketing, strict CSP, HSTS 31536000, no internal leaks; minimal static-only surface.
+## 2026-08-12 17:43:37 UTC [api] (model bigpickle)
+[HYP] Cross-origin infra-topology harvesting via regions scheme-only bypass + universal CORS
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 82
+reasoning: Live re-probe 17:42 UTC — `Bearer x` + Origin → 200 + 725B (7 regions incl. 6 OOS api/routing hosts), sha256 byte-identical, ACAO:https://evil.example.com + ACAC:true on the 200; token validity never checked (presence-only gate); control /v1/journeys stable 401 across 85h+.
+evidence_needed: cross-origin credentialed browser fetch returns 200+725B readable from attacker origin.
+verify_steps: AUTH_HELPED: deploy page issuing `fetch("https://api.sparelabs.com/v1/global/regions",{headers:{Authorization:"Bearer x"},credentials:"include"})`; confirm 200+725B readable cross-origin; control `fetch("https://api.sparelabs.com/v1/journeys")` must show blocked 401.
+impact: any visited site exfiltrates full regional API/routing topology (7 regions, 6 OOS hosts), enabling targeted attacks on regional endpoints; HIGH.
+testability: AUTH_HELPED
+[HYP] Plural-oracle 200-branch requires an org carrying a full public-profile record (terms-only orgs return 404)
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 55
+reasoning: Live re-probe 17:43 UTC — malformed→400 ValidationError, nil→404 NotFoundError 131B; 3-way differential intact, 200-branch unobserved 85h+; terms-valid UUID returns 404 on oracle but 200 on /v1/public/terms → backend index split.
+evidence_needed: one program test-org UUID resolving → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<test-uuid>"` (NO Authorization, ≤1 rps); control nil→404; cross-check `/v1/public/terms?organizationId=<test-uuid>`.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Valid-token GET on /v1/global/organizations returns real tenant org registry (11B stub awaiting token identity)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: Live re-probe 17:42 UTC — zero-header GET → 200 + 11B `{"data":[]}` + ACAO/ACAC (714ms slow replica); identical across all 7 query params; writes gated 401 at handler; consistent with placeholder handler on old replica behind multi-version envoy LB.
+evidence_needed: GET with valid authorized token → non-empty data array; empty confirms permanent stub.
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <token>" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (≤1 rps); compare body vs 11B baseline.
+impact: real tenant org registry disclosure if data-bearing; HIGH. Empty caps at stub-level.
+testability: HUMAN_ONLY
