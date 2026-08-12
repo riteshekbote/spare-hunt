@@ -516,3 +516,8 @@
 - NEW api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping between 2-way and 3-way — live probe shows nil→404 NotFoundError (3-way 400/404/200 intact) on fast replica; contradicts prior
 - CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
 - CHANGED api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 404 NotFoundError); malformed and nil-uuid indisting
+
+## 2026-08-12 22:12:04 UTC
+- NEW api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping between 2-way and 3-way — live probe shows nil→404 NotFoundError (3-way 400/404/200 intact) on fast replica; contradicts prior
+- CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
+- CHANGED api.sparelabs.com/v1/public/organization: UUID oracle differential DEGRADED 3-way→2-way — nil-uuid now returns 400 ValidationError "not found" (was 404 NotFoundError); malformed and nil-uuid indisting
