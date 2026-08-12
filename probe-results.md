@@ -922,3 +922,11 @@ https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application
 https://api.sparelabs.com/v1/global/regions -> HTTP 400
 https://api.sparelabs.com/v1/public/organizations/not-a-uuid -> HTTP 400
 https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000 -> HTTP 404
+
+## 2026-08-12 03:15:58 UTC
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/global/organizations` -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/<test-uuid>` -> HTTP 400
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/not-a-uuid -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000 -> HTTP 404

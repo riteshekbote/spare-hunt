@@ -4360,3 +4360,4 @@ testability: PASSIVE (malformed/nil), HUMAN_ONLY (valid org confirmation)
 [FINAL] 2. api.sparelabs.com/v1/global/regions — scheme-only auth bypass + infra topology disclosure (AUTH, confidence 98)
 [FINAL] 3. api.sparelabs.com/v1/public/organizations/{id} — 3-way UUID enumeration oracle + CORS (IDOR, confidence 95)
 [NEXT] PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/global/organizations"` — confirm OPTIONS 204 returns ACAO:reflected + ACAC:true + Allow:PUT,PATCH,POST,DELETE on the zero-header bypass route to fully close the write-CORS-chain documentation (regions path already confirmed this convergence at 2026-08-08).
+## 2026-08-12 03:15:14 UTC [web] (model laguna)
