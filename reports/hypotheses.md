@@ -3118,3 +3118,12 @@
 - LEARN: CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass i
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map/,/directions/,/openapi
 - LEARN: CHANGED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle differential now confirmed FLAPPING between 2-way and 3-way — nil-uuid returns 404 on
+
+## RANKED HYPOTHESES 2026-08-12 23:08:50 UTC
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on /v1/global/organizations GET (read-only) (from reports/hypotheses-laguna.txt)
+- [55] api.sparelabs.com/v1/global/organizations: Valid-token GET discriminates real org registry from permanent stub (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-bigpickle.txt): HUMAN: Run the valid-token discriminator on the top-priority asset — `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <program 
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -X PUT -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -H "Content-Type: application/json" -d '{"foo":"bar"}' "https://a
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — live re-probe 22:20 UTC, `Bearer x`→200+725B byte-stable + ACAO/ACAC; no-auth→4
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — live re-probe 22:20 UTC, GET NO-Auth→200+11B+ACAO/ACAC; writes 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE — live re-probe 22:20 UTC, nil→404 NotFoundError 131B+correlationId, ma
