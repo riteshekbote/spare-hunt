@@ -559,3 +559,24 @@
 
 - 1 lead(s) marked VALID at 2026-08-11 23:12:05 UTC
   - | **Known VALID (A1–A7)** | CORS reflect-any-origin (8.1), scheme-only auth bypass (5.3), UUID enumeration (5.3), fail-open orgs (5.3), terms data disclosure (3.1–5.3), CSP/MFE infra leak (4.3), JS bu
+
+- 19 lead(s) marked VALID at 2026-08-12 03:06:25 UTC
+  - | A8 | IDOR | api.sparelabs.com/v1/public/organizations/{id} | **3-way UUID enumeration oracle** (plural namespace) — malformed→400 ValidationError; nil-uuid→404 NotFoundError; valid→200 (HUMAN_ONLY);
+  - | Q3 Real impact? | YES — full infra topology disclosure (7 regions, 6 OOS hosts) without valid auth |
+  - | Q3 Real impact? | YES — 3-way differential (malformed→400, nil→404, valid→200) enables org UUID enumeration; CORS enables cross-origin |
+  - | Q4 Passive proof? | YES (400/404 branch); HUMAN_ONLY for valid-UUID 200-branch |
+  - | Q3 Real impact? | UNPROVEN — 200-branch unobserved 84h+; terms-valid UUID returns 404 on oracle |
+  - | Q3 Real impact? | UNPROVEN — zero-header GET → hardcoded 200+11B `{"data":[]}` across 7+ query params; unknown if valid token returns data |
+  - | Q5 Novel? | PARTIAL — A3 (zero-header bypass) accepted; data-bearing nature with valid token unproven |
+  - **Verdict: HOLD** — needs program test token. If valid token returns non-empty org registry, severity upgrades from stub-level to HIGH. Already on HOLD queue.
+  - | Q3 Real impact? | LOW — nil-uuid now returns 400 ValidationError "not found" (was 404); 3-way→2-way degradation; valid-org confirmation requires HUMAN_ONLY UUID |
+  - | A1 | CORS reflect-any-origin+creds /v1/** | **VALID** (reconf) | CVSS 8.1 — STABLE 84h+ |
+  - | A2 | Scheme-only bypass /v1/global/regions | **VALID** (reconf) | CVSS 5.3 — STABLE |
+  - | A3 | Zero-header bypass /v1/global/organizations | **VALID** (reconf) | CVSS 5.3 — STABLE (read-only) |
+  - | A4 | UUID oracle /v1/public/organization | **VALID** (reconf, degraded) | CVSS 5.3 — degraded 2-way |
+  - | A5 | Data disclosure /v1/public/terms | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | A6 | CSP infra leak platform/login | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | A7 | JS bundle leak forms.sparelabs.com | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | A8 | 3-way UUID oracle /v1/public/organizations/{id} | **VALID** (reconf) | CVSS 5.3 — STABLE (new 2026-08-11) |
+  - | L6 | Valid-token org registry data-bearing | **HOLD** | Needs program test token |
+  - | — | **No new VALID findings this cycle** | — | — |
