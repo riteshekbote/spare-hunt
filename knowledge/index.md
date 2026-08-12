@@ -896,3 +896,16 @@
 - 2026-08-12 ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — admin-eam-app + admin-fixed-route-app (prod+staging, loadable 200) + Metabase + 9 cloud services; strict HTML CSP + x-frame does NOT prevent infra-level disclosure via CSP.
 - 2026-08-12 ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — leaks staging+prod+regional infra + atlassian.net + inactive ngrok; SPA catch-all, no API endpoints behind host.
 - 2026-08-12 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/); no surface, NO_DELTA since 2026-08-07.
+- 2026-08-12 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed STABLE this cycle — 200 + 725B + ACAO:evil + ACAC:true, sha256 fb9800acb…c3fe byte-identical, 2ms fast replica.
+- 2026-08-12 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass re-confirmed STABLE this cycle — 200 + 11B `{"data":[]}` + ACAO+ACAC with NO auth (616ms slow replica).
+- 2026-08-12 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle re-confirmed STABLE this cycle — malformed→400 (263B), nil→404 (131B + correlationId).
+- 2026-08-12 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure re-confirmed STABLE this cycle — 200 + 137B terms URLs no-auth + ACAO+ACAC.
+- 2026-08-12 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection re-confirmed STABLE this cycle — ACAO+ACAC uniform on 200/400/404/401 paths, non-path-conditional.
+- 2026-08-12 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — no probe delta, envoy 404/0B since 2026-08-07 (per KB, not re-probed this cycle).
+- 2026-08-12 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header read-only bypass STABLE — GET with NO auth → 200 + 11B + ACAO+ACAC, writes gated at 401, route-specific confirmed; 84h+ stable through 2026-08-12.
+- 2026-08-12 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE — Bearer x → 200 + 725B region registry (7 regions, 6 OOS) + ACAO+ACAC, body sha256 fb9800acb…585c3fe verified; no-auth→400, POST→401; multi-version LB divergence intact.
+- 2026-08-12 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle STABLE — malformed→400 ValidationError; nil→404 NotFoundError 131B+correlationId; valid→200 (HUMAN_ONLY); universal CORS confirmed.
+- 2026-08-12 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + full method surface uniformly across /v1; non-path-conditional via 14-sibling sweep.
+- 2026-08-12 ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — prod admin-eam-app + admin-fixed-route-app + staging variants + Metabase + 9 cloud services in CSP.
+- 2026-08-12 ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — leaks staging+prod+regional infra + atlassian.net + inactive ngrok.
+- 2026-08-12 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths, NO_DELTA since 2026-08-07.
