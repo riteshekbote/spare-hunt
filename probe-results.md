@@ -1255,3 +1255,12 @@ https://api.sparelabs.com/v1/public/engage/form?organizationId=<test-uuid>&caseT
 https://api.sparelabs.com/v1/public/organizations/<test-uuid>` -> HTTP 400
 https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` -> HTTP 400
 https://api.sparelabs.com/v1/public/organizations/key/<candidate -> HTTP 404
+
+## 2026-08-13 20:13:40 UTC
+https://platform.sparelabs.com/login -> 200 len=5555 type=text/html; charset=UTF-8
+https://metabase.sparelabs.com -> 200 len=? type=text/html;charset=utf-8
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://spare.com -> 200 len=? type=text/html; charset=utf-8
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/not-a-uuid -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000 -> HTTP 404

@@ -6493,3 +6493,4 @@ evidence_needed: AUTH_HELPED test POST with real caseId+formId and nil token →
 verify_steps: AUTH_HELPED: authorized POST /v1/public/engage/caseForms {formId:e20f0f50-..., caseId:<real>, metadata:{}} with no token → observe 200/4xx. Do NOT attempt unauthenticated.
 impact: spam/forged intake submissions if token not required; LOW-MEDIUM until validation state proven
 testability: AUTH_HELPED
+## 2026-08-13 20:03:17 UTC [api] (model bigpickle)

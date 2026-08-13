@@ -1098,3 +1098,8 @@
 - 2026-08-13 CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way↔2-way across envoy replicas — nil-uuid→404 on fast replica (3-way), 400 on slow (2-way)
 - 2026-08-13 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
 - 2026-08-13 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+- 2026-08-13 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Zero-header no-auth bypass confirmed STABLE (GET→200+11B+ACAO+ACAC, writes→401); auth asymmetry confirmed read-only
+- 2026-08-13 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE (Bearer x→200+725B+6 OOS subdomains+ACAO+ACAC); body sha256 verified
+- 2026-08-13 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED (malformed→400, nil→404, valid→200); superior to degraded singular
+- 2026-08-13 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE (ACAO:reflected+ACAC:true+all methods+Authorization header) uniform across all /v1 paths
+- 2026-08-13 CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write

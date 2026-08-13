@@ -6069,3 +6069,20 @@ testability: PASSIVE
 [FINAL] 4. api.sparelabs.com/v1/public/terms: Unauthenticated data disclosure (terms URLs) [confidence 90, verified live 2026-08-13 19:24 UTC]
 [PARKED]: /v1/public/organization (singular) UUID oracle — flapping between 2-way and 3-way across multi-version envoy LB replicas; downgraded to validation-leak-only, not oracle class. Retained as ACCEPTED validation-leak per KB.
 [NEXT] PROBE: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000"` — verify whether the degenerate singular namespace still flaps between 2-way (400 "not found" ValidationError) and 3-way (404 NotFoundError) across fast vs slow envoy LB replicas; if 3-way is intact on the fast replica, singular oracle retains enumeration value.
+## 2026-08-13 20:13:24 UTC [web] (model laguna)
+[HYP] CSP on in-scope login page discloses production admin Vercel deployments + Metabase + 9 cloud services
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 96
+reasoning: GET /login returns 200 + 5555B HTML with strict CSP + x-frame SAMEORIGIN, but CSP connect-src/script-src/style-src/frame-src discloses admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging, all loadable 200) + metabase.sparelabs.com + metabase.staging.sparelabs.com (both 200) + Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit. Leak is infra-level via CSP header; strict HTML CSP only mitigates HTML-level disclosure.
+evidence_needed: Confirm all leaked hosts return HTTP 200 when accessed directly; confirm admin Vercel apps and Metabase are in CSP frame-src/script-src
+verify_steps: PASSIVE: `curl -s -D - "https://platform.sparelabs.com/login" | grep -i content-security-policy` (expect CSP disclosing admin-eam-app.vercel.app etc); `curl -s -o /dev/null -w "%{http_code}" "https://admin-eam-app.vercel.app"` and `curl -s -o /dev/null -w "%{http_code}" "https://metabase.sparelabs.com"` (expect 200 both)
+impact: Attacker gains direct URLs to production admin interfaces (admin-eam-app, admin-fixed-route-app) and internal Metabase analytics; combined with CORS from api surface enables full cross-origin attack chain; severity HIGH
+testability: PASSIVE
+[HYP] Scheme-only auth bypass + infrastructure topology disclosure on regional API
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: GET with `Authorization: Bearer x` → 200 + 725B region registry (7 regions incl 6 OOS api/routing subdomain hostnames: api.us/us2/us3/jp/eu/uat.sparelabs.com) + ACAO:https://evil.example.com + ACAC:true. Body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable across 15+ probes (just re-verified live 2026-08-13 20:08 UTC). No-Auth→400 "header required", POST→401, control /v1/journeys→401. OPTIONS→204+ACAO+ACAC+write methods confirmed.
+evidence_needed: Confirm body includes 6 OOS subdomain hostnames; confirm no-Auth returns 400; confirm POST returns 401; confirm sha256 stability (fb9800acb…)
+verify_steps: PASSIVE: `curl -s -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` (expect 200 + 725B + ACAO+ACAC); `curl -s -o /dev/null -w "%{http_code}" "https://api.sp
