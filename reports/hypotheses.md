@@ -3385,3 +3385,57 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header no-auth bypass re-confirmed live 12:04 UTC this cycle — 200 + 11B `{"data":[]}` + Origin 
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed live 12:04 UTC this cycle — `Bearer x` → 200 + 725B region registry (CA→in-
 - LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: 0 files scanned (runner scan-target misconfig, gladiaio org) — persists; no code-surface delta until clone tar
+
+## RANKED HYPOTHESES 2026-08-13 14:09:48 UTC
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on organizations list (read-only, NOT patched) (from reports/hypotheses-laguna.txt)
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on global organizations list (read-only) (from reports/hypotheses-nemotron3.txt)
+- [50] api.sparelabs.com/v1/public/organization?organizationId=: Real-org UUID returns full org record via public oracle set (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" && curl -s -D - -H "Origin: https://evil.example.
+- NEXT(hypotheses-bigpickle.txt): HUMAN: Request a program test-org UUID from the authorized contact (GET-only, passive-compliant), then GET `https://api.sparelabs.com/v1/public/organization?org
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorizati
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: complete zero-header no-auth bypass STABLE — 200+11B+ACAO+ACAC live 08:57 UTC (1124ms slow replica); 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — Bearer x → 200+725B+ACAO+ACAC live 08:57 UTC (4ms fast replica); no-auth → 400
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — OPTIONS 204 (DELETE preflight) + GET 200/404 uniformly ACAO:evil+ACAC:true, li
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — ?mobileAppId=nil → 200+137B no-auth, live 08:57 UTC
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle STABLE — nil → 404+131B NotFoundError+ACAO+ACAC, live 08:57 UTC
+- LEARN: REJECTED BUSLOGIC @ platform.sparelabs.com/login: MFE rotation hypothesis dead — bundle hash stable 3+ sessions, no new module enumeration signal
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com: spec-discovery sweep /v1/{openapi.json,swagger.json,api-docs} → 404 0B no-auth, no served OpenAPI/swagger surface; schem
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header no-auth bypass re-confirmed live 09:05 UTC — 200 + 11B + ACAO:evil + ACAC:true (1156ms sl
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed live 09:05 UTC — Bearer x → 200 + 725B + ACAO:evil + ACAC:true (4ms fast re
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection re-confirmed live 09:05 UTC — ACAO+ACAC uniform on 200 (orgs/regions/terms), 401 (journ
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 on /v1/ (09:05 UTC, 0B) — remains dead, no surface
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak re-confirmed live 09:05 UTC — admin-eam-app + admin-fixed-route-app (prod+staging) + metabase 
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: 200 + strict HTML CSP (connect-src *.sparelabs.com), no HTML-level infra leak — STABLE, unchanged
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: complete zero-header no-auth bypass STABLE — 200 + 11B `{"data":[]}` + ACAO:evil + ACAC:true with NO 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — Bearer x → 200 + 725B + ACAO+ACAC (4ms fast replica), verified live 10:58 UTC
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — ?mobileAppId=nil → 200 + 137B (termsOfUseUrl/privacyPolicyUrl → in-scope sparel
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:evil + ACAC:true on GET 200 and control 401 paths uniformly, verified liv
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: 0 code/config files scanned at 10:37 (reposcan-raw has no sparelabs clone dir) — runner scan-target misconfig 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header no-auth bypass re-confirmed live 12:01 UTC — 200 + 11B `{"data":[]}` + ACAO:evil + ACAC:t
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed live 12:01 UTC — `Bearer x` → 200 + 725B (7 regions, CA→in-scope api/routin
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure re-confirmed live 12:01 UTC — `?mobileAppId=<nil-uuid>` → 200 + 137B terms URLs no-auth 
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: 0 files scanned (runner scan-target misconfig, gladiaio org) — persists; no code-surface delta until clone tar
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header no-auth bypass re-confirmed live 12:04 UTC this cycle — 200 + 11B `{"data":[]}` + Origin 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed live 12:04 UTC this cycle — `Bearer x` → 200 + 725B region registry (CA→in-
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: 0 files scanned (runner scan-target misconfig, gladiaio org) — persists; no code-surface delta until clone tar
+- LEARN: NEW api.sparelabs.com/v1/public/* sibling sweep exhausted: 8 additional paths (status/brands/config/features/countries/orgs/settings/health) all 404 0B — public
+- LEARN: NEW api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping confirmed between 2-way and 3-way — nil-uuid returns 404 on fast replica (3-way in
+- LEARN: CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is 
+- LEARN: NEW sparelabs.com now responds 301→https://spare.com (Cloudflare, HSTS `max-age=0; preload`) — previously TIMEOUT
+- LEARN: NEW platform.sparelabs.com now responds 200 — Micro-frontend SPA shell; previously TIMEOUT
+- LEARN: NEW routing.sparelabs.com now responds 404 (`server: envoy`, `via: 1.1 google`) — previously TIMEOUT
+- LEARN: NEW forms.sparelabs.com now responds 200 — "Spare Engage Web Portal" SPA (object-store headers); previously TIMEOUT
+- LEARN: CHANGED api.sparelabs.com positively re-identified as envoy edge gateway (`server: envoy`, `via: 1.1 google`); was only "404" in seed
+- LEARN: NEW forms.sparelabs.com JS bundle rotated: `main.6ed467ae.js` (342,725 bytes) replaces prior `main.71d52314.js`; same infra leak
+- LEARN: NEW api.sparelabs.com/v1/public/organizations plural namespace subresource sweep exhausted — all 6 subresources return 400 ValidationError "not found"
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass route
+- LEARN: REJECTED (pipeline) @ api.sparelabs.com: fresh /v2/, /v3/, /version, /health sweep → 404 0B — API surface fully mapped to /v1/; no versioned or root-level surfa
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass re-confirmed this cycle — 200 + 11B `{"data":[]}` + ACAO+ACAC (837ms slo
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed this cycle — `Bearer x` → 200 + 725B + ACAO+ACAC (fast replica).
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle re-confirmed this cycle — nil→404 NotFoundError 131B + correlationId + ACAO+AC
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Zero-header no-auth bypass read-only STABLE re-confirmed live 2026-08-13 14:03 UTC — GET NO-Auth → 20
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE re-confirmed live 2026-08-13 14:02 UTC — Bearer x → 2
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle STABLE confirmed live 2026-08-13 14:03 UTC — nil-uuid→404 NotFound
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE re-confirmed live 2026-08-13 14:03 UTC — ACAO:https://evil.example.com
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE re-confirmed live 2026-08-13 14:03 UTC — ?mobileAppId=<nil-uuid> → 200 + 137B ter
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELTA 

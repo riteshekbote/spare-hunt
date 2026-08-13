@@ -602,3 +602,15 @@
 ## 2026-08-13 11:39:20 UTC
 
 ## 2026-08-13 12:34:06 UTC
+
+## 2026-08-13 14:09:48 UTC
+- NEW sparelabs.com now responds 301→https://spare.com (Cloudflare, HSTS `max-age=0; preload`) — previously TIMEOUT
+- NEW platform.sparelabs.com now responds 200 — Micro-frontend SPA shell; previously TIMEOUT
+- NEW routing.sparelabs.com now responds 404 (`server: envoy`, `via: 1.1 google`) — previously TIMEOUT
+- NEW forms.sparelabs.com now responds 200 — "Spare Engage Web Portal" SPA (object-store headers); previously TIMEOUT
+- NEW api.sparelabs.com `/v1/public/organizations` plural namespace subresource sweep exhausted — /v1/public/organizations, .../status, .../{nil}/branding, /logo, /config, /tenants all return 400 Validation
+- NEW api.sparelabs.com `/v1/public/organization` (singular) UUID oracle flapping confirmed between 2-way and 3-way — nil-uuid returns 404 on fast replica (3-way intact), 400 on slow; multi-version envoy LB
+- CHANGED api.sparelabs.com `/v1/global/organizations` write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
+- CHANGED forms.sparelabs.com JS bundle rotated: `main.6ed467ae.js` (342,725 bytes) replaces prior `main.71d52314.js`; same infra leak (staging+prod+regional API hosts, atlassian.net, ngrok.io)
+- NEW api.sparelabs.com `/v1/public/*` sibling sweep exhausted: 8 additional paths (status/brands/config/features/countries/orgs/settings/health) all 404 0B — public namespace surface fully mapped to terms/
+- CHANGED Analytical closure: prior AUTH_HELPED "write-escalation" hypotheses (orgs conf 60, regions conf 50) are CONTRADICTED by existing KB evidence (write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError 
