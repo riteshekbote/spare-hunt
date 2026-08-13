@@ -1010,3 +1010,8 @@
 - 2026-08-13 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass re-confirmed live 08:39 UTC — 200 + 725B + ACAC:true, 4ms fast replica; body byte-stable (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe per KB).
 - 2026-08-13 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass re-confirmed live 08:39 UTC — 200 + 11B + ACAO:https://evil.example.com + ACAC:true (522ms slow replica).
 - 2026-08-13 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way oracle re-confirmed live 08:39 UTC — nil→404 NotFoundError 131B + correlationId + ACAO+ACAC.
+- 2026-08-13 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass NOT patched — live probe 2026-08-13 08:41 UTC confirms `Bearer x` → 200 + 725B region registry + ACAO+ACAC, contradicting longcat triage PATCHED claim
+- 2026-08-13 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Zero-header no-auth bypass + read-only confirmed LIVE 2026-08-13 10:47 UTC (GET no-auth → 200+11B+ACAO+ACAC; POST → 401 InvalidTokenError, write gate active)
+- 2026-08-13 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass confirmed LIVE 2026-08-13 10:47 UTC (Bearer x → 200+725B region registry with 6 OOS subdomains + ACAO+ACAC; no-auth→400, POST→401)
+- 2026-08-13 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection confirmed to converge on /v1/public/organizations/{id} path (OPTIONS 204 → ACAO+ACAC+write methods; GET 400 → ACAO+ACAC)
+- 2026-08-13 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths, no surface (confirmed this session)

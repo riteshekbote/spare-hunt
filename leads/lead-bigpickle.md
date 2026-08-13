@@ -5807,3 +5807,31 @@ evidence_needed: GET with a valid authorized token returns non-empty `data[]`; e
 verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <program test token>" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (≤1 rps); compare body vs 11B baseline.
 impact: real tenant org-registry disclosure if data-bearing; HIGH. Empty caps severity at stub.
 testability: HUMAN_ONLY
+## 2026-08-13 10:48:46 UTC [api] (model bigpickle)
+[HYP] Cross-origin infra-topology exfiltration via regions scheme-only bypass + credentialed CORS
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 92
+reasoning: Direct this cycle (10:47 UTC) — `Bearer x`+Origin → 200 + 725B (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable) + ACAO:https://evil.example.com + ACAC:true, 155ms. Sibling paths carry identical reflection this cycle (orgs 200, oracle 400/404). Token presence-only gate, control /v1/journeys → 401.
+evidence_needed: credentialed browser fetch from attacker origin reads 725B body cross-origin (HTTP condition met; only browser-formality remains).
+verify_steps: AUTH_HELPED: page `fetch("https://api.sparelabs.com/v1/global/regions",{headers:{Authorization:"Bearer x"},credentials:"include"})` readable; control `fetch("https://api.sparelabs.com/v1/journeys")` rejected 401.
+impact: any visited site exfiltrates full regional API/routing topology incl. 6 OOS hosts → targeted regional attacks; HIGH.
+testability: AUTH_HELPED
+[HYP] Plural-oracle 200-branch requires an org carrying a full public-profile record
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 55
+reasoning: nil→404 NotFoundError 131B+correlationId, malformed→400 (263B) re-confirmed 10:47 UTC; 200-branch unobserved 85h+; terms-valid UUID returns 404 on oracle but 200 on /v1/public/terms → backend index split.
+evidence_needed: one program test-org UUID resolving → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<test-uuid>"` (≤1 rps); control nil→404; cross-check `/v1/public/terms?organizationId=<test-uuid>` → 200 expected.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Valid-token GET discriminates real org registry from permanent stub
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: zero-header GET → 200 + 11B `{"data":[]}` + ACAO+ACAC (1345ms slow replica, this cycle); identical across all 7 query params (KB); consistent with placeholder handler pinned to slow LB replica.
+evidence_needed: GET with a valid authorized token returns non-empty `data[]`; empty body confirms permanent stub (caps severity).
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <program test token>" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (≤1 rps); compare body vs 11B baseline.
+impact: real tenant org-registry disclosure if data-bearing; HIGH. Empty caps severity at stub.
+testability: HUMAN_ONLY
