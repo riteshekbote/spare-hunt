@@ -5709,3 +5709,31 @@ evidence_needed: GET with a valid authorized token → non-empty `data[]`; empty
 verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <program test token>" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (≤1 rps); compare body vs 11B baseline.
 impact: real tenant org-registry disclosure if data-bearing; HIGH. Empty caps severity at stub.
 testability: HUMAN_ONLY
+## 2026-08-13 07:00:32 UTC [api] (model bigpickle)
+[HYP] Valid-token GET discriminates real org registry from permanent stub
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: Live this cycle — zero-header GET → 200 + 11B `{"data":[]}` + ACAO:https://evil.example.com + ACAC:true; identical across all 7 query params (KB); write methods gated 401 at handler; consistent with placeholder handler pinned to one slow LB replica (multi-version envoy LB confirmed).
+evidence_needed: GET with a valid authorized token returns non-empty `data[]`; empty body confirms permanent stub (caps severity).
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <program test token>" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (≤1 rps); compare body vs 11B baseline.
+impact: real tenant org-registry disclosure if data-bearing; HIGH. Empty caps severity at stub.
+testability: HUMAN_ONLY
+[HYP] Plural-oracle 200-branch requires an org carrying a full public-profile record
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 55
+reasoning: Live this cycle — malformed→400 ValidationError (263B), nil-uuid→404 NotFoundError 131B+correlationId+ACAO/ACAC, valid-format random→404; 200-branch unobserved 85h+; terms-valid UUID 404 on oracle but 200 on /v1/public/terms → backend index split.
+evidence_needed: one program test-org UUID resolving → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<test-uuid>"` (NO Authorization, ≤1 rps); control nil→404; cross-check `/v1/public/terms?organizationId=<test-uuid>`.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Cross-origin infra-topology exfiltration via regions scheme-only bypass + universal credentialed CORS
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 85
+reasoning: Live this cycle — `Bearer x`+Origin → 200 + 725B byte-stable (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe) + ACAO:https://evil.example.com + ACAC:true; token presence-only gate, validity never checked; control /v1/journeys → 401.
+evidence_needed: credentialed browser fetch from attacker origin reads the 725B body cross-origin (200+ACAO+ACAC already served this cycle).
+verify_steps: AUTH_HELPED: page issuing `fetch("https://api.sparelabs.com/v1/global/regions",{headers:{Authorization:"Bearer x"},credentials:"include"})`; confirm body readable; control `fetch("https://api.sparelabs.com/v1/journeys")` blocked 401.
+impact: any visited site exfiltrates full regional API/routing topology incl. 6 OOS hosts → targeted regional attacks; HIGH.
+testability: AUTH_HELPED

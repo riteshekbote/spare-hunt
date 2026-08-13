@@ -3208,3 +3208,25 @@
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{search,audit,exports,metrics,logs,webhooks,analytics,billing}: All 8 undocumented controllers returned HTTP 401 wit
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (query-param data leak): All 7 query params tested return identical 200 + 11B `{"data":[]}` — empty pa
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELT
+
+## RANKED HYPOTHESES 2026-08-13 07:07:27 UTC
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on global organizations list (read-only) (from reports/hypotheses-laguna.txt)
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on /v1/global/organizations (read-only) (from reports/hypotheses-nemotron3.txt)
+- [55] api.sparelabs.com/v1/global/organizations: Valid-token GET discriminates real org registry from permanent stub (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" && curl -s -D - -X GET -H "Origin: https:/
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" && curl -s -D - -X OPTIONS -H "Origin: htt
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass confirmed STABLE — GET with NO auth → 200 + 11B `{"data":[]}` + A
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — `Bearer x` → 200 + 725B region registry (7 regions,
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError; nil-uuid→404 NotFoundEr
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE all return 401 InvalidTokenError with garbage Bearer x — auth gate
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential FLAPPING — nil-uuid now returns 404 NotFoundError (3-way intact) on fast replica; c
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DE
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{search,audit,exports,metrics,logs,webhooks,analytics,billing}: All 8 undocumented controllers returned HTTP 401 wit
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (query-param data leak): All 7 query params tested return identical 200 + 11B `{"data":[]}` — empty pa
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELT
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass confirmed STABLE — GET NO-Auth → 200 + 11B + ACAO+ACAC (85h+ stab
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — `Bearer x` → 200 + 725B (sha256 fb9800acb…585c3fe b
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404 across all /v1; n
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELT
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{search,audit,exports,metrics,logs,webhooks,analytics,billing}: All 8 undocumented controllers returned 401 with gar
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — infra-recon value only (no auth bypass), no delta
