@@ -705,3 +705,17 @@
 - NEW Engage caseType org-specific discrimination: GRT 200+547B vs Spare(d736519f)+same key 404 NotFoundError "Other was not found" 124B — org+key enumeration oracle shape; primary finding (GRT schema discl
 
 ## 2026-08-13 22:51:49 UTC
+
+## 2026-08-13 23:27:08 UTC
+- NEW api.sparelabs.com/v1/public/engage/{caseType,form}: unauthenticated Engage intake-form schema disclosure (bigpickle hypothesis, 547B/1861B bodies, org-specific caseType discrimination GRT 200 vs Spare
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration via human-readable keys (spare→200+351B, grt→200+288B, cambus→404), no-auth + universal CORS
+- NEW platform.sparelabs.com: newly live (was TIMEOUT) — MFE SPA shell 200, CSP on /login discloses prod admin Vercel apps + Metabase + 9 cloud services
+- NEW forms.sparelabs.com: newly live (was TIMEOUT) — "Spare Engage Web Portal" SPA 200, JS bundle rotated to main.b0a0c190.js, same infra leak persists
+- NEW sparelabs.com: now 301→spare.com (was TIMEOUT), Cloudflare+HSTS
+- NEW routing.sparelabs.com: newly live (was TIMEOUT) — envoy 404 on all paths, STABLE dead
+- CHANGED api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY (GET only), auth asymmetry confirmed
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way2-way across envoy replicas (nil-uuid→404 on fast, 400 on slow)
+- CHANGED api.sparelabs.com/v1/public/* sibling sweep exhausted (8 paths: status/brands/config/features/countries/orgs/settings/health) — all 404 0B
+- CHANGED api.sparelabs.com/v1/public/organizations/{id}/* subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+- CHANGED forms.sparelabs.com JS bundle rotated: main.b0a0c190.js replaces main.6ed467ae.js (same infra leak)
+- CHANGED Analytical closure: prior AUTH_HELPED write-escalation hypotheses contradicted by KB (write verbs → 401)

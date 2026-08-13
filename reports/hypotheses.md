@@ -3640,3 +3640,22 @@
 - [93] api.sparelabs.com/v1/public/engage/{caseType,form}: Unauthenticated cross-org Engage intake-form schema disclosure (from reports/hypotheses-laguna.txt)
 - [55] api.sparelabs.com/v1/public/engage/caseForms: Forged intake submission accepted on /v1/public/engage/caseForms (POST) without server-side submission-token enforcement (from reports/hypotheses-bigpickle.txt)
 - NEXT(hypotheses-bigpickle.txt): HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with real formId (`e20f0f50-e380-4acd-9eac-31312eb2bcfb`) + real caseId
+
+## RANKED HYPOTHESES 2026-08-13 23:27:08 UTC
+- [95] api.sparelabs.com/v1/public/engage/{caseType,form}: Unauthenticated cross-org Engage intake-form schema disclosure with chainable PII form IDs (from reports/hypotheses-laguna.txt)
+- [90] platform.sparelabs.com/login: Platform CSP leak exposes production admin interfaces (from reports/hypotheses-nemotron3.txt)
+- [87] api.sparelabs.com/v1/public/organizations/key/{key}: Unauthenticated org-key directory leaks tenant UUIDs + rider-auth posture chainable into engage/terms lookups (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare" && curl -s -D - -H "Origin: https://evi
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d435
+- NEXT(hypotheses-bigpickle.txt): HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with real formId (`e20f0f50-e380-4acd-9eac-31312eb2bcfb`) + real caseId
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — Micro-frontend SPA shell 200 (was TIMEOUT); CSP on /login discloses production admin Vercel apps + Met
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — "Spare Engage Web Portal" SPA 200 (was TIMEOUT); JS bundle rotated to main.b0a0c190.js, same infra leak p
+- LEARN: ACCEPTED BUSLOGIC @ routing.sparelabs.com: NEWLY LIVE — envoy 404 on all paths (was TIMEOUT); STABLE dead, NO_DELTA
+- LEARN: ACCEPTED MISCONFIG @ sparelabs.com: NOW 301→spare.com (was TIMEOUT); Cloudflare+HSTS, no new surface
+- LEARN: CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass i
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way2-way across envoy replicas — nil-uuid→404 on fast replica (3-way), 400 on slow (2
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass route
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: NEW surface confirmed live (bigpickle) — 200 + schema bodies (547B/1861B) no-auth + COR
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW surface confirmed live (bigpickle) — 3-way discrimination (spare→200+351B, grt→200
