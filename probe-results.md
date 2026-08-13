@@ -1230,3 +1230,14 @@ https://api.sparelabs.com/v1/public/engage/caseType?organizationId=<test-uuid>&c
 https://api.sparelabs.com/v1/public/engage/form?organizationId=<test-uuid>&caseTypeKey=<key>&formKey=<key>` -> HTTP 400
 https://api.sparelabs.com/v1/public/organizations/<test-uuid>` -> HTTP 400
 https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` -> HTTP 400
+
+## 2026-08-13 18:13:47 UTC
+https://api.sparelabs.com/v1/public/engage/caseType?organizationId=<test-uuid>&caseTypeKey=<bundle-derived-key>` -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/form?organizationId=<test-uuid>&caseTypeKey=<key>&formKey=<key>` -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/<test-uuid>` -> HTTP 400
+https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` -> HTTP 400
+https://spare.com -> 200 len=? type=text/html; charset=utf-8
+https://platform.sparelabs.com/login -> 200 len=5555 type=text/html; charset=UTF-8
+https://api.sparelabs.com/v1/public/organizations/not-a-uuid -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000 -> HTTP 404
+https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000 -> HTTP 404

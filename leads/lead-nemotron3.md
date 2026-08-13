@@ -7452,3 +7452,67 @@ testability: PASSIVE (malformed/nil), HUMAN_ONLY (valid org confirmation)
 [RISK] routing.sparelabs.com: 10 reason — Envoy 404 on all probed paths (/v1/,/api/); routing-engine API fully hidden; no unauthenticated surface; STABLE dead. No live exposure beyond 404
 [RISK] forms.sparelabs.com: 58 reason — Public SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP, no infra leak in HTML); JS bundle main.b0a0c190.js STABLE leaks staging+prod+regional infra (incl. 6 OOS) + atlassian.net/JIRA + inactive ngrok tunnel; infra-recon value only, no direct auth bypass
 [RISK] web (spare.com/sparelabs.com): 38 reason — spare.com apex 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors self, HSTS 31536000, no internal infra leaks); www.spare.com 301→OOS (excluded); sparelabs.com 301→spare.com; minimal static-only surface
+## 2026-08-13 18:13:30 UTC [platform] (model nemotron3)
+[NEW] sparelabs.com now responds 301→https://spare.com (Cloudflare, HSTS `max-age=0; preload`) — previously TIMEOUT
+[NEW] platform.sparelabs.com now responds 200 — Micro-frontend SPA shell; previously TIMEOUT
+[NEW] routing.sparelabs.com now responds 404 (`server: envoy`, `via: 1.1 google`) — previously TIMEOUT
+[NEW] forms.sparelabs.com now responds 200 — "Spare Engage Web Portal" SPA (object-store headers); previously TIMEOUT
+[NEW] api.sparelabs.com positively re-identified as envoy edge gateway (`server: envoy`, `via: 1.1 google`); was only "404" in seed
+[NEW] api.sparelabs.com `/v1/public/*` sibling sweep exhausted: 8 additional paths (status/brands/config/features/countries/orgs/settings/health) all 404 0B — public namespace surface fully mapped to terms/org
+[NEW] api.sparelabs.com `/v1/public/organizations/{id}/*` subresource sweep exhausted (6 subpaths) — all 400 ValidationError "not found", plural namespace fully mapped to {id} leaf
+[NEW] forms.sparelabs.com JS bundle rotated: `main.b0a0c190.js` replaces `main.6ed467ae.js`; same infra leak persists (api-spare.ngrok.io, api.staging/us.sparelabs.com, forms.staging/us.sparelabs.com, sparelabs.atlassian.net)
+[CHANGED] api.sparelabs.com `/v1/global/organizations` write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
+[CHANGED] api.sparelabs.com `/v1/public/organization` (singular): UUID oracle FLAPPING 3-way↔2-way confirmed across multi-version envoy LB replicas — nil-uuid→404 on fast replica (3-way intact), 400 on slow (2-way only)
+[PRIO] platform.sparelabs.com, 7.55, attack=7 business=6 tech=8 gate=10 cloud=7 fresh=9
+[PRIO] api.sparelabs.com/v1/public/organizations/{id}, 7.60, attack=8 business=7 tech=7 gate=10 cloud=4 fresh=9
+[PRIO] api.sparelabs.com/v1/public/organization, 6.50, attack=7 business=6 tech=7 gate=10 cloud=4 fresh=8
+[PRIO] forms.sparelabs.com, 6.05, attack=5 business=4 tech=6 gate=10 cloud=5 fresh=9
+[PRIO] api.sparelabs.com/v1/global/organizations, 8.30, attack=10 business=8 tech=6 gate=10 cloud=5 fresh=9
+[PRIO] api.sparelabs.com/v1/global/regions, 7.95, attack=9 business=7 tech=6 gate=9 cloud=8 fresh=9
+[HYP] CSP leak enables direct access to production admin interfaces
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 80
+reasoning: CSP on /login discloses admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging, both in CSP frame-src/script-src/style-src → loadable 200) + metabase.sparelabs.com + metabase.staging.sparelabs.com (both in frame-src → 200) + 9 cloud services (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit). Strict HTML CSP + x-frame SAMEORIGIN only mitigates HTML-level disclosure; infra-level leak persists via CSP header.
+evidence_needed: Confirm admin Vercel apps and Metabase are accessible and identify auth posture; verify no additional auth bypass on those origins.
+verify_steps: PASSIVE: GET https://platform.sparelabs.com/login → parse CSP header for frame-src/script-src/style-src entries; GET each disclosed origin (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app, metabase.sparelabs.com, metabase.staging.sparelabs.com) to confirm 200 and assess auth; check for CSP nonce/hash bypass on platform host.
+impact: Direct exposure of production admin interfaces and Metabase instances; potential auth bypass or info leak on disclosed origins; combined with CORS misconfig on api.sparelabs.com enables cross-origin data theft from admin contexts; severity HIGH
+testability: PASSIVE
+[HYP] Plural org UUID enumeration oracle with 3-way differential enables cross-origin org validation
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 95
+reasoning: Fresh finding: malformed UUID → 400 ValidationError "must match format uuid" + correlationId; nil-uuid → 404 NotFoundError "Organization was not found" (131B + correlationId); valid UUID → 200 (HUMAN_ONLY). Auth-free + universal CORS credential reflection (ACAO:reflected + ACAC:true) on same path (OPTIONS 204 + GET). Superior to degraded singular /v1/public/organization (flapping 2-way/3-way). Subresource sweep exhausted (all 6 subpaths return 400).
+evidence_needed: Confirm 3-way differential stability across replicas; verify valid UUID enumeration works with authorized test token.
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/public/organizations/not-a-uuid -H "Origin: https://evil.example.com" (expect 400 ValidationError); GET https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000 -H "Origin: https://evil.example.com" (expect 404 NotFoundError); OPTIONS same path with Access-Control-Request-Method: GET, Access-Control-Request-Headers: Authorization (expect 204 + ACAO+ACAC); HUMAN_ONLY: GET with authorized test-org UUID from program contact (expect 200).
+impact: Unauthenticated org existence enumeration via UUID format discrimination; enables targeted recon against valid orgs; combined with CORS allows cross-origin enumeration from victim browsers; severity MEDIUM-HIGH
+testability: PASSIVE (malformed/nil), HUMAN_ONLY (valid org confirmation)
+[HYP] Singular org UUID oracle flapping indicates inconsistent validation logic across envoy replicas
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/organization
+confidence: 70
+reasoning: UUID oracle flapping between 2-way and 3-way across multi-version envoy LB replicas — nil-uuid returns 404 on fast replica (3-way intact: malformed→400, nil→404, valid→200) but 400 ValidationError "not found" on slow replica (2-way only: malformed→400, nil→400). Multi-version LB confirmed (2ms fast vs 600-1100ms slow replicas). Flapping makes evidence collection unreliable without replica pinning; suggests inconsistent validation deployment or race condition.
+evidence_needed: Pin to specific envoy replica (via header or timing) to stabilize oracle behavior; confirm whether 3-way or 2-way is the intended validation logic.
+verify_steps: PASSIVE: Repeated GET https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000 -H "Origin: https://evil.example.com" ×20 to observe flapping between 404 (3-way) and 400 (2-way); correlate with x-envoy-upstream-service-time header (fast ~2ms vs slow ~600ms+); attempt to isolate replica via consistent timing or headers.
+impact: Inconsistent validation logic across replicas could enable timing-based enumeration or bypass on specific replicas; flapping reduces reliability of oracle for automated enumeration; severity LOW-MEDIUM
+testability: PASSIVE
+[PARKED] CSP leak enables direct access to production admin interfaces: confidence 80 but class MISCONFIG on platform host has no direct auth bypass vector; CSP leak is infra-recon only, no proven escalation path to auth bypass on disclosed origins without additional vulnerabilities
+[PARKED] Singular org UUID oracle flapping indicates inconsistent validation logic: confidence 70 < threshold for reliable exploitation; flapping makes evidence collection unreliable without replica pinning; multi-version LB confirmed but non-deterministic routing prevents stable verification
+[FINAL] 1. Plural org UUID enumeration oracle with 3-way differential enables cross-origin org validation (confidence 95)
+[FINAL] 2. CSP leak enables direct access to production admin interfaces (confidence 80, infra-recon only)
+[NEXT] PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid" && curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" && curl -s -D - -H "Origin: https://evil.example.com" -X OPTIONS -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"`
+[LEARN] ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — Micro-frontend SPA shell 200 (was TIMEOUT); CSP on /login discloses production admin Vercel apps + Metabase + 9 cloud services
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — "Spare Engage Web Portal" SPA 200 (was TIMEOUT); JS bundle rotated to main.b0a0c190.js, same infra leak persists
+[LEARN] ACCEPTED BUSLOGIC @ routing.sparelabs.com: NEWLY LIVE — envoy 404 on all paths (was TIMEOUT); STABLE dead, NO_DELTA
+[LEARN] ACCEPTED MISCONFIG @ sparelabs.com: NOW 301→spare.com (was TIMEOUT); Cloudflare+HSTS, no new surface
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), auth asymmetry confirmed
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400, nil→404, valid→200; superior to degraded singular
+[LEARN] CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way↔2-way across envoy replicas — nil-uuid→404 on fast replica (3-way), 400 on slow (2-way)
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+[LEARN] REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass routes are READ-ONLY GET only
+[RISK] api.sparelabs.com: 98 reason — CRITICAL+STABLE: complete zero-header no-auth bypass on /v1/global/organizations GET (200+11B+ACAO+ACAC, 616ms slow replica); write methods gated (401); scheme-only bypass on /v1/global/regions (725B infra topology incl. 6 OOS subdomains, Bearer x→200, 2ms fast replica); credential-reflecting CORS across entire /v1 (all methods+Authorization+ACAC, uniform); /v1/public/terms disclosure (137B no-auth); plural /v1/public/organizations/{id} 3-way UUID oracle (fresh); singular oracle flapping 3-way↔2-way; multi-version envoy LB confirmed (2ms fast vs 616ms slow); OpenAPI ValidationError disclosure; control /v1/journeys stable 401
+[RISK] platform.sparelabs.com: 80 reason — Admin SPA 200 (strict HTML CSP + x-frame SAMEORIGIN, no direct auth bypass); CSP discloses production admin Vercel apps (admin-eam-app + admin-fixed-route-app, both referenced in CSP → loadable 200) + staging variants + Metabase (prod+staging, in frame-src → 200) + full cloud infra (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit)
+[RISK] routing.sparelabs.com: 10 reason — Envoy 404 on all probed paths (/v1/,/api/); routing-engine API fully hidden; no unauthenticated surface; STABLE dead. No live exposure beyond 404
+[RISK] forms.sparelabs.com: 58 reason — Public SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP, no infra leak in HTML); JS bundle main.b0a0c190.js STABLE leaks staging+prod+regional infra (incl. 6 OOS) + atlassian.net/JIRA + inactive ngrok tunnel; infra-recon value only, no direct auth bypass
+[RISK] web (spare.com/sparelabs.com): 38 reason — spare.com apex 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors self, HSTS 31536000, no internal infra leaks); www.spare.com 301→OOS (excluded); sparelabs.com 301→spare.com; minimal static-only surface

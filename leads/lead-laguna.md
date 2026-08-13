@@ -6025,3 +6025,4 @@ evidence_needed: Confirm CORS reflection on OPTIONS + GET for all differential s
 verify_steps: PASSIVE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` (expect 204 + ACAO+ACAC+write methods); `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` (expect 404 + ACAO+ACAC + correlationId)
 impact: Any malicious origin can issue credentialed cross-origin requests to oracle endpoint, enabling automated organization enumeration at scale; severity MEDIUM-HIGH
 testability: PASSIVE
+## 2026-08-13 18:10:10 UTC [web] (model laguna)
