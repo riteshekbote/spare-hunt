@@ -6000,3 +6000,28 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 45 — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/,/openapi.json,/swagger.json,/docs,/health,/status); no surface, STABLE dead since 2026-08-07 discovery (was TIMEOUT in seed); high latent value (routing engine API), zero visible exposure
 [RISK] forms.sparelabs.com: 55 — SPA 200 (envoy+Google CDN, strict HTML CSP + x-frame DENY); JS bundle main.6ed467ae.js (rotated from 71d52314, same leak) leaks staging+prod+regional infra + atlassian.net/JIRA + inactive ngrok tunnel; all 8 admin/API paths return SPA catch-all 200 text/html; infra-recon value only, no direct auth bypass
 [RISK] web (spare.com/sparelabs.com): 35 — spare.com apex 301→https://spare.com (Cloudflare, HSTS `max-age=0; preload`); sparelabs.com 301→spare.com (HSTS); www.spare.com OOS excluded (subdomain exclusion per scope); minimal static-only surface (Cloudflare+Webflow marketing, CSP `frame-ancestors 'self'`, no internal infra leaks in HTML/JS) — no new dynamic logic since seed
+## 2026-08-13 17:16:37 UTC [web] (model laguna)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 99
+reasoning: GET with NO Authorization header + Origin returns 200 + 11B `{"data":[]}` + ACAO:https://evil.example.com + ACAC:true across 27+ live probes over 85h+. Sibling sweep of 14 routes confirms route-specific scope (12×401 + 2×200 at /regions). Write methods POST/PUT/PATCH/DELETE return 401 InvalidTokenError — bypass is GET read-only only.
+evidence_needed: Confirm zero-header GET returns 200+11B+ACAO+ACAC with no Authorization; confirm POST returns 401; confirm body is hardcoded empty `{"data":[]}`
+verify_steps: PASSIVE: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (expect 200 + ACAO+ACAC + `{"data":[]}`) then `curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer x" -d '{}' "https://api.sparelabs.com/v1/global/organizations"` (expect 401)
+impact: Unauthenticated cross-origin read of auth-omitted route via reflected CORS+credentials; severity HIGH (empty payload caps immediate data exposure; write methods properly gated)
+testability: PASSIVE
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: GET with `Authorization: Bearer x` returns 200 + 725B region registry (7 regions incl. 6 OOS api/routing subdomain hostnames) + ACAO+ACAC. Body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable across 15+ probes. No-Auth→400, POST→401, control /v1/journeys→401.
+evidence_needed: Confirm body content includes 6 OOS subdomain hostnames; confirm no-Auth returns 400; confirm POST returns 401; confirm sha256 stability
+verify_steps: PASSIVE: `curl -s -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` (expect 200 + 725B + ACAO+ACAC); `curl -s -o /dev/null -w "%{http_code}" "https://api.sparelabs.com/v1/global/regions"` (expect 400)
+impact: Unauthenticated disclosure of regional infrastructure topology (6 OOS hostnames) enabling targeted attacks; combined with reflected CORS+credentials enables cross-origin exfiltration; severity HIGH
+testability: PASSIVE
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 97
+reasoning: GET with Origin returns CORS reflection on all states: malformed→400 ValidationError (263B + correlationId); nil-uuid→404 NotFoundError (131B + correlationId); valid→200 (HUMAN_ONLY). OPTIONS returns 204 + ACAO+ACAC + full method surface. Universal CORS pattern (85h+ stable) extends to this path.
+evidence_needed: Confirm CORS reflection on OPTIONS + GET for all differential states; confirm universal CORS converges on nil-uuid 404 path
+verify_steps: PASSIVE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` (expect 204 + ACAO+ACAC+write methods); `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` (expect 404 + ACAO+ACAC + correlationId)
+impact: Any malicious origin can issue credentialed cross-origin requests to oracle endpoint, enabling automated organization enumeration at scale; severity MEDIUM-HIGH
+testability: PASSIVE

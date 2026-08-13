@@ -640,3 +640,21 @@
 - CHANGED platform.sparelabs.com now responds 200 (Micro-frontend SPA shell) — was TIMEOUT in seed; STABLE CSP infra leak
 - NEW api.sparelabs.com/v1/public/* sibling sweep exhausted (8 paths: status/brands/config/features/countries/orgs/settings/health) — all 404 0B, namespace mapped to terms/org
 - NEW api.sparelabs.com/v1/public/organizations/{id}/* subresource sweep exhausted (6 subpaths) — all 400 ValidationError "not found", plural namespace fully mapped to {id} leaf
+
+## 2026-08-13 17:16:49 UTC
+- NEW sparelabs.com now responds 301→https://spare.com (Cloudflare, HSTS `max-age=0; preload`) — previously TIMEOUT
+- NEW platform.sparelabs.com now responds 200 — Micro-frontend SPA shell; previously TIMEOUT
+- NEW routing.sparelabs.com now responds 404 (`server: envoy`, `via: 1.1 google`) — previously TIMEOUT
+- NEW forms.sparelabs.com now responds 200 — "Spare Engage Web Portal" SPA (object-store headers); previously TIMEOUT
+- CHANGED api.sparelabs.com positively re-identified as envoy edge gateway (`server: envoy`, `via: 1.1 google`); was only "404" in seed
+- NEW api.sparelabs.com `/v1/` API prefix discovered: 3 unauthenticated endpoints (`/v1/global/organizations`→200, `/v1/public/organization?organizationId=<uuid>`→400/404, `/v1/public/terms?organizationId=<
+- NEW api.sparelabs.com `/v1/public/organization?organizationId=<uuid>` validates UUID format via OpenAPI schema (400 "must match format uuid" for malformed, 404 "Organization was not found" for non-existen
+- NEW forms.sparelabs.com JS bundle (`main.6ed467ae.js`, 342,725 bytes) leaks: staging+prod API hosts (`api.us.sparelabs.com`, `api.staging.us.sparelabs.com`, `api.staging.sparelabs.com`, `api-spare.ngrok.i
+- NEW api.sparelabs.com/v1/public/* sibling sweep exhausted: 8 additional paths (status/brands/config/features/countries/orgs/settings/health) all 404 0B — public namespace surface fully mapped to terms/org
+- NEW api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping confirmed between 2-way and 3-way — nil-uuid returns 404 on fast replica (3-way intact), 400 on slow; multi-version envoy LB c
+- CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
+- NEW api.sparelabs.com/v1/public/organizations plural-namespace subresource sweep exhausted — all 6 subresources return 400 ValidationError "not found"
+- CHANGED forms.sparelabs.com JS bundle rotated: `main.6ed467ae.js` replaces prior `main.71d52314.js`; same infra leak
+- NEW forms.sparelabs.com JS bundle rotated again: `main.b0a0c190.js` replaces `main.6ed467ae.js`; same infra leak persists
+- CHANGED Analytical closure: prior AUTH_HELPED "write-escalation" hypotheses contradicted by existing KB evidence (write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError)
+- NEW api.sparelabs.com/v1/public/organizations/{id}/* subresource sweep exhausted (6 subpaths) — all 400 ValidationError "not found", plural namespace fully mapped to {id} leaf

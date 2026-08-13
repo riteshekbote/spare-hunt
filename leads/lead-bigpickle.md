@@ -6337,3 +6337,31 @@ verify_steps: HUMAN_ONLY: with a program test-org UUID, GET `https://api.sparela
 impact: unauthenticated disclosure of org Engage case-type configs and intake form schemas (PII field structure) from victim browsers cross-origin; HIGH if records return; blocked by the same real-org-UUID gap as the existing org-record branch.
 testability: HUMAN_ONLY
 [NEXT] HUMAN: Request a program test-org UUID from the authorized contact (GET-only, passive-compliant), then verify all four 200-branches: `GET https://api.sparelabs.com/v1/public/organizations/<test-uuid>`, `GET https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>`, `GET https://api.sparelabs.com/v1/public/engage/caseType?organizationId=<test-uuid>&caseTypeKey=<bundle-derived-key>`, `GET https://api.sparelabs.com/v1/public/engage/form?organizationId=<test-uuid>&caseTypeKey=<key>&formKey=<key>` — NO Authorization + `Origin: https://evil.example.com` on each. If org route 200s first, harvest the real caseTypeKey/formKey from the returned record to chain the Engage routes. No passive fallback: 200-branches need a real org UUID (bundle contains only nil UUIDs).
+## 2026-08-13 17:13:45 UTC [api] (model bigpickle)
+[HYP] Unauthenticated Engage case-type + intake-form schema disclosure via public namespace
+class: AUTH
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 60
+reasoning: Rotated bundle main.b0a0c190.js exposes agent.get("public/engage/caseType") + agent.get("public/engage/form"). Live this session: caseType nil-org+key → 404 "Other was not found" 124B; form → 404 "Form was not found" 123B; both + spare-correlation-id + ACAO:evil + ACAC:true. Distinct per-resource 404 messages prove real handler logic (vs generic router 404), auth-free, mirrors proven /v1/public/organizations/{id} oracle pattern; contrast: /v1/public/mobileApps is 401-gated, so omission is route-specific.
+evidence_needed: real org UUID + valid caseTypeKey → 200 + case-type record; real org + key + formKey → 200 + form schema (intake/PII field definitions)
+verify_steps: HUMAN_ONLY: GET `https://api.sparelabs.com/v1/public/engage/caseType?organizationId=<test-uuid>&caseTypeKey=<bundle-derived-key>` and `https://api.sparelabs.com/v1/public/engage/form?organizationId=<test-uuid>&caseTypeKey=<key>&formKey=<key>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record + ACAO+ACAC. Passive half (404 differential + CORS) closed live this session.
+impact: unauthenticated org Engage case-type configs and intake form schemas (PII field structure) readable cross-origin; HIGH if records return
+testability: HUMAN_ONLY
+[HYP] Real-org UUID returns full org record via public oracle set
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/{id} (+ singular ?organizationId=)
+confidence: 55
+reasoning: Plural oracle 3-way intact this session (nil→404 131B+correlationId, malformed→400 263B); 200-branch never observed — passive corpus holds only nil-UUIDs, no real org UUID exists to trigger it. 404 discriminates existence (valid-format random UUID also 404s).
+evidence_needed: real existing org UUID → 200 + org record (name/branding/contact) without auth
+verify_steps: HUMAN_ONLY: GET `https://api.sparelabs.com/v1/public/organizations/<test-uuid>` AND `https://api.sparelabs.com/v1/public/organization?organizationId=<test-uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record + ACAO+ACAC
+impact: unauthenticated tenant org-record/PII disclosure; HIGH if record returned
+testability: HUMAN_ONLY
+[HYP] World-listable Spare S3 buckets leaked via platform CSP
+class: MISCONFIG
+asset: retell-utils-public.s3.us-west-2.amazonaws.com / user-events-v3.s3-accelerate.amazonaws.com (leaked in platform CSP media-src/connect-src)
+confidence: 35
+reasoning: Bucket hostnames confirmed in platform CSP this session; "utils-public" naming hints intentional public bucket; listing state unknown
+evidence_needed: anonymous GET to bucket root returns XML listing with keys
+verify_steps: PASSIVE: `curl -s "https://retell-utils-public.s3.us-west-2.amazonaws.com/"` → look for ListBucketResult XML (200/403 AccessDenied). Note: third-party host, out-of-scope as target; only Spare-data leak would matter.
+impact: only if world-listable with Spare data; likely intentionally-public utils — LOW
+testability: PASSIVE
