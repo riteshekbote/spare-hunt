@@ -3635,3 +3635,8 @@
 - LEARN: REJECTED (controller-wide): /v1/global/* omission is route-specific, NOT controller-wide — 14-sibling sweep (12×401 + 2×200) + 8 additional undocumented control
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com: spec-discovery (openapi.json/swagger.json/api-docs) → 404 0B, dead-end; schema leaks only via validation-error bodies
 - LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfigured (gladiaio org), 0 files scanned — no code-surface delta; fix clone target before tru
+
+## RANKED HYPOTHESES 2026-08-13 22:51:49 UTC
+- [93] api.sparelabs.com/v1/public/engage/{caseType,form}: Unauthenticated cross-org Engage intake-form schema disclosure (from reports/hypotheses-laguna.txt)
+- [55] api.sparelabs.com/v1/public/engage/caseForms: Forged intake submission accepted on /v1/public/engage/caseForms (POST) without server-side submission-token enforcement (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-bigpickle.txt): HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with real formId (`e20f0f50-e380-4acd-9eac-31312eb2bcfb`) + real caseId

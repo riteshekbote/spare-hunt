@@ -6180,3 +6180,31 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 42 | Spare Engage Web Portal SPA (envoy+Google CDN). No real API behind 8 probed paths (all return SPA catch-all 200 text/html). Infira leak is JS-bundle-only (main.b0a0c190.js) — recon value only, no direct exploitation vector. Host was previously TIMEOUT, now live.
 [RISK] routing.sparelabs.com: 5 | envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/,/openapi.json,/swagger.json,/docs,/health,/status). Confirmed dead since 2026-08-07. No surface, NO_DELTA.
 [RISK] web (spare.com/sparelabs.com): 15 | spare.com apex 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks in HTML/JS). sparelabs.com 301→spare.com. www.spare.com OUT OF SCOPE per exclusions. Minimal static-only surface, no dynamic logic.
+## 2026-08-13 22:40:05 UTC [web] (model laguna)
+[HYP] Unauthenticated cross-org Engage intake-form schema disclosure
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 93
+reasoning: Live probe 2026-08-13 22:38 UTC confirms both caseType (547B) and form (1861B) return 200 + schema bodies with no Authorization + ACAO+ACAC. Form endpoint leaks PII field structure: field keys (mobilityPlusIdNumber, expiry, easyGoFareCardNumber), labels, types, requirement flags, interface visibility, timestamps. caseType returns form IDs/keys chainable into form endpoint. Keys derivable from public transit-agency portal URLs.
+evidence_needed: Confirm org-scoped discrimination (GRT 200+key vs Spare+d736519f+same key 404 "Other was not found" 124B); confirm formKeys are enumerable for additional caseTypes
+verify_steps: PASSIVE: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication"` → expect 200 + 547B + ACAO+ACAC; `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/form?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication&formKey=clientInfo"` → expect 200 + 1861B + ACAO+ACAC
+impact: Unauthenticated cross-tenant disclosure of Engage intake-form schemas including PII field definitions (types, labels, visibility, requirement, timestamps) enabling targeted data-model mapping; form UUIDs chainable into caseForms submission (POST). severity MEDIUM-HIGH (PII schema disclosure, cross-org)
+testability: PASSIVE
+[HYP] Zero-header read-only auth bypass with full write-method CORS preflight
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 99
+reasoning: Live probe 2026-08-13 22:38 UTC confirms GET with NO Authorization header → 200 + 11B `{"data":[]} + ACAO:https://evil.example.com + ACAC:true. POST with Bearer x → 401 InvalidTokenError. OPTIONS preflight → 204 + ACAO+ACAC + allow-methods:GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization — full write CORS chain advertised on the fail-open route even though write handlers enforce auth. 14-sibling sweep confirms route-specific scope (12×401 + 2×200). 85h+ stable across 15+ probes.
+evidence_needed: Zero-header GET returns 200+11B+ACAO+ACAC; POST returns 401; OPTIONS 204 advertises all methods with CORS; body is hardcoded empty `{"data":[]}`
+verify_steps: PASSIVE: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` → expect 200 + ACAO+ACAC; `curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer x" -d '{}' "https://api.sparelabs.com/v1/global/organizations"` → expect 401; `curl -s -D -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/global/organizations"` → expect 204 + ACAO+ACAC + write methods
+impact: Unauthenticated cross-origin read of auth-omitted route via reflected CORS+credentials; zero-header bypass means no token material needed; write methods properly gated (401) but CORS preflight advertises full write surface. severity HIGH (read fail-open, empty payload caps data exposure)
+testability: PASSIVE
+[HYP] Scheme-only auth bypass disclosing regional infrastructure topology across 6 OOS targets
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Live probe 2026-08-13 22:38 UTC confirms GET with `Authorization: Bearer x` → 200 + 725B region registry (7 regions: CA/US/US2/US3/JP/EU/UAT incl 6 OOS api.sparelabs.com subdomains + routing hosts) + ACAO+ACAC. Body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable across 15+ probes. No-Auth→400, POST→401, control /v1/journeys→401. 85h+ stable.
+evidence_needed: Body includes 6 OOS api/routing subdomain hostnames; no-Auth returns 400; POST returns 401; sha256 stability; CA region is in-scope (api.sparelabs.com / routing.sparelabs.com)
+verify_steps: PASSIVE: `curl -s -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` → expect 200 + 725B + ACAO+ACAC; `curl -s -o /dev/null -w "%{http_code}" "https://api.sparelabs.com/v1/global/regions"` → expect 400; `curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer x" -d '{}' "https://api.sparelabs.com/v1/global/regions"` → expect 401
+impact: Unauthenticated disclosure of regional infrastructure topology (6 out-of-scope api/routing subdomain hostnames incl. cloud region targets api.us2/api.us3/api.jp/api.eu/api.uat) + in-scope CA region; enables targeted regional attacks + CORS exfiltration. severity HIGH
+testability: PASSIVE

@@ -6609,3 +6609,32 @@ testability: PASSIVE
 [NEW] Bundle-derived engage namespace sweep: 15 additional endpoints all internal/auth-only (router-level 400 not found) on /v1/public/engage/; public surface FINAL = {caseType, form} read + {cases, caseForms, caseForms/submission-tokens} write. Portal template confirmed: forms.sparelabs.com/forms/:orgId/:caseTypeKey.
 [NEW] Engage caseType org-specific discrimination: GRT 200+547B vs Spare(d736519f)+same key 404 NotFoundError "Other was not found" 124B — org+key enumeration oracle shape; primary finding (GRT schema disclosure) re-verified live byte-identical.
 [NEXT] HUMAN: authorized-token test `POST /v1/public/engage/caseForms` (real formId `e20f0f50-e380-4acd-9eac-31312eb2bcfb` + real caseId + `metadata:{}`, NO token), then `POST /v1/public/engage/cases` — closes the last open BUSLOGIC write-surface class. Do not attempt unauthenticated.
+## 2026-08-13 22:38:29 UTC [api] (model bigpickle)
+[HYP] Forged intake submission accepted on /v1/public/engage/caseForms (POST) without server-side submission-token enforcement
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/caseForms (POST) + cases (POST)
+confidence: 55
+reasoning: Live this cycle — both routes auth-free method-gate (GET→400 "GET method not allowed", zero InvalidTokenError), OPTIONS 204 + ACAO+ACAC + full write methods; Express confirmed via x-powered-by. Portal bundle mints submission-tokens per case; server-side enforcement unproven; GET blocked so no readback.
+evidence_needed: AUTH_HELPED POST with real formId+caseId and nil submission-token → 2xx (token not enforced) vs 400/401 (enforced).
+verify_steps: AUTH_HELPED: `POST https://api.sparelabs.com/v1/public/engage/caseForms` `{formId:e20f0f50-e380-4acd-9eac-31312eb2bcfb, caseId:<real>, metadata:{}}` no token → observe 2xx/4xx; repeat `POST /v1/public/engage/cases`. Do not attempt unauthenticated.
+impact: forged/spam intake submissions into org case queues; potential cross-tenant case injection if caseId UUIDs chainable; MEDIUM until validation state proven
+testability: AUTH_HELPED
+[HYP] Cross-org caseTypeKey enumeration oracle via engage caseType (200/404 by org+key pair)
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseType
+confidence: 60
+reasoning: GRT `serviceAnimalApplication` → 200+547B; Spare same key → 404 `Other was not found` 124B; org UUIDs freely obtained from organizations/key directory; no-auth + CORS. Differential confirms which orgs deploy which intake forms.
+evidence_needed: second org+key pair resolves 200, third resolves 404 (bounded, key list from portal templates/public keys).
+verify_steps: PASSIVE: `GET /v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=clientInfo` + `...&caseTypeKey=serviceAnimalApplication` no Auth + Origin evil → 200/404 differential confirms per-org key set.
+impact: cross-org mapping of intake-form deployment (org+caseTypeKey pairs) — reconnaissance for targeted per-org attacks; MEDIUM
+testability: PASSIVE
+[HYP] Org-by-key directory leaks rider-auth posture + chainable tenant UUIDs
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 85
+reasoning: Confirmed live this turn — spare/grt 200 (no-auth + ACAO+ACAC), cambus 404; uniform field set incl. enabledPublicFeatureFlags (spare: riderLoginless, riderPhonePin, riderEmailAuthentication, callForVerificationCode; grt: riderEmailAuthentication, multimodal). Org UUIDs chain into engage/terms lookups.
+evidence_needed: HUMAN confirms records match public tenant listings; rider-auth flags map to actual login flows (esp. riderLoginless orgs).
+verify_steps: PASSIVE (done): `GET /v1/public/organizations/key/{spare,grt}` no Auth + Origin evil → 200 + records.
+impact: unauthenticated cross-org tenant directory (UUID, branding, rider-auth posture) identifying weaker-auth orgs for targeted attacks; MEDIUM-HIGH
+testability: PASSIVE
+[NEXT] HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with real formId (`e20f0f50-e380-4acd-9eac-31312eb2bcfb`) + real caseId + `metadata:{}` and NO submission-token, then repeat `POST /v1/public/engage/cases` → determines whether submission-token is server-enforced, closing the last open BUSLOGIC write-surface class on the API. Do not attempt unauthenticated.

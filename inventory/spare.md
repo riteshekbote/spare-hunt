@@ -703,3 +703,5 @@
 - NEW Engage caseType org-specific discrimination: GRT 200+547B vs Spare(d736519f)+same key 404 NotFoundError "Other was not found" 124B — org+key enumeration oracle shape; primary finding (GRT schema discl
 - NEW Bundle-derived engage namespace sweep: 15 additional endpoints all internal/auth-only (router-level 400 not found) on /v1/public/engage/; public surface FINAL = {caseType, form} read + {cases, caseFor
 - NEW Engage caseType org-specific discrimination: GRT 200+547B vs Spare(d736519f)+same key 404 NotFoundError "Other was not found" 124B — org+key enumeration oracle shape; primary finding (GRT schema discl
+
+## 2026-08-13 22:51:49 UTC
