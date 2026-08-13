@@ -3127,3 +3127,17 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — live re-probe 22:20 UTC, `Bearer x`→200+725B byte-stable + ACAO/ACAC; no-auth→4
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — live re-probe 22:20 UTC, GET NO-Auth→200+11B+ACAO/ACAC; writes 
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE — live re-probe 22:20 UTC, nil→404 NotFoundError 131B+correlationId, ma
+
+## RANKED HYPOTHESES 2026-08-13 00:11:44 UTC
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on /v1/global/organizations GET (read-only) (from reports/hypotheses-laguna.txt)
+- [85] api.sparelabs.com/v1/global/regions: Cross-origin infra-topology harvesting via regions scheme-only bypass + universal CORS (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-bigpickle.txt): HUMAN: Run the valid-token discriminator on the top-priority asset — `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <program 
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000"` — confirm data disclosure STABLE (expect 200 
+- LEARN: REJECTED (sibling sweep) @ api.sparelabs.com/v1/public/*: 8 additional siblings (status/brands/config/features/countries/orgs/settings/health) all 404 0B — publ
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — live re-probe 23:xx UTC, GET NO-Auth→200+11B+ACAO/ACAC (1.5s sl
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — live re-probe 23:xx UTC, `Bearer x`→200+725B byte-stable + ACAO/ACAC; no-auth→4
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE — live re-probe 23:xx UTC, nil→404 NotFoundError 131B+correlationId, ma
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — live re-probe 23:xx UTC, ?mobileAppId=nil→200+137B terms URLs no-auth+CORS.
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Zero-header no-auth bypass STABLE confirmed live 2026-08-12 23:23 UTC — GET with NO Authorization + O
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE confirmed live 2026-08-12 23:17 UTC — `Bearer x` → 200 + 725B region registry (7 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle STABLE confirmed live 2026-08-12 23:18 UTC — malformed→400 Validat
