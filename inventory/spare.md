@@ -525,3 +525,8 @@
 ## 2026-08-12 23:08:50 UTC
 
 ## 2026-08-13 00:11:44 UTC
+
+## 2026-08-13 01:32:16 UTC
+- NEW api.sparelabs.com/v1/public/* sibling sweep exhausted: 8 additional paths (status/brands/config/features/countries/orgs/settings/health) all 404 0B — public namespace surface fully mapped to terms/org
+- NEW api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping confirmed between 2-way and 3-way — nil-uuid returns 404 on fast replica (3-way intact), 400 on slow; multi-version envoy LB c
+- CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
