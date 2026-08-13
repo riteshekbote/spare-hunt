@@ -5646,3 +5646,4 @@ testability: PASSIVE (200-branch requires valid UUID → AUTH_HELPED/HUMAN_ONLY)
 [RISK] routing.sparelabs.com: 45 — envoy 404 on ALL probed paths; no surface, STABLE dead since 2026-08-07; high latent value (routing engine API), zero visible exposure
 [RISK] forms.sparelabs.com: 55 — SPA 200 (envoy+Google CDN, strict HTML CSP + x-frame DENY); JS bundle main.71d52314.js leaks staging+prod+regional infra + atlassian.net/JIRA + inactive ngrok tunnel; all 8 API paths return SPA catch-all 200 text/html; infra-recon value only, no direct auth bypass
 [RISK] web (spare.com/sparelabs.com): 35 — spare.com apex 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com (HSTS); www.spare.com OOS excluded; minimal static-only surface
+## 2026-08-13 12:33:55 UTC [web] (model laguna)
