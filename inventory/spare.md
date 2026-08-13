@@ -695,3 +695,11 @@
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way confirmed across multi-version envoy LB replicas — nil-uuid→404 on fast replica (3-way intact), 400 on slow (2-way
 
 ## 2026-08-13 21:09:53 UTC
+
+## 2026-08-13 21:59:04 UTC
+- NEW api.sparelabs.com/v1/public/engage/{caseType,form}: hypothesis from bigpickle for unauthenticated Engage intake-form schema disclosure (requires AUTH_HELPED validation; not yet live-probed)
+- CHANGED forms.sparelabs.com JS bundle rotated to `main.b0a0c190.js` (replaces `main.6ed467ae.js`); same infra leak persists (api-spare.ngrok.io, api.staging/us.sparelabs.com, forms.staging/us.sparelabs.com, s
+- NEW Bundle-derived engage namespace sweep: 15 additional endpoints all internal/auth-only (router-level 400 not found) on /v1/public/engage/; public surface FINAL = {caseType, form} read + {cases, caseFor
+- NEW Engage caseType org-specific discrimination: GRT 200+547B vs Spare(d736519f)+same key 404 NotFoundError "Other was not found" 124B — org+key enumeration oracle shape; primary finding (GRT schema discl
+- NEW Bundle-derived engage namespace sweep: 15 additional endpoints all internal/auth-only (router-level 400 not found) on /v1/public/engage/; public surface FINAL = {caseType, form} read + {cases, caseFor
+- NEW Engage caseType org-specific discrimination: GRT 200+547B vs Spare(d736519f)+same key 404 NotFoundError "Other was not found" 124B — org+key enumeration oracle shape; primary finding (GRT schema discl

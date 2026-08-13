@@ -1103,3 +1103,15 @@
 - 2026-08-13 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED (malformed→400, nil→404, valid→200); superior to degraded singular
 - 2026-08-13 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE (ACAO:reflected+ACAC:true+all methods+Authorization header) uniform across all /v1 paths
 - 2026-08-13 CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
+- 2026-08-13 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: NEW surface confirmed live this session (bigpickle) — 200 + schema bodies (547B/1861B) with no-auth + CORS; keys derivable from public transit-agency portal URLs
+- 2026-08-13 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW surface confirmed live (bigpickle) — 3-way discrimination (spare→200+351B, grt→200+288B, cambus→404); no-auth + CORS
+- 2026-08-13 ACCEPTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELTA since 2026-08-07; resurrected 2026-08-13 but remains dead
+- 2026-08-13 ACCEPTED MISCONFIG @ platform.sparelabs.com: resurrected 2026-08-13 (was TIMEOUT→200 MFE SPA); CSP infra leak STABLE (admin Vercel apps loadable 200, Metabase 200, 9 cloud services)
+- 2026-08-13 ACCEPTED MISCONFIG @ forms.sparelabs.com: resurrected 2026-08-13 (was TIMEOUT→200 Engage portal SPA); JS bundle rotated to `main.b0a0c190.js`, same infra leak persists
+- 2026-08-13 ACCEPTED MISCONFIG @ sparelabs.com: resurrected 2026-08-13 (301→spare.com apex); Cloudflare+HSTS, static-only, no new dynamic surface
+- 2026-08-13 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass verified STABLE 85h+ (2026-08-13 22:54 UTC last probe); writes POST/PUT/PATCH/DELETE → 401 InvalidTokenError, auth-asymmetry confirmed (GET fails open, writes gated)
+- 2026-08-13 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass verified STABLE 85h+ (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe); no-auth→400, POST→401, control /v1/journeys→401
+- 2026-08-13 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle verified STABLE 85h+ (malformed→400, nil→404, valid→200 HUMAN_ONLY); universal CORS confirmed on OPTIONS 204+GET
+- 2026-08-13 REJECTED (controller-wide): /v1/global/* omission is route-specific, NOT controller-wide — 14-sibling sweep (12×401 + 2×200) + 8 additional undocumented controllers (search/audit/exports/metrics/logs/webhooks/analytics/billing) all 401
+- 2026-08-13 REJECTED MISCONFIG @ api.sparelabs.com: spec-discovery (openapi.json/swagger.json/api-docs) → 404 0B, dead-end; schema leaks only via validation-error bodies
+- 2026-08-13 REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfigured (gladiaio org), 0 files scanned — no code-surface delta; fix clone target before trusting

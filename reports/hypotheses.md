@@ -3591,3 +3591,47 @@
 ## RANKED HYPOTHESES 2026-08-13 21:09:53 UTC
 - [92] api.sparelabs.com/v1/public/engage/{caseType,form}: Unauthenticated cross-org Engage intake-form schema disclosure (PII field structure + internal config) (from reports/hypotheses-bigpickle.txt)
 - NEXT(hypotheses-bigpickle.txt): HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with a real formId (e20f0f50-e380-4acd-9eac-31312eb2bcfb) + real caseId
+
+## RANKED HYPOTHESES 2026-08-13 21:59:04 UTC
+- [95] api.sparelabs.com/v1/global/organizations: Zero-header complete no-auth bypass on global organizations (read-only) (from reports/hypotheses-nemotron3.txt)
+- [94] api.sparelabs.com/v1/public/engage/{caseType,form}: Unauthenticated cross-org Engage intake-form schema disclosure (PII field structure + internal config) (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid" && curl -s -D - -H "Origin: https://ev
+- NEXT(hypotheses-bigpickle.txt): HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with a real formId (e20f0f50-e380-4acd-9eac-31312eb2bcfb) + real caseId
+- NEXT(hypotheses-laguna.txt): HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with a real formId (e20f0f50-e380-4acd-9eac-31312eb2bcfb) + real caseId
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Zero-header no-auth bypass confirmed STABLE (GET→200+11B+ACAO+ACAC, writes→401); auth asymmetry confi
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE (Bearer x→200+725B+6 OOS subdomains+ACAO+ACAC); body 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED (malformed→400, nil→404, valid→200); superior to degrade
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE (ACAO:reflected+ACAC:true+all methods+Authorization header) uniform ac
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — Micro-frontend SPA shell 200 (was TIMEOUT); CSP on /login discloses production admin Vercel apps + Met
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — "Spare Engage Web Portal" SPA 200 (was TIMEOUT); JS bundle rotated to main.b0a0c190.js, same infra leak p
+- LEARN: ACCEPTED BUSLOGIC @ routing.sparelabs.com: NEWLY LIVE — envoy 404 on all paths (was TIMEOUT); STABLE dead, NO_DELTA
+- LEARN: ACCEPTED MISCONFIG @ sparelabs.com: NOW 301→spare.com (was TIMEOUT); Cloudflare+HSTS, no new surface
+- LEARN: CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass i
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way↔2-way across envoy replicas — nil-uuid→404 on fast replica (3-way), 400 on slow (
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass route
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE (Bearer x→200+725B+6 OOS subdomains+ACAO+ACAC); body 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED (malformed→400, nil→404, valid→200); superior to degrade
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE (ACAO:reflected+ACAC:true+all methods+Authorization header) uniform ac
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — Micro-frontend SPA shell 200 (was TIMEOUT); CSP on /login discloses production admin Vercel apps + Met
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — "Spare Engage Web Portal" SPA 200 (was TIMEOUT); JS bundle rotated to main.b0a0c190.js, same infra leak p
+- LEARN: ACCEPTED BUSLOGIC @ routing.sparelabs.com: NEWLY LIVE — envoy 404 on all paths (was TIMEOUT); STABLE dead, NO_DELTA
+- LEARN: ACCEPTED MISCONFIG @ sparelabs.com: NOW 301→spare.com (was TIMEOUT); Cloudflare+HSTS, no new surface
+- LEARN: CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass i
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way↔2-way across envoy replicas — nil-uuid→404 on fast replica (3-way), 400 on slow (
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass route
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: NEW surface confirmed live this session (bigpickle) — 200 + schema bodies (547B/1861B) 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW surface confirmed live (bigpickle) — 3-way discrimination (spare→200+351B, grt→200
+- LEARN: ACCEPTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELT
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: resurrected 2026-08-13 (was TIMEOUT→200 MFE SPA); CSP infra leak STABLE (admin Vercel apps loadable 200, Metabase 2
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: resurrected 2026-08-13 (was TIMEOUT→200 Engage portal SPA); JS bundle rotated to `main.b0a0c190.js`, same infra leak p
+- LEARN: ACCEPTED MISCONFIG @ sparelabs.com: resurrected 2026-08-13 (301→spare.com apex); Cloudflare+HSTS, static-only, no new dynamic surface
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass verified STABLE 85h+ (2026-08-13 22:54 UTC last probe); writes POST/PUT/
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass verified STABLE 85h+ (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed9704779
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle verified STABLE 85h+ (malformed→400, nil→404, valid→200 HUMAN_ONLY
+- LEARN: REJECTED (controller-wide): /v1/global/* omission is route-specific, NOT controller-wide — 14-sibling sweep (12×401 + 2×200) + 8 additional undocumented control
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com: spec-discovery (openapi.json/swagger.json/api-docs) → 404 0B, dead-end; schema leaks only via validation-error bodies
+- LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfigured (gladiaio org), 0 files scanned — no code-surface delta; fix clone target before tru

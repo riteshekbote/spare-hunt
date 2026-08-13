@@ -6523,3 +6523,89 @@ verify_steps: AUTH_HELPED: authorized `POST /v1/public/engage/caseForms` {formId
 impact: spam/forged intake submissions into org case queues if token not required; LOW-MEDIUM until validation state proven
 testability: AUTH_HELPED
 [NEXT] HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with a real formId (e20f0f50-e380-4acd-9eac-31312eb2bcfb) + real caseId + `metadata:{}` and NO token → determine whether submission-token is server-enforced (closes the last open class: BUSLOGIC write surface). Do not attempt unauthenticated.
+## 2026-08-13 21:58:54 UTC [api] (model bigpickle)
+evidence_needed: AUTH_HELPED test POST with real caseId+formId (formId e20f0f50-e380-4acd-9eac-31312eb2bcfb) and nil token → accepted or rejected.
+verify_steps: AUTH_HELPED: authorized `POST /v1/public/engage/caseForms` {formId:<real>, caseId:<real>, metadata:{}} with no token → observe 200/4xx. Do NOT attempt unauthenticated.
+impact: spam/forged intake submissions into org case queues if token not required; LOW-MEDIUM until validation state proven
+testability: AUTH_HELPED
+[NEXT] HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with a real formId (e20f0f50-e380-4acd-9eac-31312eb2bcfb) + real caseId + `metadata:{}` and NO token → determine whether submission-token is server-enforced (closes the last open class: BUSLOGIC write surface). Do not attempt unauthenticated.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE (Bearer x→200+725B+6 OOS subdomains+ACAO+ACAC); body sha256 verified
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED (malformed→400, nil→404, valid→200); superior to degraded singular
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE (ACAO:reflected+ACAC:true+all methods+Authorization header) uniform across all /v1 paths
+[LEARN] ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — Micro-frontend SPA shell 200 (was TIMEOUT); CSP on /login discloses production admin Vercel apps + Metabase + 9 cloud services
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — "Spare Engage Web Portal" SPA 200 (was TIMEOUT); JS bundle rotated to main.b0a0c190.js, same infra leak persists
+[LEARN] ACCEPTED BUSLOGIC @ routing.sparelabs.com: NEWLY LIVE — envoy 404 on all paths (was TIMEOUT); STABLE dead, NO_DELTA
+[LEARN] ACCEPTED MISCONFIG @ sparelabs.com: NOW 301→spare.com (was TIMEOUT); Cloudflare+HSTS, no new surface
+[LEARN] CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
+[LEARN] CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way↔2-way across envoy replicas — nil-uuid→404 on fast replica (3-way), 400 on slow (2-way)
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+[LEARN] REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass routes are READ-ONLY GET only
+[RISK] api.sparelabs.com: 98 reason — CRITICAL+STABLE: complete zero-header no-auth bypass on /v1/global/organizations GET (200+11B+ACAO+ACAC, 616ms slow replica); write methods gated (401); scheme-only bypass on /v1/global/regions (725B infra topology incl. 6 OOS subdomains, Bearer x→200, 2ms fast replica); credential-reflecting CORS across entire /v1 (all methods+Authorization+ACAC, uniform); /v1/public/terms disclosure (137B no-auth); plural /v1/public/organizations/{id} 3-way UUID oracle (fresh); singular oracle flapping 3-way↔2-way; multi-version envoy LB confirmed (2ms fast vs 616ms slow); OpenAPI ValidationError disclosure; control /v1/journeys stable 401
+[RISK] platform.sparelabs.com: 80 reason — Admin SPA 200 (strict HTML CSP + x-frame SAMEORIGIN, no direct auth bypass); CSP discloses production admin Vercel apps (admin-eam-app + admin-fixed-route-app, both referenced in CSP → loadable 200) + staging variants + Metabase (prod+staging, in frame-src → 200) + full cloud infra (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit)
+[RISK] routing.sparelabs.com: 10 reason — Envoy 404 on all probed paths (/v1/,/api/); routing-engine API fully hidden; no unauthenticated surface; STABLE dead. No live exposure beyond 404
+[RISK] forms.sparelabs.com: 58 reason — Public SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP, no infra leak in HTML); JS bundle main.b0a0c190.js STABLE leaks staging+prod+regional infra (incl. 6 OOS) + atlassian.net/JIRA + inactive ngrok tunnel; infra-recon value only, no direct auth bypass
+[RISK] web (spare.com/sparelabs.com): 38 reason — spare.com apex 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors self, HSTS 31536000, no internal infra leaks); www.spare.com 301→OOS (excluded); sparelabs.com 301→spare.com; minimal static-only surface
+[HYP] Unauthenticated cross-org Engage intake-form schema disclosure (PII field structure + internal config)
+class: AUTH
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 94
+reasoning: Live re-confirmed this cycle on GRT — caseType 200 + 547B (forms[] with ids+keys), form 200 + 1861B (customFields: MobilityPLUS ID number, fare card, First Name, expiry + riderInterfaceVisibility/driverInterfaceVisibility/searchability/availability flags + field-group ids + timestamps); byte-identical to prior session; no Authorization, ACAO+ACAC on both. Proven end-to-end on GRT + Spare orgs; keys derivable from public transit-agency portal URLs.
+evidence_needed: HUMAN verification of records against the two public orgs (GRT 1966c7f8, Spare d736519f) — already logged.
+verify_steps: PASSIVE (done): `GET /v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication` and `GET /v1/public/engage/form?...&formKey=clientInfo` with no Auth + `Origin: https://evil.example.com` → 200 + schema + ACAO/ACAC.
+impact: unauthenticated cross-tenant disclosure of intake-form schemas (PII field structure) + internal org config; form UUIDs chainable into caseForms; HIGH
+testability: PASSIVE
+[HYP] Auth-free public Engage case-creation route (/v1/public/engage/cases POST) accepts forged intake submissions
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases (POST) + caseForms (POST)
+confidence: 50
+reasoning: Live this cycle — /v1/public/engage/cases: GET→400 "GET method not allowed" (auth-free method-gate, zero InvalidTokenError), OPTIONS→204 + ACAO+ACAC + allow-methods GET,HEAD,PUT,PATCH,POST,DELETE; sibling caseForms identical posture (GET→400, OPTIONS→204 full write methods). x-powered-by: Express + spare-correlation-id on engage OPTIONS — Express backend behind envoy. Portal bundle maps POST cases + caseForms + caseForms/submission-tokens (token minted per case); server-side enforcement of submission-token unproven — GET blocked so no readback.
+evidence_needed: AUTH_HELPED POST to /cases or /caseForms with real formId/caseId + nil submission-token → 2xx accepted vs 400/401 rejected.
+verify_steps: AUTH_HELPED: authorized `POST https://api.sparelabs.com/v1/public/engage/caseForms` {formId:e20f0f50-e380-4acd-9eac-31312eb2bcfb, caseId:<real>, metadata:{}} with NO token → observe 2xx/4xx; repeat on `/v1/public/engage/cases`. Do NOT attempt unauthenticated.
+impact: forged/spam intake submissions into org case queues + potential cross-tenant case injection; MEDIUM until validation state proven
+testability: AUTH_HELPED
+[HYP] Org-by-key lookup = unauthenticated cross-org directory disclosure (UUID + auth posture + logo URLs)
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 85
+reasoning: Re-confirmed live — grt→200 + 288B (org record + GCS logoUrl + enabledPublicFeatureFlags), spare→200, cambus→404; all no-auth + ACAO+ACAC. Low-entropy public slugs (portal URLs); global-namespace sibling uniform-404 (not an oracle) — public namespace discriminates.
+evidence_needed: breadth proven (spare+grt resolve, cambus 404); HUMAN confirms records match known public orgs; scaling = number of guessable slugs (bounded, no bulk).
+verify_steps: PASSIVE (bounded, done): `GET /v1/public/organizations/key/<known-slug>` no Auth + Origin evil → 200 + record on hit; limited to known-org slugs.
+impact: unauthenticated cross-org tenant directory (UUIDs, branding, rider-auth feature flags) chainable into engage/terms per-org lookups; enables targeted per-org attacks; MEDIUM-HIGH
+testability: PASSIVE
+[NEXT] HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with a real formId (e20f0f50-e380-4acd-9eac-31312eb2bcfb) + real caseId + `metadata:{}` and NO submission-token, then repeat on `POST /v1/public/engage/cases` → determines whether submission-token is server-enforced (closes the last open BUSLOGIC write-surface class). Do not attempt unauthenticated.
+[HYP] Auth-free public Engage case-creation route (/v1/public/engage/cases POST) accepts forged intake submissions
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases (POST) + caseForms (POST)
+confidence: 50
+reasoning: Live this cycle — /v1/public/engage/cases GET→400 "GET method not allowed" (auth-free method-gate, zero InvalidTokenError), OPTIONS→204 + ACAO+ACAC + full write methods; sibling caseForms identical posture. Portal bundle maps POST cases + caseForms + caseForms/submission-tokens (token minted per case); server-side submission-token enforcement unproven — GET blocked so no readback. Express backend confirmed via x-powered-by on OPTIONS.
+evidence_needed: AUTH_HELPED POST to /cases or /caseForms with real formId/caseId + nil submission-token → 2xx accepted vs 400/401 rejected.
+verify_steps: AUTH_HELPED: authorized `POST https://api.sparelabs.com/v1/public/engage/caseForms` {formId:e20f0f50-e380-4acd-9eac-31312eb2bcfb, caseId:<real>, metadata:{}} with NO token → observe 2xx/4xx; repeat on `/v1/public/engage/cases`. Do NOT attempt unauthenticated.
+impact: forged/spam intake submissions into org case queues + potential cross-tenant case injection; MEDIUM until validation state proven
+testability: AUTH_HELPED
+[HYP] Unauthenticated cross-org Engage intake-form schema disclosure (PII field structure + internal config)
+class: AUTH
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 94
+reasoning: Live re-confirmed on GRT — caseType 200+547B (forms[] ids+keys), form 200+1861B (customFields: MobilityPLUS ID, fare card, First Name, expiry + rider/driver interface flags + field-group ids); no Authorization, ACAO+ACAC both. Proven end-to-end on GRT + Spare orgs; keys derivable from public transit-agency portal URLs.
+evidence_needed: HUMAN verification of records against the two public orgs (GRT 1966c7f8, Spare d736519f) — already logged.
+verify_steps: PASSIVE (done): `GET /v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication` and `GET /v1/public/engage/form?...&formKey=clientInfo` with no Auth + `Origin: https://evil.example.com` → 200 + schema + ACAO/ACAC.
+impact: unauthenticated cross-tenant disclosure of intake-form schemas (PII field structure) + internal org config; form UUIDs chainable into caseForms; HIGH
+testability: PASSIVE
+[HYP] Org-by-key lookup = unauthenticated cross-org directory disclosure (UUID + auth posture + logo URLs)
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 85
+reasoning: Re-confirmed — grt→200+288B (org record + GCS logoUrl + enabledPublicFeatureFlags), spare→200, cambus→404; no-auth + ACAO+ACAC. Low-entropy public slugs; global-namespace sibling uniform-404 — public namespace discriminates.
+evidence_needed: breadth proven (spare+grt resolve, cambus 404); HUMAN confirms records match public orgs; scaling = guessable slugs (bounded).
+verify_steps: PASSIVE (bounded): `GET /v1/public/organizations/key/<known-slug>` no Auth + Origin evil → 200 on hit.
+impact: unauthenticated cross-org tenant directory (UUIDs, branding, rider-auth feature flags) chainable into engage/terms lookups; enables targeted per-org attacks; MEDIUM-HIGH
+testability: PASSIVE
+[NEXT] HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with real formId (e20f0f50-e380-4acd-9eac-31312eb2bcfb) + real caseId + `metadata:{}` and NO submission-token, then repeat on `POST /v1/public/engage/cases` → determines whether submission-token is server-enforced, closing the last open BUSLOGIC write-surface class. Do not attempt unauthenticated.
+[NEW] Bundle-derived engage namespace sweep: 15 additional endpoints all internal/auth-only (router-level 400 not found) on /v1/public/engage/; public surface FINAL = {caseType, form} read + {cases, caseForms, caseForms/submission-tokens} write. Portal template confirmed: forms.sparelabs.com/forms/:orgId/:caseTypeKey.
+[NEW] Engage caseType org-specific discrimination: GRT 200+547B vs Spare(d736519f)+same key 404 NotFoundError "Other was not found" 124B — org+key enumeration oracle shape; primary finding (GRT schema disclosure) re-verified live byte-identical.
+testability: PASSIVE
+[NEXT] HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with a real formId (e20f0f50-e380-4acd-9eac-31312eb2bcfb) + real caseId + `metadata:{}` and NO submission-token, then repeat on `POST /v1/public/engage/cases` → determines whether submission-token is server-enforced (closes the last open BUSLOGIC write-surface class). Do not attempt unauthenticated.
+[NEW] Bundle-derived engage namespace sweep: 15 additional endpoints all internal/auth-only (router-level 400 not found) on /v1/public/engage/; public surface FINAL = {caseType, form} read + {cases, caseForms, caseForms/submission-tokens} write. Portal template confirmed: forms.sparelabs.com/forms/:orgId/:caseTypeKey.
+[NEW] Engage caseType org-specific discrimination: GRT 200+547B vs Spare(d736519f)+same key 404 NotFoundError "Other was not found" 124B — org+key enumeration oracle shape; primary finding (GRT schema disclosure) re-verified live byte-identical.
+[NEXT] HUMAN: authorized-token test `POST /v1/public/engage/caseForms` (real formId `e20f0f50-e380-4acd-9eac-31312eb2bcfb` + real caseId + `metadata:{}`, NO token), then `POST /v1/public/engage/cases` — closes the last open BUSLOGIC write-surface class. Do not attempt unauthenticated.
