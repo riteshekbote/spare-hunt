@@ -3304,3 +3304,12 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass confirmed LIVE 2026-08-13 10:47 UTC (Bearer x → 200+725B region registry with 6 OOS subd
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection confirmed to converge on /v1/public/organizations/{id} path (OPTIONS 204 → AC
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths, no surface (confirmed this session)
+
+## RANKED HYPOTHESES 2026-08-13 11:39:20 UTC
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on organizations list (read-only, NOT patched) (from reports/hypotheses-laguna.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` — Verify CO
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass NOT patched — laguna live probes 2026-08-13 08:41–10:47 UTC confirm `Bearer x` → 200 + 7
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header read-only bypass STABLE re-confirmed live 2026-08-13 10:56 UTC — 200 + 11B + ACA
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE re-confirmed live 2026-08-13 10:56 UTC — ACAO:evil.example.com + ACAC:
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: 6-subpath sweep exhausted (/, status, branding, logo, config, tenants) → 400 ValidationEr

@@ -598,3 +598,5 @@
 - NEW api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping confirmed between 2-way and 3-way — nil-uuid returns 404 on fast replica (3-way intact), 400 on slow; multi-version envoy LB c
 - CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
 - NEW api.sparelabs.com/v1/public/organizations plural-namespace subresource sweep exhausted — /v1/public/organizations, .../status, .../{nil}/branding, /logo, /config, /tenants all return 400 ValidationErr
+
+## 2026-08-13 11:39:20 UTC

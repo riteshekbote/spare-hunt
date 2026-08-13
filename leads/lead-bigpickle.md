@@ -5835,3 +5835,4 @@ evidence_needed: GET with a valid authorized token returns non-empty `data[]`; e
 verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <program test token>" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (≤1 rps); compare body vs 11B baseline.
 impact: real tenant org-registry disclosure if data-bearing; HIGH. Empty caps severity at stub.
 testability: HUMAN_ONLY
+## 2026-08-13 11:35:19 UTC [api] (model bigpickle)
