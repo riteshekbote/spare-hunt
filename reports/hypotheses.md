@@ -3155,3 +3155,41 @@
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{search,audit,exports,metrics,logs,webhooks,analytics,billing}: All 8 undocumented controllers returned HTTP 401 wit
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (query-param data leak): All 7 query params tested return identical 200 + 11B `{"data":[]}` — empty pa
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELT
+
+## RANKED HYPOTHESES 2026-08-13 03:54:08 UTC
+- [99] api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass on /v1/global/organizations (read-only) (from reports/hypotheses-nemotron3.txt)
+- [60] platform.sparelabs.com: platform.sparelabs.com CSP leaks internal/staging asset inventory (from reports/hypotheses-laguna.txt)
+- [55] api.sparelabs.com/v1/**: Unauthenticated /v1/ endpoint surface on API gateway (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" && curl -s -D - -X GET -H "Origin: https:/
+- NEXT(hypotheses-bigpickle.txt): HUMAN: Resolve the data-bearing question on the zero-header bypass — `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <program 
+- NEXT(hypotheses-laguna.txt): SCAN https://forms.sparelabs.com : enumerate sensitive object paths with HEAD/GET ≤1 rps (`/`, `/static/`, `/static/js/*.js`, `/.well-known/`, `/admin`, `/confi
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass confirmed STABLE — GET with NO auth → 200 + 11B `{"data":[]}` + A
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — `Bearer x` → 200 + 725B region registry (7 regions,
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError; nil-uuid→404 NotFoundEr
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE all return 401 InvalidTokenError with garbage Bearer x — auth gate
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential FLAPPING — nil-uuid now returns 404 NotFoundError (3-way intact) on fast replica; c
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DE
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{search,audit,exports,metrics,logs,webhooks,analytics,billing}: All 8 undocumented controllers returned HTTP 401 wit
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (query-param data leak): All 7 query params tested return identical 200 + 11B `{"data":[]}` — empty pa
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELT
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — live re-probe 03:53 UTC, `Bearer x`+Origin → 200 + 725B byte-stable + ACAO:http
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — live re-probe 03:53 UTC, GET NO-Auth → 200 + 11B `{"data":[]}` 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE — live re-probe 03:53 UTC, nil→404 NotFoundError 131B+correlationId, ma
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — live re-probe 03:53 UTC, ?mobileAppId=nil → 200 + 137B terms URLs no-auth + COR
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — live re-probe 03:54 UTC, CSP still discloses admin-eam-app.vercel.app + admin-fixed-r
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/organization (singular): 3-way differential re-confirmed this cycle (nil→404 131B) — flapping between 2-way/3-way is
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + `/login` prefetch script CONFIRMED leaking `admin-eam-app-staging.vercel.app`, `admin-fixed-route-app-staging
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle CONFIRMED leaking `api.staging.us.sparelabs.com`, `api.staging.sparelabs.com`, `forms.staging.sparelabs.com`
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com: `/v1/` API CONFIRMED discoverable via passive enum. 3 unauthenticated endpoints live (200/400/404); 15+ auth-gated endpo
+- LEARN: REJECTED AUTH @ api.sparelabs.com: Previous "auth not challengeable" hypothesis PARKED — edge properly returns 401 for auth-gated routes; new finding is the una
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: Object-store directory listing hypothesis PARKED — traffic served via envoy+Google CDN (not raw object store); SPA cat
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: CONFIRMED dead — all `/v1/`, `/api/`, `/routing/`, `/router`, `/v2/`, `/graphql`, `/map`, `/directions` paths return 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass confirmed STABLE — GET with NO auth → 200 + 11B `{"data":[]}` + A
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — `Bearer x` → 200 + 725B region registry (7 regions,
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED — malformed→400 ValidationError; nil-uuid→404 NotFoundEr
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE all return 401 InvalidTokenError with garbage Bearer x — auth gate
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle differential FLAPPING — nil-uuid now returns 404 NotFoundError (3-way intact) on fast replica; c
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DE
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{search,audit,exports,metrics,logs,webhooks,analytics,billing}: All 8 undocumented controllers returned HTTP 401 wit
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (query-param data leak): All 7 query params tested return identical 200 + 11B `{"data":[]}` — empty pa
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELT
