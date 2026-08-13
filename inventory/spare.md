@@ -581,3 +581,6 @@
 
 ## 2026-08-13 08:45:44 UTC
 - NEW api.sparelabs.com/v1/public/organizations plural-namespace subresource sweep (this cycle): /v1/public/organizations, .../status, .../{nil}/branding, /logo, /config, /tenants → 400 ValidationError "not
+
+## 2026-08-13 09:48:34 UTC
+- NEW api.sparelabs.com/v1/public/organizations plural-namespace subresource sweep exhausted — /v1/public/organizations, .../status, .../{nil}/branding, /logo, /config, /tenants all return 400 ValidationErr

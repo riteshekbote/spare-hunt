@@ -1140,3 +1140,11 @@ https://api.sparelabs.com/v1/journeys -> HTTP 401
 https://sparelabs.com/terms-of-use/ -> 200 len=? type=text/html; charset=utf-8
 https://sparelabs.com/privacy-policy/ -> 200 len=? type=text/html; charset=utf-8
 https://api.sparelabs.com/v1/public/organizations/<test-uuid -> HTTP 400
+
+## 2026-08-13 09:48:36 UTC
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/journeys -> HTTP 401
+https://api.sparelabs.com/v1/public/organizations/<test-uuid -> HTTP 400
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/not-a-uuid -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000 -> HTTP 404

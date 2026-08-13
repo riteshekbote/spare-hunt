@@ -5779,3 +5779,31 @@ testability: HUMAN_ONLY
 [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass re-confirmed live 08:39 UTC — 200 + 11B + ACAO:https://evil.example.com + ACAC:true (522ms slow replica).
 [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way oracle re-confirmed live 08:39 UTC — nil→404 NotFoundError 131B + correlationId + ACAO+ACAC.
 [RISK] api.sparelabs.com: 78 — two auth-free read bypasses (data-bearing 725B regions registry with credentialed CORS exfil chain, zero-header org list), universal credential reflection, 3-way UUID oracle (plural, singular flapping), terms disclosure; exploitability capped by empty org payload and write-method gating (401) | platform.sparelabs.com: 30 — CSP infra leak (prod+staging admin Vercel apps, Metabase, 9 cloud services) but pure MFE shell, no API surface | routing.sparelabs.com: 5 — envoy 404 on all paths since 2026-08-07, no surface | forms.sparelabs.com: 25 — SPA shell with JS-bundle infra leak (main.71d52314.js), no API endpoints | web (spare.com/sparelabs.com): 10 — static Webflow marketing behind Cloudflare, no dynamic logic
+## 2026-08-13 09:47:17 UTC [api] (model bigpickle)
+[HYP] Cross-origin infra-topology exfiltration via regions scheme-only bypass + universal credentialed CORS
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 90
+reasoning: Direct this cycle (09:46 UTC) — `Bearer x`+Origin → 200 + 725B (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable) + ACAO:https://evil.example.com + ACAC:true + x-envoy-upstream-service-time:3. Reflection no longer inferred — it is on the regions 200 body itself. Token presence-only gate, validity never checked; control /v1/journeys → 401.
+evidence_needed: credentialed browser fetch from attacker origin reads the 725B body cross-origin (HTTP condition fully met this cycle; only browser-formality remains).
+verify_steps: AUTH_HELPED: page issuing `fetch("https://api.sparelabs.com/v1/global/regions",{headers:{Authorization:"Bearer x"},credentials:"include"})`; confirm 725B body readable; control `fetch("https://api.sparelabs.com/v1/journeys")` → rejected 401.
+impact: any visited site exfiltrates full regional API/routing topology incl. 6 OOS hosts → targeted regional attacks; HIGH.
+testability: AUTH_HELPED
+[HYP] Plural-oracle 200-branch requires an org carrying a full public-profile record
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 55
+reasoning: nil→404 NotFoundError 131B+correlationId+ACAO+ACAC re-confirmed this cycle; 200-branch unobserved 85h+; terms-valid UUID returns 404 on oracle but 200 on /v1/public/terms → backend index split.
+evidence_needed: one program test-org UUID resolving → 200 + org record (name/branding/contacts) with NO Authorization.
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/<test-uuid>"` (NO Authorization, ≤1 rps); control nil→404; cross-check `/v1/public/terms?organizationId=<test-uuid>`.
+impact: unauthenticated tenant org-record disclosure; HIGH.
+testability: HUMAN_ONLY
+[HYP] Valid-token GET discriminates real org registry from permanent stub
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: zero-header GET → 200 + 11B `{"data":[]}` + ACAO+ACAC (604ms slow replica, 09:46 UTC this cycle); identical across all 7 query params (KB); consistent with placeholder handler pinned to slow LB replica.
+evidence_needed: GET with a valid authorized token returns non-empty `data[]`; empty body confirms permanent stub (caps severity).
+verify_steps: HUMAN_ONLY: `curl -s -w "\nHTTP:%{http_code} SIZE:%{size_download}" -H "Authorization: Bearer <program test token>" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (≤1 rps); compare body vs 11B baseline.
+impact: real tenant org-registry disclosure if data-bearing; HIGH. Empty caps severity at stub.
+testability: HUMAN_ONLY
