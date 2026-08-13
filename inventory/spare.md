@@ -670,3 +670,5 @@
 - NEW forms.sparelabs.com JS bundle rotated: `main.b0a0c190.js` replaces `main.6ed467ae.js`; same infra leak persists (api-spare.ngrok.io, api.staging/us.sparelabs.com, forms.staging/us.sparelabs.com, spare
 - CHANGED api.sparelabs.com `/v1/global/organizations` write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
 - CHANGED api.sparelabs.com `/v1/public/organization` (singular): UUID oracle FLAPPING 3-way↔2-way confirmed across multi-version envoy LB replicas — nil-uuid→404 on fast replica (3-way intact), 400 on slow (2-
+
+## 2026-08-13 19:30:40 UTC

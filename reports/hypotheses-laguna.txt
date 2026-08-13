@@ -1,1 +1,43 @@
-## 2026-08-13 18:10:10 UTC [web] (model laguna)
+## 2026-08-13 19:26:07 UTC [web] (model laguna)
+[HYP] Zero-header complete no-auth bypass on global organizations (read-only)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 99
+reasoning: Live probe 2026-08-13 19:22 UTC confirms GET with NO Authorization header + Origin → 200 + 11B `{"data":[]}` + ACAO:https://evil.example.com + ACAC:true. POST with Bearer x → 401 InvalidTokenError (write methods gated). Control /v1/journeys → 401. 14-sibling sweep confirms route-specific scope (12×401 + 2×200). 85h+ stable across 30+ probes.
+evidence_needed: Zero-header GET returns 200+11B+ACAO+ACAC with no Authorization; POST returns 401; body is hardcoded empty `{"data":[]}`
+verify_steps: PASSIVE: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` (expect 200 + ACAO+ACAC + `{"data":[]}`) then `curl -s -o /dev/null -w "%{http_code}" -X POST -d '{}' "https://api.sparelabs.com/v1/global/organizations"` (expect 401)
+impact: Unauthenticated cross-origin GET of auth-omitted route via reflected CORS+credentials; empty payload caps immediate data exposure but OPTIONS confirms write methods advertised; severity HIGH
+testability: PASSIVE
+[HYP] Scheme-only auth bypass with infra topology disclosure on global regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Live probe 2026-08-13 19:22 UTC confirms GET with `Authorization: Bearer x` → 200 + 725B region registry (7 regions incl 6 OOS api/routing subdomain hostnames) + ACAO+ACAC. Body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable across 15+ probes (just re-verified). No-Auth → 400, POST → 401, control /v1/journeys → 401.
+evidence_needed: Body content includes 6 OOS subdomain hostnames; no-Auth returns 400; POST returns 401; sha256 stability
+verify_steps: PASSIVE: `curl -s -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` (expect 200 + 725B + ACAO+ACAC); `curl -s -o /dev/null -w "%{http_code}" "https://api.sparelabs.com/v1/global/regions"` (expect 400)
+impact: Unauthenticated disclosure of regional infrastructure topology (6 OOS api/routing subdomain hostnames) enabling targeted regional attacks; combination with reflected CORS+credentials enables cross-origin exfiltration; severity HIGH
+testability: PASSIVE
+[HYP] 3-way UUID enumeration oracle on plural organizations endpoint with universal CORS
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 97
+reasoning: Live probe 2026-08-13 19:22 UTC confirms: malformed→400 ValidationError (263B + correlationId); nil-uuid→404 NotFoundError (131B + correlationId); valid→200 (HUMAN_ONLY). OPTIONS preflight → 204 + ACAO:https://evil.example.com + ACAC:true + full method surface (GET,HEAD,PUT,PATCH,POST,DELETE) + ACAH:Authorization,Content-Type. Universal CORS pattern (85h+ stable) confirmed to converge on this path.
+evidence_needed: Confirm CORS reflection on OPTIONS + GET for all differential states; confirm universal CORS converges on nil-uuid 404 path
+verify_steps: PASSIVE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` (expect 204 + ACAO+ACAC+write methods); `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000"` (expect 404 + ACAO+ACAC + correlationId)
+impact: Any malicious origin can issue credentialed cross-origin requests to oracle endpoint, enabling automated organization enumeration at scale to confirm valid org UUIDs; severity MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Unauthenticated data disclosure on public terms endpoint
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/terms?mobileAppId=<nil-uuid>
+confidence: 90
+reasoning: Live probe 2026-08-13 19:24 UTC confirms GET with `?mobileAppId=00000000-0000-0000-0000-000000000000` + Origin → 200 + 137B (termsOfUseUrl→https://sparelabs.com/terms-of-use/, privacyPolicyUrl→https://sparelabs.com/privacy-policy/, serviceTermsUrl=null) + ACAO+ACAC — no auth required, in-scope sparelabs.com apex URLs disclosed, CORS credentials reflected.
+evidence_needed: 200 + 137B terms URLs + ACAO+ACAC with no auth; no-params → 400 IntegrationError
+verify_steps: PASSIVE: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000"` (expect 200 + 137B + ACAO+ACAC)
+impact: Unauthenticated disclosure of in-scope sparelabs.com terms URLs via cross-origin request; severity LOW (terms URLs only)
+testability: PASSIVE
+[FINAL] 1. api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass (read-only, NOT patched) [confidence 99, verified live 2026-08-13 19:22 UTC]
+[FINAL] 2. api.sparelabs.com/v1/global/regions: Scheme-only auth bypass + infra topology disclosure (NOT patched despite longcat triage PATCHED claim) [confidence 98, verified live 2026-08-13 19:22 UTC]
+[FINAL] 3. api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle with universal CORS convergence [confidence 97, verified live 2026-08-13 19:22 UTC]
+[FINAL] 4. api.sparelabs.com/v1/public/terms: Unauthenticated data disclosure (terms URLs) [confidence 90, verified live 2026-08-13 19:24 UTC]
+[PARKED]: /v1/public/organization (singular) UUID oracle — flapping between 2-way and 3-way across multi-version envoy LB replicas; downgraded to validation-leak-only, not oracle class. Retained as ACCEPTED validation-leak per KB.
+[NEXT] PROBE: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organization?organizationId=00000000-0000-0000-0000-000000000000"` — verify whether the degenerate singular namespace still flaps between 2-way (400 "not found" ValidationError) and 3-way (404 NotFoundError) across fast vs slow envoy LB replicas; if 3-way is intact on the fast replica, singular oracle retains enumeration value.
