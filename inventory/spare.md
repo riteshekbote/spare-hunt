@@ -614,3 +614,5 @@
 - CHANGED forms.sparelabs.com JS bundle rotated: `main.6ed467ae.js` (342,725 bytes) replaces prior `main.71d52314.js`; same infra leak (staging+prod+regional API hosts, atlassian.net, ngrok.io)
 - NEW api.sparelabs.com `/v1/public/*` sibling sweep exhausted: 8 additional paths (status/brands/config/features/countries/orgs/settings/health) all 404 0B — public namespace surface fully mapped to terms/
 - CHANGED Analytical closure: prior AUTH_HELPED "write-escalation" hypotheses (orgs conf 60, regions conf 50) are CONTRADICTED by existing KB evidence (write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError 
+
+## 2026-08-13 15:25:28 UTC

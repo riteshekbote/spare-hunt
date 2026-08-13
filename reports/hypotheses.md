@@ -3439,3 +3439,36 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE re-confirmed live 2026-08-13 14:03 UTC — ACAO:https://evil.example.com
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE re-confirmed live 2026-08-13 14:03 UTC — ?mobileAppId=<nil-uuid> → 200 + 137B ter
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELTA 
+
+## RANKED HYPOTHESES 2026-08-13 15:25:28 UTC
+- [98] api.sparelabs.com/v1/global/regions: Plural org UUID enumeration oracle with 3-way differential on /v1/public/organizations/{id} (from reports/hypotheses-laguna.txt)
+- [50] api.sparelabs.com/v1/public/organization?organizationId=: Real-org UUID returns full org record via public oracle set (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D - -X GET -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" && curl -s -D - -X POST -H "Origin: https:
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header no-auth bypass confirmed STABLE — GET NO-Auth → 200 + 11B + ACAO+ACAC (85h+ stab
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE — `Bearer x` → 200 + 725B (sha256 fb9800acb…585c3fe b
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — ACAO+ACAC uniform on OPTIONS 204 + GET 200/401/404 across all /v1; n
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELT
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/{search,audit,exports,metrics,logs,webhooks,analytics,billing}: All 8 undocumented controllers returned 401 with gar
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.71d52314.js STABLE — infra-recon value only (no auth bypass), no delta
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass NOT patched — live probe 2026-08-13 08:41 UTC confirms `Bearer x` → 200 + 725B region re
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header read-only bypass STABLE — GET no-auth → 200 + 11B + ACAO+ACAC (623ms slow replic
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE — ACAO:https://evil.example.com + ACAC:true + methods GET,HEAD,PUT,PAT
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE — `?mobileAppId=00000000-0000-0000-0000-000000000000` → 200 + 137B (termsOfUseUrl
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle STABLE — malformed→400 ValidationError "must match format uuid" (2
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/admin/*: 404 0B no-auth — no admin namespace on API; platform bundle has zero v1/admin references
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/graphql,/map,/directions); no surface, NO_DELTA si
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Zero-header no-auth bypass + read-only confirmed LIVE 2026-08-13 10:47 UTC (GET no-auth → 200+11B+ACA
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass confirmed LIVE 2026-08-13 10:47 UTC (Bearer x → 200+725B region registry with 6 OOS subd
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection confirmed to converge on /v1/public/organizations/{id} path (OPTIONS 204 → AC
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on all probed paths, no surface (confirmed this session)
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass NOT patched — laguna live probes 2026-08-13 08:41–10:47 UTC confirm `Bearer x` → 200 + 7
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Complete zero-header read-only bypass STABLE re-confirmed live 2026-08-13 10:56 UTC — 200 + 11B + ACA
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE re-confirmed live 2026-08-13 10:56 UTC — ACAO:evil.example.com + ACAC:
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: 6-subpath sweep exhausted (/, status, branding, logo, config, tenants) → 400 ValidationEr
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Zero-header no-auth bypass read-only STABLE re-confirmed live 2026-08-13 14:03 UTC — GET NO-Auth → 20
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass + infra topology disclosure STABLE re-confirmed live 2026-08-13 14:02 UTC — Bearer x → 2
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle STABLE confirmed live 2026-08-13 14:03 UTC — nil-uuid→404 NotFound
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE re-confirmed live 2026-08-13 14:03 UTC — ACAO:https://evil.example.com
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Data disclosure STABLE re-confirmed live 2026-08-13 14:03 UTC — ?mobileAppId=<nil-uuid> → 200 + 137B ter
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map,/directions/), NO_DELTA 

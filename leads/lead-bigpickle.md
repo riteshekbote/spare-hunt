@@ -6277,3 +6277,13 @@ testability: HUMAN_ONLY
 [RISK] routing.sparelabs.com: 10 — envoy 404 on all paths, dead, no surface.
 [RISK] forms.sparelabs.com: 38 — JS bundle infra leak (staging+prod+regional+atlassian+ngrok); strict HTML CSP + x-frame DENY; SPA catch-all, no API endpoints, recon-only value.
 [RISK] web (spare.com/sparelabs.com): 12 — static Webflow marketing site, CSP frame-ancestors 'self', HSTS, no internal infra leaks.
+## 2026-08-13 15:11:12 UTC [api] (model bigpickle)
+[HYP] Real-org UUID returns full org record via public oracle set
+class: AUTH
+asset: api.sparelabs.com/v1/public/organization?organizationId= AND /v1/public/organizations/{id}
+confidence: 50
+reasoning: nil-uuid→404 NotFoundError 131B+correlationId and malformed→400 ValidationError 263B re-confirmed live this cycle; valid-format random UUID→404 (probed this cycle) proving 404 discriminates existence, not format; 200-branch never observed because no real org UUID exists in passive corpus — bundles nil-UUID-only.
+evidence_needed: real existing org UUID → 200 + org record (name/branding/contact) without auth on either route.
+verify_steps: HUMAN_ONLY: obtain program test-org UUID from authorized contact, then GET `https://api.sparelabs.com/v1/public/organization?organizationId=<uuid>` AND `https://api.sparelabs.com/v1/public/organizations/<uuid>` with NO Authorization + `Origin: https://evil.example.com` → expect 200 + record + ACAO+ACAC.
+impact: unauthenticated tenant org-record/PII disclosure via 2-route public namespace; HIGH if record returned.
+testability: HUMAN_ONLY
