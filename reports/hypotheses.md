@@ -3587,3 +3587,7 @@
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
 - LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass route
+
+## RANKED HYPOTHESES 2026-08-13 21:09:53 UTC
+- [92] api.sparelabs.com/v1/public/engage/{caseType,form}: Unauthenticated cross-org Engage intake-form schema disclosure (PII field structure + internal config) (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-bigpickle.txt): HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with a real formId (e20f0f50-e380-4acd-9eac-31312eb2bcfb) + real caseId

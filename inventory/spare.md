@@ -693,3 +693,5 @@
 - CHANGED routing.sparelabs.com now responds 404 (`server: envoy`, `via: 1.1 google`) — was TIMEOUT in seed; STABLE dead, NO_DELTA since discovery
 - CHANGED platform.sparelabs.com now responds 200 (Micro-frontend SPA shell) — was TIMEOUT in seed; STABLE CSP infra leak
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way confirmed across multi-version envoy LB replicas — nil-uuid→404 on fast replica (3-way intact), 400 on slow (2-way
+
+## 2026-08-13 21:09:53 UTC

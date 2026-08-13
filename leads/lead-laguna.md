@@ -6086,3 +6086,4 @@ confidence: 98
 reasoning: GET with `Authorization: Bearer x` → 200 + 725B region registry (7 regions incl 6 OOS api/routing subdomain hostnames: api.us/us2/us3/jp/eu/uat.sparelabs.com) + ACAO:https://evil.example.com + ACAC:true. Body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable across 15+ probes (just re-verified live 2026-08-13 20:08 UTC). No-Auth→400 "header required", POST→401, control /v1/journeys→401. OPTIONS→204+ACAO+ACAC+write methods confirmed.
 evidence_needed: Confirm body includes 6 OOS subdomain hostnames; confirm no-Auth returns 400; confirm POST returns 401; confirm sha256 stability (fb9800acb…)
 verify_steps: PASSIVE: `curl -s -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` (expect 200 + 725B + ACAO+ACAC); `curl -s -o /dev/null -w "%{http_code}" "https://api.sp
+## 2026-08-13 20:59:48 UTC [web] (model laguna)
