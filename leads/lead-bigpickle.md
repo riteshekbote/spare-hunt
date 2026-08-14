@@ -6839,3 +6839,31 @@ evidence_needed: import-map manifest JSON yields ≥1 module URL not already in 
 verify_steps: PASSIVE: GET https://platform.sparelabs.com/login → extract import-map.json URL from prefetch → GET manifest → list modules ≤1 rps
 impact: broader production admin/MFE inventory via in-scope host; no direct auth bypass on platform host; LOW-MED
 testability: PASSIVE
+## 2026-08-14 09:52:59 UTC [api] (model bigpickle)
+[HYP] Driver-side Engage intake schema: driverInterfaceVisibility fields imply a parallel driver-form namespace with PII identical to rider forms
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseType
+confidence: 75
+reasoning: GRT serviceAnimalApplication 200+547B self-discloses form tree; schema fields carry both riderInterfaceVisibility and driverInterfaceVisibility (e.g. easyGoFareCardNumber hidden on both, implies driver-visible fields exist on other forms); riderInterfaceName=null leaves driver dimension unverified.
+evidence_needed: a caseTypeKey from the bounded self-disclosed/schema-visible set returning a form with driverInterfaceVisibility != hidden on GRT org.
+verify_steps: PASSIVE: GET /v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=<bounded transit template keys incl. driverApplication> -H "Origin: https://evil.example.com" ≤1 rps; diff driverInterfaceVisibility per field.
+impact: driver-side PII schema (license#, driver ID, background-check fields) disclosed unauthenticated per tenant, extending the phishing/account-linking surface; MEDIUM
+testability: PASSIVE
+[HYP] Org-key directory flags weak-auth tenants (riderLoginless/riderPhonePin) whose Engage portals are then credential-stuffing targets
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 80
+reasoning: spare→200+351B discloses enabledPublicFeatureFlags incl. riderLoginless+riderPhonePin; grt→200+288B (multimodal+riderEmailAuthentication); cambus→404; no-auth + ACAO+ACAC; UUID→engage chain proven; GCS logoUrl discloses bucket `spare-production-ca-photos`.
+evidence_needed: HUMAN confirms riderLoginless maps to a live credential-less login on my.sparelabs.com (OOS host, HUMAN check only).
+verify_steps: PASSIVE: GET /v1/public/organizations/key/<bounded public-agency slug> -H "Origin: https://evil.example.com" ≤1 rps; record UUID+flags; note only in-scope hosts in output.
+impact: unauthenticated per-tenant auth-posture map targeting weakest-auth orgs for credential/session attacks on their rider portals; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Platform shell dev-API allowlist leaks unreleased environments on new TLD sparelabs.ca; in-scope shell resolution logic may route config per hostname
+class: MISCONFIG
+asset: platform.sparelabs.com/assets/index-DBfgT4ww.js
+confidence: 70
+reasoning: bundle contains SYr allowlist {api.dev.sparelabs.ca, api.dev.us.sparelabs.ca, api.infrastructure-qa.dev.sparelabs.ca, localhost:3048} + env map Production_CA/US/US2/EU/JP, Staging_CA/US, Ngrok; CSP adds *.sparelabs.ca; JIRA FIN-1093 confirms active ticket reference.
+evidence_needed: show the in-scope bundle's hostname→api-base resolution (function AYr / SYr) can select a dev/infra-qa base for an in-scope hostname; all probed hosts must stay in-scope.
+verify_steps: PASSIVE: re-fetch index-DBfgT4ww.js, extract SYr/dev-base selection code path; GET https://platform.sparelabs.com/login to confirm unchanged 5555B HTML; no OOS host probing.
+impact: documents expanded infrastructure disclosure (new TLD, infra-qa env, ngrok tunnels, regional platforms) enabling cross-environment targeting; no in-scope auth bypass; LOW-MED
+testability: PASSIVE

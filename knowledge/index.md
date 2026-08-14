@@ -1157,3 +1157,9 @@
 - 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED live — malformed→400 ValidationError, nil→404 NotFoundError, valid→200; auth-free + universal CORS
 - 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration via human-readable keys (spare→200+351B, grt→200+288B, cambus→404), no-auth + CORS — returns tenant UUID, name, logo, feature flags
 - 2026-08-14 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths, NO_DELTA since 2026-08-07
+- 2026-08-14 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW surface confirmed live — 3-way discrimination (spare→200+351B, grt→200+288B, notfound→404); no-auth + universal CORS
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 85h+ — GET no-auth → 200+11B+ACAO+ACAC; writes POST/PUT/PATCH/DELETE → 401 InvalidTokenError; auth asymmetry confirmed
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC (6 OOS subdomains in body); no-auth→400, POST→401; body sha256 verified
+- 2026-08-14 CHANGED @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed; was 200+schema bodies previously
+- 2026-08-14 ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — MFE SPA shell 200 (was TIMEOUT); CSP on /login discloses admin Vercel apps + Metabase + 9 cloud services
+- 2026-08-14 ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — Engage portal SPA 200 (was TIMEOUT); JS bundle main.b0a0c190.js leaks staging+prod+regional infra + atlassian.net + inactive ngrok

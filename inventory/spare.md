@@ -860,3 +860,9 @@
 - NEW api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED live (plural namespace; malformed→400 ValidationError, nil→404 NotFoundError, valid→200 HUMAN_ONLY; ACAO+ACAC) 8
 - CHANGED api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) now confirm proper 401 InvalidTokenError enforcement — bypass is READ-ONLY GET (auth asymmetry), OPTIONS still misleadi
 - CHANGED api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way↔2-way across multi-version envoy replicas (nil→404 on fast, 400 on slow); downgraded to validation-leak-only
+
+## 2026-08-14 09:54:35 UTC
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} — FLAPPED to 400 "not found" on current envoy replica (was 200 with 547B/1861B schema bodies); multi-version LB confirmed
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key} — CONFIRMED LIVE with 3-way discrimination (spare→200+351B, grt→200+288B, notfound→404); no-auth + universal CORS
+- CHANGED api.sparelabs.com/v1/global/organizations — CONFIRMED zero-header read-only bypass STABLE (200+11B+ACAO+ACAC, 1171ms slow replica); writes 401
+- CHANGED api.sparelabs.com/v1/global/regions — CONFIRMED scheme-only bypass STABLE (Bearer x→200+725B+ACAO+ACAC, 3ms fast replica); 6 OOS subdomains in body

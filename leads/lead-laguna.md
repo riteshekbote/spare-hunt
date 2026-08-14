@@ -6661,3 +6661,28 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 | envoy 404 on ALL probed paths since 2026-08-07; no surface, NO_DELTA.
 [RISK] forms.sparelabs.com: 43 | "Spare Engage Web Portal" SPA 200; JS bundle (main.b0a0c190.js) leaks staging+prod+regional infra (6 OOS) + atlassian.net + inactive ngrok; strict HTML CSP + x-frame DENY mitigates HTML; infra leak is recon-value only, no auth bypass behind host.
 [RISK] web (spare.com/sparelabs.com): 15 | spare.com apex HTTP 200 static Webflow marketing (Cloudflare, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; www.spare.com OUT OF SCOPE excluded; minimal static-only surface.
+## 2026-08-14 09:54:23 UTC [web] (model laguna)
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 95
+reasoning: GET with NO Authorization header + Origin → 200 + 11B `{"data":[]}` + ACAO:reflected + ACAC:true, confirmed live 2026-08-14 07:50 UTC (85h+ stable). POST/PUT/PATCH/DELETE with `Bearer x` → 401 InvalidTokenError, write handlers properly gate. OPTIONS 204 still advertises PUT/PATCH/POST/DELETE with ACAC — misleading CORS surface on auth-bypass route.
+evidence_needed: GET returns 200+ACAO+ACAC with zero Authorization while control /v1/journeys returns 401; POST returns 401 InvalidTokenError
+verify_steps: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` AND `curl -s -D -X POST -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/organizations"` AND `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"`
+impact: Read-only bypass of auth layer on GET (payload empty 11B, severity capped); misleading write-method CORS advertisement creates surface confusion but handlers properly gate. Low-moderate.
+testability: PASSIVE
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: `Bearer x` (any garbage token) → 200 + 725B region registry (7 regions incl. 6 OOS api/routing subdomains) + ACAO+ACAC; no-auth → 400 "Authorization header required", wrong-scheme → 400 "scheme Bearer required". Token validity never checked — presence-only gate. Confirmed live 2026-08-14 07:50 UTC (85h+ stable, body sha256 fb9800acb09b…585c3fe).
+evidence_needed: `Bearer x` returns 200+725B+ACAO+ACAC while control /v1/journeys returns 401; body contains 6 OOS subdomain URLs
+verify_steps: `curl -s -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` AND `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"`
+impact: Unauthenticated disclosure of full region registry incl. 6 OOS api/routing subdomain URLs; enables targeted scanning of out-of-scope infra. Low-moderate (no credentials/PII, infra topology only).
+testability: PASSIVE
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 90
+reasoning: 3-way discrimination confirmed live 2026-08-14: spare→200+351B, grt→200+288B, cambus→404+131B. No auth + universal CORS reflected (ACAO+ACAC:true). Returns tenant UUID, name, logoUrl, enabledFeatureFlags per key. Keys derivable from public transit-agency portal URLs.
+evidence_needed: Consistent 3-way response differential (200/200/404 with distinct body sizes) with Origin reflected in CORS headers
+verify_steps: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare"` AND `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/grt"` AND `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/cambus"`
+impact: Enables attacker-enumerable org UUID discovery via known human-readable keys, facilitating cross-org targeting. Returns live org metadata (name, logo, feature flags). Medium.
+testability: PASSIVE
