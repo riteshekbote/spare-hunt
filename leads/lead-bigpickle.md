@@ -7224,3 +7224,31 @@ evidence_needed: AUTH_HELPED: with a test rider token, determine the submission-
 verify_steps: AUTH_HELPED: authorized GET on candidate readback paths (/v1/public/engage/cases/{caseId}, /v1/public/engage/form/{formId}/submission) with a test rider token; if one rider's submission accessible with another's token → IDOR. PASSIVE portion dead (UUID params 400).
 impact: if readback exists → cross-rider PII access (name/address/MobilityPLUS ID); MEDIUM-HIGH
 testability: AUTH_HELPED
+## 2026-08-14 22:00:54 UTC [api] (model bigpickle)
+[HYP] Cross-tenant SSO roster extension: WorkOS oracle maps transit-partner IdP bindings beyond the public org-key DB
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 85
+reasoning: kingcounty.gov→200 configured yet king-county/kingcounty org-keys→404 proves the SSO tenant set is a strict superset of the org-key DB; winnipeg.ca→200 (conn sha256 2bc6f5c1…e3b5) corroborates the new winnipeg org-key; only ~12 domains tested. Each 200 returns a distinct WorkOS connection id.
+evidence_needed: one more Canadian/municipal transit domain returning 200 to confirm generalization beyond the tested set
+verify_steps: PASSIVE: for d in toronto.ca ottawa.ca calgary.ca edmonton.ca hamilton.ca mississauga.ca; do POST /v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"'$d'"}' (sleep 1.2); 200→record connection id (sha256), 404→not configured. No data modification; accepted-oracle pattern already exercised this session.
+impact: full SSO-integrated partner roster + WorkOS connection ids + Entra tenant ids for corporate IdPs — org-enumeration / phishing-context intel; LOW-MEDIUM
+testability: PASSIVE
+[HYP] Org-key dictionary extension yields an additional Engage-eligible tenant beyond GRT
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 55
+reasoning: winnipeg→200+352B is new this session; ~50 keys tested across sweeps yield only 4 live (spare/grt/dallas/winnipeg); only GRT (1966c7f8) is Engage-200 — winnipeg/spare/dallas all typed-404 on /engage/caseType. Chain org-key 200 → UUID → engage/caseType works for exactly one tenant today.
+evidence_needed: one additional 200 key whose UUID returns 200 on /v1/public/engage/caseType
+verify_steps: PASSIVE: for k in columbus reno tucson pittsburgh cleveland neworleans sacramento fresno albuquerque vancouver calgary edmonton; do GET /v1/public/organizations/key/$k (Origin evil, sleep 1.2); on 200 capture UUID then GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication
+impact: full transit-tenant roster (UUID/logo/feature flags) + Engage eligibility map; LOW
+testability: PASSIVE
+[HYP] Cross-origin unauthenticated Engage intake-form write into GRT case DB via caseForms
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 64
+reasoning: OPTIONS 204 re-confirmed ACAC:true + POST/PUT/PATCH/DELETE + ACAH:Authorization,Content-Type on the write surface; all /v1/public/* are auth-free by design; GET→400 method-not-allowed (no readback). Zero-auth write acceptance remains unproven.
+evidence_needed: AUTH_HELPED: authorized POST with a valid formKey set (write must NOT be executed by me)
+verify_steps: AUTH_HELPED: authorized POST /v1/public/engage/caseForms with organizationId=1966c7f8-… + caseTypeKey=serviceAnimalApplication + formKey=clientInfo + dummy payload; accepted with zero Authorization header → cross-origin PII injection into GRT case DB confirmed. PASSIVE part done (OPTIONS 204 + CORS creds live).
+impact: any webpage can submit Engage rider-intake PII (name/address/phone/MobilityPLUS ID) into GRT case DB cross-origin → form-spam/PII-poisoning; MEDIUM (write, no readback)
+testability: AUTH_HELPED
