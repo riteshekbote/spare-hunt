@@ -1398,3 +1398,12 @@ https://api.sparelabs.com/v1/public/organizations/key/grt -> 200 len=288 type=ap
 https://api.sparelabs.com/v1/public/organizations/key/cambus -> HTTP 404
 https://api.sparelabs.com/v1/global/regions -> HTTP 400
 https://api.sparelabs.com/v1/public/organizations/key/notfound -> HTTP 404
+
+## 2026-08-14 11:35:44 UTC
+https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/grt -> 200 len=288 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/notfound -> HTTP 404
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/key/cambus -> HTTP 404
+https://api.sparelabs.com/v1/journeys -> HTTP 401
