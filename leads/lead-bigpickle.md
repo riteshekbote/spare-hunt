@@ -7196,3 +7196,31 @@ impact: per-tenant PII field-map harvest beyond GRT → broader form-fraud targe
 testability: PASSIVE
 [NEXT] PROBE: `for k in bellingham charlottetown tampa austin denver miami omaha raleigh nashville portland; do curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/$k" -o /tmp/opencode/k_$k.json -w "$k %{http_code} %{size_download}B\n"; sleep 1.2; done` — complete the dictionary breadth to close HYP3; any 200 → follow with /v1/public/engage/caseType using that tenant UUID.
 [RISK] api.sparelabs.com: 68 — confirmed unauth PII schema harvest (GRT Engage, 3 forms fully mapped), zero-header read bypass on /global/organizations, scheme-only bypass on /global/regions, universal CORS credential reflection, 3-way org UUID/key oracles, WorkOS SSO-config oracle; write methods and 22 sibling routes properly gated | platform.sparelabs.com: 40 — MFE shell; CSP infra leak (admin Vercel apps, Metabase, 9 cloud services); embedded 170-path OpenAPI recon-only; no API surface behind host | routing.sparelabs.com: 15 — envoy 404 on all paths since 2026-08-07, no surface | forms.sparelabs.com: 25 — Engage portal SPA 200; JS bundle leak patched (main.8a2a39cb.js zero infra refs); 3 Maps keys referrer-restricted; no API endpoints behind SPA shell | web (spare.com/sparelabs.com): 15 — static Webflow/Cloudflare marketing, 301 apex, no dynamic surface.
+## 2026-08-14 21:41:16 UTC [api] (model bigpickle)
+[HYP] Cross-origin unauthenticated Engage intake-form write into GRT case DB via caseForms
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 64
+reasoning: OPTIONS 204 this cycle re-confirms ACAC:true + POST/PUT/PATCH/DELETE + ACAH:Content-Type,Authorization on the write surface; public namespace auth-free by design (all /v1/public/* return data with no token); GET→400 method-not-allowed (no readback). Zero-auth write acceptance remains unproven — no Authorization header observed required on any public route.
+evidence_needed: AUTH_HELPED: authorized POST with a valid formKey set confirms acceptance without Authorization header (write must NOT be executed by me)
+verify_steps: AUTH_HELPED: authorized POST /v1/public/engage/caseForms with organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355 + caseTypeKey=serviceAnimalApplication + formKey=clientInfo + dummy payload; if accepted with zero auth → cross-origin PII injection confirmed. PASSIVE part done (OPTIONS 204 + CORS creds live).
+impact: any webpage can submit Engage rider-intake PII (name/address/phone/MobilityPLUS ID) into GRT case DB cross-origin → form-spam/PII-poisoning; MEDIUM (write, no readback)
+testability: AUTH_HELPED
+[HYP] Engage caseType/form key strings enumerate hidden caseType variants across known org keys
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseType
+confidence: 42
+reasoning: GRT caseTypeKey=serviceAnimalApplication → 200/547B is the ONLY live caseType among 9 swept; but only GRT org (1966c7f8) reaches the 200 state — spare/dallas/winnipeg typed-404 on all probed caseTypeKeys. Remaining unknown caseTypeKey strings (e.g. additionalApps, serviceAnimals, travelTraining, wheelchairAccess) may exist per-org with no discovery except brute force.
+evidence_needed: one additional caseTypeKey string returning 200 on GRT (fast replica), confirming the key-space is enumerable beyond the single known value
+verify_steps: PASSIVE: for k in additionalApps serviceAnimals travelTraining wheelchairAccess adaptiveRides companion programApplication; GET /v1/public/engage/caseType?organizationId=1966c7f8-…&caseTypeKey=$k (Origin evil, sleep 1.2)
+impact: unauthenticated enumeration of additional GRT intake case-type schemas → more PII field maps; LOW-MEDIUM
+testability: PASSIVE
+[HYP] Engage form UUID parameters (formId/caseTypeId) reference a per-rider submission store (IDOR readback)
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/form
+confidence: 40
+reasoning: form schemas leak stable form UUID (6d1ebb52…) + caseTypeId (039fa858…) + caseTypeId=… in body; UUID-param lookups returned 400 this cycle (rejected variant), but submission-scoped readback endpoints (e.g. /v1/public/engage/form/{formId}/rider/{riderId}) were not enumerated; submitted:false field suggests submission-state tracking exists server-side.
+evidence_needed: AUTH_HELPED: with a test rider token, determine the submission-readback route and test cross-rider access
+verify_steps: AUTH_HELPED: authorized GET on candidate readback paths (/v1/public/engage/cases/{caseId}, /v1/public/engage/form/{formId}/submission) with a test rider token; if one rider's submission accessible with another's token → IDOR. PASSIVE portion dead (UUID params 400).
+impact: if readback exists → cross-rider PII access (name/address/MobilityPLUS ID); MEDIUM-HIGH
+testability: AUTH_HELPED

@@ -4129,3 +4129,34 @@
 - LEARN: REJECTED MISCONFIG @ admin-*.vercel.app: all 4 hosts ALIVE 200 but dev-only (admin-eam-app api-baseurl=localhost:3057); no prod API base hardcoded
 - LEARN: REJECTED (OOS) @ metabase.sparelabs.com: exposed Metabase v0.58.24 with unauth /api/session/properties config dump (106KB), but host OOS per scope exclusions
 - LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; NO_DELT
+
+## RANKED HYPOTHESES 2026-08-14 21:41:28 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass on regions exposes OOS infra topology (from reports/hypotheses-laguna.txt)
+- [90] api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-configuration oracle at /v1/identity/workos/auth discloses WorkOS client IDs and Entra tenant IDs for partner orgs (from reports/hypotheses-nemotron3.txt)
+- [64] api.sparelabs.com/v1/public/engage/caseForms: Cross-origin unauthenticated Engage intake-form write into GRT case DB via caseForms (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com
+- NEXT(hypotheses-laguna.txt): PROBE: Expand WorkOS SSO domain enumeration to discover additional configured tenants and Entra tenant IDs — `for domain in dart.org translink.ca spare.com spar
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: unauthenticated SSO-config oracle — POST domain param discriminates 200 (configured tenant) vs 404; d
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way discrimination stable (spare/grt/dallas→200 distinct bodies, cambus→404); prod-only d
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (G
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC; body sha256 fb9800acb09b65ec92591f4536e3ecf
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle rotated to main.8a2a39cb.js — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (leak PATCHED); 3 Go
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed, unrel
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes ALL 401 — bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com bundle OpenAPI: 170 paths extracted, ALL 131 non-param paths properly gated (401/404) — no bypass, recon only
+- LEARN: REJECTED BUSLOGIC @ sparelabs.ca: DNS only dev.sparelabs.ca → GCP LB "fault filter abort" 404 — no live surface
+- LEARN: REJECTED MISCONFIG @ admin-*.vercel.app: all 4 hosts ALIVE 200 but dev-only (admin-eam-app api-baseurl=localhost:3057); no prod API base hardcoded
+- LEARN: REJECTED (OOS) @ metabase.sparelabs.com: exposed Metabase v0.58.24 with unauth /api/session/properties config dump (106KB), but host OOS per scope exclusions
+- LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; NO_DELT
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle rotated to main.8a2a39cb.js (was main.b0a0c190.js) — ZERO sparelabs/atlassian/ngrok/metabase/vercel referenc
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica (was 200+547B/1861B schema bodies);
+- LEARN: ACCEPTED FLEETWIDE @ /v1/global/{organizations,regions} bypass: 7-host parity confirmed (prod/us/us2/us3/jp/eu/uat) — zero-header orgs + Bearer-x regions global
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com bundle: Embedded OpenAPI spec of EAM/fixed-route admin API (170 paths) — ALL 131 non-param paths properly gated (401
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle fully degraded 3-way→2-way — nil-uuid now returns 400 ValidationError "not
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE (malformed→400, nil→404, valid→200 HUMAN_ONLY) — superior discriminator
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10 probed paths (/admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metric
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com (API path sweep): All 8 probed paths (/api/health,/api/v1,/graphql,/webhooks,/export,/status,/config,/v1) return SPA ca
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; no surfa
+- LEARN: REJECTED @ sparelabs.ca: DNS only dev.sparelabs.ca → GCP Load Balancer "fault filter abort" 404; no live surface
+- LEARN: REJECTED @ admin-*.vercel.app (4 hosts): All ALIVE 200 but dev-only artifacts (admin-eam-app has api-baseurl=http://localhost:3057/api); no prod API base hardco
+- LEARN: REJECTED (OOS) @ metabase.sparelabs.com: Exposed Metabase v0.58.24 with unauth /api/session/properties (106KB dump); host OOS per scope exclusions; no RCE (setu
