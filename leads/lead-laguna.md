@@ -6992,3 +6992,28 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404 on ALL probed paths since 2026-08-07; newly responsive but zero API surface
 [RISK] forms.sparelabs.com: 43 — Engage portal SPA 200; JS bundle main.b0a0c190.js leaks staging+prod+regional infra (6 OOS) + atlassian.net + inactive ngrok; strict HTML CSP mitigates HTML-level disclosure
 [RISK] web (spare.com/sparelabs.com): 15 — spare.com apex HTTP 200 static Webflow marketing; sparelabs.com 301→spare.com; minimal static-only surface, no infra leaks
+## 2026-08-14 19:33:48 UTC [web] (model laguna)
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 94
+reasoning: Confirmed live 4-way discrimination: spare→200+351B, grt→200+288B, dallas→200+237B, cambus→404+131B — no auth, universal CORS on both GET and OPTIONS 204. Each 200 returns tenant UUID, name, logoUrl, organizationKey, enabledPublicFeatureFlags.
+evidence_needed: Distinct 200+body-size for known keys (spare/grt/dallas) vs 404+131B for unknown, all without auth, with ACAO+ACAC headers
+verify_steps: curl -s -o /dev/null -w "%{http_code} %{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare" && curl -s -o /dev/null -w "%{http_code} %{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/grt" && curl -s -o /dev/null -w "%{http_code} %{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/dallas" && curl -s -o /dev/null -w "%{http_code} %{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/cambus"
+impact: Enumerate tenant UUIDs and metadata via publicly-derivable human-readable keys; returns live org name, logo, feature flags; enables cross-org targeting and follow-on attacks. Medium.
+testability: PASSIVE
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 97
+reasoning: GET with `Bearer x` (arbitrary token) returns 200 + 725B region registry containing 7 regions including 6 out-of-scope api/routing subdomains; no-auth returns 400; wrong-scheme returns 400 — scheme presence-only gate, token never validated. Universal CORS reflected. STABLE 85h+, body sha256 fb9800acb…585c3fe verified across 15+ probes.
+evidence_needed: 200+725B response with arbitrary Bearer value vs 400 without, plus 6 OOS subdomains enumerated from in-scope host, plus ACAO/ACAC headers
+verify_steps: curl -s -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" && curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"
+impact: Unauthenticated infra topology disclosure — 6 out-of-scope api/routing subdomains enumerated from in-scope host body; enables attack surface expansion across all regions. Medium.
+testability: PASSIVE
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 96
+reasoning: GET with NO Authorization header + Origin returns 200 + 11B {"data":[]} + ACAO:reflected + ACAC:true; POST/PUT/PATCH/DELETE with Bearer x return 401 InvalidTokenError (write gate active); OPTIONS 204 advertises PUT/PATCH/POST/DELETE + CORS — handler-level write gating but CORS preflight misleading; control /v1/journeys → 401; route-specific via 14-sibling sweep (12×401 + 2×200)
+evidence_needed: GET zero-header returns 200+ACAO+ACAC while POST returns 401 and control /v1/journeys returns 401
+verify_steps: curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" && curl -s -D -X POST -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/organizations" && curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/journeys"
+impact: Zero-header auth bypass on GET read path exposes endpoint to unauthenticated cross-origin reads; empty payload caps data severity but misleading write-method CORS surface creates client-side security confusion. Medium.
+testability: PASSIVE

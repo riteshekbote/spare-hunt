@@ -7069,3 +7069,23 @@ verify_steps: PASSIVE: fetch forms.sparelabs.com JS bundle (main.b0a0c190.js) an
 impact: per-tenant weak-auth map (loginless/PIN orgs) for credential-stuffing/session attacks on rider portals; MEDIUM
 testability: PASSIVE
 [NEXT] PROBE: `for k in lostFound generalFeedback accessibilityFeedback safetyConcern complaintFeedback bookingChange; do curl -s -o /dev/null -w "%{http_code} %{size_download} $k\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=$k"; sleep 1.2; done` — on any 200, chain `GET /v1/public/engage/form?organizationId=…&caseTypeKey=$k&formKey=<disclosed formKey>` to widen the confirmed GRT Engage schema surface.
+## 2026-08-14 19:33:48 UTC [api] (model bigpickle)
+[HYP] Engage PII form schema disclosure is a stable, unauthenticated, org-scoped cross-tenant harvest
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/form
+confidence: 92
+reasoning: GRT reproduces 200+547B caseType and 200+1861B form (clientInfo: MobilityPLUS ID/expiry/EasyGO card, orgTerms URLs) no-auth + CORS, verified 3× this session incl. 2 chained calls; winnipeg returns typed 404 `Other was not found` for same keys — endpoint dispatches per tenant, prior "flap" was a misdiagnosis of tenant-scoping.
+evidence_needed: second registered Engage tenant returning 200 on any caseTypeKey via its key-oracle UUID.
+verify_steps: PASSIVE: for k in {bellingham,king-county,charlottetown,tampa,austin,denver,miami,omaha,raleigh,nashville,portland} GET /v1/public/organizations/key/$k (Origin https://evil.example.com, ≤1 rps); on 200 with engage-flag/any UUID → GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication; on 200 → GET /v1/public/engage/form?organizationId=…&caseTypeKey=…&formKey=clientInfo.
+impact: unauthenticated full Engage intake PII field map (labels/required/upload+signature gates) per transit tenant → targeted form-fraud/phishing; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Org-key oracle enumerates engage-enabled tenants; each 200 key chains to the PII-bearing /engage surface
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 72
+reasoning: 4 known tenants (spare/grt/dallas/winnipeg) resolve 200 distinct bodies (UUID+name+flags+logoUrl→GCS bucket), cambus/others 404; grt UUID (1966c7f8-…) is directly valid as organizationId on /engage — oracle output is the auth-free tenant registry driving the Engage dispatch.
+evidence_needed: one additional 200 key whose tenant resolves 200 on a /engage/caseType key.
+verify_steps: PASSIVE: run the key dictionary above; for every 200 capture UUID + enabledPublicFeatureFlags; for any engage-bearing UUID run caseType serviceAnimalApplication probe (≤1 rps, Origin evil).
+impact: tenant enumeration + feature-flag map (incl. riderLoginless/PIN tenants) → per-tenant weak-auth + form-fraud targeting; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE: `for k in bellingham king-county charlottetown tampa austin denver miami omaha raleigh nashville portland; do curl -s -o /dev/null -w "%{http_code} %{size_download} $k\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/$k"; sleep 1.2; done` — on any 200 capture UUID then `GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication` to satisfy HYP1 evidence_needed (second Engage tenant).

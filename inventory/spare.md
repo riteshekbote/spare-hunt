@@ -912,3 +912,6 @@
 - CHANGED api.sparelabs.com/v1/global/organizations — CONFIRMED zero-header read-only bypass STABLE (200+11B+ACAO+ACAC, 1171ms slow replica); writes 401
 - CHANGED api.sparelabs.com/v1/global/regions — CONFIRMED scheme-only bypass STABLE (Bearer x→200+725B+ACAO+ACAC, 3ms fast replica); 6 OOS subdomains in body
 - CHANGED forms.sparelabs.com — JS bundle rotated to main.b0a0c190.js (was main.6ed467ae.js), same infra leak persists
+
+## 2026-08-14 19:34:39 UTC
+- NEW None — latest inventory (2026-08-14 15:42:24 UTC) matches last leads; no new surface items since last cycle
