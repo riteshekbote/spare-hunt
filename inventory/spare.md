@@ -904,3 +904,11 @@
 - CHANGED api.sparelabs.com/v1/global/organizations — CONFIRMED zero-header read-only bypass STABLE (200+11B+ACAO+ACAC, 1171ms slow replica); writes 401
 - CHANGED api.sparelabs.com/v1/global/regions — CONFIRMED scheme-only bypass STABLE (Bearer x→200+725B+ACAO+ACAC, 3ms fast replica); 6 OOS subdomains in body
 - CHANGED forms.sparelabs.com — JS bundle rotated to main.b0a0c190.js (was main.6ed467ae.js), same infra leak persists
+
+## 2026-08-14 18:33:41 UTC
+- NEW None — latest inventory matches last leads; no new surface items since last cycle
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} — FLAPPED to 400 "not found" on current envoy replica (was 200 with 547B/1861B schema bodies); multi-version LB confirmed — now unreliable/downgraded
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key} — CONFIRMED LIVE with 3-way discrimination (spare→200+351B, grt→200+288B, notfound→404); no-auth + universal CORS
+- CHANGED api.sparelabs.com/v1/global/organizations — CONFIRMED zero-header read-only bypass STABLE (200+11B+ACAO+ACAC, 1171ms slow replica); writes 401
+- CHANGED api.sparelabs.com/v1/global/regions — CONFIRMED scheme-only bypass STABLE (Bearer x→200+725B+ACAO+ACAC, 3ms fast replica); 6 OOS subdomains in body
+- CHANGED forms.sparelabs.com — JS bundle rotated to main.b0a0c190.js (was main.6ed467ae.js), same infra leak persists

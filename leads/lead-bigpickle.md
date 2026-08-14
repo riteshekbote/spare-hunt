@@ -7040,3 +7040,32 @@ verify_steps: PASSIVE: GET /v1/public/engage/caseType?organizationId=1966c7f8-�
 impact: maps full unauthenticated Engage intake surface per tenant (more PII schemas + submission entry points); MEDIUM
 testability: PASSIVE
 [NEXT] PROBE: `for k in riderComplaint accessibilityRequest feedback vehicleAccident newAccount scheduleChange taxi; do curl -s -o /dev/null -w "%{http_code} %{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=6c84b370-5cc2-42c6-8cdd-146c99648535&caseTypeKey=$k"; sleep 1.2; done` — hunt a second Engage tenant; on any 200 chain `GET /v1/public/engage/form?organizationId=…&caseTypeKey=$k&formKey=<disclosed formKey>`.
+## 2026-08-14 18:31:26 UTC [api] (model bigpickle)
+[HYP] Engage PII form schema disclosure is a stable, unauthenticated, org-scoped cross-tenant harvest
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/form
+confidence: 90
+reasoning: GRT (1966c7f8-…) reproduces 200 on caseType serviceAnimalApplication (547B) and both disclosed forms (1861B clientInfo incl mobilityPlusIdNumber; 15107B serviceAnimalApplication incl applicant name/address/phone/email/signature/file-upload) with no auth + CORS, verified 3× this session. Prior 400s were tenant-scoped (spare/dallas/winnipeg lack the caseType), not LB flapping — downgrade was a misdiagnosis.
+evidence_needed: second Engage tenant reproducing 200 on any caseTypeKey (proves cross-tenant harvestability beyond GRT).
+verify_steps: PASSIVE: for k in {serviceAnimalApplication,riderComplaint,accessibilityRequest,feedback,vehicleAccident,newAccount,scheduleChange} GET /v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=$k (Origin https://evil.example.com, ≤1 rps); any new 200 → GET /form per disclosed formKey.
+impact: unauthenticated full Engage intake form-field map (PII field labels/required flags/upload+signature gates) for each registered Engage tenant → targeted form-fraud/phishing on transit riders; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] GRT's Engage case-type surface is wider than serviceAnimalApplication; undiscovered caseTypeKeys gate additional PII schemas
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/caseType
+confidence: 60
+reasoning: GRT 200 only for serviceAnimalApplication of the keys probed; no list endpoint exists (/caseTypes plural → 400 router-not-found); each 200 caseType discloses 3 formKeys → ~15KB PII schema. Case-type names follow transit-intake vocabulary (lostFound/incident/feedback tested only on winnipeg).
+evidence_needed: second caseTypeKey returning 200 on GRT.
+verify_steps: PASSIVE: for k in {lostFound,generalFeedback,accessibilityFeedback,safetyConcern,complaintFeedback,bookingChange} GET /v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=$k (Origin evil, ≤1 rps); on 200 → /form per disclosed formKey.
+impact: maps full unauthenticated Engage intake surface for GRT (more PII schemas + submission entry points); MEDIUM
+testability: PASSIVE
+[HYP] riderLoginless-flagged tenants expose credential-less rider login on the in-scope Engage portal
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 62
+reasoning: winnipeg now carries riderLoginless+riderPhonePin+callForVerificationCode and spare riderLoginless+riderPhonePin — flag variance across 4 tenants disclosed no-auth+CORS; forms.sparelabs.com ("Spare Engage Web Portal") is in scope; GCS bucket spare-production-ca-photos disclosed via logoUrl.
+evidence_needed: correlate flag set to a credential-less (phone+code) login path in forms.sparelabs.com bundle/UI.
+verify_steps: PASSIVE: fetch forms.sparelabs.com JS bundle (main.b0a0c190.js) and grep for riderLoginless / phone-pin flow strings; HUMAN_ONLY: confirm the login UI for flagged tenants on the portal (no credential guessing, no write/login).
+impact: per-tenant weak-auth map (loginless/PIN orgs) for credential-stuffing/session attacks on rider portals; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE: `for k in lostFound generalFeedback accessibilityFeedback safetyConcern complaintFeedback bookingChange; do curl -s -o /dev/null -w "%{http_code} %{size_download} $k\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=$k"; sleep 1.2; done` — on any 200, chain `GET /v1/public/engage/form?organizationId=…&caseTypeKey=$k&formKey=<disclosed formKey>` to widen the confirmed GRT Engage schema surface.

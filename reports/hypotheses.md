@@ -4001,3 +4001,28 @@
 - LEARN: STABLE @ api.sparelabs.com/v1/global/regions: scheme-only bypass remains STABLE; Bearer x→200+725B+ACAO+ACAC, body sha256 fb9800acb...585c3fe
 - LEARN: STABLE @ api.sparelabs.com/v1/**: universal CORS credential reflection uniform across all /v1 paths (non-path-conditional via 14-sibling sweep)
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC; returns 6 OOS subdomains in body; no-auth→4
+
+## RANKED HYPOTHESES 2026-08-14 18:33:41 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass on regions endpoint with OOS subdomain enumeration (from reports/hypotheses-laguna.txt)
+- [90] api.sparelabs.com/v1/public/organizations/key/{key}: Human-readable org key enumeration oracle with 3-way discrimination (from reports/hypotheses-nemotron3.txt)
+- [90] api.sparelabs.com/v1/public/engage/form: Engage PII form schema disclosure is a stable, unauthenticated, org-scoped cross-tenant harvest (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare" && curl -s -D - -H "Origin: https://evi
+- NEXT(hypotheses-laguna.txt): PROBE: Expand org-key enumeration oracle breadth — `for key in bellingham king-county charlottetown tampa austin denver miami omaha raleigh nashville portland s
+- NEXT(hypotheses-bigpickle.txt): PROBE: `for k in lostFound generalFeedback accessibilityFeedback safetyConcern complaintFeedback bookingChange; do curl -s -o /dev/null -w "%{http_code} %{size_
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW surface confirmed live — 3-way discrimination (spare→200+351B, grt→200+288B, notfo
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY (GET only
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC (6 OOS subdomains in body); no-auth→400, POS
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed; was 200+schema b
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass route
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — MFE SPA shell 200 (was TIMEOUT); CSP on /login discloses admin Vercel apps + Metabase + 9 cloud servic
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — Engage portal SPA 200 (was TIMEOUT); JS bundle main.b0a0c190.js leaks staging+prod+regional infra + atlas
+- LEARN: ACCEPTED BUSLOGIC @ routing.sparelabs.com: NEWLY LIVE — envoy 404 on all paths (was TIMEOUT); STABLE dead, NO_DELTA
+- LEARN: ACCEPTED MISCONFIG @ sparelabs.com: NOW 301→spare.com (was TIMEOUT); Cloudflare+HSTS, no new surface
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW oracle confirmed live — 3-way discrimination (spare→200+351B, grt→200+288B, dallas→200+
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: NEW plural UUID oracle confirmed live with 3-way discrimination (malformed→400, nil→404, valid→2
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 on current envoy replica (was 200+schema bodies) — multi-version LB conf
+- LEARN: STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass remains STABLE 85h+; GET no-auth→200+ACAO+ACAC, POST/PUT/PATCH/DELETE→401 (read
+- LEARN: STABLE @ api.sparelabs.com/v1/global/regions: scheme-only bypass remains STABLE; Bearer x→200+725B+ACAO+ACAC, body sha256 fb9800acb...585c3fe
+- LEARN: STABLE @ api.sparelabs.com/v1/**: universal CORS credential reflection uniform across all /v1 paths (non-path-conditional via 14-sibling sweep)
