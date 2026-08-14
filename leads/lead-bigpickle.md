@@ -6810,3 +6810,4 @@ evidence_needed: AUTH_HELPED POST with a dummy payload to /caseForms → observe
 verify_steps: AUTH_HELPED: OPTIONS already done (204); POST empty/dummy body + Origin evil → compare error class. No real data submission.
 impact: if auth-less, unauthenticated injection of fabricated intake cases into tenants' Engage queues (queue poisoning/spam) using disclosed form/caseType UUIDs; MEDIUM
 testability: AUTH_HELPED
+## 2026-08-14 07:46:30 UTC [api] (model bigpickle)

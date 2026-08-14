@@ -1147,3 +1147,8 @@
 - 2026-08-14 REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write-escalation): POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError — bypass is READ-ONLY (GET only), no write escalation path
 - 2026-08-14 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): Oracle degraded to validation-leak-only — nil-uuid flaps 3-way↔2-way across multi-version envoy replicas (404 on fast, 400 on slow), not a reliable enumeration oracle
 - 2026-08-14 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions: Scheme-only bypass NOT patched — live probes confirm Bearer x → 200 + 725B region registry (6 OOS subdomains disclosed) + CORS, contradicting longcat PATCHED claim
+- 2026-08-14 REJECTED: api.sparelabs.com/v1/public/engage/{caseType,form} — flapped off current envoy LB replica (all caseTypes return 400 ValidationError "not found" with CORS), no longer reproducing confirmed 200 547B/1861B schema responses
+- 2026-08-14 ACCEPTED: api.sparelabs.com/v1/public/organizations/key/grt → 200+288B confirmed live this cycle (returns org UUID 1966c7f8-3e36-4320-b0d7..., name "GRT", organizationKey "grt", enabledFeatureFlags); 3-way discrimination stable
+- 2026-08-14 ACCEPTED: api.sparelabs.com/v1/global/organizations → 200+11B+ACAO+ACAC with zero Authorization header confirmed live 2026-08-14 07:46 UTC; writes return 401 InvalidTokenError (read-only bypass verified)
+- 2026-08-14 ACCEPTED: api.sparelabs.com/v1/global/regions → Bearer x → 200+725B+ACAO+ACAC confirmed live 2026-08-14 07:46 UTC; body contains 7 regions incl 6 OOS subdomains
+- 2026-08-14 ACCEPTED: api.sparelabs.com/v1/public/terms?mobileAppId=nil-uuid → 200+137B (termsOfUseUrl+privacyPolicyUrl→sparelabs.com apex) no-auth+CORS confirmed live 2026-08-14 07:46 UTC
