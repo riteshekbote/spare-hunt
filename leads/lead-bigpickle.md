@@ -6756,3 +6756,32 @@ evidence_needed: AUTH_HELPED GET /v1/global/organizations with a valid non-super
 verify_steps: AUTH_HELPED: `GET https://api.sparelabs.com/v1/global/organizations` with valid token + Origin evil → observe body size > 11B. Do not attempt unauthenticated.
 impact: if data-bearing with valid token, the existing no-auth bypass escalates to cross-tenant org metadata disclosure; MEDIUM
 testability: AUTH_HELPED
+## 2026-08-14 04:32:08 UTC [api] (model bigpickle)
+[HYP] Org-key directory is a cross-tenant enumeration + auth-posture oracle chainable to PII surfaces
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 88
+reasoning: spare→200+351B (tenant UUID, GCS logo URL, riderLoginless+riderPhonePin flags), grt→200+288B (multimodal/riderEmailAuthentication); cambus/penticton/kelowna→uniform 404. No auth + full CORS reflection. UUIDs chain directly into engage + global org oracles.
+evidence_needed: HUMAN maps enabledPublicFeatureFlags to real login flows (riderLoginless = credential-less rider login) on Engage portal; one more confirmed 200 org slug from bounded public-agency set
+verify_steps: PASSIVE: GET /v1/public/organizations/key/<bounded-slug> -H "Origin: https://evil.example.com" at ≤1 rps; record UUID + feature flags per org
+impact: unauthenticated tenant directory exposing UUIDs, branding/GCS asset URLs, and weaker-auth orgs (loginless/PIN) enabling targeted credential/session attacks + object enumeration on spare-production-ca-photos bucket; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Cross-org intake-fleet enumeration discloses per-org Engage form deployments and full PII field schemas
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 85
+reasoning: This session walked key→UUID→caseType→form: GRT caseType 200+547B disclosing 3 form keys (clientInfo/fileUploads/serviceAnimalApplication), form 200+1861B PII schema; Spare same caseTypeKey→404 124B. OpenAPI error on form leaks required caseTypeKey+formKey. All unauth'd + CORS.
+evidence_needed: third org+caseTypeKey pair resolving 200 and a fourth resolving 404; bounded keys from form templates/portal slugs only, no brute-force
+verify_steps: PASSIVE: GET /v1/public/engage/caseType?organizationId=<key-derived-uuid>&caseTypeKey={clientInfo,fileUploads,serviceAnimalApplication} -H "Origin: https://evil.example.com" ≤1 rps
+impact: unauthenticated map of which intake forms each tenant deploys + full PII schema (incl. hidden rider/driver fields, field UUIDs) enabling targeted per-org phishing/account-linking; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Newly-live platform MFE shell exposes production admin surface via /login CSP
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 90
+reasoning: Host was TIMEOUT, now 200 MFE SPA; CSP on /login discloses prod admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (loadable 200) + Metabase prod+staging (200) + 9 cloud services; strict HTML CSP + x-frame SAMEORIGIN mitigates HTML-level only
+evidence_needed: re-confirm admin apps and Metabase loadable 200 cross-origin; check for auth on disclosed origins
+verify_steps: PASSIVE: GET https://platform.sparelabs.com/login -H "Origin: https://evil.example.com"; GET https://admin-eam-app.vercel.app; GET https://metabase.sparelabs.com
+impact: infra recon expanding attack surface to production admin interfaces + Metabase + cloud services for targeted chaining; no direct auth bypass on platform host; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE: `curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization,Content-Type" "https://api.sparelabs.com/v1/public/engage/form?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication&formKey=clientInfo" && sleep 1 && curl -s -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" "https://api.sparelabs.com/v1/public/engage/caseForms"` — maps the write surface (POST) on the newly confirmed engage namespace and confirms CORS credential reflection on write methods

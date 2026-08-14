@@ -803,3 +803,26 @@
 - CHANGED api.sparelabs.com/v1/public/* sibling sweep exhausted (8 paths: status/brands/config/features/countries/orgs/settings/health) — all 404 0B
 - CHANGED api.sparelabs.com/v1/public/organizations/{id}/* subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
 - CHANGED forms.sparelabs.com JS bundle rotated: main.b0a0c190.js replaces main.6ed467ae.js (same infra leak)
+
+## 2026-08-14 04:32:41 UTC
+- NEW api.sparelabs.com/v1/public/engage/{caseType,form}: unauthenticated Engage intake-form schema disclosure (547B/1861B bodies, org-specific caseType discrimination GRT 200 vs Spare 404)
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration via human-readable keys (spare→200+351B, grt→200+288B, cambus→404), no-auth + universal CORS
+- NEW sparelabs.com now responds 301→https://spare.com (Cloudflare, HSTS `max-age=0; preload`) — previously TIMEOUT
+- NEW platform.sparelabs.com now responds 200 — Micro-frontend SPA shell; previously TIMEOUT
+- NEW routing.sparelabs.com now responds 404 (`server: envoy`, `via: 1.1 google`) — previously TIMEOUT
+- NEW forms.sparelabs.com now responds 200 — "Spare Engage Web Portal" SPA (object-store headers); previously TIMEOUT
+- NEW api.sparelabs.com positively re-identified as envoy edge gateway (`server: envoy`, `via: 1.1 google`); was only "404" in seed
+- NEW api.sparelabs.com `/v1/` API prefix discovered: 3 unauthenticated endpoints (`/v1/global/organizations`→200, `/v1/public/organization?organizationId=<uuid>`→400/404, `/v1/public/terms?organizationId=<
+- NEW forms.sparelabs.com JS bundle (`main.6ed467ae.js`, 342,725 bytes) leaks: staging+prod API hosts (`api.us.sparelabs.com`, `api.staging.us.sparelabs.com`, `api.staging.sparelabs.com`, `api-spare.ngrok.i
+- NEW api.sparelabs.com/v1/public/* sibling sweep exhausted: 8 additional paths (status/brands/config/features/countries/orgs/settings/health) all 404 0B — public namespace surface fully mapped to terms/org
+- NEW api.sparelabs.com/v1/public/organizations plural-namespace subresource sweep exhausted — all 6 subresources return 400 ValidationError "not found"
+- NEW forms.sparelabs.com JS bundle rotated again: `main.b0a0c190.js` replaces `main.6ed467ae.js`; same infra leak persists
+- NEW api.sparelabs.com/v1/public/organizations/{id}/* subresource sweep exhausted (6 subpaths) — all 400 ValidationError "not found", plural namespace fully mapped to {id} leaf
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way2-way across envoy replicas — nil-uuid→404 on fast replica (3-way intact), 400 on slow (2-way)
+- CHANGED forms.sparelabs.com JS bundle rotated: `main.b0a0c190.js` replaces `main.6ed467ae.js`; same infra leak persists
+- CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY (GET only), auth asymmetry confirmed
+- CHANGED routing.sparelabs.com now responds 404 (`server: envoy`, `via: 1.1 google`) — was TIMEOUT in seed; STABLE dead, NO_DELTA since discovery
+- CHANGED platform.sparelabs.com now responds 200 (Micro-frontend SPA shell) — was TIMEOUT in seed; STABLE CSP infra leak
+- CHANGED api.sparelabs.com/v1/public/* sibling sweep exhausted (8 paths: status/brands/config/features/countries/orgs/settings/health) — all 404 0B
+- CHANGED api.sparelabs.com/v1/public/organizations/{id}/* subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+- CHANGED forms.sparelabs.com JS bundle rotated: `main.b0a0c190.js` replaces `main.6ed467ae.js` (same infra leak)
