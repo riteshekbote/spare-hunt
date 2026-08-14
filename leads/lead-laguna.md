@@ -6521,3 +6521,56 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 | envoy 404 on ALL probed paths since 2026-08-07; no surface, NO_DELTA. Newly responsive (TIMEOUT→404) but zero exploitable surface.
 [RISK] forms.sparelabs.com: 43 | "Spare Engage Web Portal" SPA; JS bundle (main.b0a0c190.js) leaks staging+prod+regional infra + atlassian.net + inactive ngrok; strict HTML CSP + x-frame DENY mitigates HTML-level; infra leak is recon value only, no auth bypass behind host.
 [RISK] web (spare.com/sparelabs.com): 15 | spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no infra leaks); sparelabs.com 301→spare.com; www.spare.com OUT OF SCOPE; minimal static-only surface.
+## 2026-08-14 06:04:54 UTC [web] (model laguna)
+[NEW] api.sparelabs.com/v1/public/engage/{caseType,form}: Unauthenticated Engage intake-form schema disclosure — 200 + schema bodies (547B caseType, 1861B form) with PII field definitions (mobilityPlusIdNumber, expiry, easyGoFareCardNumber), org-specific discrimination (GRT→200+547B vs Spare→404), no-auth + universal CORS. New surface not in prior sweeps.
+[NEW] api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle via human-readable keys (spare→200+351B, grt→200+288B, cambus→404), no-auth + CORS — returns tenant UUID data per key, chainable to Engage PII surfaces.
+[CHANGED] forms.sparelabs.com JS bundle rotated to `main.b0a0c190.js` (replaces `main.6ed467ae.js`); same infra leak persists (staging+prod+regional + atlassian.net + inactive ngrok).
+[CHANGED] api.sparelabs.com/v1/public/organization (singular): UUID oracle confirmed FLAPPING 3-way↔2-way across multi-version envoy replicas (nil-uuid→404 on fast replica, 400 on slow); downgraded from oracle class to validation-leak-only.
+[CHANGED] api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY (GET only), auth asymmetry verified (was previously mislabeled "read+write escalation").
+[PRIO] api.sparelabs.com/v1/public/engage/{caseType,form}, 8.25, attack=9 business=8 tech=7 gate=10 cloud=4 fresh=10
+[PRIO] api.sparelabs.com/v1/global/organizations, 8.10, attack=10 business=7 tech=6 gate=10 cloud=5 fresh=8
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}, 8.10, attack=9 business=8 tech=6 gate=10 cloud=3 fresh=10
+[PRIO] platform.sparelabs.com/login, 7.95, attack=8 business=7 tech=8 gate=10 cloud=7 fresh=9
+[PRIO] api.sparelabs.com/v1/global/regions, 7.80, attack=9 business=6 tech=6 gate=9 cloud=8 fresh=8
+[HYP] Unauthenticated cross-org Engage intake-form schema disclosure with PII field enumeration
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 90
+reasoning: Unauthenticated GET returns 200 with form schema bodies (547B caseType, 1861B form) containing PII field definitions (mobilityPlusIdNumber, expiry, easyGoFareCardNumber). Org-specific discrimination confirmed (GRT 200+547B vs Spare key 404). Universal CORS permits cross-origin exfiltration. Case-type namespace is new surface not in prior sweeps.
+evidence_needed: Live 200 response bodies with PII field names + Origin reflection (ACAO/ACAC) on both endpoints with no Authorization header
+verify_steps: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/grt/form"` && `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/spare/form"`
+impact: Unauthenticated disclosure of PII schema field mappings across multiple orgs' Engage intake forms — facilitates downstream targeted attacks with knowledge of field structures. Medium severity (schema disclosure, no direct PII exfil without valid org keys).
+testability: PASSIVE
+[HYP] Complete zero-header read-only bypass on organizations list endpoint with misleading write-method CORS
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 95
+reasoning: GET with NO Authorization header + Origin returns 200 + 11B `{"data":[]}` + ACAO+ACAC. 85h+ stable. Write methods (POST/PUT/PATCH/DELETE) return 401 InvalidTokenError — confirmed read-only, auth asymmetry verified. OPTIONS 204 advertises write methods misleadingly but handlers properly enforce auth at handler level.
+evidence_needed: GET returns 200+ACAO+ACAC with zero Authorization header while control /v1/journeys returns 401; POST/PUT/PATCH/DELETE all return 401 InvalidTokenError
+verify_steps: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` && `curl -s -D -X POST -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` && `curl -s -D - "https://api.sparelabs.com/v1/journeys"`
+impact: Read-only bypass confirms auth-layer omission on GET (payload empty, severity capped); misleading write-method CORS advertisement (OPTIONS 204 + ACAC + Allow: PUT/PATCH/POST/DELETE) creates surface confusion but handlers properly gate. Low-moderate severity.
+testability: PASSIVE
+[HYP] Org-key directory oracle via human-readable keys enabling cross-tenant enumeration
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 85
+reasoning: 3-way discrimination confirmed: spare→200+351B, grt→200+288B, cambus→404. No auth required, universal CORS reflected. Returns tenant UUID data per key — enables enumeration of org identifiers via human-readable keys derivable from public transit-agency URLs.
+evidence_needed: Consistent 3-way response differential (200/200/404 with distinct body sizes) across multiple probes with Origin header reflected
+verify_steps: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare"` && `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/cambus"` && `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/grt"`
+impact: Enables attacker-enumerable org UUID discovery via known human-readable keys, facilitating cross-org targeting. Could chain with Engage schema disclosure for org-specific data extraction. Medium-high severity.
+testability: PASSIVE
+[FINAL] 1. Engage intake-form schema disclosure with PII enumeration (confidence: 90) — retained
+[FINAL] 2. Complete zero-header read-only bypass on organizations list (confidence: 95) — retained
+[FINAL] 3. Org-key directory oracle via human-readable keys (confidence: 85) — retained
+[NEXT] PROBE: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/grt/form"` to verify unauthenticated 200 + schema body with PII field definitions + Origin reflection (ACAO/ACAC) on the Engage caseType/form endpoints
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: Unauthenticated Engage schema disclosure confirmed (547B/1861B bodies, PII fields mobilityPlusIdNumber/expiry/easyGoFareCardNumber, org-specific discrimination GRT 200 vs Spare 404, no-auth + CORS)
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration via human-readable keys confirmed (spare/grt→200 distinct bodies, cambus→404), no-auth + CORS — chainable to Engage PII surfaces
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Zero-header read-only bypass STABLE 85h+ (writes POST/PUT/PATCH/DELETE properly enforce 401 InvalidTokenError; auth asymmetry verified, bypass is GET read-only)
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write-escalation): POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError — bypass is READ-ONLY (GET only), no write escalation path
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): Oracle degraded to validation-leak-only — nil-uuid flaps 3-way↔2-way across multi-version envoy replicas (404 on fast, 400 on slow), not a reliable enumeration oracle
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions: Scheme-only bypass NOT patched — live probes confirm Bearer x → 200 + 725B region registry (6 OOS subdomains disclosed) + CORS, contradicting longcat PATCHED claim
+[RISK] api.sparelabs.com: 95 | Multiple AUTH failures: zero-header read-only bypass on /v1/global/organizations (85h+ stable), scheme-only bypass on /v1/global/regions (6 OOS api/routing subdomains disclosed in 725B body), universal CORS credential reflection amplifiers across entire /v1 surface, unauthenticated data disclosure (terms URLs, Engage PII schema, org-key/directory oracles), 3-way UUID enumeration oracle; writes properly gated (401 InvalidTokenError) but read-side auth-layer failures + cross-origin amplification on auth-bypass routes. Critical.
+[RISK] platform.sparelabs.com: 55 | CSP infra leak exposes prod+staging admin Vercel apps (admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app, both loadable 200) + Metabase (prod+staging, both 200) + 9 cloud services (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit); strict HTML CSP + x-frame SAMEORIGIN mitigates HTML-level disclosure but infra-level leak persists via CSP; MFE SPA shell otherwise inert (admin/API path sweep all returns SPA catch-all).
+[RISK] routing.sparelabs.com: 5 | envoy 404 on ALL probed paths since 2026-08-07; no surface, NO_DELTA — newly responsive (TIMEOUT→404) but zero exploitable surface.
+[RISK] forms.sparelabs.com: 43 | "Spare Engage Web Portal" SPA 200; JS bundle (main.b0a0c190.js) leaks staging+prod+regional infrastructure (api.staging/us.sparelabs.com, forms.staging/us.sparelabs.com) + atlassian.net + inactive ngrok dev tunnel; strict HTML CSP + x-frame DENY mitigates HTML-level disclosure; infra leak is recon-value only, no auth bypass behind host (all API paths return SPA catch-all).
+[RISK] web (spare.com/sparelabs.com): 15 | spare.com apex HTTP 200 static Webflow marketing (Cloudflare, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks in HTML/JS); sparelabs.com 301→spare.com; www.spare.com OUT OF SCOPE excluded; minimal static-only surface.

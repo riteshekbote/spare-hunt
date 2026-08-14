@@ -3741,3 +3741,25 @@
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com (API path sweep): all 8 API paths (/api/health,/api/v1,/graphql,/webhooks,/export,/status,/config,/v1) return SPA catch
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths since 2026-08-07; newly responsive (was TIMEOUT→404) but zero surface, NO
 - LEARN: REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfigured (gladiaio org), 0 files scanned — no code-surface delta; fix clone target before tru
+
+## RANKED HYPOTHESES 2026-08-14 06:05:06 UTC
+- [90] api.sparelabs.com/v1/public/engage/{caseType,form}: Unauthenticated cross-org Engage intake-form schema disclosure with chainable PII form IDs (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/grt/form" && curl -s -D - -H "Origin: https://evil.exampl
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/grt/form"` to verify unauthenticated 200 + schema body with
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: NEW surface confirmed live — 200 + schema bodies (547B/1861B) no-auth + CORS
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW surface confirmed live — 3-way discrimination (spare→200+351B, grt→200+288B, cambu
+- LEARN: CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY (GET only), aut
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way2-way across envoy replicas — nil-uuid→404 on fast replica (3-way intact), 400 on 
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass route
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — Micro-frontend SPA shell 200 (was TIMEOUT); CSP on /login discloses production admin Vercel apps + Met
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — "Spare Engage Web Portal" SPA 200 (was TIMEOUT); JS bundle rotated to main.b0a0c190.js, same infra leak p
+- LEARN: ACCEPTED BUSLOGIC @ routing.sparelabs.com: NEWLY LIVE — envoy 404 on all paths (was TIMEOUT); STABLE dead, NO_DELTA
+- LEARN: ACCEPTED MISCONFIG @ sparelabs.com: NOW 301→spare.com (was TIMEOUT); Cloudflare+HSTS, no new surface
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: Unauthenticated Engage schema disclosure confirmed (547B/1861B bodies, PII fields mobil
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration via human-readable keys confirmed (spare/grt→200 distinct bodies, cam
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Zero-header read-only bypass STABLE 85h+ (writes POST/PUT/PATCH/DELETE properly enforce 401 InvalidTo
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write-escalation): POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError — bypass is READ-ONLY 
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): Oracle degraded to validation-leak-only — nil-uuid flaps 3-way↔2-way across multi-vers
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions: Scheme-only bypass NOT patched — live probes confirm Bearer x → 200 + 725B region registry (6 OOS subd

@@ -826,3 +826,19 @@
 - CHANGED api.sparelabs.com/v1/public/* sibling sweep exhausted (8 paths: status/brands/config/features/countries/orgs/settings/health) — all 404 0B
 - CHANGED api.sparelabs.com/v1/public/organizations/{id}/* subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
 - CHANGED forms.sparelabs.com JS bundle rotated: `main.b0a0c190.js` replaces `main.6ed467ae.js` (same infra leak)
+
+## 2026-08-14 06:05:06 UTC
+- NEW api.sparelabs.com/v1/public/engage/{caseType,form} — unauthenticated Engage intake-form schema endpoints (547B/1861B bodies, org-specific caseType discrimination: GRT 200 vs Spare 404)
+- NEW api.sparelabs.com/v1/public/organizations/key/{key} — human-readable org key enumeration oracle (3-way: spare→200+351B, grt→200+288B, cambus→404), no-auth + universal CORS
+- NEW platform.sparelabs.com — MFE SPA shell now live (was TIMEOUT), CSP on /login discloses admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging, loadable 200) + Metabase prod+staging 
+- NEW forms.sparelabs.com — "Spare Engage Web Portal" SPA now live (was TIMEOUT), JS bundle main.b0a0c190.js leaks staging+prod+regional infra (6 OOS) + atlassian.net + inactive ngrok
+- NEW routing.sparelabs.com — envoy 404 on all paths (was TIMEOUT), STABLE dead, NO_DELTA
+- NEW sparelabs.com — 301→spare.com (was TIMEOUT), Cloudflare+HSTS, static-only
+- CHANGED api.sparelabs.com/v1/public/organization (singular) — UUID oracle flapping 3-way2-way across envoy replicas (nil-uuid→404 on fast replica, 400 on slow)
+- CHANGED api.sparelabs.com/v1/global/organizations — write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError, bypass is READ-ONLY (GET only), auth asymmetry confirmed
+- CHANGED forms.sparelabs.com — JS bundle rotated to main.b0a0c190.js (was main.6ed467ae.js), same infra leak persists
+- NEW api.sparelabs.com/v1/public/engage/{caseType,form}: Unauthenticated Engage intake-form schema disclosure — 200 + schema bodies (547B caseType, 1861B form) with PII field definitions (mobilityPlusIdNum
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle via human-readable keys (spare→200+351B, grt→200+288B, cambus→404), no-auth + CORS — returns tenant UUID data per key,
+- CHANGED forms.sparelabs.com JS bundle rotated to `main.b0a0c190.js` (replaces `main.6ed467ae.js`); same infra leak persists (staging+prod+regional + atlassian.net + inactive ngrok).
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle confirmed FLAPPING 3-way↔2-way across multi-version envoy replicas (nil-uuid→404 on fast replica, 400 on slow); downgraded from oracle 
+- CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY (GET only), auth asymmetry verified (was previously mislabeled "r
