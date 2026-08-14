@@ -41821,3 +41821,65 @@ testability: AUTH_HELPED
 **STEP 7 — RISK SCORE**
 
 - [RISK] api.sparelabs.com: 70 — org-key oracle now 4 live keys incl. new winnipeg; WorkOS SSO oracle extended (2 new tenants, SSO superset of org-key DB); GRT Engage PII schema disclosure re-confirmed stable; universal CORS credential reflection + zero-header orgs bypass + scheme-only regions bypass (85h+); write methods + 22 sibling routes properly gated | platform.sparelabs.com: 40 — MFE shell; CSP infra leak (admin Vercel apps, Metabase, 9 cloud services); embedded 170-path OpenAPI recon-only; no API surface behind host | routing.sparelabs.com: 15 — envoy 404 on all paths since 2026-08-07, no surface | forms.sparelabs.com: 20 — Engage SPA 200; JS bundle leak PATCHED (main.8a2a39cb.js zero infra refs); 3 Maps keys referrer-restricted; no API endpoints | web (spare.com/sparelabs.com): 15 — static Webflow/Cloudflare marketing, 301 apex, HSTS, no dynamic surface
+===== ANALYST bigpickle 2026-08-14 22:32:28 UTC =====
+[0m
+> build · big-pickle
+[0m
+STEP 1 — DELTA
+- [NEW] api.sparelabs.com/v1/identity/workos/auth: SSO-tenant set proven a strict SUPERSET of org-key DB — kingcounty.gov→200 configured (king-county/kingcounty org-keys→404), winnipeg.ca→200 (new winnipeg org-key→200+352B corroborates); ~12 domains tested
+- [NEW] api.sparelabs.com/v1/public/organizations/key/winnipeg: 5th live org key (200+352B) — was not in earlier sweeps
+- [CHANGED] api.sparelabs.com/v1/public/engage/{caseType,form}: remains FLAPPED (400 across all replica hits this cycle) — schema disclosure downgraded to UNCONFIRMED, still AUTH-HELPED-only for write surface
+- [NO_DELTA] global/* bypass family (7-host fleetwide parity), forms bundle patch, metabase OOS, routing dead — unchanged since last leads
+
+STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/identity/workos/auth — priority 7.15 — attack 6, business 6, tech 7 (OAuth/WorkOS/Entra), gate 10, cloud 7 (WorkOS+IdP), fresh 9
+- [PRIO] api.sparelabs.com/v1/public/engage/caseForms — priority 6.40 — attack 5, business 7 (PII write), tech 6, gate 10, cloud 4, fresh 6
+- [PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — priority 6.35 — attack 7, business 5, tech 5, gate 10, cloud 4, fresh 7
+- [PRIO] api.sparelabs.com/v1/public/organizations/{id} — priority 5.45 — attack 5, business 5, tech 5, gate 10, cloud 3, fresh 4
+- [PRIO] api.sparelabs.com/v1/public/engage/caseType — priority 5.30 — attack 4, business 5, tech 5, gate 10, cloud 3, fresh 5
+
+STEP 3 — HYPOTHESES
+[HYP] Cross-tenant SSO roster extension: WorkOS oracle maps transit-partner IdP bindings beyond the public org-key DB
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 85
+reasoning: kingcounty.gov→200 yet king-county/kingcounty org-keys→404 proves SSO tenant set is a strict superset of the org-key DB; winnipeg.ca→200 corroborates new winnipeg org-key; ~12 domains tested, each 200 returns a distinct WorkOS connection id.
+evidence_needed: one more Canadian/municipal transit domain returning 200 to confirm generalization beyond tested set
+verify_steps: PASSIVE: for d in toronto.ca ottawa.ca calgary.ca edmonton.ca hamilton.ca mississauga.ca; do POST /v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"'$d'"}'; sleep 1.2; 200→record connection id (sha256), 404→not configured
+impact: full SSO-integrated partner roster + WorkOS connection ids + Entra tenant ids for corporate IdPs — org-enumeration/phishing-context intel; LOW-MEDIUM
+testability: PASSIVE
+
+[HYP] Cross-origin unauthenticated Engage intake-form write into GRT case DB via caseForms
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 64
+reasoning: OPTIONS 204 re-confirmed ACAC:true + POST/PUT/PATCH/DELETE + ACAH:Authorization,Content-Type on the write surface; all /v1/public/* are auth-free by design; GET→400 method-not-allowed (no readback); zero-auth write acceptance unproven.
+evidence_needed: AUTH_HELPED: authorized POST with valid formKey set confirms acceptance without Authorization header (write must NOT be executed by me)
+verify_steps: AUTH_HELPED: authorized POST /v1/public/engage/caseForms with organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355 + caseTypeKey=serviceAnimalApplication + formKey=clientInfo + dummy payload; if accepted with zero auth → cross-origin PII injection into GRT case DB. PASSIVE part done (OPTIONS 204 + CORS creds live)
+impact: any webpage can submit Engage rider-intake PII (name/address/phone/MobilityPLUS ID) into GRT case DB cross-origin → form-spam/PII-poisoning; MEDIUM (write, no readback)
+testability: AUTH_HELPED
+
+[HYP] Org-key dictionary extension yields an additional Engage-eligible tenant beyond GRT
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 55
+reasoning: winnipeg→200+352B is new; ~50 keys across sweeps yield only 5 live (spare/grt/dallas/winnipeg +); only GRT (1966c7f8) is Engage-200 — others typed-404 on /engage/caseType; chain org-key 200→UUID→engage/caseType works for exactly one tenant today.
+evidence_needed: one additional 200 key whose UUID returns 200 on /v1/public/engage/caseType
+verify_steps: PASSIVE: for k in columbus reno tucson pittsburgh cleveland neworleans sacramento fresno albuquerque vancouver calgary edmonton; do GET /v1/public/organizations/key/$k (Origin evil, sleep 1.2); on 200 capture UUID then GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication
+impact: full transit-tenant roster (UUID/logo/feature flags) + Engage eligibility map; LOW
+testability: PASSIVE
+
+STEP 4 — SELF-CRITIQUE
+- [PARKED] none dropped — all 3 have confidence ≥40, concrete verify_steps, classes not on REJECTED list
+- [FINAL] 1) WorkOS SSO roster extension (85), 2) caseForms cross-origin write (64), 3) org-key→Engage eligibility (55)
+
+STEP 5 — NEXT ACTION
+[NEXT] PROBE: `for d in toronto.ca ottawa.ca calgary.ca edmonton.ca hamilton.ca mississauga.ca; do curl -s -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"'$d'"}' "https://api.sparelabs.com/v1/identity/workos/auth" -o /tmp/opencode/wos_$d.json -w "$d %{http_code} %{size_download}B\n"; sleep 1.2; done` — extend WorkOS SSO roster; any 200 → sha256 the connection_id and cross-ref against org-key DB (kingcounty-style superset check)
+
+STEP 6 — LEARNING
+- [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO tenant set is a strict SUPERSET of the public org-key DB (kingcounty.gov configured, no matching org key; winnipeg.ca configured + winnipeg org key live) — two independent oracles cross-corroborate tenant roster
+- [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/winnipeg: 5th live org key (200+352B), still no Engage-200 eligibility beyond GRT
+- [LEARN] REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/{caseType,form}: remains flapped to 400 across replicas — schema-disclosure class stays UNCONFIRMED, only AUTH_HELPED write-path value remains
+
+STEP 7 — RISK SCORE
+[RISK] api.sparelabs.com: 68 — confirmed unauth PII schema harvest on Engage (flapping), zero-header read bypass on /global/organizations, scheme-only bypass on /global/regions (fleetwide 7-host), universal CORS credential reflection, 3-way org UUID/key oracles, WorkOS SSO-config oracle (superset roster); write methods + 22 sibling routes properly gated, severity capped by read-only/empty payloads | platform.sparelabs.com: 40 — MFE shell; CSP infra leak (admin Vercel apps, Metabase, 9 cloud services); embedded 170-path OpenAPI recon-only, all gated | routing.sparelabs.com: 15 — envoy 404 on all paths since 2026-08-07, no surface | forms.sparelabs.com: 25 — Engage portal SPA 200; bundle infra leak patched (main.8a2a39cb.js zero refs); 3 Maps keys referrer-restricted; no API endpoints behind SPA shell | web (spare.com/sparelabs.com): 15 — static Webflow/Cloudflare marketing, 301 apex, no dynamic surface

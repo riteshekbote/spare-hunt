@@ -1246,3 +1246,12 @@
 - 2026-08-14 REJECTED @ sparelabs.ca: DNS only dev.sparelabs.ca → GCP Load Balancer "fault filter abort" 404; no live surface
 - 2026-08-14 REJECTED @ admin-*.vercel.app (4 hosts): All ALIVE 200 but dev-only artifacts (admin-eam-app has api-baseurl=http://localhost:3057/api); no prod API base hardcoded anywhere
 - 2026-08-14 REJECTED (OOS) @ metabase.sparelabs.com: Exposed Metabase v0.58.24 with unauth /api/session/properties (106KB dump); host OOS per scope exclusions; no RCE (setup-token 404 returned)
+- 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-config oracle confirmed live — POST {} → 200 + 172B disclosing WorkOS client_id + connection_id + Entra tenant IDs; domain param discriminates 200 (configured) vs 404
+- 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration stable (spare/grt/dallas→200, cambus→404); prod-only data, universal CORS on GET+OPTIONS
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE 85h+ — Bearer x → 200 + 725B (6 OOS subdomains in body) + ACAO+ACAC; body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe verified
+- 2026-08-14 ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle rotated to main.8a2a39cb.js — zero infra leaks; 3 Google Maps keys all referrer-restricted; patch confirmed
+- 2026-08-14 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID oracle fully degraded 3-way→2-way — nil-uuid→400, indistinguishable from malformed; downgraded to validation-leak-only
+- 2026-08-14 REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 on ALL probed paths incl /openapi.json, /swagger.json, /docs, /health, /status; no surface, NO_DELTA since 2026-08-07
+- 2026-08-14 REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10 admin paths return SPA catch-all 200 text/html; no real API surface behind MFE shell; CSP infra leak via /login is only finding
+- 2026-08-14 REJECTED MISCONFIG @ forms.sparelabs.com (API path sweep): All 8 API paths return SPA catch-all 200 text/html; no real API endpoints behind SPA shell
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (GET only); auth asymmetry confirmed
