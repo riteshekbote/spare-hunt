@@ -866,3 +866,9 @@
 - CHANGED api.sparelabs.com/v1/public/organizations/key/{key} — CONFIRMED LIVE with 3-way discrimination (spare→200+351B, grt→200+288B, notfound→404); no-auth + universal CORS
 - CHANGED api.sparelabs.com/v1/global/organizations — CONFIRMED zero-header read-only bypass STABLE (200+11B+ACAO+ACAC, 1171ms slow replica); writes 401
 - CHANGED api.sparelabs.com/v1/global/regions — CONFIRMED scheme-only bypass STABLE (Bearer x→200+725B+ACAO+ACAC, 3ms fast replica); 6 OOS subdomains in body
+
+## 2026-08-14 10:48:23 UTC
+- NEW api.sparelabs.com/v1/public/engage/{caseType,form} — FLAPPED to 400 "not found" on current envoy replica (was 200 with 547B/1861B schema bodies); multi-version LB confirmed
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key} — CONFIRMED LIVE with 3-way discrimination (spare→200+351B, grt→200+288B, notfound→404); no-auth + universal CORS
+- CHANGED api.sparelabs.com/v1/global/organizations — CONFIRMED zero-header read-only bypass STABLE (200+11B+ACAO+ACAC, 1171ms slow replica); writes 401
+- CHANGED api.sparelabs.com/v1/global/regions — CONFIRMED scheme-only bypass STABLE (Bearer x→200+725B+ACAO+ACAC, 3ms fast replica); 6 OOS subdomains in body

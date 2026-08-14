@@ -6867,3 +6867,4 @@ evidence_needed: show the in-scope bundle's hostname→api-base resolution (func
 verify_steps: PASSIVE: re-fetch index-DBfgT4ww.js, extract SYr/dev-base selection code path; GET https://platform.sparelabs.com/login to confirm unchanged 5555B HTML; no OOS host probing.
 impact: documents expanded infrastructure disclosure (new TLD, infra-qa env, ngrok tunnels, regional platforms) enabling cross-environment targeting; no in-scope auth bypass; LOW-MED
 testability: PASSIVE
+## 2026-08-14 10:46:52 UTC [api] (model bigpickle)
