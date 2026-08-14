@@ -1311,3 +1311,16 @@ https://platform.sparelabs.com/login -> 200 len=5555 type=text/html; charset=UTF
 https://metabase.sparelabs.com -> 200 len=? type=text/html;charset=utf-8
 https://api.sparelabs.com/v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication -> 200 len=547 type=application/json; charset=utf-8
 https://api.sparelabs.com/v1/public/engage/form?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication&formKey=clientInfo -> 200 len=1861 type=application/json; charset=utf-8
+
+## 2026-08-14 02:51:18 UTC
+https://spare.com -> 200 len=? type=text/html; charset=utf-8
+https://api.sparelabs.com/v1/public/engage/grt/form -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/spare/form -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/grt/caseForms -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/grt -> 200 len=288 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/notfound -> HTTP 404
+https://platform.sparelabs.com/login -> 200 len=5555 type=text/html; charset=UTF-8
+https://metabase.sparelabs.com -> 200 len=? type=text/html;charset=utf-8
+https://api.sparelabs.com/v1/global/organizations` -> HTTP 400

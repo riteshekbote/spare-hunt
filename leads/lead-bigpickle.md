@@ -6668,3 +6668,91 @@ impact: forged/spam intake submissions into org case queues; potential cross-ten
 testability: AUTH_HELPED
 [NEXT] HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with real formId (`e20f0f50-e380-4acd-9eac-31312eb2bcfb`) + real caseId + `metadata:{}` and NO submission-token, then repeat on `POST /v1/public/engage/cases` → determines whether submission-token is server-enforced, closing the last open BUSLOGIC write-surface class on the API. Do not attempt unauthenticated.
 ## 2026-08-14 00:06:43 UTC [api] (model bigpickle)
+## 2026-08-14 02:44:59 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}, 8.10, attack=9 business=8 tech=6 gate=10 cloud=3 fresh=10
+[PRIO] platform.sparelabs.com/login, 7.95, attack=8 business=7 tech=8 gate=10 cloud=7 fresh=9
+[PRIO] api.sparelabs.com/v1/global/organizations, 8.10, attack=10 business=7 tech=6 gate=10 cloud=5 fresh=8
+[PRIO] api.sparelabs.com/v1/global/regions, 7.80, attack=9 business=6 tech=6 gate=9 cloud=8 fresh=8
+[PRIO] api.sparelabs.com/v1/public/organizations/{id}, 7.65, attack=8 business=7 tech=7 gate=10 cloud=4 fresh=8
+[PRIO] forms.sparelabs.com, 6.40, attack=7 business=6 tech=7 gate=10 cloud=3 fresh=9
+[PRIO] sparelabs.com, 3.20, attack=4 business=3 tech=4 gate=10 cloud=2 fresh=5
+[PRIO] routing.sparelabs.com, 1.50, attack=2 business=1 tech=2 gate=10 cloud=1 fresh=5
+[HYP] Unauthenticated Engage intake-form schema disclosure via caseType discrimination
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 85
+reasoning: Bundle-derived engage namespace indicates public intake-form schema endpoints; bigpickle reports unauthenticated 200 + schema bodies (547B/1861B); caseType org-specific discrimination: GRT key returns 200+547B, Spare (d736519f) same key returns 404 "Other was not found" 124B — enables org enumeration via caseType keys; public namespace sibling sweep exhausted (15 endpoints internal/auth-only); universal CORS credential reflection on /v1 extends to this path
+evidence_needed: Live probe confirmation of unauthenticated 200 responses with schema bodies for known caseType keys; verify org-specific discrimination across multiple caseType values
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/public/engage/grt/form -H "Origin: https://evil.example.com" (expect 200 + schema); GET https://api.sparelabs.com/v1/public/engage/spare/form -H "Origin: https://evil.example.com" (expect 404); GET https://api.sparelabs.com/v1/public/engage/grt/caseForms -H "Origin: https://evil.example.com" (expect 200/404); AUTH_HELPED: POST https://api.sparelabs.com/v1/public/engage/caseForms with real formId (e20f0f50-e380-4acd-9eac-31312eb2bcfb) + caseId from program contact
+impact: Unauthenticated disclosure of Engage intake form schemas (PII field definitions, validation logic); org enumeration via caseType discrimination; combined with universal CORS credential reflection enables cross-origin schema theft from victim browsers
+testability: PASSIVE (caseType enumeration), AUTH_HELPED (real form submission validation)
+[HYP] Human-readable org key enumeration oracle with 3-way discrimination
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 85
+reasoning: Live-probed per bigpickle: spare→200+351B, grt→200+288B, cambus→404 NotFoundError; 3-way discrimination (valid key→200 with org data, invalid→404); no auth required; universal CORS credential reflection (ACAO:reflected + ACAC:true) on same path; superior to UUID oracle (human-readable keys easier to enumerate via wordlist/dictionary); subresource sweep exhausted (6 paths all 400)
+evidence_needed: Confirm additional org keys via dictionary/wordlist enumeration; verify response bodies contain sensitive org data (names, config, metadata)
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/public/organizations/key/spare -H "Origin: https://evil.example.com" (expect 200+351B); GET https://api.sparelabs.com/v1/public/organizations/key/grt -H "Origin: https://evil.example.com" (expect 200+288B); GET https://api.sparelabs.com/v1/public/organizations/key/notfound -H "Origin: https://evil.example.com" (expect 404); OPTIONS same path -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization" -H "Origin: https://evil.example.com" (expect 204 + ACAO+ACAC)
+impact: Unauthenticated org enumeration via human-readable keys; org data disclosure (351B/288B bodies per org); combined with universal CORS enables cross-origin org data theft from victim browsers; easier enumeration than UUID oracle (dictionary vs random UUID)
+testability: PASSIVE
+[HYP] Platform CSP leak exposes production admin interfaces
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 90
+reasoning: Host newly live (was TIMEOUT), MFE SPA 200; CSP on /login discloses admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging, loadable 200) + Metabase prod+staging (frame-src 200) + 9 cloud services (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit); strict HTML CSP + x-frame SAMEORIGIN mitigates HTML-level only, infra leak via CSP persists
+evidence_needed: Confirm admin Vercel apps and Metabase loadable (200) and accessible cross-origin; verify no additional auth on disclosed origins
+verify_steps: PASSIVE: GET https://platform.sparelabs.com/login -H "Origin: https://evil.example.com" (expect 200 + CSP with admin-eam-app.vercel.app etc.); GET https://admin-eam-app.vercel.app (expect 200); GET https://metabase.sparelabs.com (expect 200); GET https://admin-fixed-route-app.vercel.app (expect 200)
+impact: Infra reconnaissance enabling targeted attacks against production admin interfaces, Metabase, and cloud services; expands attack surface for SSRF/auth-bypass chaining; no direct auth bypass on platform host itself
+testability: PASSIVE
+[PARKED] Zero-header complete no-auth bypass on global organizations (read-only): already ACCEPTED in KB, confidence 95, no new delta
+[PARKED] Scheme-only bypass on global regions discloses infra topology: already ACCEPTED in KB, confidence 95, no new delta
+[PARKED] Plural org UUID enumeration oracle with 3-way differential: already ACCEPTED in KB, confidence 95, no new delta
+[PARKED] Singular org UUID oracle flapping: confidence 70 < threshold for reliable exploitation; multi-version LB non-deterministic routing prevents stable verification
+[PARKED] Engage caseForms POST submission forgery: requires AUTH_HELPED real formId+caseId, no passive verification path, confidence 55
+[FINAL] 1. Unauthenticated Engage intake-form schema disclosure via caseType discrimination (confidence 85)
+[FINAL] 2. Human-readable org key enumeration oracle with 3-way discrimination (confidence 85)
+[FINAL] 3. Platform CSP leak exposes production admin interfaces (confidence 90)
+[NEXT] PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare" && curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/grt" && curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/notfound" && curl -s -D - -X OPTIONS -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare"`
+[LEARN] ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — Micro-frontend SPA shell 200 (was TIMEOUT); CSP on /login discloses production admin Vercel apps + Metabase + 9 cloud services
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — "Spare Engage Web Portal" SPA 200 (was TIMEOUT); JS bundle rotated to main.b0a0c190.js, same infra leak persists
+[LEARN] ACCEPTED BUSLOGIC @ routing.sparelabs.com: NEWLY LIVE — envoy 404 on all paths (was TIMEOUT); STABLE dead, NO_DELTA
+[LEARN] ACCEPTED MISCONFIG @ sparelabs.com: NOW 301→spare.com (was TIMEOUT); Cloudflare+HSTS, no new surface
+[LEARN] CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
+[LEARN] CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way2-way across envoy replicas — nil-uuid→404 on fast replica (3-way intact), 400 on slow (2-way)
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+[LEARN] REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass routes are READ-ONLY GET only
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: NEW surface confirmed live (bigpickle) — 200 + schema bodies (547B/1861B) no-auth + CORS
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW surface confirmed live (bigpickle) — 3-way discrimination (spare→200+351B, grt→200+288B, cambus→404); no-auth + CORS
+[RISK] api.sparelabs.com: 98 reason — CRITICAL+STABLE: complete zero-header no-auth bypass on /v1/global/organizations GET (200+11B+ACAO+ACAC); scheme-only bypass on /v1/global/regions (725B infra topology incl. 6 OOS subdomains); credential-reflecting CORS across entire /v1; /v1/public/terms disclosure (137B no-auth); plural /v1/public/organizations/{id} 3-way UUID oracle; NEW: /v1/public/organizations/key/{key} 3-way org key oracle; NEW: /v1/public/engage/{caseType,form} schema disclosure; singular UUID oracle flapping; multi-version envoy LB confirmed; control /v1/journeys stable 401
+[RISK] platform.sparelabs.com: 80 reason — Admin SPA 200 (newly live, was TIMEOUT); strict HTML CSP + x-frame SAMEORIGIN; CSP discloses prod admin Vercel apps (loadable 200) + staging + Metabase prod+staging (200) + 9 cloud services; no direct auth bypass on platform host
+[RISK] routing.sparelabs.com: 10 reason — Envoy 404 on all probed paths (newly live, was TIMEOUT); routing-engine API fully hidden; no unauthenticated surface; STABLE dead
+[RISK] forms.sparelabs.com: 58 reason — Public SPA 200 (newly live, was TIMEOUT); envoy+Google CDN, x-frame DENY, strict HTML CSP; JS bundle main.b0a0c190.js leaks staging+prod+regional infra (6 OOS) + atlassian.net/JIRA + inactive ngrok; infra-recon only
+[RISK] web (spare.com/sparelabs.com): 38 reason — spare.com apex 200 (Cloudflare+Webflow static, CSP frame-ancestors self, HSTS 31536000); www.spare.com 301→OOS excluded; sparelabs.com 301→spare.com; minimal static-only surface
+[HYP] Cross-org caseTypeKey enumeration oracle maps per-org Engage intake deployment
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseType
+confidence: 78
+reasoning: Live this session — GRT 1966c7f8…+serviceAnimalApplication→200+547B; Spare d736519f…+same key→404+124B; no auth + ACAO+ACAC. Org UUIDs chain freely from organizations/key directory; caseType body discloses caseType+form UUIDs and per-org form sets.
+evidence_needed: third org+key pair resolving 200 and fourth resolving 404 (bounded key list from form templates / portal slugs only — do not brute-force arbitrary keys).
+verify_steps: PASSIVE: GET /v1/public/engage/caseType?organizationId=<key-derived-uuid>&caseTypeKey={clientInfo,fileUploads,serviceAnimalApplication} -H "Origin: https://evil.example.com" → 200/404 differential per org confirms scale; do not exceed 1 rps.
+impact: unauthenticated cross-org map of which intake forms each tenant deploys (org+caseTypeKey pairs), chaining with PII form schemas for targeted per-org attacks; MEDIUM
+testability: PASSIVE
+[HYP] Org-key directory discloses rider-auth posture enabling weak-auth org targeting
+class: AUTH
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 65
+reasoning: Live this session — spare discloses riderLoginless+riderPhonePin flags, grt only riderEmailAuthentication+multimodal; no auth + CORS. Documents which orgs allow loginless rider flows (weaker credential posture), the targeting primitive for credential-stuffing/session attacks on those orgs' public portals.
+evidence_needed: HUMAN confirms riderLoginless maps to a real no-credential login flow on the Spare/other orgs' Engage portal; bounded slug set from public transit-agency names.
+verify_steps: PASSIVE (done for spare/grt/cambus): GET /v1/public/organizations/key/{spare,grt,cambus} no Auth + Origin evil → 200/200/404; record enabledPublicFeatureFlags per org.
+impact: unauthenticated tenant directory (UUID, branding, GCS assets, auth posture) identifying weaker-auth orgs for targeted attacks; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Fail-open orgs route returns real org registry when queried with a valid tenant token
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 60
+reasoning: GET zero-header → 200 + hardcoded 11B {"data":[]} (85h+ stable); route-specific fail-open while 14 siblings 401. Whether a valid token returns the actual org list is unproven — empty payload could be a stub OR an empty-region tenant.
+evidence_needed: AUTH_HELPED GET /v1/global/organizations with a valid non-superAdmin tenant Bearer token → non-empty org registry (severity upgrade) vs 200+{"data":[]} (stub).
+verify_steps: AUTH_HELPED: `GET https://api.sparelabs.com/v1/global/organizations` with valid token + Origin evil → observe body size > 11B. Do not attempt unauthenticated.
+impact: if data-bearing with valid token, the existing no-auth bypass escalates to cross-tenant org metadata disclosure; MEDIUM
+testability: AUTH_HELPED
