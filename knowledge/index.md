@@ -1187,3 +1187,9 @@
 - 2026-08-14 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 "not found" on all caseType/form combos probed (case-request/mobility/schedule-ride × spare/grt/dallas); multi-version envoy LB confirmed — downgraded to UNCONFIRMED, unreliable across replicas
 - 2026-08-14 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths since 2026-08-07, NO_DELTA
 - 2026-08-14 REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10 probed paths (/admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metrics) return SPA catch-all 200 text/html — no real API surface behind MFE shell
+- 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW oracle confirmed live — 3-way discrimination (spare→200+351B, grt→200+288B, dallas→200+237B, cambus→404+131B), no-auth + universal CORS on both GET and OPTIONS 204
+- 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: NEW plural UUID oracle confirmed live with 3-way discrimination (malformed→400, nil→404, valid→200), superior to flapping singular
+- 2026-08-14 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 on current envoy replica (was 200+schema bodies) — multi-version LB confirmed, downgraded to UNCONFIRMED
+- 2026-08-14 STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass remains STABLE 85h+; GET no-auth→200+ACAO+ACAC, POST/PUT/PATCH/DELETE→401 (read-only confirmed)
+- 2026-08-14 STABLE @ api.sparelabs.com/v1/global/regions: scheme-only bypass remains STABLE; Bearer x→200+725B+ACAO+ACAC, body sha256 fb9800acb...585c3fe
+- 2026-08-14 STABLE @ api.sparelabs.com/v1/**: universal CORS credential reflection uniform across all /v1 paths (non-path-conditional via 14-sibling sweep)

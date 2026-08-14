@@ -7010,3 +7010,4 @@ evidence_needed: a fast (<10ms) zero-header GET returning 200+11B (both replicas
 verify_steps: PASSIVE: 5× GET /v1/global/organizations (no auth, Origin evil) spaced 2s; correlate status vs x-envoy-upstream-service-time.
 impact: refines scope/severity of the 85h-stable read-only bypass (replica-wide vs single-replica); LOW-MED
 testability: PASSIVE
+## 2026-08-14 16:33:43 UTC [api] (model bigpickle)
