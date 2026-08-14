@@ -1117,3 +1117,24 @@
 - 2026-08-13 REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfigured (gladiaio org), 0 files scanned — no code-surface delta; fix clone target before trusting
 - 2026-08-13 CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way2-way across envoy replicas — nil-uuid→404 on fast replica (3-way), 400 on slow (2-way)
 - 2026-08-13 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: NEW surface confirmed live (bigpickle) — 200 + schema bodies (547B/1861B) no-auth + CORS
+- 2026-08-14 ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — Micro-frontend SPA shell 200 (was TIMEOUT); CSP on /login discloses production admin Vercel apps + Metabase + 9 cloud services
+- 2026-08-14 ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — "Spare Engage Web Portal" SPA 200 (was TIMEOUT); JS bundle rotated to main.b0a0c190.js, same infra leak persists
+- 2026-08-14 ACCEPTED BUSLOGIC @ routing.sparelabs.com: NEWLY LIVE — envoy 404 on all paths (was TIMEOUT); STABLE dead, NO_DELTA
+- 2026-08-14 ACCEPTED MISCONFIG @ sparelabs.com: NOW 301→spare.com (was TIMEOUT); Cloudflare+HSTS, no new surface
+- 2026-08-14 CHANGED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — bypass is READ-ONLY (GET only), not read+write
+- 2026-08-14 CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way2-way across envoy replicas — nil-uuid→404 on fast replica (3-way intact), 400 on slow (2-way)
+- 2026-08-14 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
+- 2026-08-14 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+- 2026-08-14 REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass routes are READ-ONLY GET only
+- 2026-08-14 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: NEW surface confirmed live (bigpickle) — 200 + schema bodies (547B/1861B) no-auth + CORS
+- 2026-08-14 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW surface confirmed live (bigpickle) — 3-way discrimination (spare→200+351B, grt→200+288B, cambus→404); no-auth + CORS
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: NOT patched despite longcat longcat triage claim (2026-08-11) — laguna live probes through 2026-08-13 23:27 UTC confirm `Bearer x` → 200 + 725B + ACAO+ACAC; longcat only probed no-auth path (400), did not test Bearer-x bypass vector
+- 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle STABLE — 85h+ confirmed; superior discriminator vs degraded singular /v1/public/organization (flapping 2-way↔3-way due to multi-version envoy LB)
+- 2026-08-14 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: bypass is READ-ONLY confirmed — POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError; GET zero-header → 200+11B+ACAO+ACAC; OPTIONS still advertises write methods + CORS (misleading CORS surface, handler-level write gating)
+- 2026-08-14 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: NEW surface confirmed live 2026-08-13 — PII field definitions (mobilityPlusIdNumber, expiry, easyGoFareCardNumber) disclosed unauthenticated + CORS
+- 2026-08-14 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW org-key directory oracle confirmed live 2026-08-13 — 3-way discrimination (spare→200+351B, grt→200+288B, notfound→404), no auth + CORS
+- 2026-08-14 REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms (GET): GET→400 "method not allowed" — write surface is POST-only, no readback possible without AUTH_HELPED token
+- 2026-08-14 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}/*: 6-subpath sweep exhausted — all return router-level 400 "not found", no additional data-bearing surface beyond caseType+form leaf
+- 2026-08-14 REJECTED MISCONFIG @ forms.sparelabs.com (API path sweep): all 8 API paths (/api/health,/api/v1,/graphql,/webhooks,/export,/status,/config,/v1) return SPA catch-all 200 text/html — no real API endpoints behind SPA shell; infra leak is JS-bundle recon only
+- 2026-08-14 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths since 2026-08-07; newly responsive (was TIMEOUT→404) but zero surface, NO_DELTA
+- 2026-08-14 REJECTED (pipeline) @ GitHub sparelabs repo scan: scan-target misconfigured (gladiaio org), 0 files scanned — no code-surface delta; fix clone target before trusting next scan

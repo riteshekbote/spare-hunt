@@ -6667,3 +6667,4 @@ verify_steps: AUTH_HELPED: `POST https://api.sparelabs.com/v1/public/engage/case
 impact: forged/spam intake submissions into org case queues; potential cross-tenant case injection if caseId UUIDs chainable; MEDIUM until validation state proven
 testability: AUTH_HELPED
 [NEXT] HUMAN: authorized-token test `POST https://api.sparelabs.com/v1/public/engage/caseForms` with real formId (`e20f0f50-e380-4acd-9eac-31312eb2bcfb`) + real caseId + `metadata:{}` and NO submission-token, then repeat on `POST /v1/public/engage/cases` → determines whether submission-token is server-enforced, closing the last open BUSLOGIC write-surface class on the API. Do not attempt unauthenticated.
+## 2026-08-14 00:06:43 UTC [api] (model bigpickle)
