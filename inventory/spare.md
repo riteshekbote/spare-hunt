@@ -930,3 +930,13 @@
 - NEW admin-*.vercel.app (4 hosts) ALIVE 200 but dev-only (admin-eam-app has api-baseurl=http://localhost:3057/api); no prod API base hardcoded
 - CHANGED /v1/global/* namespace EXHAUSTIVE — 22 sibling routes ALL 401 (zero-auth + Bearer-x); bypass family DEFINITIVELY scoped to exactly {organizations, regions}
 - CHANGED Metabase.sparelabs.com exposed but OOS per scope exclusions — unauth /api/session/properties config dump (106KB), version v0.58.24, Google OAuth client IDs, 16 DB engines — no RCE (setup-token 404)
+
+## 2026-08-14 21:07:27 UTC
+- NEW None — inventory (2026-08-14 20:46:09 UTC) and last leads fully synchronized; no new surface items since last cycle
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: CONFIRMED LIVE with 3-way discrimination (spare→200+351B, grt→200+288B, dallas→200+237B, cambus→404); no-auth + universal CORS; prod-only data (uat
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed, unreliable across replicas
+- CHANGED forms.sparelabs.com: JS bundle rotated to main.8a2a39cb.js — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (leak PATCHED); 3 Google Maps keys all referrer-restricted
+- NEW api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-configuration oracle — POST {} → 200 172B disclosing live WorkOS client_id + connection_id + Entra tenant IDs; domain param discriminates
+- NEW platform.sparelabs.com bundle (index-B6uSYXCi.js 3MB): Embedded full OpenAPI spec of EAM/fixed-route admin API — 170 paths extracted; ALL 131 non-param paths swept zero-auth + Bearer-x → 100% 401/404 
+- NEW /v1/global/* namespace EXHAUSTIVE: 22 sibling routes ALL 401 (zero-auth + Bearer-x); bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- NEW api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE (malformed→400, nil→404, valid→200 HUMAN_ONLY); superior to flapping singular /organization

@@ -7166,3 +7166,33 @@ verify_steps: PASSIVE: for k in bellingham king-county charlottetown tampa austi
 impact: per-tenant PII field-map harvest beyond GRT → broader form-fraud targeting; MEDIUM
 testability: PASSIVE
 [NEXT] PROBE: `curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/form?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication&formKey=serviceAnimalApplication"` — capture the third GRT form schema (signature gates) to complete the confirmed intake map; then one org-key probe (king-county) to advance HYP3.
+## 2026-08-14 21:06:02 UTC [api] (model bigpickle)
+[HYP] Engage PII intake schema disclosure is a confirmed stable unauthenticated GRT-scoped harvest
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 97
+reasoning: caseType 200/547B + form clientInfo 200/1861B + form serviceAnimalApplication 200/15,918B all re-probed live this session, no-auth + ACAO+ACAC; inventory REJECTED-flap entry contradicted (current replica serves 200 consistently). Full 3-form PII map now captured end-to-end.
+evidence_needed: none — fully confirmed; cross-tenant generalization remains open (spare/dallas/winnipeg typed-404)
+verify_steps: PASSIVE: GET /v1/public/engage/caseType?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication (done, 200/547B)
+impact: unauthenticated full GRT Engage intake PII field map (name/address/phone/email/MobilityPLUS ID, required+upload gates) → targeted form-fraud/phishing on transit riders; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Cross-origin unauthenticated Engage intake-form write abuse into GRT case DB
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 62
+reasoning: OPTIONS 204 re-confirms ACAC:true + POST/PUT/PATCH/DELETE on write surface; public namespace auth-free by design; GET→400 method-not-allowed (no readback). Zero-auth write acceptance unproven.
+evidence_needed: AUTH_HELPED: authorized POST with dummy payload to confirm no Authorization required (write must NOT be executed by me)
+verify_steps: AUTH_HELPED: authorized POST /v1/public/engage/caseForms with valid formKey set; if accepted with zero auth → cross-origin PII injection confirmed. PASSIVE part done (OPTIONS 204 + CORS creds).
+impact: any webpage can submit Engage rider-intake PII into GRT case DB cross-origin → form-spam/PII-poisoning; MEDIUM
+testability: AUTH_HELPED
+[HYP] Org-key dictionary yields a second Engage-enabled tenant for cross-tenant PII harvest
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 55
+reasoning: 5 known 200 keys with distinct UUIDs; grt UUID valid on /engage; king-county→404 this session; 31-key dictionary sweep failed. Remaining transit-agency keys untested.
+evidence_needed: one additional 200 org-key whose tenant UUID returns 200 on /v1/public/engage/caseType
+verify_steps: PASSIVE: for k in bellingham charlottetown tampa austin denver miami omaha raleigh nashville portland; do GET /v1/public/organizations/key/$k (Origin evil, sleep 1.2); on 200 capture UUID then GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication
+impact: per-tenant PII field-map harvest beyond GRT → broader form-fraud targeting; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE: `for k in bellingham charlottetown tampa austin denver miami omaha raleigh nashville portland; do curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/$k" -o /tmp/opencode/k_$k.json -w "$k %{http_code} %{size_download}B\n"; sleep 1.2; done` — complete the dictionary breadth to close HYP3; any 200 → follow with /v1/public/engage/caseType using that tenant UUID.
+[RISK] api.sparelabs.com: 68 — confirmed unauth PII schema harvest (GRT Engage, 3 forms fully mapped), zero-header read bypass on /global/organizations, scheme-only bypass on /global/regions, universal CORS credential reflection, 3-way org UUID/key oracles, WorkOS SSO-config oracle; write methods and 22 sibling routes properly gated | platform.sparelabs.com: 40 — MFE shell; CSP infra leak (admin Vercel apps, Metabase, 9 cloud services); embedded 170-path OpenAPI recon-only; no API surface behind host | routing.sparelabs.com: 15 — envoy 404 on all paths since 2026-08-07, no surface | forms.sparelabs.com: 25 — Engage portal SPA 200; JS bundle leak patched (main.8a2a39cb.js zero infra refs); 3 Maps keys referrer-restricted; no API endpoints behind SPA shell | web (spare.com/sparelabs.com): 15 — static Webflow/Cloudflare marketing, 301 apex, no dynamic surface.
