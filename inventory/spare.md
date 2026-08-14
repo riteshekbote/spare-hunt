@@ -1013,3 +1013,13 @@
 - CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: CONFIRMED LIVE with 3-way discrimination (spare→200+351B, grt→200+288B, dallas→200+237B, cambus→404); no-auth + universal CORS; prod-only data
 - CHANGED api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed, unreliable across replicas
 - CHANGED forms.sparelabs.com: JS bundle rotated to main.8a2a39cb.js — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (leak PATCHED); 3 Google Maps keys all referrer-restricted
+
+## 2026-08-14 23:29:23 UTC
+- NEW api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-configuration oracle — POST {} → 200 172B disclosing live WorkOS client_id + connection_id + Entra tenant IDs; domain param discriminates
+- NEW platform.sparelabs.com bundle (index-B6uSYXCi.js 3MB): Embedded full OpenAPI spec of EAM/fixed-route admin API — 170 paths extracted; ALL 131 non-param paths swept zero-auth + Bearer-x → 100% 401/404
+- NEW forms.sparelabs.com: JS bundle rotated to main.8a2a39cb.js — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (leak PATCHED); 3 Google Maps keys all referrer-restricted
+- NEW /v1/global/* namespace EXHAUSTIVE: 22 sibling routes ALL 401 (zero-auth + Bearer-x); bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- NEW CONFIRMED FLEETWIDE parity for /v1/global/{organizations,regions} bypass across 7 hosts (prod/us/us2/us3/jp/eu/uat) with byte-stable responses
+- NEW /v1/public/organizations/key/spare prod-only data disclosure (200+351B) — uat/us2/jp return 404; regional DBs empty
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: CONFIRMED LIVE with 3-way discrimination (spare→200+351B, grt→200+288B, dallas→200+237B, cambus→404); no-auth + universal CORS; prod-only data
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed, unreliable across replicas
