@@ -6924,3 +6924,32 @@ evidence_needed: show in-scope bundle's hostname→api-base resolution (SYr) can
 verify_steps: PASSIVE: re-fetch index-DBfgT4ww.js, trace SYr/selection code path; GET https://platform.sparelabs.com/login to confirm 5555B HTML unchanged; no OOS host probing.
 impact: documents expanded infra disclosure (new TLD, infra-qa env, ngrok tunnels) for cross-environment targeting; no in-scope auth bypass; LOW-MED
 testability: PASSIVE
+## 2026-08-14 13:56:19 UTC [api] (model bigpickle)
+[HYP] Cross-org Engage intake-form census via key-oracle UUID chaining
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 70
+reasoning: Org-scoped dispatch live (GRT 200+547B, Spare 404, same caseTypeKey); form endpoint 200+1861B discloses PII field schemas; key oracle maps slug→UUID for chaining into engage. GRT's own census beyond serviceAnimalApplication exhausted (riderApplication/driverOrientation/operatorApplication/newHireApplication/recruitment/paratransitApplication all 404 this session).
+evidence_needed: second org key resolving 200 on any disclosed caseTypeKey via key-derived UUID
+verify_steps: PASSIVE: for each bounded agency key that resolves 200, GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication with Origin https://evil.example.com, ≤1 rps; any 200 → chain /v1/public/engage/form per disclosed formKey.
+impact: unauthenticated cross-tenant PII/form-schema map (mobility IDs, field-group topology) enabling targeted form-fraud/phishing; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Key-oracle auth-posture flags identify weak-auth tenants for credential attacks
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 78
+reasoning: spare discloses enabledPublicFeatureFlags riderLoginless+riderPhonePin+callForVerificationCode; grt riderEmailAuthentication+multimodal; cambus 404. Logo URLs disclose GCS bucket `spare-production-ca-photos`. No auth + CORS on all 200s.
+evidence_needed: HUMAN maps riderLoginless to a live credential-less login on a public Engage portal (OOS host); one more registered 200 key to widen tenant map
+verify_steps: PASSIVE: GET /v1/public/organizations/key/<bounded transit-agency slug> with Origin evil, ≤1 rps; record UUID+flags; HUMAN_ONLY portal login-flow check (no probing of OOS hosts)
+impact: per-tenant weak-auth map (loginless/PIN orgs) for credential-stuffing/session attacks on rider portals; MEDIUM
+testability: PASSIVE
+[HYP] Replica-level divergence: fail-open GET served only by slow replica, fast replica gated
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 55
+reasoning: KB shows zero-header GET → 200+11B consistently served at 496–1343ms (slow replica) while gated siblings respond 2–5ms; multi-version envoy LB confirmed. Fast-replica fail-open status never isolated.
+evidence_needed: a fast (<10ms) zero-header GET returning 200+11B (both replicas fail open) OR a fast 401 (single-replica omission)
+verify_steps: PASSIVE: 5× GET /v1/global/organizations (no auth, Origin evil) spaced 2s; correlate status code vs x-envoy-upstream-service-time.
+impact: refines scope/severity of the 85h-stable read-only bypass (replica-wide vs single-replica); LOW-MED
+testability: PASSIVE
+[NEXT] PROBE: enumerate bounded transit-agency keys via `curl -s -o /dev/null -w "%{http_code} %{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/<slug>"` for {brampton, durham, hamilton, metrolinx, gotransit, translink, calgarytransit, winnipeg, edmonton, saskatoon}, ≤1 rps; for each 200, immediately chain `GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication` to test the second-org Engage census hypothesis.

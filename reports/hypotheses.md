@@ -3894,3 +3894,28 @@
 - LEARN: ACCEPTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths, NO_DELTA since 2026-08-07
 - LEARN: ACCEPTED MISCONFIG @ sparelabs.com: 301→spare.com apex, Cloudflare+HSTS, static-only, no new surface
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 "not found" on current envoy replica (was 200+547B/1861B schema bodies);
+
+## RANKED HYPOTHESES 2026-08-14 13:59:53 UTC
+- [98] api.sparelabs.com/v1/global/organizations: Zero-header read-only auth bypass on organizations list with misleading write CORS (from reports/hypotheses-laguna.txt)
+- [90] api.sparelabs.com/v1/public/organizations/key/{key}: Human-readable org key enumeration oracle with 3-way discrimination (from reports/hypotheses-nemotron3.txt)
+- [70] api.sparelabs.com/v1/public/engage/{caseType,form}: Cross-org Engage intake-form census via key-oracle UUID chaining (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare" && curl -s -D - -H "Origin: https://evi
+- NEXT(hypotheses-laguna.txt): PROBE: Expand org-key enumeration oracle breadth — `for key in bellingham king-county charlottetown tampa bustang maryland tulsa denton; do curl -s -D -o /dev/n
+- NEXT(hypotheses-bigpickle.txt): PROBE: enumerate bounded transit-agency keys via `curl -s -o /dev/null -w "%{http_code} %{size_download}" -H "Origin: https://evil.example.com" "https://api.spa
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW surface confirmed live — 3-way discrimination (spare→200+351B, grt→200+288B, notfo
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY (GET only
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC (6 OOS subdomains in body); no-auth→400, POS
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed; was 200+schema b
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass route
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — MFE SPA shell 200 (was TIMEOUT); CSP on /login discloses admin Vercel apps + Metabase + 9 cloud servic
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — Engage portal SPA 200 (was TIMEOUT); JS bundle main.b0a0c190.js leaks staging+prod+regional infra + atlas
+- LEARN: ACCEPTED BUSLOGIC @ routing.sparelabs.com: NEWLY LIVE — envoy 404 on all paths (was TIMEOUT); STABLE dead, NO_DELTA
+- LEARN: ACCEPTED MISCONFIG @ sparelabs.com: NOW 301→spare.com (was TIMEOUT); Cloudflare+HSTS, no new surface
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE live 2026-08-14 13:57 UTC — GET no-auth → 200+11B+ACAO+ACAC (0.91
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE live 2026-08-14 13:57 UTC — Bearer x → 200+725B+ACAO+ACAC (0.402s fast replica); 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way enumeration oracle STABLE — spare→200+351B, grt→200+288B, dallas→200+237B (DART GoLin
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 "not found" on all caseType/form combos probed (case-request/mobility/sc
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths since 2026-08-07, NO_DELTA
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10 probed paths (/admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metric

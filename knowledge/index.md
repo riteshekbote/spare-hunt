@@ -1181,3 +1181,9 @@
 - 2026-08-14 ACCEPTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths, NO_DELTA since 2026-08-07
 - 2026-08-14 ACCEPTED MISCONFIG @ sparelabs.com: 301→spare.com apex, Cloudflare+HSTS, static-only, no new surface
 - 2026-08-14 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 "not found" on current envoy replica (was 200+547B/1861B schema bodies); multi-version LB confirmed — downgraded from confirmed schema disclosure to UNCONFIRMED
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE live 2026-08-14 13:57 UTC — GET no-auth → 200+11B+ACAO+ACAC (0.918s slow replica); POST Bearer x → 401 (write gate active, read-only confirmed)
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE live 2026-08-14 13:57 UTC — Bearer x → 200+725B+ACAO+ACAC (0.402s fast replica); no-auth → 400; POST → 401 (read-only confirmed)
+- 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way enumeration oracle STABLE — spare→200+351B, grt→200+288B, dallas→200+237B (DART GoLink, UUID e5f587ba-…), cambus→404+131B; universal CORS on GET+OPTIONS confirmed live
+- 2026-08-14 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 "not found" on all caseType/form combos probed (case-request/mobility/schedule-ride × spare/grt/dallas); multi-version envoy LB confirmed — downgraded to UNCONFIRMED, unreliable across replicas
+- 2026-08-14 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths since 2026-08-07, NO_DELTA
+- 2026-08-14 REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10 probed paths (/admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metrics) return SPA catch-all 200 text/html — no real API surface behind MFE shell
