@@ -6953,3 +6953,32 @@ verify_steps: PASSIVE: 5× GET /v1/global/organizations (no auth, Origin evil) s
 impact: refines scope/severity of the 85h-stable read-only bypass (replica-wide vs single-replica); LOW-MED
 testability: PASSIVE
 [NEXT] PROBE: enumerate bounded transit-agency keys via `curl -s -o /dev/null -w "%{http_code} %{size_download}" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/<slug>"` for {brampton, durham, hamilton, metrolinx, gotransit, translink, calgarytransit, winnipeg, edmonton, saskatoon}, ≤1 rps; for each 200, immediately chain `GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication` to test the second-org Engage census hypothesis.
+## 2026-08-14 14:52:38 UTC [api] (model bigpickle)
+[HYP] Engage intake-form PII schema disclosure is org-scoped, data-bearing, and replicable per tenant
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/form
+confidence: 80
+reasoning: GRT resolves 200+15107B schema (PII fields incl. name/address/phone/email/MobilityPLUS ID, file+signature uploads, formContents w/ GRT operational text) with no auth + CORS; same keys on dallas/spare return 404 "Other was not found" — dispatch keyed by org UUID from key-oracle chain.
+evidence_needed: second registered org (new key resolve 200) reproducing any caseType/form schema to prove cross-tenant harvestability; or confirm form POST accepts submissions (GET returns 400 method-not-allowed per KB, write surface is POST-only).
+verify_steps: PASSIVE: for each bounded candidate agency key (atlanta, chicago, seattle, austin, denver, orange, sanjose, tampa) GET /v1/public/organizations/key/<slug> (Origin evil, ≤1 rps); on any 200 → chain GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication then /form per disclosed formKey.
+impact: unauthenticated per-tenant PII/form-field schemas + submission-bypass surface enabling targeted form-fraud/phishing on transit agencies; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Org-key oracle weak-auth flags produce a per-tenant credential-attack map
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 70
+reasoning: spare discloses enabledPublicFeatureFlags incl. riderLoginless+riderPhonePin+callForVerificationCode; grt multimodal+riderEmailAuthentication; dallas none — 3-way flag variance across tenants, no auth + CORS on all 200s; GCS logo bucket spare-production-ca-photos disclosed.
+evidence_needed: HUMAN maps riderLoginless to a live credential-less rider login on the public Engage portal (OOS host — HUMAN_ONLY, no probing); tenant map beyond spare/grt/dallas.
+verify_steps: PASSIVE: GET /v1/public/organizations/key/<bounded transit-agency slug> (Origin evil, ≤1 rps); record UUID+flags per 200; HUMAN_ONLY: inspect the Engage portal login flow for the flagged tenant (no probing of OOS hosts from automation).
+impact: per-tenant weak-auth map (loginless/PIN orgs) for credential-stuffing/session attacks on rider portals; MEDIUM
+testability: PASSIVE
+[HYP] Platform dev-API allowlist documents cross-environment bases that may be selected by in-scope hostname resolution
+class: MISCONFIG
+asset: platform.sparelabs.com/assets/index-DBfgT4ww.js
+confidence: 60
+reasoning: bundle contains SYr allowlist {api.dev.sparelabs.ca, api.dev.us.sparelabs.ca, api.infrastructure-qa.dev.sparelabs.ca, localhost:3048 + 9 other localhost ports} and env map incl. Ngrok; CSP adds *.sparelabs.ca; JIRA FIN-1093 reference.
+evidence_needed: show the bundle's hostname→api-base selection can resolve an in-scope platform hostname to a dev/infra-qa base (all candidate bases are OOS — HUMAN-verifiable only, not provable passively without code trace).
+verify_steps: PASSIVE: re-fetch index-DBfgT4ww.js (200, 5.85MB), trace SYr/env-map selection path; GET https://platform.sparelabs.com/login → confirm 200 HTML unchanged; no OOS host probing.
+impact: documents expanded infra disclosure (new TLD, infra-qa env, ngrok/localhost dev endpoints) for cross-environment targeting; no in-scope auth bypass demonstrated; LOW-MED
+testability: PASSIVE
+[NEXT] PROBE: `for key in atlanta chicago seattle austin denver orange sanjose tampa portland oakland; do curl -s -o /dev/null -w "%{http_code} %{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/$key"; sleep 1.2; done` — for each 200, immediately chain GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication (Origin evil) to hunt a second data-bearing Engage tenant.

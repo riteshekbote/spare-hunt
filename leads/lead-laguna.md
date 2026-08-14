@@ -6873,3 +6873,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: **5** — envoy 404 on ALL probed paths since 2026-08-07; no surface, NO_DELTA (newly responsive but zero API surface behind envoy gateway).
 [RISK] forms.sparelabs.com: **43** — "Spare Engage Web Portal" SPA (200); JS bundle main.b0a0c190.js leaks staging+prod+regional infra (6 OOS) + atlassian.net + inactive ngrok; strict HTML CSP + x-frame DENY mitigates HTML-level disclosure, infra leak is JS-bundle recon only.
 [RISK] web (spare.com/sparelabs.com): **15** — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks in HTML/JS); sparelabs.com 301→spare.com; minimal static-only surface.
+## 2026-08-14 14:55:38 UTC [web] (model laguna)
