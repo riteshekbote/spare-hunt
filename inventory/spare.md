@@ -878,3 +878,6 @@
 - CHANGED api.sparelabs.com/v1/public/organizations/key/{key} — CONFIRMED LIVE with 3-way discrimination (spare→200+351B, grt→200+288B, notfound→404); no-auth + universal CORS
 - CHANGED api.sparelabs.com/v1/global/organizations — CONFIRMED zero-header read-only bypass STABLE (200+11B+ACAO+ACAC, 1171ms slow replica); writes 401
 - CHANGED api.sparelabs.com/v1/global/regions — CONFIRMED scheme-only bypass STABLE (Bearer x→200+725B+ACAO+ACAC, 3ms fast replica); 6 OOS subdomains in body
+
+## 2026-08-14 12:34:05 UTC
+- NEW None — all surface items in latest knowledge (2026-08-14 11:35:42 UTC) already captured in last leads (Engage flap, org key oracle confirmed, global org/regions bypasses stable, platform/forms/routing

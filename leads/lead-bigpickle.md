@@ -6896,3 +6896,31 @@ evidence_needed: any caseTypeKey on a live org returning type:"driver" form
 verify_steps: PASSIVE: GET /v1/public/engage/caseType?organizationId=<grt>&caseTypeKey=<bounded driver/ops keys: driverOrientation, operatorApplication, newHireApplication, recruitment> ≤1 rps with Origin evil
 impact: driver-side PII schema (license#, driver ID, background-check fields) disclosed per tenant extending phishing surface; MEDIUM
 testability: PASSIVE
+## 2026-08-14 12:28:18 UTC [api] (model bigpickle)
+[HYP] Engage intake-form census via org-scoped caseType dispatch
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 82
+reasoning: GRT caseType+form reproducing 200+547B/1861B on current replica (flapped back from 400); spare returns 404 for same caseTypeKey → org-scoped dispatch confirmed; caseType body self-discloses form-key tree; form body discloses PII fields (mobilityPlusIdNumber, easyGoFareCardNumber).
+evidence_needed: second org resolving 200 on any disclosed caseTypeKey to prove cross-org PII schema harvesting; spare/grt are the only 200-confirmed tenant keys (ttc/yrt/miway 404).
+verify_steps: PASSIVE: GET /v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=<generic intake keys: riderApplication,onboarding,employment,driverApplication> with Origin evil, ≤1 rps; any 200 → chain form endpoint per disclosed formKey.
+impact: unauthenticated per-org PII/form schemas + form-tree topology enabling targeted form-fraud/phishing; MEDIUM
+testability: PASSIVE
+[HYP] Org-key directory exposes per-tenant auth-posture flags for targeted credential attacks
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 78
+reasoning: spare→200+351B discloses enabledPublicFeatureFlags incl. riderLoginless+riderPhonePin+callForVerificationCode; grt→200+288B; ttc/yrt/miway→404 proves only registered tenant keys resolve; logoUrl discloses GCS bucket spare-production-ca-photos.
+evidence_needed: HUMAN maps riderLoginless to a live credential-less login on a public Engage portal (OOS host, HUMAN-only); one more registered 200 key to widen tenant map.
+verify_steps: PASSIVE: GET /v1/public/organizations/key/<bounded platform-tenant key> with Origin evil ≤1 rps; record UUID+flags; HUMAN_ONLY check of portal login flow.
+impact: per-tenant weak-auth map (loginless/PIN orgs) for credential-stuffing/session attacks on rider portals; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Platform shell dev-API allowlist leaks unreleased sparelabs.ca environments; resolution may select dev base for in-scope hostnames
+class: MISCONFIG
+asset: platform.sparelabs.com/assets/index-DBfgT4ww.js
+confidence: 65
+reasoning: bundle contains SYr allowlist {api.dev.sparelabs.ca, api.dev.us.sparelabs.ca, api.infrastructure-qa.dev.sparelabs.ca, localhost:3048} + env map Production_CA/US/US2/EU/JP/Staging/Ngrok; CSP adds *.sparelabs.ca; JIRA FIN-1093 reference.
+evidence_needed: show in-scope bundle's hostname→api-base resolution (SYr) can select a dev/infra-qa base for an in-scope hostname.
+verify_steps: PASSIVE: re-fetch index-DBfgT4ww.js, trace SYr/selection code path; GET https://platform.sparelabs.com/login to confirm 5555B HTML unchanged; no OOS host probing.
+impact: documents expanded infra disclosure (new TLD, infra-qa env, ngrok tunnels) for cross-environment targeting; no in-scope auth bypass; LOW-MED
+testability: PASSIVE

@@ -3867,3 +3867,30 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to enforce auth properly (401 InvalidTokenError) — by
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way discrimination stable (spare→200+351B, grt→200+288B, notfound→404+131B); no-auth + un
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 "not found" on current envoy replica (was 200+547B/1861B schema bodies);
+
+## RANKED HYPOTHESES 2026-08-14 12:34:05 UTC
+- [98] api.sparelabs.com/v1/global/organizations: Universal zero-header read-only auth bypass on organizations endpoint with misleading write CORS (from reports/hypotheses-laguna.txt)
+- [90] api.sparelabs.com/v1/public/organizations/key/{key}: Human-readable org key enumeration oracle with 3-way discrimination (from reports/hypotheses-nemotron3.txt)
+- [82] api.sparelabs.com/v1/public/engage/{caseType,form}: Engage intake-form census via org-scoped caseType dispatch (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare" && curl -s -D - -H "Origin: https://evi
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -D -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization,C
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW surface confirmed live — 3-way discrimination (spare→200+351B, grt→200+288B, notfo
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY (GET only
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC (6 OOS subdomains in body); no-auth→400, POS
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed; was 200+schema b
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/*: sibling sweep exhausted (8 paths) — all 404 0B, namespace fully mapped
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/{id}/*: subresource sweep exhausted (6 paths) — all 400 ValidationError "not found"
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: write verbs POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass route
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NEWLY LIVE — MFE SPA shell 200 (was TIMEOUT); CSP on /login discloses admin Vercel apps + Metabase + 9 cloud servic
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: NEWLY LIVE — Engage portal SPA 200 (was TIMEOUT); JS bundle main.b0a0c190.js leaks staging+prod+regional infra + atlas
+- LEARN: ACCEPTED BUSLOGIC @ routing.sparelabs.com: NEWLY LIVE — envoy 404 on all paths (was TIMEOUT); STABLE dead, NO_DELTA
+- LEARN: ACCEPTED MISCONFIG @ sparelabs.com: NOW 301→spare.com (was TIMEOUT); Cloudflare+HSTS, no new surface
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 85h+ — GET with NO Authorization header → 200 + 11B + ACAO+ACAC; 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS) + ACAO+ACAC; no
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle STABLE — spare→200+351B, grt→200+288B, cambus→404+131B; no-aut
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 85h+ — ACAO:reflected + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DE
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging) + Metabase
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.b0a0c190.js STABLE — leaks staging+prod+regional infra + atlassian.net + inactive ngrok; strict HTML CS
+- LEARN: ACCEPTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths, NO_DELTA since 2026-08-07
+- LEARN: ACCEPTED MISCONFIG @ sparelabs.com: 301→spare.com apex, Cloudflare+HSTS, static-only, no new surface
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 "not found" on current envoy replica (was 200+547B/1861B schema bodies);
