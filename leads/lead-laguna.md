@@ -7417,3 +7417,35 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 10 reason — Envoy 404 on ALL probed paths; routing-engine API fully hidden; no unauthenticated surface; STABLE dead since 2026-08-07
 [RISK] forms.sparelabs.com: 35 reason — Public SPA 200; envoy+Google CDN, x-frame DENY, strict HTML CSP; JS bundle main.8a2a39cb.js patched (zero infra leaks); 3 Google Maps keys referrer-restricted; minimal residual exposure
 [RISK] web (spare.com/sparelabs.com): 8 reason — spare.com apex 200 (Cloudflare+Webflow static, CSP frame-ancestors 'self', HSTS 31536000); www.spare.com OOS excluded; sparelabs.com 301→spare.com; minimal static-only surface, no infra leaks
+## 2026-08-14 22:55:40 UTC [web] (model laguna)
+[HYP] WorkOS SSO-configuration oracle at /v1/identity/workos/auth
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: POST {} (no body required beyond valid JSON) → 200 + 172B returning live WorkOS client_id (client_01F5KHYX32TCKB1E7YEAPE0H17) + connection_id (conn_01M00CQ6350667DNDRFT6NPP4K) + Entra tenant IDs; `domain` param discriminates: spare.com/dart.org/translink.ca → 200 (configured tenant), non-tenants → 404; zero-auth + universal CORS confirmed; fleet-wide parity (prod/uat/us2/jp identical).
+evidence_needed: Confirm POST with different domain values produces 200 vs 404 discrimination; capture full response bodies to document WorkOS client_id + connection_id + Entra tenant ID leakage per domain.
+verify_steps: PROBE: curl -s -X POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com"}'; repeat with dart.org, translink.ca, gmail.com, sparelabs.ca, toronto.ca
+impact: Unauthenticated enumeration of all WorkOS SSO tenant bindings + Entra tenant IDs + Google OAuth client IDs for partner orgs → enables targeted IdP-phishing and SSO token-enumeration attacks; LOW (config disclosure only, no user data/creds)
+testability: PASSIVE
+[HYP] Human-readable org-key enumeration at /v1/public/organizations/key/{key}
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 88
+reasoning: GET /key/spare → 200 + 351B (org UUID, name, logo, enabledFeatureFlags); /key/grt → 200 + 288B (distinct body); /key/dallas → 200 + 237B (DART GoLink UUID); /key/cambus → 404 + 131B (NotFoundError). 3-way discrimination (200-vs-404) with rich org metadata. Prod-only (uat/us2/jp return 404). Universal CORS (ACAO+ACAC) on both GET 200 and 404.
+evidence_needed: Confirm 3-way discrimination (spare/grt/dallas→200 distinct bodies, cambus→404) with raw response bodies; verify CORS headers present on both 200 and 404 responses; confirm uat/us2/jp return 404 (prod-only).
+verify_steps: PROBE: curl -s -i https://api.sparelabs.com/v1/public/organizations/key/spare -H "Origin: https://evil.example.com"; curl -s -i https://api.sparelabs.com/v1/public/organizations/key/grt -H "Origin: https://evil.example.com"; curl -s -i https://api.sparelabs.com/v1/public/organizations/key/cambus -H "Origin: https://evil.example.com"; curl -s -i https://api.uat.sparelabs.com/v1/public/organizations/key/spare
+impact: Full tenant org enumeration (UUID, name, logo, feature flags) for any org with a discoverable human-readable key → enables targeted attacks against specific tenants; unknown key-space may yield additional tenants via brute force
+testability: PASSIVE
+[HYP] Scheme-only Bearer bypass + infra topology disclosure at /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 92
+reasoning: GET with `Authorization: Bearer x` (garbage token) → 200 + 725B region registry (7 regions incl. 6 OOS api/routing subdomains); no-auth → 400 "Authorization header required"; `Auth: x` → 400 "scheme Bearer required"; POST → 401. Gate validates scheme only, token never verified. Body sha256 fb9800acb…585c3fe byte-stable across 15+ probes and 7 hosts (fleet-wide parity). Universal CORS (ACAO+ACAC).
+evidence_needed: Confirm Bearer x returns 200 + 725B + ACAO+ACAC; verify 6 OOS subdomains present in response body; confirm no-auth → 400, POST → 401.
+verify_steps: PROBE: curl -s -i https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com"; curl -s -i https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com"; curl -s -X POST https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -d '{}'
+impact: Unauthenticated infra topology disclosure (6 OOS api/routing subdomains); scheme-only presence gate exposes regional endpoint map; universal CORS enables cross-origin theft from victim browsers; staging (uat) reproduces same bypass; severity capped (static config data only)
+testability: PASSIVE
+[FINAL] 1. api.sparelabs.com/v1/identity/workos/auth — Unauthenticated SSO-configuration oracle (confidence 92) — NEW 2026-08-14
+[FINAL] 2. api.sparelabs.com/v1/public/organizations/key/{key} — 3-way org-key enumeration oracle, prod-only (confidence 88) — NEW 2026-08-14
+[FINAL] 3. api.sparelabs.com/v1/global/regions — Scheme-only Bearer bypass + infra topology disclosure, 85h+ stable, fleet-wide (confidence 92)
+[NEXT] PROBE: `curl -s -X POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"dart.org"}'` — to confirm the 3-way discrimination (200 for configured tenants vs 404 for non-tenants) and capture the WorkOS client_id/connection_id/Entra tenant ID leakage per domain
