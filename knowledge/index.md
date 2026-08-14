@@ -1216,3 +1216,22 @@
 - 2026-08-14 ACCEPTED @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle STABLE (superior discriminator vs flapping singular /organization which degraded to 2-way on slow replicas)
 - 2026-08-14 ACCEPTED @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (GET only); auth asymmetry confirmed
 - 2026-08-14 REJECTED (OOS) @ metabase.sparelabs.com: Exposed Metabase v0.58.24 with unauth /api/session/properties config dump (106KB), but host is OOS per scope exclusions (ALL OTHER subdomains of sparelabs.com excluded); value = version/engines/OAuth-client-ids only, no RCE (setup-token 404)
+- 2026-08-14 ACCEPTED FLEETWIDE @ /v1/global/{organizations,regions} bypass: 7-host parity confirmed (prod/us/us2/us3/jp/eu/uat) — zero-header orgs + Bearer-x regions globally distributed, byte-stable
+- 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way discrimination stable (spare/grt/dallas→200 distinct bodies, cambus→404); prod-only data (uat/us2/jp 404)
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (GET only), auth asymmetry confirmed
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC; body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe verified
+- 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: unauthenticated SSO-config oracle — POST domain param discriminates 200 (configured tenant) vs 404; discloses WorkOS client_id + connection_id + Entra tenant IDs
+- 2026-08-14 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed, unreliable across replicas
+- 2026-08-14 REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes ALL 401 — bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- 2026-08-14 REJECTED MISCONFIG @ platform.sparelabs.com bundle OpenAPI: 170 paths extracted, ALL 131 non-param paths properly gated (401/404) — no bypass, recon only
+- 2026-08-14 ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle rotated to main.8a2a39cb.js — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (leak PATCHED); 3 Google Maps keys referrer-restricted
+- 2026-08-14 REJECTED BUSLOGIC @ sparelabs.ca: DNS only dev.sparelabs.ca → GCP LB "fault filter abort" 404 — no live surface
+- 2026-08-14 REJECTED MISCONFIG @ admin-*.vercel.app: all 4 hosts ALIVE 200 but dev-only (admin-eam-app api-baseurl=localhost:3057); no prod API base hardcoded
+- 2026-08-14 REJECTED (OOS) @ metabase.sparelabs.com: exposed Metabase v0.58.24 with unauth /api/session/properties config dump (106KB), but host OOS per scope exclusions
+- 2026-08-14 REJECTED MISCONFIG @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; NO_DELTA since 2026-08-07
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC (6 OOS subdomains in body); POST→401, no-auth→400; read-only bypass confirmed
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY (GET only); auth asymmetry confirmed
+- 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle (spare→200+351B, grt→200+288B, dallas→200+237B, cambus→404+131B) — no-auth + universal CORS confirmed live
+- 2026-08-14 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica (was 200+547B/1861B schema bodies); multi-version LB confirmed — downgraded to UNCONFIRMED/unreliable
+- 2026-08-14 REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10 probed paths return SPA catch-all 200 text/html — no real API surface behind MFE shell; CSP infra leak via /login is the only finding
+- 2026-08-14 REJECTED MISCONFIG @ forms.sparelabs.com (API path sweep): All 8 probed paths return SPA catch-all 200 text/html — no real API endpoints behind SPA shell; JS bundle infra leak is recon-only

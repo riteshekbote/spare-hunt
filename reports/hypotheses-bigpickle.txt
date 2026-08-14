@@ -1,48 +1,29 @@
-## 2026-08-14 20:12:50 UTC [api] (model bigpickle)
-[HYP] Engage PII form schema disclosure is a stable, unauthenticated, org-scoped cross-tenant harvest
+## 2026-08-14 20:44:30 UTC [api] (model bigpickle)
+[HYP] Engage PII intake schema disclosure is a stable, unauthenticated, GRT-scoped data harvest
 class: MISCONFIG
-asset: api.sparelabs.com/v1/public/engage/form
-confidence: 92
-reasoning: GRT reproduces 200+547B caseType and 200+1861B form (clientInfo: MobilityPLUS ID/expiry/EasyGO card, orgTerms URLs) no-auth + CORS, verified 3× this session incl. 2 chained calls; winnipeg returns typed 404 `Other was not found` for same keys — endpoint dispatches per tenant, prior "flap" was a misdiagnosis of tenant-scoping.
-evidence_needed: second registered Engage tenant returning 200 on any caseTypeKey via its key-oracle UUID.
-verify_steps: PASSIVE: for k in {bellingham,king-county,charlottetown,tampa,austin,denver,miami,omaha,raleigh,nashville,portland} GET /v1/public/organizations/key/$k (Origin https://evil.example.com, ≤1 rps); on 200 with engage-flag/any UUID → GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication; on 200 → GET /v1/public/engage/form?organizationId=…&caseTypeKey=…&formKey=clientInfo.
-impact: unauthenticated full Engage intake PII field map (labels/required/upload+signature gates) per transit tenant → targeted form-fraud/phishing; MEDIUM-HIGH
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 95
+reasoning: GRT resolves 200 on caseType (547B) + clientInfo (1861B, MobilityPLUS ID/expiry/required gates) + fileUploads (upload gate) across 3 consecutive live probes this session, no-auth + ACAO+ACAC; inventory "flapped/unconfirmed" downgrade contradicted — surface reproduces consistently now, earlier 400s were replica-flapping.
+evidence_needed: none — fully confirmed; cross-tenant generalization remains the only open question (spare/dallas/winnipeg typed-404 on all probed caseTypeKeys).
+verify_steps: PASSIVE: GET /v1/public/engage/form?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication&formKey=serviceAnimalApplication (Origin evil, ≤1 rps) to capture the third remaining GRT form schema (the case's own form), completing the exhaustively-documented intake map.
+impact: unauthenticated full GRT Engage intake PII field map (labels/required/upload+signature gates) → targeted form-fraud/phishing on transit riders; MEDIUM-HIGH
 testability: PASSIVE
-[HYP] Org-key oracle enumerates engage-enabled tenants; each 200 key chains to the PII-bearing /engage surface
-class: IDOR
-asset: api.sparelabs.com/v1/public/organizations/key/{key}
-confidence: 72
-reasoning: 4 known tenants (spare/grt/dallas/winnipeg) resolve 200 distinct bodies (UUID+name+flags+logoUrl→GCS bucket), cambus/others 404; grt UUID (1966c7f8-…) is directly valid as organizationId on /engage — oracle output is the auth-free tenant registry driving the Engage dispatch.
-evidence_needed: one additional 200 key whose tenant resolves 200 on a /engage/caseType key.
-verify_steps: PASSIVE: run the key dictionary above; for every 200 capture UUID + enabledPublicFeatureFlags; for any engage-bearing UUID run caseType serviceAnimalApplication probe (≤1 rps, Origin evil).
-impact: tenant enumeration + feature-flag map (incl. riderLoginless/PIN tenants) → per-tenant weak-auth + form-fraud targeting; MEDIUM
-testability: PASSIVE
-[NEXT] PROBE: `for k in bellingham king-county charlottetown tampa austin denver miami omaha raleigh nashville portland; do curl -s -o /dev/null -w "%{http_code} %{size_download} $k\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/$k"; sleep 1.2; done` — on any 200 capture UUID then `GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication` to satisfy HYP1 evidence_needed (second Engage tenant).
-[HYP] Unauthenticated cross-origin Engage form submission write-abuse (PII injection into tenant case DB)
+[HYP] Cross-origin unauthenticated Engage intake-form write abuse into GRT's case DB
 class: MISCONFIG
 asset: api.sparelabs.com/v1/public/engage/caseForms
-confidence: 60
-reasoning: Public namespace is auth-free by design (all /v1/public/* endpoints return data with no token); OPTIONS on caseForms+form returns 204 with ACAC:true + all write methods; bundle maps PublicCaseForms="public/engage/caseForms" via agent.get basePath /v1 — POST write surface is public, no readback exists (GET→400 method-not-allowed).
-evidence_needed: AUTH_HELPED: confirm a POST /v1/public/engage/caseForms payload is accepted without any Authorization header (write must not be executed by me — requires authorized test org/consent).
-verify_steps: PASSIVE: OPTIONS /v1/public/engage/caseForms with Origin https://evil.example.com + ACRM:POST → 204 + ACAC:true + allow-methods includes POST (done this session); HUMAN_ONLY: authorized POST with dummy form payload to confirm no-auth acceptance.
+confidence: 62
+reasoning: OPTIONS 204 this session re-confirms ACAC:true + POST/PUT/PATCH/DELETE on the write surface; public namespace is auth-free by design (all /v1/public/* return data with no token); GET→400 method-not-allowed (no readback). Write acceptance without Authorization is unproven.
+evidence_needed: AUTH_HELPED: authorized POST /v1/public/engage/caseForms with a dummy form payload to confirm zero-auth acceptance (write must NOT be executed by me).
+verify_steps: AUTH_HELPED: authorized POST with valid formKey set; if accepted without Authorization header → cross-origin PII injection confirmed. PASSIVE part done (OPTIONS 204 + CORS creds).
 impact: any webpage can submit Engage rider-intake forms (PII) into GRT's case DB cross-origin → form-spam/PII-poisoning; MEDIUM (write, no readback)
+testability: AUTH_HELPED
+[HYP] Org-key oracle chains to a second Engage-enabled tenant (cross-tenant PII harvest)
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 65
+reasoning: 5 known 200 keys (spare/grt/dallas/winnipeg/etc.) with distinct UUIDs; grt UUID valid on /engage; dictionary sweep (31 keys) has not yet surfaced a second 200 key whose tenant resolves 200 on /engage/caseType.
+evidence_needed: one additional 200 org-key whose tenant UUID returns 200 on /v1/public/engage/caseType.
+verify_steps: PASSIVE: for k in bellingham king-county charlottetown tampa austin denver miami omaha raleigh nashville portland; do GET /v1/public/organizations/key/$k (Origin evil, sleep 1.2); on 200 capture UUID then GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=serviceAnimalApplication; on 200 → capture PII form schema.
+impact: per-tenant PII field-map harvest beyond GRT → broader form-fraud targeting; MEDIUM
 testability: PASSIVE
-[HYP] Engage PII form schema disclosure is a stable unauthenticated GRT-scoped harvest (cross-tenant unproven)
-class: MISCONFIG
-asset: api.sparelabs.com/v1/public/engage/form
-confidence: 85
-reasoning: GRT reproduces 200+547B caseType and 200+1861B clientInfo (MobilityPLUS ID/expiry/EasyGO card) no-auth + CORS, verified 4× across sessions; spare/dallas/winnipeg typed-404 on all probed caseTypeKeys — tenant-scoped dispatch, not flap; 31 dictionary keys yield no second Engage tenant.
-evidence_needed: a second Engage tenant is not required for the confirmed GRT finding; cross-tenant generalization remains open.
-verify_steps: PASSIVE: GET /v1/public/engage/form?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication&formKey=fileUploads (Origin evil, ≤1 rps) to capture the remaining disclosed schema (file upload gates).
-impact: unauthenticated full GRT Engage intake PII field map (labels/required/upload gates) → targeted form-fraud/phishing on transit riders; MEDIUM
-testability: PASSIVE
-[HYP] forms.sparelabs.com prod bundle reintroduces the infra leak (retraction was premature)
-class: MISCONFIG
-asset: forms.sparelabs.com/static/js/main.8a2a39cb.js
-confidence: 90
-reasoning: Live fetch 2× (byte-identical sha256 34f336cd…) shows 7,161,277B bundle leaking staging/prod API hosts + ngrok + atlassian + metabase refs; retraction measured 2,195,456B artifact no longer served.
-evidence_needed: none — confirmed by double fetch; delta is the live artifact content.
-verify_steps: PASSIVE: fetch bundle, grep sparelabs/atlassian/ngrok (done); note 8 Maps keys all referrer-restricted (5 new keys tested REQUEST_DENIED — no key-abuse).
-impact: staging/ngrok host disclosure + JIRA/atlassian fingerprint; infra-recon only, no auth bypass; LOW
-testability: PASSIVE
-[NEXT] PROBE: `curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/form?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication&formKey=fileUploads"` — capture the third disclosed GRT form schema (upload gates) to complete the exhaustively-documented GRT intake map; then re-verify the /engage surface once more to confirm the caseForms OPTIONS write surface stays converged (≤1 rps).
+[NEXT] PROBE: `curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/form?organizationId=1966c7f8-3e36-4320-b0d7-de0f7d8d4355&caseTypeKey=serviceAnimalApplication&formKey=serviceAnimalApplication"` — capture the third GRT form schema (signature gates) to complete the confirmed intake map; then one org-key probe (king-county) to advance HYP3.

@@ -918,3 +918,15 @@
 
 ## 2026-08-14 20:13:02 UTC
 - NEW None — latest inventory (2026-08-14 15:42:24 UTC) matches last leads; no new surface items since last cycle
+
+## 2026-08-14 20:46:09 UTC
+- NEW CONFIRMED FLEETWIDE parity for /v1/global/{organizations,regions} bypass across 7 hosts (prod/us/us2/us3/jp/eu/uat) with byte-stable responses
+- NEW POST /v1/identity/workos/auth unauthenticated SSO-configuration oracle disclosing live WorkOS client_id + connection_id + Entra tenant IDs for partner orgs
+- NEW Platform SPA bundle (index-B6uSYXCi.js 3MB) embeds FULL OpenAPI spec of fixed-route/EAM admin API (170 paths) — all 131 non-param paths properly gated (401/404)
+- NEW Forms SPA bundle rotated to main.8a2a39cb.js — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (leak PATCHED); 3 Google Maps keys referrer-restricted
+- NEW /v1/public/organizations/key/spare prod-only data disclosure (200+351B) — uat/us2/jp return 404; regional DBs empty
+- NEW /v1/public/engage/{caseType,form} FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed, unreliable across replicas
+- NEW sparelabs.ca DNS only dev.sparelabs.ca → GCP LB "fault filter abort" 404; no live surface
+- NEW admin-*.vercel.app (4 hosts) ALIVE 200 but dev-only (admin-eam-app has api-baseurl=http://localhost:3057/api); no prod API base hardcoded
+- CHANGED /v1/global/* namespace EXHAUSTIVE — 22 sibling routes ALL 401 (zero-auth + Bearer-x); bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- CHANGED Metabase.sparelabs.com exposed but OOS per scope exclusions — unauth /api/session/properties config dump (106KB), version v0.58.24, Google OAuth client IDs, 16 DB engines — no RCE (setup-token 404)
