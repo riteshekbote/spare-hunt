@@ -1437,3 +1437,11 @@ https://api.sparelabs.com/v1/global/regions -> HTTP 400
 https://api.sparelabs.com/v1/public/organizations/key/dallas -> 200 len=277 type=application/json; charset=utf-8
 https://platform.sparelabs.com/login -> 200 len=5555 type=text/html; charset=UTF-8
 https://api.sparelabs.com/v1/public/organizations/key/$key -> HTTP 404
+
+## 2026-08-14 15:42:26 UTC
+https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/grt -> 200 len=288 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/cambus -> HTTP 404
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/key/dallas -> 200 len=277 type=application/json; charset=utf-8

@@ -6874,3 +6874,4 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: **43** — "Spare Engage Web Portal" SPA (200); JS bundle main.b0a0c190.js leaks staging+prod+regional infra (6 OOS) + atlassian.net + inactive ngrok; strict HTML CSP + x-frame DENY mitigates HTML-level disclosure, infra leak is JS-bundle recon only.
 [RISK] web (spare.com/sparelabs.com): **15** — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks in HTML/JS); sparelabs.com 301→spare.com; minimal static-only surface.
 ## 2026-08-14 14:55:38 UTC [web] (model laguna)
+## 2026-08-14 15:40:46 UTC [web] (model laguna)
