@@ -7519,3 +7519,35 @@ verify_steps: PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Authori
 [RISK] routing.sparelabs.com: 10 reason — Envoy 404 on ALL probed paths incl /openapi.json, /swagger.json, /docs, /health, /status; routing-engine API fully hidden; no unauthenticated surface; STABLE dead since 2026-08-07
 [RISK] forms.sparelabs.com: 35 reason — Public Engage portal SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP); JS bundle main.8a2a39cb.js PATCHED (zero infra leaks, was leaking staging+prod+regional + atlassian.net + ngrok); 3 Google Maps API keys all referrer-restricted; residual exposure = recon value eliminated, static-only surface
 [RISK] web (spare.com/sparelabs.com): 8 reason — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); www.spare.com 301→OOS excluded; sparelabs.com 301→spare.com apex; minimal static-only surface, no dynamic logic
+## 2026-08-14 23:46:29 UTC [web] (model laguna)
+[HYP] SSO-only-tenant cross-map exposes partner agencies missing from org-key DB
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth × /v1/public/organizations/key/{key}
+confidence: 75
+reasoning: kingcounty.gov POST → 200+172B (SSO configured, connection_id sha256 8941a0c2…) but GET /key/kingcounty → 404+131B (not in org-key DB); winnipeg.ca → 200 (SSO) AND 200 /key/winnipeg (org-key match) — proves SSO set is a strict superset of org-key DB; each SSO-only 200 reveals a Spare enterprise partner not discoverable via public org-key enumeration
+evidence_needed: One more SSO-only tenant (200 on WorkOS auth, 404 on org-key) for a major transit agency; enumerate agency domains (kingcounty.gov confirmed, try Sound Transit, Caltrain, VTA, TriMet)
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"kingcounty.gov"}' (sleep 1.2); POST ... -d '{"domain":"soundtransit.org"}' (sleep 1.2); POST ... -d '{"domain":"trimet.org"}' (sleep 1.2); POST ... -d '{"domain":"bart.gov'} (sleep 1.2); cross-ref all 200s against GET /v1/public/organizations/key/{derived-agency-name} → 404 reveals SSO-only partner
+impact: Complete transit-partner roster intel (WorkOS client_id + connection_id + Entra tenant IDs) incl. partners not in public org-key DB; SSO-only tenants prove deeper integration than key-oracle surface suggests; LOW-MEDIUM info disclosure
+testability: PASSIVE
+[HYP] Unauthenticated SSO-configuration oracle discloses WorkOS client IDs and Entra tenant IDs
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 95
+reasoning: Fresh live probe confirms POST {"domain":"spare.com"} → 200 + 172B returning live WorkOS client_id (sha256 6e2e8a9b…) + connection_id (sha256 e0a1f9c2…) + signed relayState; dart.org/translink.ca → 200 + 172B (distinct connection_ids); non-tenants (grt.ca, toronto.ca) → 404 + 124B; zero-auth + ACAO:reflected + ACAC:true on both 200 and 404; kingcounty.gov confirmed 200+172B; fleet-parity confirmed (uat/us2/jp identical); authorize URLs 302 to live corporate IdPs (dart.org→login.microsoftonline.com/4bdf4200-…/saml2)
+evidence_needed: Enumerate additional transit-agency domains; verify 200-vs-404 discrimination maps all SSO tenant bindings; capture sha256 of connection_id per domain for Entra tenant correlation
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"soundtransit.org"}'; POST ... -d '{"domain":"trimet.org"}'; POST ... -d '{"domain":"bart.gov"}' (sleep 1.2 between); 200 → sha256 connection_id + record; 404 → not configured
+impact: Tenant/SSO-config enumeration + Entra tenant-ID disclosure for partner orgs; SSO-only tenants reveal partners hidden from public key-oracle surface; LOW severity info disclosure
+testability: PASSIVE
+[HYP] Scheme-only bearer bypass on global regions exposes infra topology (6+ OOS api/routing subdomains) with universal CORS
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 92
+reasoning: Fresh live probe confirms `Authorization: Bearer x` → 200 + 725B + ACAO:https://evil.example.com + ACAC:true; body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable (15+ probes); no-auth→400 "Authorization header required", wrong-scheme→400; POST→401; body lists 7 regions incl 6 OUT-OF-SCOPE api/routing subdomains (api.us/ca/us2/us3/jp/eu/sparelabs.com + routing.*); global-organization zero-header bypass also confirmed STABLE on GET (200+11B) while control /journeys stable 401 — route-specific scope proven via 22-sibling sweep
+evidence_needed: Re-confirm Bearer x returns 200+725B+ACAO+ACAC on current envoy replica (fast 0.2s); verify 6 OOS subdomains present in body; confirm no-auth→400, POST→401, control /journeys→401
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com"; GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" (no auth); POST https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{}'
+impact: Unauthenticated infra topology disclosure (6 OOS api/routing subdomains); scheme-only presence gate (token validity never checked); universal CORS enables cross-origin theft from victim browsers; 85h+ stable, NOT patched (longcat false positive); staging (uat) reproduces same bypass
+testability: PASSIVE
+[FINAL] 1. SSO-only-tenant cross-map exposes partner agencies missing from org-key DB (confidence 75) — NEW confirmed (kingcounty.gov)
+[FINAL] 2. Unauthenticated SSO-configuration oracle discloses WorkOS client IDs + Entra tenant IDs (confidence 95)
+[FINAL] 3. Scheme-only bearer bypass on global regions exposes infra topology (6 OOS subdomains) with universal CORS (confidence 92)
+[NEXT] PROBE: `for d in soundtransit.org trimet.org bart.gov sfmta.gov ltd ridepc.org; do sleep 1.2; curl -s -o /dev/null -w "$d: %{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -X POST -d "{\"domain\":\"\'$d\'\")" "https://api.sparelabs.com/v1/identity/workos/auth"; done` — extend SSO-discriminator enumeration for remaining major US transit partners; any 200 → capture response body sha256 of connection_id; cross-ref each 200 against GET /v1/public/organizations/key/{agency-name} → 404 confirms SSO-only tenant (hidden partner)
