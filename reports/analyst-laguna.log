@@ -41333,3 +41333,57 @@ All hypotheses pass: confidence ≥ 40, classes valid, concrete verify_steps pre
 [RISK] routing.sparelabs.com: 5 — envoy 404 on ALL probed paths since 2026-08-07; no surface, NO_DELTA (newly responsive but zero API surface)
 [RISK] forms.sparelabs.com: 43 — Engage portal SPA 200; JS bundle main.b0a0c190.js leaks staging+prod+regional infra (6 OOS) + atlassian.net + inactive ngrok; strict HTML CSP + x-frame DENY mitigates HTML-level disclosure, infra leak is JS-bundle recon only
 [RISK] web (spare.com/sparelabs.com): 15 — spare.com apex HTTP 200 static Webflow marketing (Cloudflare, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks in HTML/JS); sparelabs.com 301→spare.com; minimal static-only surface
+===== ANALYST laguna 2026-08-14 17:36:47 UTC =====
+[0m
+> build · laguna-s-2.1-free
+[0m
+**STEP 1 — DELTA**  
+NO_DELTA — all surface items in latest inventory (2026-08-14 16:34:07 UTC) already captured in last leads (Engage flap, org key oracle confirmed, global org/regions bypasses stable, platform/forms/routing live, JS bundle main.b0a0c190.js, UUID oracle flapping).
+
+**STEP 2 — PRIORITIZE**  
+[PRIO] api.sparelabs.com/v1/global/regions — score 8.5 — attack:9, business:8, tech:7, gate:10, cloud:7, fresh:10  
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — score 8.35 — attack:9, business:8, tech:6, gate:10, cloud:7, fresh:10  
+[PRIO] api.sparelabs.com/v1/global/organizations — score 8.15 — attack:8, business:8, tech:7, gate:10, cloud:6, fresh:10  
+[PRIO] api.sparelabs.com/v1/public/organizations/{id} — score 7.5 — attack:8, business:7, tech:5, gate:10, cloud:5, fresh:10  
+
+**STEP 3 — HYPOTHESES**  
+[HYP] Scheme-only auth bypass on regions endpoint with OOS subdomain enumeration  
+class: AUTH  
+asset: api.sparelabs.com/v1/global/regions  
+confidence: 97  
+reasoning: GET with `Bearer x` (arbitrary value) returns 200 + 725B region registry containing 7 regions including 6 out-of-scope api/routing subdomains; no-auth returns 400 "header required", wrong-scheme returns 400 "scheme Bearer required" — auth check is presence-only, token validity never validated; universal CORS (ACAO+ACAC) confirmed on same path; STABLE 85h+ across multiple probes, body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe verified  
+evidence_needed: 200+725B with arbitrary Bearer vs 400 without, plus 6 OOS subdomains in response body, plus ACAO/ACAC headers  
+verify_steps: `curl -s -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"` && `curl -s -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"`  
+impact: Unauthenticated access to infra topology disclosure — 6 out-of-scope api/routing subdomains enumerated from in-scope api.sparelabs.com response body; enables cross-org targeting and expanded attack surface mapping. Medium.  
+testability: PASSIVE  
+
+[HYP] Org-key enumeration IDOR returning tenant metadata with 3-way discrimination  
+class: IDOR  
+asset: api.sparelabs.com/v1/public/organizations/key/{key}  
+confidence: 93  
+reasoning: Confirmed live 3-way discrimination (spare→200+351B, grt→200+288B, dallas→200+237B, cambus→404+131B) with no auth + universal CORS on both GET and OPTIONS 204; each 200 returns tenant UUID, name, logoUrl, organizationKey, enabledPublicFeatureFlags; keys are human-readable and derivable from public transit-agency portal URLs  
+evidence_needed: Distinct 200+body-size for known org keys vs 404+131B for unknown keys, all without auth headers, with ACAO+ACAC  
+verify_steps: `curl -s -o /dev/null -w "%{http_code} %{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare"` && `curl -s -o /dev/null -w "%{http_code} %{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/grt"` && `curl -s -o /dev/null -w "%{http_code} %{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/cambus"`  
+impact: Attainer-enumerable org UUID discovery via publicly-known human-readable keys; returns live org metadata (tenant UUID, name, logo, feature flags) enabling cross-org targeting. Medium.  
+testability: PASSIVE  
+
+[HYP] Zero-header read-only auth bypass on organizations list endpoint  
+class: AUTH  
+asset: api.sparelabs.com/v1/global/organizations  
+confidence: 96  
+reasoning: GET with NO Authorization header + Origin returns 200 + 11B `{"data":[]}` + ACAO:reflected + ACAC:true (0.9s slow replica); POST/PUT/PATCH/DELETE with Bearer x return 401 InvalidTokenError (write gate active); OPTIONS 204 advertises full write method surface + CORS; control /v1/journeys → 401; route-specific confirmed via 14-sibling sweep (12×401 + 2×200); STABLE 85h+  
+evidence_needed: GET zero-header returns 200+ACAO+ACAC while POST returns 401 and control /v1/journeys returns 401  
+verify_steps: `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations"` && `curl -s -D -X POST -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/organizations"` && `curl -s -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys"`  
+impact: Zero-header auth bypass on GET read path exposes endpoint to unauthenticated cross-origin reads; empty payload caps data-disclosure severity but misleading write-method CORS surface creates client-side security confusion. Medium.  
+testability: PASSIVE  
+
+**STEP 4 — SELF-CRITIQUE**  
+[FINAL] 1. Scheme-only auth bypass on /v1/global/regions with OOS subdomain enumeration (confidence: 97)  
+[FINAL] 2. Org-key enumeration IDOR returning tenant metadata (confidence: 93)  
+[FINAL] 3. Zero-header read-only auth bypass on /v1/global/organizations (confidence: 96)  
+
+**STEP 5 — NEXT ACTION**  
+[NEXT] PROBE: Expand org-key enumeration oracle breadth — `for key in bellingham king-county charlottetown tampa austin denver miami omaha raleigh nashville; do curl -s -o /dev/null -w "%{http_code} %{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/$key"; done` — maps full enumeration surface of IDOR oracle, demonstrates cross-org targeting capability via publicly-derivable human-readable keys. Passive GET on in-scope api.sparelabs.com only.
+
+**STEP 6 — LEARNING**  
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC; returns 6 OOS subdomains in body; no-auth→400, POST→401; read-only bypass confirmed

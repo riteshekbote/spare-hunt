@@ -1457,3 +1457,14 @@ https://api.sparelabs.com/v1/journeys -> HTTP 401
 https://api.sparelabs.com/v1/public/organizations/{not-a-uuid -> HTTP 400
 https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000 -> HTTP 404
 https://api.sparelabs.com/v1/public/organizations/key/$key -> HTTP 404
+
+## 2026-08-14 17:36:49 UTC
+https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/grt -> 200 len=288 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/dallas -> 200 len=277 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/cambus -> HTTP 404
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/journeys -> HTTP 401
+https://api.sparelabs.com/v1/public/organizations/key/$key -> HTTP 404
+https://api.sparelabs.com/v1/public/engage/caseType?organizationId=6c84b370-5cc2-42c6-8cdd-146c99648535&caseTypeKey=$k -> HTTP 400

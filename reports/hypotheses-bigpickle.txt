@@ -1,1 +1,29 @@
-## 2026-08-14 16:33:43 UTC [api] (model bigpickle)
+## 2026-08-14 17:36:36 UTC [api] (model bigpickle)
+[HYP] Engage PII form schema is org-scoped, no-auth, and harvestable per registered Engage tenant via key-oracle UUID chaining
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/form
+confidence: 80
+reasoning: grt (1966c7f8-…) reproduces 200+15107B PII schema (clientInfo 1861B, serviceAnimalApplication 15107B) with no auth + CORS; winnipeg returns 404 `Other was not found` for the same caseTypeKey — dispatch keyed by org UUID from key-oracle chain, not replica flap (contradicts UNCONFIRMED downgrade). Prior probes that "flapped to 400" used spare/dallas orgs with a caseTypeKey that tenant lacks.
+evidence_needed: one additional registered tenant resolving 200 on any caseTypeKey via its key-oracle UUID, proving cross-tenant harvestability.
+verify_steps: PASSIVE: for org=winnipeg (6c84b370-…) and grt, GET /v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=<guess> for {riderComplaint, accessibilityRequest, feedback, vehicleAccident, newAccount, scheduleChange} with Origin evil, ≤1 rps; on any 200 → chain /form?caseTypeKey=<key>&formKey=<disclosed formKey>.
+impact: unauthenticated cross-tenant PII/form-field map (name/address/phone/email/MobilityPLUS ID, upload+signature requirements) → targeted form-fraud/phishing on transit agencies; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] riderLoginless-flagged tenants expose credential-less rider login on the in-scope Engage portal
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 58
+reasoning: 2 of 4 registered tenants (spare+winnipeg) carry enabledPublicFeatureFlags riderLoginless+riderPhonePin+callForVerificationCode; grt only riderEmailAuthentication, dallas none — flag variance is tenant-controlled and disclosed no-auth + CORS; forms.sparelabs.com ("Spare Engage Web Portal") is in scope.
+evidence_needed: correlate the loginless/PIN flag set to a credential-less login path (phone+code) in forms.sparelabs.com portal JS/HTML.
+verify_steps: PASSIVE: fetch forms.sparelabs.com bundle main.b0a0c190.js, grep for riderLoginless/phone-pin login flow strings (no write/login attempts); HUMAN_ONLY: visually confirm the login UI for flagged tenants on the portal (no credential guessing).
+impact: per-tenant weak-auth map for credential-stuffing/session attacks on rider portals; MEDIUM
+testability: PASSIVE
+[HYP] Per-tenant Engage case-type surface is wider than serviceAnimalApplication; undiscovered keys gate additional PII schemas
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/caseType
+confidence: 55
+reasoning: grt 200 only for serviceAnimalApplication of 4 keys probed; route requires caseTypeKey (no list endpoint — /caseTypes plural is 400 router-not-found); each 200 caseType discloses new formKeys → new /form 15KB PII schemas.
+evidence_needed: a second caseTypeKey returning 200 on grt or winnipeg, disclosing additional PII-bearing forms.
+verify_steps: PASSIVE: GET /v1/public/engage/caseType?organizationId=1966c7f8-…4355&caseTypeKey={riderComplaint,feedback,vehicleAccident,accessibilityRequest} with Origin evil, ≤1 rps; on 200 → /form chain per disclosed formKey.
+impact: maps full unauthenticated Engage intake surface per tenant (more PII schemas + submission entry points); MEDIUM
+testability: PASSIVE
+[NEXT] PROBE: `for k in riderComplaint accessibilityRequest feedback vehicleAccident newAccount scheduleChange taxi; do curl -s -o /dev/null -w "%{http_code} %{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=6c84b370-5cc2-42c6-8cdd-146c99648535&caseTypeKey=$k"; sleep 1.2; done` — hunt a second Engage tenant; on any 200 chain `GET /v1/public/engage/form?organizationId=…&caseTypeKey=$k&formKey=<disclosed formKey>`.

@@ -1193,3 +1193,4 @@
 - 2026-08-14 STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass remains STABLE 85h+; GET no-auth→200+ACAO+ACAC, POST/PUT/PATCH/DELETE→401 (read-only confirmed)
 - 2026-08-14 STABLE @ api.sparelabs.com/v1/global/regions: scheme-only bypass remains STABLE; Bearer x→200+725B+ACAO+ACAC, body sha256 fb9800acb...585c3fe
 - 2026-08-14 STABLE @ api.sparelabs.com/v1/**: universal CORS credential reflection uniform across all /v1 paths (non-path-conditional via 14-sibling sweep)
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC; returns 6 OOS subdomains in body; no-auth→400, POST→401; read-only bypass confirmed
