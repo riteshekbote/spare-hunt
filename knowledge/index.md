@@ -1152,3 +1152,8 @@
 - 2026-08-14 ACCEPTED: api.sparelabs.com/v1/global/organizations → 200+11B+ACAO+ACAC with zero Authorization header confirmed live 2026-08-14 07:46 UTC; writes return 401 InvalidTokenError (read-only bypass verified)
 - 2026-08-14 ACCEPTED: api.sparelabs.com/v1/global/regions → Bearer x → 200+725B+ACAO+ACAC confirmed live 2026-08-14 07:46 UTC; body contains 7 regions incl 6 OOS subdomains
 - 2026-08-14 ACCEPTED: api.sparelabs.com/v1/public/terms?mobileAppId=nil-uuid → 200+137B (termsOfUseUrl+privacyPolicyUrl→sparelabs.com apex) no-auth+CORS confirmed live 2026-08-14 07:46 UTC
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY (GET only), auth asymmetry confirmed
+- 2026-08-14 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 85h+ — GET with NO Authorization header → 200 + 11B + ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 InvalidTokenError (write methods properly enforce auth gate)
+- 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED live — malformed→400 ValidationError, nil→404 NotFoundError, valid→200; auth-free + universal CORS
+- 2026-08-14 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration via human-readable keys (spare→200+351B, grt→200+288B, cambus→404), no-auth + CORS — returns tenant UUID, name, logo, feature flags
+- 2026-08-14 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths, NO_DELTA since 2026-08-07

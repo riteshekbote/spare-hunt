@@ -853,3 +853,10 @@
 - CHANGED api.sparelabs.com/v1/public/organization (singular) — UUID oracle flapping 3-way2-way across envoy replicas (nil-uuid→404 on fast replica, 400 on slow)
 - CHANGED api.sparelabs.com/v1/global/organizations — write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError, bypass is READ-ONLY (GET only), auth asymmetry confirmed
 - CHANGED forms.sparelabs.com — JS bundle rotated to main.b0a0c190.js (was main.6ed467ae.js), same infra leak persists
+
+## 2026-08-14 08:54:15 UTC
+- NEW None — all surface items in latest inventory (07:50 UTC) already captured in last leads
+- CHANGED None — all changes (Engage endpoints, org key oracle, platform/forms/routing live, JS bundle rotation, UUID oracle flapping, write-method auth asymmetry) already reflected in last leads
+- NEW api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID enumeration oracle CONFIRMED live (plural namespace; malformed→400 ValidationError, nil→404 NotFoundError, valid→200 HUMAN_ONLY; ACAO+ACAC) 8
+- CHANGED api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) now confirm proper 401 InvalidTokenError enforcement — bypass is READ-ONLY GET (auth asymmetry), OPTIONS still misleadi
+- CHANGED api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way↔2-way across multi-version envoy replicas (nil→404 on fast, 400 on slow); downgraded to validation-leak-only

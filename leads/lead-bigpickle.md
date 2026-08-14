@@ -6811,3 +6811,31 @@ verify_steps: AUTH_HELPED: OPTIONS already done (204); POST empty/dummy body + O
 impact: if auth-less, unauthenticated injection of fabricated intake cases into tenants' Engage queues (queue poisoning/spam) using disclosed form/caseType UUIDs; MEDIUM
 testability: AUTH_HELPED
 ## 2026-08-14 07:46:30 UTC [api] (model bigpickle)
+## 2026-08-14 08:53:14 UTC [api] (model bigpickle)
+[HYP] Self-describing unauthenticated Engage intake-form census enables per-tenant PII schema harvesting
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 90
+reasoning: Live this session — GRT serviceAnimalApplication caseType→200+547B body self-discloses full form tree (clientInfo/fileUploads/serviceAnimalApplication keys+UUIDs); clientInfo form→200+1861B PII customFields (mobilityPlusIdNumber/expiry/easyGoFareCardNumber, fieldGroupId), fileUploads→200+851B; Spare org same key→404; no auth + ACAO+ACAC; org UUIDs chain from /v1/public/organizations/key/{key}.
+evidence_needed: third org from bounded agency slugs resolving 200 on a caseTypeKey; confirm driver-type form schema (observed "type":"rider", driver unverified)
+verify_steps: PASSIVE: GET /v1/public/engage/caseType?organizationId=<key-derived-uuid>&caseTypeKey=serviceAnimalApplication → read self-disclosed form keys → GET /v1/public/engage/form?...&formKey=<each> ≤1 rps with Origin evil
+impact: unauthenticated cross-org map of deployed intake forms + full PII/file schemas (IDs, groups, required flags, rider/driver type) enabling targeted per-org phishing, account-linking, form-fraud; MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Org-key directory exposes per-tenant UUID, GCS asset URL, and auth-posture flags chainable to targeted login-flow attacks
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 85
+reasoning: Live — spare→200+351B (UUID d736519f-…, logoUrl storage.googleapis.com/spare-production-ca-photos/…, flags incl. riderLoginless/riderPhonePin), grt→200+288B (multimodal/riderEmailAuthentication), cambus→404; no auth + ACAO+ACAC; key→UUID chains into engage + global oracles.
+evidence_needed: HUMAN maps enabledPublicFeatureFlags (riderLoginless) to a real credential-less login flow on a public Engage portal; confirm one more 200 slug from bounded transit-agency set
+verify_steps: PASSIVE: GET /v1/public/organizations/key/<bounded-agency-slug> -H "Origin: https://evil.example.com" ≤1 rps; record UUID + flags; HUMAN checks GCS bucket access mode
+impact: unauthenticated tenant directory (UUIDs, branding, GCS assets, auth posture) flagging weaker-auth orgs (loginless/PIN) for credential/session attacks; MEDIUM
+testability: PASSIVE
+[HYP] Platform /login import-map manifest may expose additional undeclared micro-frontend module URLs beyond the two leaked admin apps
+class: MISCONFIG
+asset: platform.sparelabs.com/login
+confidence: 70
+reasoning: Host resurrected (TIMEOUT→200 MFE shell); CSP + /login prefetch leak admin-eam-app + admin-fixed-route-app (prod+staging) + Metabase; single-spa shells enumerate modules via import-map manifest which may contain URLs not previously recorded.
+evidence_needed: import-map manifest JSON yields ≥1 module URL not already in KB
+verify_steps: PASSIVE: GET https://platform.sparelabs.com/login → extract import-map.json URL from prefetch → GET manifest → list modules ≤1 rps
+impact: broader production admin/MFE inventory via in-scope host; no direct auth bypass on platform host; LOW-MED
+testability: PASSIVE
