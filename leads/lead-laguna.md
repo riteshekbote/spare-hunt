@@ -7599,3 +7599,28 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 10 reason — Envoy 404 on ALL probed paths incl /openapi.json, /swagger.json, /docs, /health, /status; routing-engine API fully hidden; no unauthenticated surface; STABLE dead since 2026-08-07
 [RISK] forms.sparelabs.com: 25 reason — Public Engage portal SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP); JS bundle main.8a2a39cb.js PATCHED (zero infra leaks); 3 Google Maps API keys all referrer-restricted; residual exposure = static-only surface only (35→25 risk downgrade from PATCHED bundle)
 [RISK] web (spare.com/sparelabs.com): 8 reason — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); www.spare.com 301→OOS excluded; sparelabs.com 301→spare.com apex; minimal static-only surface, no dynamic logic
+## 2026-08-15 01:49:28 UTC [web] (model laguna)
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth + api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 95
+reasoning: POST {"domain":"kingcounty.gov"} → 200+172B (WorkOS client_id + connection_id disclosed); GET /v1/public/organizations/key/kingcounty → 404 NotFoundError (131B). King County has active SSO binding but no org-key entry — proof that SSO roster and org-key DB are partially disjoint, hiding partners from public enumeration. CORS credentials reflected on both 200 and 404 branches.
+evidence_needed: Enumerate 50+ US/CDN transit agency domains; cross-ref each 200-WorkOS against 404-org-key to identify SSO-only tenants; capture sha256 of each WorkOS connection_id for cross-roster correlation.
+verify_steps: PASSIVE: `for d in muni.org ac Transit.org bART.gov wmata.com septa.org mta.maryland.gov; do curl -s -o /dev/null -w "$d: %{http_code}\n" -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d "{\"domain\":\"$d\"}" "https://api.sparelabs.com/v1/identity/workos/auth"; sleep 1.2; done` — each 200 → sha256 body; each 200 → cross-ref GET /v1/public/organizations/key/{kebab-case} → 404 confirms SSO-only tenant.
+impact: Reveals hidden transit partners with active Spare SSO integrations that are absent from public tenant list — strategic intel for follow-on phishing/targeting, Entra tenant ID disclosure for corporate IdP mapping. LOW severity info disclosure, no user data/creds.
+testability: PASSIVE
+class: MISCONFIG
+asset: api.sparelabs.com/v1/
+confidence: 98
+reasoning: Live probe confirms `access-control-allow-origin: https://evil.example.com` (reflected Origin) + `access-control-allow-credentials: true` + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type on OPTIONS 204 across ALL /v1 paths including auth-gated (401), fail-open (200), and 404 routes — confirmed via 22-sibling sweep proving non-path-conditional application.
+evidence_needed: Single CORS preflight (OPTIONS) against GET /v1/journeys (401 control) shows ACAO-reflected + ACAC:true + Allow-Methods + ACAH:Authorization; GET /v1/global/regions with Bearer x shows ACAO+ACAC on 200 body; POST /v1/identity/workos/auth shows ACAO+ACAC on both 200 and 404.
+verify_steps: PASSIVE: `curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/global/regions"` — confirm 204 + ACAO+ACAC + write methods advertised.
+impact: Any malicious website can issue authenticated GET/PUT/PATCH/POST/DELETE requests with Authorization header via victim browser — combined with scheme-only Bearer bypass on /regions and zero-header bypass on /organizations, enables unauthenticated cross-origin data exfiltration of infra topology (725B region registry incl 6 OOS subdomains) from any user with an active API session.
+testability: PASSIVE
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 92
+reasoning: Fresh live probe 2026-08-15 01:46 UTC: `Authorization: Bearer x` → HTTP 200 + 725B + ACAO+ACAC; body sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` byte-identical to 85h+ prior captures; no-Auth → 400 "Authorization header required", `Auth: x` → 400 "scheme Bearer required"; POST → 401 InvalidTokenError (read-only); body lists 7 regions incl 6 OUT-OF-SCOPE api/routing subdomains; STABLE across 7 fleet hosts (prod/us/us2/us3/jp/eu/uat).
+evidence_needed: Confirm Bearer-x 200+725B+ACAO+ACAC on current envoy replica; verify 6 OOS subdomains in body; confirm no-auth→400, wrong-scheme→400, POST→401, control /journeys→401.
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com"; GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" (no auth, expect 400); POST https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Content-Type: application/json" -d '{}' (expect 401); GET https://api.sparelabs.com/v1/journeys -H "Authorization: Bearer x" (control, expect 401).
+impact: Unauthenticated infra topology disclosure exposing 6 out-of-scope api/routing subdomain names; scheme-only presence gate means token validity is never checked (any garbage token accepted); universal CORS enables cross-origin exfiltration of region registry from victim browsers; longcat triage "PATCHED" claim (2026-08-11) is a FALSE POSITIVE — only tested no-auth path.
+testability: PASSIVE
