@@ -44620,3 +44620,71 @@ Any 200-WorkOS with 404-org-key → SSO-only tenant (hidden partner). Capture sh
 - **routing.sparelabs.com: 10** — Envoy 404 on ALL probed paths incl /openapi.json, /swagger.json, /docs, /health, /status; routing-engine API fully hidden; no unauthenticated surface; STABLE dead since 2026-08-07.
 - **forms.sparelabs.com: 25** — Public Engage portal SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP); JS bundle main.8a2a39cb.js PATCHED (zero infra leaks); 3 Google Maps API keys all referrer-restricted (geocode REQUEST_DENIED); SPA catch-all returns index.html for all paths, no real API surface.
 - **web (spare.com/sparelabs.com): 8** — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks); www.spare.com 301→OOS excluded; sparelabs.com 301→spare.com apex; minimal static-only surface, no dynamic logic.
+===== ANALYST laguna 2026-08-15 02:42:42 UTC =====
+[0m
+> build · laguna-s-2.1-free
+[0m
+[0m$ [0mdate -u +"%Y-%m-%d %H:%M:%S UTC"
+2026-08-15 02:40:59 UTC
+[0m
+**Step 1 — DELTA:** NO_DELTA — all KB findings stable through 2026-08-15 01:49 UTC; pending execution of US transit-agency SSO probes against `/v1/identity/workos/auth`.
+
+**Step 2 — PRIORITIZE:**
+
+- [PRIO] api.sparelabs.com/v1/identity/workos/auth — score 91 — attack 9, business 9, tech 8 (OAuth/WorkOS/SSO), gate 10 (zero-auth), cloud 7 (Entra tenant IDs), freshness 10 (live 2026-08-14)
+- [PRIO] api.sparelabs.com/v1/global/regions — score 86 — attack 9, business 7, tech 7 (infra topology), gate 8 (scheme-only), cloud 6 (6 OOS subdomains), freshness 10 (85h+ stable)
+- [PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — score 81 — attack 8, business 8, tech 6 (enum oracle), gate 10 (zero-auth), cloud 5 (prod-only data), freshness 10 (live 2026-08-14)
+
+**Step 3 — HYPOTHESES:**
+
+[HYP] US transit SSO oracle mapping via WorkOS domain discriminator
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 95
+reasoning: POST {"domain":"kingcounty.gov"} → 200+172B disclosing WorkOS client_id + connection_id + Entra tenant IDs; SSO roster and org-key DB are partially disjoint (kingcounty SSO-only, absent from org-key oracle); fleet-parity confirmed across prod/uat/us2/jp
+evidence_needed: Confirm 200+172B for each configured US agency domain; 404 for non-tenants; verify ACAO+ACAC on both branches
+verify_steps: PASSIVE: `for d in soundtransit.org trimet.org bart.gov sfmta.gov caltrain.com; do curl -s -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d "{\"domain\":\"$d\"}" "https://api.sparelabs.com/v1/identity/workos/auth"; sleep 1.2; done` — 200→sha256 body, 404→not configured
+impact: Hidden transit partners with active Spare SSO integrations absent from public tenant list; Entra tenant ID disclosure for corporate IdP mapping; LOW severity info disclosure, no user data/creds
+testability: PASSIVE
+
+[HYP] Scheme-only Bearer bypass exposes 6 OOS infra subdomains
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 92
+reasoning: Fresh live probe 2026-08-14: `Authorization: Bearer x` → 200 + 725B + ACAO+ACAC; body sha256 fb9800acb…585c3fe byte-stable 85h+ across 7 fleet hosts; no-auth→400, wrong-scheme→400, POST→401; body lists 7 regions incl 6 OOS api/routing subdomains
+evidence_needed: Confirm Bearer-x 200+725B+ACAO+ACAC on current envoy replica; verify 6 OOS subdomains in body; confirm no-auth→400, POST→401, control /journeys→401
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com"; GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" (no auth, expect 400); POST https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Content-Type: application/json" -d '{}' (expect 401); GET https://api.sparelabs.com/v1/journeys -H "Authorization: Bearer x" (control, expect 401)
+impact: Unauthenticated infra topology disclosure exposing 6 out-of-scope subdomains; scheme-only presence gate; universal CORS enables cross-origin exfiltration; longcat "PATCHED" claim is FALSE POSITIVE
+testability: PASSIVE
+
+[HYP] 3-way org-key enumeration oracle exposes complete tenant roster
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 95
+reasoning: Confirmed live 2026-08-14: spare→200+351B (UUID d736519f-…), grt→200+288B (UUID 1966c7f8-…, GRT), dallas→200+237B (DART GoLink UUID e5f587ba-…), cambus→404+131B; no-auth + universal CORS; prod-only data (uat/us2/jp→404)
+evidence_needed: Re-confirm 3-way discrimination on current envoy replica; verify CORS on 200+404; confirm fleet parity (uat/us2/jp→404 on /key/spare)
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/public/organizations/key/spare -H "Origin: https://evil.example.com"; GET https://api.sparelabs.com/v1/public/organizations/key/grt -H "Origin: https://evil.example.com"; GET https://api.sparelabs.com/v1/public/organizations/key/dallas -H "Origin: https://evil.example.com"; GET https://api.sparelabs.com/v1/public/organizations/key/cambus -H "Origin: https://evil.example.com"; GET https://api.uat.sparelabs.com/v1/public/organizations/key/spare -H "Origin: https://evil.example.com" (expect 404)
+impact: Complete transit-partner tenant roster intel (org UUID, name, logo, feature flags) — maps all Spare enterprise customers for follow-on targeting; LOW severity info disclosure, strategic value for chaining
+testability: PASSIVE
+
+**Step 4 — SELF-CRITIQUE:**
+All three hypotheses pass criteria (confidence ≥ 92, not on REJECTED list, concrete verify_steps on PASSIVE). No [PARKED] items.
+
+[FINAL] US transit SSO oracle mapping via WorkOS domain discriminator — confidence 95
+[FINAL] Scheme-only Bearer bypass exposes 6 OOS infra subdomains — confidence 92
+[FINAL] 3-way org-key enumeration oracle exposes complete tenant roster — confidence 95
+
+**Step 5 — NEXT ACTION:**
+[NEXT] PROBE: `for d in soundtransit.org trimet.org bart.gov sfmta.gov caltrain.com; do curl -s -o /tmp/opencode/sso_${d}.json -w "${d}: HTTP %{http_code} %{size_download}B\n" -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d "{\"domain\":\"$d\"}" "https://api.sparelabs.com/v1/identity/workos/auth"; sleep 1.2; done` — each 200→sha256 connection_id; each 404→not configured; cross-ref each 200 against GET /v1/public/organizations/key/{kebab-case}
+
+**Step 6 — LEARNING:**
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle confirmed live with kingcounty.gov (US agency); SSO roster and org-key DB are partially disjoint, hiding partners from public enumeration
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed, unreliable across replicas
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.b0a0c190.js → main.8a2a39cb.js — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (infra leak PATCHED); 3 Google Maps keys all referrer-restricted
+
+**Step 7 — RISK SCORE:**
+[RISK] api.sparelabs.com: 98 — CRITICAL+STABLE 85h+: zero-header read-only bypass on /v1/global/organizations + scheme-only Bearer bypass on /v1/global/regions (725B infra map, 6 OOS subdomains) + universal CORS credential reflection across entire /v1 (all methods + Authorization, non-path-conditional via 22-sibling sweep) + 3-way org-key enumeration oracle (spare/grt/dallas→200, cambus→404) + 3-way UUID oracle on /public/organizations/{id} + SSO-config oracle (WorkOS client_id + Entra tenant IDs) + /public/terms data disclosure (137B, in-scope sparelabs.com URLs); global/organizations writes properly gated at 401 (read-only bypass); control /v1/journeys stable 401
+[RISK] platform.sparelabs.com: 80 — MFE SPA shell 200 (was TIMEOUT); strict HTML CSP + x-frame SAMEORIGIN but CSP infra leak STABLE (admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app prod+staging, both loadable 200; Metabase prod+staging 200; Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit); platform bundle embeds full OpenAPI spec (170 paths) but ALL 131 non-param paths properly gated (401/404) — no bypass, informational only
+[RISK] routing.sparelabs.com: 10 — envoy 404 on ALL probed paths incl /openapi.json, /swagger.json, /docs, /health, /status; routing-engine API fully hidden; no unauthenticated surface; STABLE dead since 2026-08-07
+[RISK] forms.sparelabs.com: 15 — Engage portal SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP); JS bundle main.8a2a39cb.js PATCHED (zero infra leaks); 3 Google Maps API keys all referrer-restricted; residual exposure = static-only surface only
+[RISK] web (spare.com/sparelabs.com): 8 — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); www.spare.com→OOS excluded; sparelabs.com 301→spare.com apex; minimal static-only surface, no dynamic logic
