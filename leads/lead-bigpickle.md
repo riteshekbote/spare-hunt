@@ -8785,3 +8785,4 @@ verify_steps: PASSIVE: re-sweep only newly-announced agency/municipality domains
 impact: tenant/SSO-config enumeration (WorkOS client_id + Entra tenant_ids); bounded at 8. LOW-MED.
 testability: PASSIVE
 ## 2026-08-15 19:34:03 UTC [api] (model bigpickle)
+## 2026-08-15 19:52:57 UTC [api] (model bigpickle)
