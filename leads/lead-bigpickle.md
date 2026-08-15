@@ -8158,3 +8158,34 @@ impact: timing/fingerprint for org provisioning + auth-method rollout; LOW
 testability: PASSIVE
 [NEXT] HUMAN: request authorized API token + test organizationId/caseTypeId (and formId/caseId) pair, then confirm whether unauthenticated `POST /v1/public/engage/cases` and `POST /v1/public/engage/caseForms` actually create records — distinguishing intended public behavior from cross-tenant case-creation IDOR (conf 58). Passive rules: never send a resolvable body until token received. Fallback passive watch: keep polling `GET /v1/public/engage/{caseType}?caseTypeKey=&organizationId=<spare-uuid>` for the OpenAPI-validated replica (400 299–308B) to leak a discoverable caseTypeKey.
 [RISK] api.sparelabs.com: 78 — fleetwide {organizations,regions} auth-bypass family + unauth PII write chain (engage cases/caseForms, handler reach + CORS confirmed this cycle) + 3 enumeration oracles (org-key/UUID/SSO) + universal credential CORS reflection, all ~86h+ unpatched. | platform.sparelabs.com: 45 — MFE shell live, persistent CSP infra leak (prod admin apps + Metabase + 9 cloud services), no auth bypass. | routing.sparelabs.com: 8 — envoy 404 on all paths, dead since 2026-08-07. | forms.sparelabs.com: 20 — Engage SPA, JS bundle infra leak PATCHED (main.8a2a39cb.js zero refs, keys referrer-restricted), SPA catch-all only. | web (spare.com/sparelabs.com): 8 — static Webflow/Cloudflare marketing, HSTS+CSP, no dynamic surface.
+## 2026-08-15 13:22:12 UTC [api] (model bigpickle)
+[HYP] Engage cases body-schema oracle — unauth required-field disclosure via OpenAPI validation differential
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/cases
+confidence: 68
+reasoning: OpenAPI-validated replica now serving POST — nil caseTypeId + spare orgId → 400 ValidationError "must have required property 'contactInfo'" (297B) with zero Authorization; earlier sessions leaked PII field names (mobilityPlusIdNumber, expiry, easyGoFareCardNumber) via schema bodies; validation runs before any auth/feature-flag check.
+evidence_needed: full required-field set mapped without creating a record (all probes use nil caseTypeId so no case resolves); caseForms schema parity.
+verify_steps: PASSIVE: POST /v1/public/engage/cases with incrementally-complete bodies but ALWAYS nil caseTypeId + contactInfo variants ({}, {"phoneNumber":"0"}) → observe 400 ValidationError field names vs 403 ForbiddenError; repeat same differential on POST /v1/public/engage/caseForms with nil formId; never send a resolvable caseTypeId/formId.
+impact: unauthenticated body-schema disclosure of the public PII-capture API (case-type requirements, contactInfo shape, form fields); request-crafting intel; LOW-MEDIUM, incremental to accepted validation-leak family.
+testability: PASSIVE
+[HYP] Engage GET schema replicas intermittently expose case-type/form definition schemas with per-org discrimination
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/{caseType,form}
+confidence: 55
+reasoning: 08-13 session: 200 + 547B/1861B schema bodies with org-specific discrimination (GRT 200 vs Spare 404); this cycle GET serves router-400 191B on all variants while POST serves the validation replica — schema is resolvable when the 200-replica is up.
+evidence_needed: capture the 200-schema replica on GET engage with a resolvable caseTypeKey for grt.
+verify_steps: PASSIVE: poll GET /v1/public/engage/{caseType}?caseTypeKey=<guess>&organizationId=<grt-uuid> at ≤1rps (1/30s) across several minutes; record any 200 responses + caseTypeKey names; never POST.
+impact: case-type schema + PII field definitions disclosure, unauthenticated; LOW
+testability: PASSIVE
+[HYP] SSO-only tenants with external-case-creation enabled are the remaining unauthenticated write targets
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/cases
+confidence: 45
+reasoning: All 3 resolvable orgs (spare/grt/dallas) return 403 ForbiddenError feature-flag gate with NO auth gate on the route; SSO roster (mbta.com, kingcounty.gov, saskatoon.ca) is disjoint from the 5-key org set so their UUIDs are unresolvable passively; if any SSO-only tenant enabled external case creation, unauth cross-tenant write would succeed.
+evidence_needed: UUID of an SSO-only tenant + confirmation their org has the external-case-creation flag enabled.
+verify_steps: AUTH_HELPED: with test token resolve UUID for mbta.com/kingcounty.gov via authorized org lookup, then GET /v1/public/engage?organizationId=<uuid> to observe schema resolution/flag state; only with explicit authorization POST a test case in a test org and delete it.
+impact: potential unauthenticated case creation/spam against PII-collecting service for enabled orgs; MEDIUM if one is found enabled
+testability: AUTH_HELPED
+[FINAL] 1) engage cases body-schema oracle (MISCONFIG, 68) → 2) engage GET schema replica (MISCONFIG, 55) → 3) SSO-only tenant write target (IDOR, 45)
+[NEXT] PROBE: complete the write-chain schema map on POST /v1/public/engage/caseForms (validation replica currently serving) — `curl -X POST https://api.sparelabs.com/v1/public/engage/caseForms -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"formId":"00000000-0000-0000-0000-000000000000","organizationId":"d736519f-f384-4771-a2d2-4f95e884d790"}'` then add `"contactInfo":{}` — capture 400 ValidationError field names vs 403, never a resolvable formId. Same nil-id pattern already confirmed safe on cases.
+[RISK] api.sparelabs.com: 80 — full finding family 86h+ unpatched, now with live unauth body-schema disclosure on PII-capture POST routes and handler-reach write chain (feature-flag-gated for all known orgs); no record creation proven, severity capped. | platform.sparelabs.com: 45 — MFE shell, persistent CSP infra leak (prod admin apps + Metabase + 9 cloud services), no auth bypass. | routing.sparelabs.com: 8 — envoy 404 on all paths, dead since 2026-08-07. | forms.sparelabs.com: 15 — Engage SPA, JS bundle leak PATCHED (main.8a2a39cb.js clean, keys referrer-restricted), SPA catch-all only, down from 35. | web (spare.com/sparelabs.com): 8 — static Webflow/Cloudflare marketing, HSTS+CSP, no dynamic surface.
