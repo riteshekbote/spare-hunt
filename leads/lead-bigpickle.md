@@ -7487,3 +7487,32 @@ verify_steps: PASSIVE: GET /v1/global/regions (Authorization: Bearer x, Origin e
 impact: unauthenticated infra-topology disclosure (6 OOS hosts) + CORS-credential region-registry read; LOW-MED
 testability: PASSIVE
 [NEXT] PROBE: `for d in hamilton.ca winnipeg.ca dallasgov.com yrt.ca miway.ca; do curl -s -m 15 -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d "{\"domain\":\"$d\"}" https://api.sparelabs.com/v1/identity/workos/auth -w "$d HTTP %{http_code} %{size_download}B"; echo; sleep 1.2; done` — bridge direction: test domains of CONFIRMED org-key tenants (HSR, winnipeg, DART, YRT, MiWay); on any 200 record connection_id sha256 + follow authorize 302 → Entra tenant sha256
+## 2026-08-15 04:44:11 UTC [api] (model bigpickle)
+[HYP] SSO roster bridges GTA-Hamilton corridor via confirmed org-key tenants' municipal domains
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 55
+reasoning: winnipeg.ca 200 (Entra 405abd59…) proves org-key tenants carry SSO bindings on their municipal domains; milton (org-key tenant) + GRT (regionofwaterloo.ca) unprobed; hamilton.ca already 404 so HSR binding must differ
+evidence_needed: one 200 with fresh connection_id + Entra fingerprint from milton.ca / regionofwaterloo.ca / peelregion.ca
+verify_steps: PASSIVE: POST /v1/identity/workos/auth {"domain":d} for d in milton.ca regionofwaterloo.ca peelregion.ca halton.ca (Origin evil, sleep 1.2); on 200 record connection_id sha256 + follow authorize 302 → Entra tenant sha256
+impact: expanded partner SSO roster + Entra fingerprints for tenant intel; LOW
+testability: PASSIVE
+[HYP] Confirmed SSO tenants mirror into org-key namespace (reverse bridge)
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 48
+reasoning: winnipeg.ca SSO + winnipeg org-key both live → cross-set mirroring proven; kingcounty.gov / mbta.com SSO tenants have unprobed org-keys (kingcounty, mbta, massdot)
+evidence_needed: one 200 org-key body (UUID+logo+flags) for kingcounty / mbta / massdot / regionofwaterloo
+verify_steps: PASSIVE: GET /v1/public/organizations/key/{kingcounty,mbta,massdot,regionofwaterloo} (Origin evil, sleep 1.2); on 200 record UUID + body sha256, then bridge POST workos/auth with the same key as domain
+impact: cross-set tenant completeness + chainable PII schema targets; LOW
+testability: PASSIVE
+[HYP] Regions bypass remains byte-stable across regional fleet hosts this cycle
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 85
+reasoning: prod re-confirmed 200+725B+sha256 byte-stable (no-auth 400 control); 7-host parity previously confirmed; multi-version LB means any patch lands per-replica
+evidence_needed: Bearer x → 200+725B matching sha256 on ≥1 regional host
+verify_steps: PASSIVE: GET /v1/global/regions (Authorization: Bearer x, Origin evil) on api.us2.sparelabs.com, sha256 body, sleep 1.2
+impact: unauthenticated infra-topology disclosure (6 OOS hosts) + CORS-credential region registry read; LOW-MED
+testability: PASSIVE
+[NEXT] PROBE: `for d in milton.ca regionofwaterloo.ca peelregion.ca halton.ca; do curl -s -m 15 -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d "{\"domain\":\"$d\"}" https://api.sparelabs.com/v1/identity/workos/auth -w "$d HTTP %{http_code} %{size_download}B"; echo; sleep 1.2; done` — on any 200 record connection_id sha256 + follow authorize 302 → Entra tenant sha256
