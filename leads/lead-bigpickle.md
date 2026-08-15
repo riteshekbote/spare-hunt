@@ -7969,3 +7969,32 @@ impact: timing/fingerprint signal for org provisioning + auth-method rollout; LO
 testability: PASSIVE
 [NEXT] PROBE: map the remaining /v1/public/engage/cases schema (contactInfo sub-schema + optional props) and /v1/public/engage/caseForms metadata sub-schema via nil-UUID validation chain (≤6 requests, sleep 1.2, NEVER a resolvable body); re-sweep the 7 bundle-derived engage subpaths × POST for method-not-allowed vs 404 to complete the write-surface map
 [NEXT] HUMAN: request authorized test token to confirm whether /v1/public/engage/cases mutation is intended public behavior or cross-tenant IDOR (needed to close IDOR 60)
+## 2026-08-15 10:35:58 UTC [api] (model bigpickle)
+[HYP] Unauth write routes permit cross-tenant case creation/IDOR
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/{cases,caseForms}
+confidence: 58
+reasoning: Both POST routes reach handlers with zero Authorization (nil/random UUID → 404 lookup, never 401; control /v1/journeys 401) — gate omission is route-scoped. CORS ACAO+ACAC on POST responses + OPTIONS 204 makes them cross-origin fireable from any site. Full schema now known; write-blocked only by absence of a resolvable caseTypeId/formId (all keys 404 across 5 orgs).
+evidence_needed: A valid caseTypeId for any known org, or AUTH_HELPED confirmation the handler creates a record on org+caseType resolution.
+verify_steps: PASSIVE: nil-UUID validation chain only (done — schema fully mapped); NEVER a resolvable body. AUTH_HELPED: with a test token + test-org caseTypeId, POST a case and observe creation, then delete; repeat for caseForms with test formId/caseId.
+impact: Unauthenticated case creation/spam against a PII-collecting service; if caseId/formId cross-reference other tenants, cross-tenant case association IDOR; MEDIUM
+testability: AUTH_HELPED
+[HYP] SSO-only tenants carry hidden per-tenant config invisible to org-key enumeration
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 45
+reasoning: SSO roster (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov) is disjoint from the 5-key org set; spare's terms URL is literal junk "asdfd" (107B) vs winnipeg real URL (197B) proves per-tenant legal config residency; /engage/caseType + /public/terms resolve by organizationId UUID.
+evidence_needed: A UUID for any SSO-only tenant returning 200 on /v1/public/organizations/{id} or /v1/public/terms.
+verify_steps: AUTH_HELPED: test token/UUID for mbta.com or kingcounty.gov; GET /v1/public/terms?organizationId=<uuid>; GET /v1/public/engage/caseType?caseTypeKey=mobility&organizationId=<uuid>; diff body class (junk 107B / real 197B / generic 137B) and caseType config.
+impact: Per-tenant legal/feature config disclosure incl. possible prod placeholder junk for hidden partners; LOW
+testability: AUTH_HELPED
+[HYP] Unvalidated caseForms metadata echoes per-tenant placeholder config
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 42
+reasoning: caseForms handler returns "Form was not found" for nil formId with empty metadata `{}` passing OpenAPI — no metadata content validation; spare's terms placeholder junk + fleet-wide empty engage caseTypes are consistent with unvetted prod defaults; form config is per-tenant, keyed by formId UUID.
+evidence_needed: A formId resolving to 200 for any org, or a 200-schema replica for engage/form.
+verify_steps: PASSIVE: re-probe engage/form+caseType per replica each cycle (sleep 1.2) to catch the 200-schema replica; walk metadata sub-schema via nil-UUID chain only. HUMAN_ONLY: authorized form UUID.
+impact: Unauthenticated per-tenant engage config/legal disclosure incl. placeholder junk; LOW
+testability: PASSIVE
+[NEXT] HUMAN: request an authorized API token + a test organizationId/caseTypeId (and formId/caseId) pair, then confirm whether unauthenticated `POST /v1/public/engage/cases` (and `POST /v1/public/engage/caseForms`) actually creates records — distinguishing intended public behavior from cross-tenant case-creation IDOR and closing HYP1 (IDOR 58). Under passive rules NEVER send a resolvable body.

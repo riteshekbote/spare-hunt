@@ -1291,3 +1291,17 @@
 - NEW api.sparelabs.com /v1/public/engage/caseForms POST — unauth public write route, body {formId,caseId,metadata}; OpenAPI validation chain 400→nil-UUID handler 404 "Form was not found"; NO auth gate betw
 - NEW api.sparelabs.com /v1/public/engage/cases POST — unauth public write route, body {organizationId,caseTypeId,contactInfo,...}; validation chain 400→nil-UUID handler 404 "Other was not found"; NO auth g
 - CHANGED api.sparelabs.com /v1/public/engage/{caseType,form} GET — now OpenAPI-validated on current replica (400 required caseTypeKey/organizationId, 299/308B) vs prior 400 "not found" 189–193B; all candidate 
+
+## 2026-08-15 10:40:30 UTC
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST — unauth public write route (500 on nil payload); validation chain 400→nil-UUID handler 404 "Form was not found"; no auth gate between
+- NEW api.sparelabs.com/v1/public/engage/cases POST — unauth public write route (400 on nil payload); validation chain 400→nil-UUID handler 404 "Other was not found"; no auth gate
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET — now OpenAPI-validated on current replica (400 required caseTypeKey/organizationId, 299/308B) vs prior 400 "not found" 189–193B
+- CHANGED forms.sparelabs.com JS bundle — main.8a2a39cb.js confirmed PATCHED (ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys referrer-restricted)
+- CHANGED platform.sparelabs.com — NOW live (was TIMEOUT→200 MFE SPA shell; envoy+Google CDN; CSP on /login discloses prod admin Vercel apps+Metabase+9 cloud services)
+- CHANGED routing.sparelabs.com — NOW live (was TIMEOUT→envoy 404; STABLE dead, no surface)
+- CHANGED forms.sparelabs.com — NOW live (was TIMEOUT→200 Engage SPA)
+- CHANGED sparelabs.com — NOW 301→spare.com apex (was TIMEOUT; Cloudflare+HSTS static-only)
+- CHANGED api.sparelabs.com — positively identified as envoy edge gateway (server: envoy, via: 1.1 google)
+- CHANGED api.sparelabs.com/v1/public/engage/{cases,caseForms} — NEW unauth POST routes confirmed live (POST {} → 400 ValidationError with no InvalidTokenError, CORS reflected). Routes exist (GET → "method not 
+- CHANGED forms.sparelabs.com JS bundle main.8a2a39cb.js (sha256 34f336cd…) STILL contains infra leak (`sparelabs.atlassian.net`, `api-spare.ngrok.io`, `forms.staging.us.sparelabs.com`, `api.staging.us.sparelab
+- NEW api.sparelabs.com/v1/identity/workos/auth — 7th SSO tenant confirmed: kingcounty.gov → 200+172B (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ), distinct from 6 prior tenants; fleet-parity across prod/uat/us2/jp.

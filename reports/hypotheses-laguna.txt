@@ -1,1 +1,53 @@
-## 2026-08-15 10:01:50 UTC [web] (model laguna)
+## 2026-08-15 10:40:17 UTC [web] (model laguna)
+[CHANGED] api.sparelabs.com/v1/public/engage/{cases,caseForms} — NEW unauth POST routes confirmed live (POST {} → 400 ValidationError with no InvalidTokenError, CORS reflected). Routes exist (GET → "method not allowed"), no auth gate between validation and handler per KB.
+[CHANGED] forms.sparelabs.com JS bundle main.8a2a39cb.js (sha256 34f336cd…) STILL contains infra leak (`sparelabs.atlassian.net`, `api-spare.ngrok.io`, `forms.staging.us.sparelabs.com`, `api.staging.us.sparelabs.com`) — CONTRADICTS KB claim of "PATCHED / ZERO references" (42567170–42567176, 42567219, 42567294, 42567322, 42567355). Leak is live.
+[NEW] api.sparelabs.com/v1/identity/workos/auth — 7th SSO tenant confirmed: kingcounty.gov → 200+172B (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ), distinct from 6 prior tenants; fleet-parity across prod/uat/us2/jp.
+[PRIO] api.sparelabs.com/v1/public/engage/{cases,caseForms} — 7.8 — a:9 b:7 t:6 g:9 c:5 f:10 (priority 7.75)
+[PRIO] forms.sparelabs.com JS bundle main.8a2a39cb.js — 5.2 — a:4 b:4 t:5 g:8 c:4 f:8 (priority 5.15)
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 5.0 — a:6 b:5 t:7 g:8 c:4 f:6 (priority 5.0)
+[HYP] Engage Unauthenticated Write Chain (cases/caseForms POST)
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/{cases,caseForms}
+confidence: 70
+reasoning: Both POST endpoints return 400 ValidationError (missing organizationId / formId) with NO InvalidTokenError — validation chain reaches handler path with zero auth gate. KB states nil-UUID POST reaches handler returning 404 "Other was not found". CORS credentials reflected on POST responses (ACAO+ACAC). Valid UUIDs available from /v1/public/organizations/key/{key} oracle.
+evidence_needed: POST with valid organizationId (from org-key oracle) reaches handler and returns 200/201+ACAO+ACAC (record created without auth); nil-UUID POST returns 404 "not found" (handler reached, no auth)
+verify_steps: PASSIVE: curl -s -m 15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"00000000-0000-0000-0000-000000000000"}' -w "\n[%{http_code}] [%{size_download}]" https://api.sparelabs.com/v1/public/engage/cases ; AUTH_HELPED: POST with valid UUID extracted from /v1/public/organizations/key/{key} to confirm handler reaches record-creation (state-modifying test)
+impact: Unauthenticated cross-origin case/form record injection with PII fields (contactInfo, caseTypeId); attacker could flood false transit case data. Severity MED-HIGH
+testability: AUTH_HELPED
+[HYP] Forms SPA JS Bundle Infra Leak (REACTIVATED)
+class: MISCONFIG
+asset: forms.sparelabs.com/static/js/main.8a2a39cb.js
+confidence: 90
+reasoning: Live probe of main.8a2a39cb.js (7,161,777B, sha256 34f336cd…) confirmed GREP matches: sparelabs.atlassian.net (1), api-spare.ngrok.io (1), api.staging.us.sparelabs.com (1), forms.staging.us.sparelabs.com (1), api.staging.sparelabs.com (1). KB entries 42567170–42567355 claimed "PATCHED / ZERO references" — claim is FALSE.
+evidence_needed: grep -oE '(sparelabs\.atlassian\.net|api-spare\.ngrok\.io|forms\.staging\.us\.sparelabs\.com|api\.staging\.us\.sparelabs\.com|api\.staging\.sparelabs\.com)' main.8a2a39cb.js returns non-zero counts; sha256sum matches 34f336cd…
+verify_steps: PASSIVE: curl -s -m 15 -o /tmp/f.js https://forms.sparelabs.com/static/js/main.8a2a39cb.js && sha256sum /tmp/f.js && grep -oE '(sparelabs\.atlassian\.net|api-spare\.ngrok\.io|forms\.staging\.us\.sparelabs\.com|api\.staging\.us\.sparelabs\.com|api\.staging\.sparelabs\.com)' /tmp/f.js | sort | uniq -c
+impact: Passive infra recon — staging API hosts, JIRA (atlassian), ngrok dev tunnel exposure; enables targeted attacks on staging infra. No direct auth bypass. Severity LOW-MED
+testability: PASSIVE
+[HYP] WorkOS SSO Tenant Roster Expansion
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 85
+reasoning: POST {"domain":"<domain>"} discriminates configured WorkOS SSO tenants (200+172B: WorkOS client_id+connection_id) vs non-tenants (404). 7th tenant confirmed this session: kingcounty.gov → conn_01JKRZ46KNAQRZN3J3PYTJKWAQ (distinct from prior 6). Universal CORS reflected on both branches. Fleet-parity across prod/uat/us2/jp/us3/eu confirmed.
+evidence_needed: Distinct 172B response with unique connection_id per configured tenant; 404 for non-tenants; ACAO+ACAC on OPTIONS 204
+verify_steps: PASSIVE: curl -s -m 15 -w "\n[%{http_code}] [%{size_download}]" -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"mbta.com"}' https://api.sparelabs.com/v1/identity/workos/auth ; curl -s -m 15 -w "\n[%{http_code}] [%{size_download}]" -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"bart.gov"}' https://api.sparelabs.com/v1/identity/workos/auth
+impact: Unauthenticated enumeration of hidden transit partners with WorkOS SSO integration; discloses WorkOS client_id, connection_id, Azure Entra tenant IDs. Severity LOW
+testability: PASSIVE
+[FINAL] 1: Engage Unauthenticated Write Chain — confidence 70, concrete verification already partially done (empty-body POST 400, CORS confirmed), nil-UUID POST to confirm handler-reach remains PARKED (requires valid UUID = state-modifying). Retained.
+[FINAL] 2: Forms Bundle Infra Leak (REACTIVATED) — confidence 90, live-probed with sha256 match, contradicts KB PATCHED claim. Retained.
+[FINAL] 3: WorkOS SSO Tenant Expansion — confidence 85, 7th tenant confirmed live, passive-verifiable. Retained.
+[NEXT] PROBE: Confirm nil-UUID handler reach on Engage POST endpoints (PASSIVE, read-only 404 confirms no auth gate between validation and handler):
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com JS bundle: Leak REACTIVATED — main.8a2a39cb.js (sha256 34f336cd…) confirmed still contains sparelabs.atlassian.net + api-spare.ngrok.io + staging hosts; KB "PATCHED" claim is FALSE POSITIVE
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/{cases,caseForms}: NEW unauth POST routes confirmed live — empty-body POST → 400 ValidationError (no InvalidTokenError), CORS reflected; no auth gate between validation and handler
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO tenant roster expanded — 7th tenant kingcounty.gov confirmed (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ), 7th distinct connection_id, fleet-parity across 7 hosts
+[LEARN] STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 85h+ — GET no-auth → 200+11B+ACAO+ACAC; writes POST→401 (read-only confirmed)
+[LEARN] STABLE @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC (sha256 fb9800acb…585c3fe); no-auth→400; POST→401
+[LEARN] STABLE @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle STABLE — spare→200+351B, grt→200+288B, dallas→200+277B, nil→404; prod-only (uat/us2/jp→404)
+[LEARN] STABLE @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — ?mobileAppId=nil → 200+137B (termsOfUseUrl+privacyPolicyUrl→sparelabs.com apex) no-auth+CORS
+[LEARN] STABLE @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 85h+ — ACAO:evil+ACAC:true + all methods on OPTIONS 204 + GET 200/401/404, non-path-conditional via 22-sibling sweep
+[LEARN] STABLE @ platform.sparelabs.com/login: CSP infra leak STABLE — admin-eam-app+admin-fixed-route-app (prod+staging, script-src+frame-src+style-src→loadable 200) + Metabase (prod+staging 200) + 9 cloud services; strict HTML CSP+x-frame does NOT prevent infra-level leak
+[LEARN] STABLE @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+[RISK] api.sparelabs.com: 99 | CRITICAL+STABLE: scheme-only Bearer bypass on /v1/global/regions (200+725B, 6 OOS subdomains disclosed, sha256 verified 85h+, NOT patched — longcat false positive) · zero-header read-only bypass on /v1/global/organizations (200+11B+CORS, writes→401, read-only confirmed) · NEW unauth POST write routes /v1/public/engage/{cases,caseForms} (no auth gate, CORS reflected, handler-reach unconfirmed) · 3-way org-key enumeration oracle /v1/public/organizations/key/{key} (5 live orgs, UUIDs+feature flags+logoUrls on GCS) · 3-way UUID oracle /v1/public/organizations/{id} (85h+ stable) · per-tenant terms data disclosure (137B in-scope URLs) · unauthenticated SSO-config oracle (7 tenants, WorkOS client_id+connection_id+Entra tenant IDs) · universal CORS credential reflection across entire /v1 (ACAO+ACAC, all methods, non-path-conditional via 22-sibling sweep) · control /v1/journeys stable 401
+[RISK] platform.sparelabs.com: 75 | MFE SPA shell 200 (envoy+Google CDN); strict HTML CSP + x-frame SAMEORIGIN but CSP infra leak STABLE — discloses admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging, loadable 200) + Metabase (prod+staging 200) + 9 cloud services (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit); embedded OpenAPI spec of 170 admin paths but ALL properly gated (401/404), recon-only
+[RISK] routing.sparelabs.com: 10 | STABLE dead — envoy 404/0B on ALL probed paths (/v1/,/api/,/routing/,/graphql,/map,/directions,/openapi.json,/swagger.json,/docs,/health,/status) since 2026-08-07; no surface, NO_DELTA
+[RISK] forms.sparelabs.com: 25 | Engage portal SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP); JS bundle main.8a2a39cb.js leak REACTIVATED (sparelabs.atlassian.net, api-spare.ngrok.io, staging hosts) — contradicts KB PATCHED claim; all 8 admin/API paths return SPA catch-all 200 text/html; 3 Google Maps API keys all referrer-restricted
+[RISK] web (spare.com/sparelabs.com): 8 | spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks in HTML/JS); sparelabs.com 301→spare.com; www.spare.com OOS excluded; minimal static-only surface, no dynamic logic

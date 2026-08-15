@@ -1761,3 +1761,9 @@ https://api.sparelabs.com/v1/public/organizations/key/hsr -> 200 len=321 type=ap
 https://api.sparelabs.com/v1/public/organizations/key/cambus -> HTTP 404
 https://api.sparelabs.com/v1/global/regions -> HTTP 400
 https://api.sparelabs.com/v1/public/engage/caseType -> HTTP 400
+
+## 2026-08-15 10:40:31 UTC
+https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://forms.sparelabs.com/static/js/main.8a2a39cb.js -> 200 len=7161277 type=application/javascript; charset=utf-8
