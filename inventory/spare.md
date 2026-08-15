@@ -1526,3 +1526,11 @@
 - CHANGED api.sparelabs.com: positively identified as envoy edge gateway (server: envoy, via: 1.1 google)
 - CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId) and router-level "not found" — multi-version LB
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas — downgraded to validation-leak-only
+
+## 2026-08-15 20:38:11 UTC
+- NEW api.sparelabs.com/v1/public/engage/cases POST: unauthenticated write path confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 NotFoundError (handler reached); spare UUID→403 Forbidd
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: unauthenticated write path confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 "Form was not found"; CORS reflected. Auth gate abs
+- NEW api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); fleet-parity across 7 hosts; universal CORS on both 200/404 branches.
+- CHANGED forms.sparelabs.com JS bundle: main.b0a0c190.js→main.8a2a39cb.js confirmed PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak elimina
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas — nil→404 on fast replica (3-way intact), 400 on slow (2-way); downgraded to validation-leak
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400, 299B) and router-level "not found" (400, 189B) — multi-version LB confirmed.
