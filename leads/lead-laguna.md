@@ -9661,3 +9661,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 | envoy 404/0B on ALL probed paths (/v1/,/api/,/routing/,/router,/v2/,/graphql,/map/,/directions/,/openapi.json,/swagger.json,/docs,/health,/status); NO_DELTA since 2026-08-07; no surface
 [RISK] forms.sparelabs.com: 15 | SPA 200 with strict HTML CSP + x-frame DENY (envoy+Google CDN); JS bundle main.8a2a39cb.js PATCHED (zero infra refs); 3 Google Maps keys all referrer-restricted; no real API behind SPA catch-all
 [RISK] web (spare.com/sparelabs.com): 15 | spare.com HTTP 200 static Webflow (CF+HSTS, CSP frame-ancestors 'self', no leaks); sparelabs.com 301→spare.com; minimal static-only surface
+## 2026-08-15 23:39:38 UTC [web] (model laguna)
