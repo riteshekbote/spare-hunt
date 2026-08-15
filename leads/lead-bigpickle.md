@@ -7516,3 +7516,32 @@ verify_steps: PASSIVE: GET /v1/global/regions (Authorization: Bearer x, Origin e
 impact: unauthenticated infra-topology disclosure (6 OOS hosts) + CORS-credential region registry read; LOW-MED
 testability: PASSIVE
 [NEXT] PROBE: `for d in milton.ca regionofwaterloo.ca peelregion.ca halton.ca; do curl -s -m 15 -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d "{\"domain\":\"$d\"}" https://api.sparelabs.com/v1/identity/workos/auth -w "$d HTTP %{http_code} %{size_download}B"; echo; sleep 1.2; done` — on any 200 record connection_id sha256 + follow authorize 302 → Entra tenant sha256
+## 2026-08-15 05:05:31 UTC [api] (model bigpickle)
+[HYP] SSO roster is reconstructable into a full partner+IdP fingerprint table; 3 agencies (kingcounty.gov, mbta.com, translink.ca) are invisible to the org-key DB
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 60
+reasoning: 8/8 confirmed SSO tenants return 200+172B with deterministic connection_id (mbta.com conn_01JXNAX59WE7XMTW0EEFHPV9DF byte-stable this session); kingcounty/mbta org-keys 404 prove the SSO registry holds agencies the org-key DB lacks; overlap (spare/winnipeg/oakville/dallas) proves both sides are tenant sources
+evidence_needed: connection_id sha256 for the 8 confirmed tenants; Entra tenant-id sha256 from authorize 302 for the 3 SSO-only agencies
+verify_steps: PASSIVE: for each of {spare.com,dart.org,translink.ca,regina.ca,oakville.ca,kingcounty.gov,mbta.com,winnipeg.ca} POST /v1/identity/workos/auth {"domain":d} (Origin evil, sleep 1.2), sha256 the connection_id; follow authorize 302 on translink.ca/kingcounty.gov/mbta.com, sha256 Entra tenant_id
+impact: complete partner SSO roster + corporate IdP fingerprints + hidden-agency discovery; LOW
+testability: PASSIVE
+[HYP] Bypass family /v1/global/regions remains unpatched on regional fleet hosts this cycle
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 85
+reasoning: prod byte-stable 85h+ (sha256 fb9800acb…585c3fe); 7-host parity previously confirmed; longcat PATCHED claim disproven (no-auth-only test); multi-version LB means a per-replica fix could land unnoticed
+evidence_needed: Bearer x → 200+725B matching sha256 on ≥1 regional host this cycle
+verify_steps: PASSIVE: GET /v1/global/regions (Authorization: Bearer x, Origin evil) on api.us2.sparelabs.com, sha256 body, compare vs fb9800acb…585c3fe; no-auth 400 control; sleep 1.2
+impact: unauthenticated infra-topology disclosure (6 OOS hosts) + CORS-credential region read; LOW-MED
+testability: PASSIVE
+[HYP] SSO-confirmed agency org-keys use non-brand key strings
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 40
+reasoning: brand guesses (kingcounty/mbta/massdot) all 404 but live set {spare,grt,dallas,winnipeg,hsr,milton} is agency-branded; translink.ca/regina.ca/oakville.ca SSO tenants have no confirmed key; possibility of key variants (translink, coastmountain, regina-transit)
+evidence_needed: one 200 from an SSO-only agency key variant
+verify_steps: PASSIVE: GET /v1/public/organizations/key/{translink,coastmountain,bctransit,regina,regina-transit} (Origin evil, sleep 1.2); on 200 record UUID + body sha256
+impact: extends tenant roster toward Engage/PII chaining; LOW
+testability: PASSIVE
+[NEXT] PROBE: `curl -s -m 15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.us2.sparelabs.com/v1/global/regions | sha256sum` + same on api.sparelabs.com, compare against fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe; then no-auth control (expect 400); sleep 1.2 between requests.

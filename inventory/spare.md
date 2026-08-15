@@ -1137,3 +1137,16 @@
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way — nil-uuid → 400 ValidationError on slow replica (current), 404 NotFoundError on fast replica; multi-version envoy
 - CHANGED api.sparelabs.com/v1/global/regions: Scheme-only bypass CONFIRMED NOT PATCHED — longcat triage "PATCHED" claim (2026-08-11) DISPROVEN; Bearer x still → 200+725B+ACAO+ACAC, sha256 fb9800acb09b65ec92591
 - NEW api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-config oracle confirmed live (POST {"domain":"spare.com"} → 200+172B disclosing WorkOS client_id + connection_id + Entra tenant IDs; king
+
+## 2026-08-15 05:07:02 UTC
+- NEW api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-config oracle — POST domain→200+172B (WorkOS client_id + connection_id + Entra tenant IDs dislosed)
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org-key enumeration oracle (spare→200+351B, grt→200+288B, dallas→200+237B, cambus→404+131B), prod-only data
+- NEW /v1/global/* namespace EXHAUSTIVE sweep: 22 sibling routes ALL 401 — bypass family scoped to exactly {/organizations, /regions}
+- NEW CONFIRMED FLEETWIDE parity — bypass family repros on all 7 hosts (prod/us/us2/us3/jp/eu/uat), byte-stable
+- NEW platform.sparelabs.com: NOW live — was TIMEOUT→200 (MFE SPA shell); envoy + Google CDN
+- NEW routing.sparelabs.com: NOW live — was TIMEOUT→envoy 404 (STABLE dead, no surface)
+- NEW forms.sparelabs.com: NOW live — was TIMEOUT→200 (Engage SPA); JS bundle main.8a2a39cb.js patched (zero infra leaks)
+- NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT)
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy LB replicas
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 on current replica (unreliable, multi-version LB)
+- CHANGED api.sparelabs.com: positively identified as envoy edge gateway (server: envoy, via: 1.1 google)
