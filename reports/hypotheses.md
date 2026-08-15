@@ -4649,3 +4649,33 @@
 - LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: agency-brand bridging dead — 22 new keys all 404; SSO roster and org-key set definitively d
 - LEARN: REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: IdP-redirect Entra-fingerprint chain not reproducible passive-only — direct authorize 302→error.worko
 - LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/terms: replica-flap per-tenant variant for grt/hsr/dallas not observed (2 rounds stable)
+
+## RANKED HYPOTHESES 2026-08-15 09:15:29 UTC
+- [95] api.sparelabs.com/v1/identity/workos/auth: Unauthenticated WorkOS SSO tenant roster enumeration via domain discriminator (from reports/hypotheses-nemotron3.txt)
+- [45] api.sparelabs.com/v1/identity/workos/auth: SSO-only tenants carry per-tenant legal config hidden from org-key enumeration (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"mbta.com"
+- NEXT(hypotheses-laguna.txt): PROBE: Extend WorkOS SSO tenant wordlist with additional US municipal transit agency domains and re-probe — `for d in nyc.gov chicago.gov portlandoregon.gov aus
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-config oracle — POST domain param discriminates 200 (configured tenant) vs 404; d
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way discrimination stable (spare/grt/dallas/winnipeg/hsr→200 distinct bodies, cambus→404)
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (G
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC; body sha256 fb9800acb09b65ec92591f4536e3ecf
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle rotated to main.8a2a39cb.js — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (leak PATCHED); 3 Go
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed, unrel
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes ALL 401 — bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com bundle OpenAPI: 170 paths extracted, ALL 131 non-param paths properly gated (401/404) — no bypass, recon only
+- LEARN: REJECTED BUSLOGIC @ sparelabs.ca: DNS only dev.sparelabs.ca → GCP LB "fault filter abort" 404 — no live surface
+- LEARN: REJECTED MISCONFIG @ admin-*.vercel.app: all 4 hosts ALIVE 200 but dev-only (admin-eam-app api-baseurl=localhost:3057); no prod API base hardcoded
+- LEARN: REJECTED (OOS) @ metabase.sparelabs.com: exposed Metabase v0.58.24 with unauth /api/session/properties config dump (106KB), but host OOS per scope exclusions
+- LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; NO_DELT
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.b0a0c190.js→main.8a2a39cb.js contains ZERO sparelabs/atlassian/ngrok/metabase/vercel references (infra 
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/terms: per-tenant config chain CONFIRMED — spare→107B literal "asdfd" junk live in prod, winnipeg→197B real exte
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: agency-brand bridging dead — 22 new keys all 404; SSO roster and org-key set definitively d
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: IdP-redirect Entra-fingerprint chain not reproducible passive-only — direct authorize 302→error.worko
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/terms: replica-flap per-tenant variant for grt/hsr/dallas not observed (2 rounds stable)
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.b0a0c190.js→main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel references; downg
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10/8 probed paths return SPA catch-all 200 text/html — no real API surface; CSP infra le
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes ALL 401 — bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (G
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle ALIVE — 6 tenants confirmed (spare.com, dart.org, translink.ca, mbta.com, saskatoon
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 5 live orgs confirmed (spare/grt/dallas/winnipeg/hsr → 200, cambus→404); prod-only data; 22

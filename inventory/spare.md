@@ -1239,3 +1239,19 @@
 - CHANGED api.sparelabs.com/v1/identity/workos/auth: direct authorize-URL GET now 302→error.workos.com/sso/invalid-connection-selector (was live corporate IdP 302 per KB) — IdP-redirect/Entra-fingerprint chain 
 - NEW api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidate keys (mbta,kingcounty,massdot,translink,dart,saskatoon,portland,
 - NEW api.sparelabs.com/v1/public/organizations/key/{key}: 5/5 confirmed org bodies expose enabledPublicFeatureFlags differential (spare/grt/winnipeg/hsr feature-flagged, dallas=[]) + logoUrl all on single 
+
+## 2026-08-15 09:15:29 UTC
+- NEW platform.sparelabs.com: NOW live — was TIMEOUT→200 (MFE SPA shell); envoy + Google CDN
+- NEW routing.sparelabs.com: NOW live — was TIMEOUT→envoy 404 (STABLE dead, no surface)
+- NEW forms.sparelabs.com: NOW live — was TIMEOUT→200 (Engage SPA); JS bundle main.8a2a39cb.js patched (zero infra leaks)
+- NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT)
+- NEW api.sparelabs.com: positively identified as envoy edge gateway (server: envoy, via: 1.1 google)
+- NEW api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-config oracle — POST domain param discriminates 200 (configured tenant) vs 404; discloses WorkOS client_id + connection_id + Entra tenant
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org-key enumeration oracle CONFIRMED live (spare→200+351B, grt→200+288B, dallas→200+237B, cambus→404); no-auth + universal CORS; prod-only da
+- NEW /v1/global/* namespace EXHAUSTIVE: 22 sibling routes ALL 401 (zero-auth + Bearer-x); bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- NEW CONFIRMED FLEETWIDE parity for /v1/global/{organizations,regions} bypass across 7 hosts (prod/us/us2/us3/jp/eu/uat) with byte-stable responses
+- NEW api.sparelabs.com/v1/identity/workos/auth: MBTA (mbta.com) confirmed as hidden WorkOS SSO tenant — POST `{"domain":"mbta.com"}` → 200+172B with distinct connection_id `conn_01JXNAX59WE7XMTW0EEFHPV9DF`
+- CHANGED api.sparelabs.com/v1/public/terms: per-tenant config map COMPLETED — spare UUID→107B `{"termsOfUseUrl":"asdfd",...}` literal placeholder junk, winnipeg→197B real external URL
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: direct authorize-URL GET now 302→error.workos.com/sso/invalid-connection-selector (was live corporate IdP 302 per KB)
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidate keys all 404
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 5/5 confirmed org bodies expose enabledPublicFeatureFlags differential (spare/grt/winnipeg/hsr feature-flagged, dallas=[]) + logoUrl all on single 

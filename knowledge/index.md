@@ -1353,3 +1353,10 @@
 - 2026-08-15 REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: agency-brand bridging dead — 22 new keys all 404; SSO roster and org-key set definitively disjoint; live org-key set closed at {spare,grt,dallas,winnipeg,hsr}
 - 2026-08-15 REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: IdP-redirect Entra-fingerprint chain not reproducible passive-only — direct authorize 302→error.workos.com without signed relayState
 - 2026-08-15 REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/terms: replica-flap per-tenant variant for grt/hsr/dallas not observed (2 rounds stable)
+- 2026-08-15 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/terms: per-tenant config chain CONFIRMED — spare→107B literal "asdfd" junk live in prod, winnipeg→197B real external URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic; byte-stable sha256; prod-only residency
+- 2026-08-15 REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: IdP-redirect Entra-fingerprint chain not reproducible passive-only — direct authorize 302→error.workos.com/sso/invalid-connection-selector
+- 2026-08-15 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- 2026-08-15 REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10/8 probed paths return SPA catch-all 200 text/html — no real API surface; CSP infra leak via /login is only finding
+- 2026-08-15 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (GET only), auth asymmetry confirmed
+- 2026-08-15 ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle ALIVE — 6 tenants confirmed (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov); connection_id byte-stable per domain
+- 2026-08-15 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 5 live orgs confirmed (spare/grt/dallas/winnipeg/hsr → 200, cambus→404); prod-only data; 22 new candidate keys all 404 — live set closed at 5
