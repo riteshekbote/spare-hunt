@@ -8189,3 +8189,32 @@ testability: AUTH_HELPED
 [FINAL] 1) engage cases body-schema oracle (MISCONFIG, 68) → 2) engage GET schema replica (MISCONFIG, 55) → 3) SSO-only tenant write target (IDOR, 45)
 [NEXT] PROBE: complete the write-chain schema map on POST /v1/public/engage/caseForms (validation replica currently serving) — `curl -X POST https://api.sparelabs.com/v1/public/engage/caseForms -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"formId":"00000000-0000-0000-0000-000000000000","organizationId":"d736519f-f384-4771-a2d2-4f95e884d790"}'` then add `"contactInfo":{}` — capture 400 ValidationError field names vs 403, never a resolvable formId. Same nil-id pattern already confirmed safe on cases.
 [RISK] api.sparelabs.com: 80 — full finding family 86h+ unpatched, now with live unauth body-schema disclosure on PII-capture POST routes and handler-reach write chain (feature-flag-gated for all known orgs); no record creation proven, severity capped. | platform.sparelabs.com: 45 — MFE shell, persistent CSP infra leak (prod admin apps + Metabase + 9 cloud services), no auth bypass. | routing.sparelabs.com: 8 — envoy 404 on all paths, dead since 2026-08-07. | forms.sparelabs.com: 15 — Engage SPA, JS bundle leak PATCHED (main.8a2a39cb.js clean, keys referrer-restricted), SPA catch-all only, down from 35. | web (spare.com/sparelabs.com): 8 — static Webflow/Cloudflare marketing, HSTS+CSP, no dynamic surface.
+## 2026-08-15 13:49:28 UTC [api] (model bigpickle)
+[HYP] caseForms POST is an unauthenticated cross-tenant form-response creation IDOR
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 70
+reasoning: Full body schema now mapped live (formId→caseId→metadata→handler). With complete body + nil formId, handler returns 404 "Form was not found" — no 401 InvalidTokenError and, unlike /cases, no feature-flag gate fires before resolution. Control /v1/journeys 401. CORS preflight advertises POST+credentials cross-origin.
+evidence_needed: a resolvable formId/caseId pair for any org to observe record creation (or AUTH_HELPED confirmation the handler persists on resolution).
+verify_steps: AUTH_HELPED: with test token obtain a test-org formId+caseId, POST the full mapped body, confirm record created, then delete; passive fallback: poll GET /v1/public/engage/form for the 200-schema replica to leak a discoverable formKey.
+impact: unauthenticated form-response creation against PII-collecting service, cross-tenant association; MEDIUM
+testability: AUTH_HELPED
+[HYP] Engage GET schema replica intermittently serves form/caseType definition schemas with per-org discrimination
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/{form,caseType}
+confidence: 55
+reasoning: This cycle GET /form is OpenAPI-validated (400 299B, requires formKey/organizationId) while /caseType returns 404 — multi-version LB serves different validation states; 08-13 session captured 200 + 547B/1861B schema bodies with GRT 200 vs Spare 404 discrimination.
+evidence_needed: capture the 200-schema replica on GET engage with a resolvable formKey for grt/winnipeg.
+verify_steps: PASSIVE: poll GET /v1/public/engage/form?formKey=<guess>&organizationId=<grt-uuid> at ≤1rps (1/30s) across minutes; record any 200 + field definitions; never POST.
+impact: unauthenticated PII-form schema + field definition disclosure; LOW
+testability: PASSIVE
+[HYP] SSO-only tenants (mbta/kingcounty/saskatoon) with external-case-creation enabled are the remaining unauth write targets
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/cases
+confidence: 45
+reasoning: All 3 resolvable orgs (spare/grt/dallas) 403 at feature-flag check; SSO roster disjoint from 5-key org set so their UUIDs are unresolvable passively; caseForms bypasses the flag gate entirely, widening the write surface if any SSO-only tenant is enabled.
+evidence_needed: UUID of an SSO-only tenant + flag state.
+verify_steps: AUTH_HELPED: with test token resolve UUID for mbta.com/kingcounty.gov, then GET /v1/public/engage?organizationId=<uuid> to observe flag state; only with explicit authorization POST a test case in a test org and delete it.
+impact: potential unauthenticated case/response creation against PII service for enabled orgs; MEDIUM if one found enabled
+testability: AUTH_HELPED
+[NEXT] HUMAN: request authorized API token + a test-org `formId`/`caseId`/`caseTypeId` pair (test org preferred). The caseForms body schema is fully mapped (formId→caseId→metadata) and handler-reach confirmed without auth or flag gate; the token unlocks the only missing evidence — whether a resolvable formId actually persists a record (distinguishing intended public behavior from cross-tenant write IDOR, conf 70). Passive fallback meanwhile: poll `GET /v1/public/engage/form?formKey=<guess>&organizationId=<grt-uuid>` (1/30s) for the 200-schema replica.
