@@ -1,5 +1,5 @@
 
-===== REPOSCAN 2026-08-15 06:01:01 UTC =====
+===== REPOSCAN 2026-08-15 06:01:48 UTC =====
 ## Grep hits:
 SCAN SUMMARY: 0 code/config files scanned, 0 hits
 
@@ -7,7 +7,7 @@ SCAN SUMMARY: 0 code/config files scanned, 0 hits
 [0m
 > build · nemotron-3-ultra-free
 [0m
-No findings to triage — the static scan of gladiaio repos and @gladiaio/sdk npm metadata returned **0 code/config files scanned, 0 hits**.
+**Triage Result: No Findings**
 
 | Category | Count |
 |----------|-------|
@@ -16,4 +16,7 @@ No findings to triage — the static scan of gladiaio repos and @gladiaio/sdk np
 | ENDPOINT_LEAK | 0 |
 | INTERESTING | 0 |
 
-**Verdict**: No reportable candidates. The scan produced no grep matches to classify.
+**Verdict:**
+- **REPORT_CANDIDATE: no** — Scan processed 0 code/config files with 0 grep hits. No secrets, endpoint leaks, or interesting artifacts detected in the gladiaio/ org repos or @gladiaio/sdk npm metadata.
+
+**Note:** The knowledge base provided appears to be for Spare Labs (sparelabs.com/spare.com), not Gladia. The gladiaio scan returned empty results.
