@@ -8880,3 +8880,4 @@ testability: PASSIVE
 [LEARN] CHANGED @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId, ~299B) and router-level "not found" (400, ~189B) — multi-version envoy LB confirmed
 [LEARN] CHANGED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas (nil→404 fast / 400 slow); downgraded to validation-leak-only, not oracle class
 [RISK] api.sparelabs.com: 99 | platform.sparelabs.com: 75 | routing.sparelabs.com: 8 | forms.sparelabs.com: 5 | web (spare.com/sparelabs.com): 5
+## 2026-08-15 15:29:45 UTC [web] (model laguna)

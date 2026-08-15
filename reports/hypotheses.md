@@ -5144,3 +5144,32 @@
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs→200 with distinct U
 - LEARN: CHANGED @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId, ~299B) and route
 - LEARN: CHANGED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas (nil→404 fast / 400 slow); downgraded to v
+
+## RANKED HYPOTHESES 2026-08-15 15:31:52 UTC
+- [95] api.sparelabs.com/v1/identity/workos/auth: SSO tenant enumeration via WorkOS auth domain discriminator (from reports/hypotheses-nemotron3.txt)
+- [72] api.sparelabs.com/v1/public/engage/caseForms: caseForms unauthenticated cross-tenant form-response write IDOR (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"winnipeg.
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases POST: unauth public write route confirmed (400 on empty, validation chain, 404 nil-UUID handler) — writ
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/caseForms POST: unauth public write route confirmed (500→400 on empty, 400 validation, 404 nil-UUID handler) 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: OpenAPI validation now active on current replica (400 required caseTypeKey/organiza
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.8a2a39cb.js confirmed PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NOW live (was TIMEOUT→200 MFE SPA shell); CSP infra leak STABLE (admin Vercel apps+Metabase+9 cloud services)
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: NOW live but STABLE dead — envoy 404 on ALL probed paths; NO_DELTA since 2026-08-07
+- LEARN: REJECTED MISCONFIG @ sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS, static-only, no new surface
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO tenant roster expanded — 7th tenant kingcounty.gov confirmed (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ), 7
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidates all 404
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys referrer-
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 NotFo
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: NOT patched despite longcat false-positive claim (2026-08-11) — Bearer x → 200+725B+ACAO+ACAC, sha256 fb980
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: read-only zero-header bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 In
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 7th SSO tenant kingcounty.gov confirmed (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ); fleet-parity across 7 host
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr}; 22 new candidates 404; pro
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId) and router-level
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas (nil→404 fast, 400 slow) — downgraded to v
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth: 7th SSO tenant kingcounty.gov confirmed live (WorkOS client_id+connection_id+Entra tenant_id in relay
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 NotFo
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs→200 with distinct U
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId, ~299B) and route
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas (nil→404 fast / 400 slow); downgraded to v

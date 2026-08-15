@@ -8304,3 +8304,31 @@ impact: unauthenticated form-response creation against PII-capture service, cros
 testability: AUTH_HELPED
 [NEXT] PROBE: `POST https://api.sparelabs.com/v1/identity/workos/auth` with `{"domain":<candidate>}` at ≤1rps for next transit-agency batch: trirail.com, vta.org, metrolinktrains.com, rta.org, miamidade.gov, with octa.net as 200 control and bart.gov as 404 control — extending the 8-tenant SSO roster.
 [RISK] api.sparelabs.com: 78 — three unpatched bypass families (regions/orgs 86h+, engage unauth write surface, universal CORS credential reflection) + two live enumeration oracles (SSO, org-key) on PII-adjacent write paths | platform.sparelabs.com: 30 — CSP infra leak only, MFE shell no API surface | routing.sparelabs.com: 5 — envoy 404 dead since 2026-08-07 | forms.sparelabs.com: 15 — bundle patched, SPA catch-all, no API endpoints | web (spare.com/sparelabs.com): 10 — static Cloudflare/Webflow marketing, HSTS, no dynamic surface
+## 2026-08-15 15:31:38 UTC [api] (model bigpickle)
+[HYP] caseForms unauthenticated cross-tenant form-response write IDOR
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 72
+reasoning: auth gate structurally absent — nil-formId POST reaches handler (404 "Form was not found", no InvalidTokenError, no feature-flag gate unlike /cases 403); GET /engage/form now proven a formKey-existence oracle feeding this chain; full top-level body mapped {caseId, organizationId, formId, metadata}; control /v1/journeys 401.
+evidence_needed: resolvable formId/caseId pair to observe persistence, or AUTH_HELPED confirmation the handler writes on resolution.
+verify_steps: AUTH_HELPED: with test token obtain a test-org formId+caseId, POST full mapped body, confirm record created, then delete. Passive fallback: GET /v1/public/engage/form?caseTypeKey={mobility|schedule-ride|case-request}&formKey=<guess>&organizationId=<grt-uuid> at 1/30s seeking a 200 form-definition (leaks formId); never POST a resolvable formId.
+impact: unauthenticated form-response creation against a PII-capture service with cross-tenant association; MEDIUM
+testability: AUTH_HELPED
+[HYP] formKey registry enumeration via engage form oracle unlocks write chain
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/form
+confidence: 55
+reasoning: OpenAPI-validation replica requires caseTypeKey+formKey+organizationId and 404s unknown keys → formKey-existence oracle; earlier sessions observed a replica returning 200 + 547B/1861B form schemas (PII fields mobilityPlusIdNumber/expiry/easyGoFareCardNumber); caseTypeKey candidates already known from prior probing.
+evidence_needed: a real formKey returning 200 form-definition containing the formId UUID consumed by caseForms POST.
+verify_steps: PASSIVE: GET /v1/public/engage/form?caseTypeKey=mobility&formKey=<candidate>&organizationId=<grt-uuid> at 1/30s across caseTypeKey × candidate formKeys; on 200 capture formId + field schema; never POST.
+impact: converts the unauth write IDOR from theoretical to concrete; MEDIUM
+testability: PASSIVE
+[HYP] WorkOS SSO roster targeted expansion via closed org-key parent domains
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 50
+reasoning: 8 tenants byte-stable (per-domain connection_id fingerprints), clean 200-vs-404 differential, fleet-parity across 7 hosts; 12 generic dictionary candidates in 2 batches all 404 → roster is partner-specific, needs targeted domains; org-key set {spare,grt,dallas,winnipeg,hsr} partially overlaps SSO set (spare/dart/winnipeg confirmed), grt.ca already 404.
+evidence_needed: 200-configuration for a currently-unknown tenant domain.
+verify_steps: PASSIVE: POST {"domain":<candidate>} at ≤1rps with controls (octa.net 200, bart.gov 404) for parent-municipality domains of live orgs + agency hosts (hamilton.ca, hsr.ca, metra.com, transitchicago.com, capmetro.org); record 200 vs 404.
+impact: tenant/SSO-config + WorkOS connection + Entra tenant-ID fingerprinting for partner orgs; LOW-MEDIUM
+testability: PASSIVE
