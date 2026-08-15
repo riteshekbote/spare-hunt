@@ -1214,3 +1214,22 @@
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy LB replicas
 - CHANGED api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 on current replica (unreliable, multi-version LB)
 - CHANGED api.sparelabs.com/v1/global/regions: Scheme-only bypass CONFIRMED NOT PATCHED — longcat triage "PATCHED" claim (2026-08-11) DISPROVEN; Bearer x still → 200+725B+ACAO+ACAC
+
+## 2026-08-15 08:29:35 UTC
+- NEW platform.sparelabs.com: NOW live — was TIMEOUT→200 (MFE SPA shell); envoy + Google CDN
+- NEW routing.sparelabs.com: NOW live — was TIMEOUT→envoy 404 (STABLE dead, no surface)
+- NEW forms.sparelabs.com: NOW live — was TIMEOUT→200 (Engage SPA); JS bundle main.8a2a39cb.js patched (zero infra leaks)
+- NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT)
+- NEW api.sparelabs.com: positively identified as envoy edge gateway (server: envoy, via: 1.1 google)
+- NEW api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-configuration oracle — POST domain param discriminates 200 (configured tenant) vs 404; discloses WorkOS client_id + connection_id + Entra
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org-key enumeration oracle CONFIRMED live (spare→200+351B, grt→200+288B, dallas→200+237B, cambus→404); no-auth + universal CORS; prod-only da
+- NEW /v1/global/* namespace EXHAUSTIVE: 22 sibling routes ALL 401 (zero-auth + Bearer-x); bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- NEW CONFIRMED FLEETWIDE parity for /v1/global/{organizations,regions} bypass across 7 hosts (prod/us/us2/us3/jp/eu/uat) with byte-stable responses
+- NEW api.sparelabs.com/v1/identity/workos/auth: MBTA (mbta.com) confirmed as hidden WorkOS SSO tenant — POST `{"domain":"mbta.com"}` → 200+172B with distinct connection_id `conn_01JXNAX59WE7XMTW0EEFHPV9DF`
+- NEW api.sparelabs.com/v1/public/organizations/key/winnipeg: Confirmed 200+288B — UUID `6c84b370-5cc2-42c6-8cdd-146c99648535`, name "Winnipeg Transit", logoUrl on storage.googleapis.com, feature flags
+- NEW api.sparelabs.com/v1/public/organizations/key/hsr: Confirmed 200+318B — UUID `83303a6b-fb96-4ff3-8f58-d6069a043fbb`, name "Hamilton Street Railway", feature flags
+- NEW api.sparelabs.com/v1/public/organizations/key/dallas: Confirmed 200+277B — UUID `e5f587ba-50e7-4b0c-a2e6-e01f061d048d`, name "DART GoLink - City of Dallas"
+- CHANGED forms.sparelabs.com JS bundle: Confirmed patched — `main.8a2a39cb.js` contains ZERO sparelabs/atlassian/ngrok/metabase/vercel references (downgrade from ACCEPTED to recon-only)
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy LB replicas
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 on current replica (unreliable, multi-version LB)
+- CHANGED api.sparelabs.com/v1/global/regions: Scheme-only bypass CONFIRMED NOT PATCHED — longcat triage "PATCHED" claim (2026-08-11) DISPROVEN; Bearer x still → 200+725B+ACAO+ACAC

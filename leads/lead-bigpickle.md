@@ -7662,3 +7662,53 @@ verify_steps: HUMAN_ONLY: requires authorized UUID from program; then GET /v1/pu
 impact: per-tenant config chaining extends to hidden partners if UUID obtained; LOW
 testability: HUMAN_ONLY
 [NEXT] PROBE: `for u in 1966c7f8-3e36-4320-b0d7-de0f7d8d4355 83303a6b-fb96-4ff3-8f58-d6069a043fbb e5f587ba-50e7-4b0c-a2e6-e01f061d048d; do echo -n "$u: "; curl -s -m 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?organizationId=$u" -w "|%{http_code}|%{size_download}B\n"; sleep 1.3; done` twice — catch replica-flap and determine whether grt/hsr/dallas carry non-default per-tenant config on the slow replica, completing the per-tenant config map
+## 2026-08-15 08:17:19 UTC [api] (model bigpickle)
+[HYP] Org-key chained per-tenant terms config leaks prod-only legal config incl. dev placeholder junk
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/terms
+confidence: 72
+reasoning: winnipeg UUID → 197B real external URLs, spare UUID → 107B literal "asdfd", grt/hsr/dallas → generic 137B; all 6 other fleet hosts return generic 137B → prod-only residency. Chain complete: unauth org-key oracle → UUID → per-tenant config.
+evidence_needed: a per-tenant body ≠ 137B/107B/197B on any other UUID, or replica-flap of grt/hsr/dallas to non-default
+verify_steps: PASSIVE: loop GET /v1/public/terms?organizationId={1966c7f8…,83303a6b…,e5f587ba…} ×2, sleep 1.5, record body+sha256 per hit — detect per-tenant variants for remaining tenants
+impact: unauthenticated per-tenant legal-config disclosure + evidence of unconfigured prod config ("asdfd") for spare org; LOW
+testability: PASSIVE
+[HYP] WorkOS connection_id fingerprints enable cross-roster correlation of SSO-only tenants once any UUID is obtained
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 55
+reasoning: connection_id deterministic byte-stable per canonical domain; roster closed at 8 domains (9 new all 404); SSO set {dart,translink,kingcounty,mbta} partially disjoint from org-key set {spare,grt,dallas,winnipeg,hsr} — hidden partners invisible to key enumeration
+evidence_needed: a UUID for any SSO-only tenant yielding 200 on /v1/public/organizations/{id} or /key/{key}
+verify_steps: HUMAN_ONLY: requires authorized UUID from program; then GET /v1/public/terms?organizationId=<uuid> to extend chaining to hidden tenants
+impact: per-tenant config chaining extends to hidden partners if UUID obtained; LOW
+testability: HUMAN_ONLY
+[NEXT] PROBE: `for u in 1966c7f8-3e36-4320-b0d7-de0f7d8d4355 83303a6b-fb96-4ff3-8f58-d6069a043fbb e5f587ba-50e7-4b0c-a2e6-e01f061d048d; do echo -n "$u: "; curl -s -m 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?organizationId=$u" -w "|%{http_code}|%{size_download}B\n"; sleep 1.3; done` twice — catch replica-flap and determine whether grt/hsr/dallas carry non-default per-tenant config on the slow replica, completing the per-tenant config map
+[HYP] SSO-only tenant org-keys map to hidden roster via agency-brand dictionary
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 45
+reasoning: SSO set {dart,translink,kingcounty,mbta,saskatoon} partially disjoint from org-key set {spare,grt,dallas,winnipeg,hsr}; key values are agency brand strings; cambus→404 shows negative branch works
+evidence_needed: one 200+org body under mbta/kingcounty/massdot/translink/dart/saskatoon/portland/boston/metro/seattle variants
+verify_steps: PASSIVE: GET key/{mbta,kingcounty,massdot,translink,dart,saskatoon,portland,boston,metro,seattle,soundtransit} (Origin evil, sleep 1.2); on 200 record UUID+flags
+impact: completes tenant roster bridging SSO↔key oracles for Engage/PII chaining; LOW
+testability: PASSIVE
+[HYP] Terms replica-flap on grt/hsr/dallas yields per-tenant bodies on slow replica, completing config map
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/terms
+confidence: 42
+reasoning: multi-version envoy LB established fleet-wide; spare (107B) + winnipeg (197B) carry distinct configs while grt/hsr/dallas return 137B default on current replica
+evidence_needed: non-default body on grt/hsr/dallas UUID under any replica
+verify_steps: PASSIVE: loop GET /v1/public/terms?organizationId={1966c7f8…,83303a6b…,e5f587ba…} ×3 sleep 1.5, sha256 each — detect slow-replica variant
+impact: per-tenant legal config disclosure for remaining tenants; LOW
+testability: PASSIVE
+[HYP] WorkOS roster extends via US/CA agency email-domain guesses from org-key logos
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 40
+reasoning: kingcounty.gov/mbta.com confirmed as hidden tenants → partner-specific; org-key logos (storage.googleapis.com buckets) may reveal agency domains not in obvious roster
+evidence_needed: 200 on any new domain derived from agency relationships
+verify_steps: PASSIVE: POST {"domain":d} for d in {winnipeg.ca,hamilton.ca,dallascityhall.com,grt.ca} (Origin evil, sleep 1.2); compare connection_id set
+impact: SSO roster growth → Entra tenant-ID fingerprinting of partners; LOW
+testability: PASSIVE
+[FINAL]
+[NEXT] PROBE: `for k in mbta kingcounty massdot translink dart saskatoon portland boston metro seattle soundtransit; do echo -n "$k: "; curl -s -m 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/$k" -w "|%{http_code}|%{size_download}B\n"; sleep 1.2; done` — agency-brand dictionary sweep to bridge SSO↔key rosters (on 200 record UUID+flags).
+[RISK] api.sparelabs.com: 62 — two stable auth-free bypasses (orgs/regions) + confirmed per-tenant config + UUID/org-key/SSO oracles + universal CORS credential reflection, all 85h+ unpatched; caps at read-only with low-value payloads. | platform.sparelabs.com: 38 — pure MFE shell, SPA catch-all everywhere; CSP infra leak (admin Vercel apps + Metabase + 9 cloud services) stable but no API surface behind it. | routing.sparelabs.com: 10 — envoy 404 on all paths since 2026-08-07, zero surface. | forms.sparelabs.com: 20 — infra-leak JS bundle patched (main.8a2a39cb.js zero refs), 3 referrer-restricted GMaps keys; Engage PII schema disclosure flapping/unreliable, downgraded. | web (spare.com/sparelabs.com): 12 — static Cloudflare+Webflow marketing, HSTS 31536000, no internal infra leaks, no dynamic surface.
