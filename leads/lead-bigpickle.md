@@ -7712,3 +7712,50 @@ testability: PASSIVE
 [FINAL]
 [NEXT] PROBE: `for k in mbta kingcounty massdot translink dart saskatoon portland boston metro seattle soundtransit; do echo -n "$k: "; curl -s -m 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/$k" -w "|%{http_code}|%{size_download}B\n"; sleep 1.2; done` — agency-brand dictionary sweep to bridge SSO↔key rosters (on 200 record UUID+flags).
 [RISK] api.sparelabs.com: 62 — two stable auth-free bypasses (orgs/regions) + confirmed per-tenant config + UUID/org-key/SSO oracles + universal CORS credential reflection, all 85h+ unpatched; caps at read-only with low-value payloads. | platform.sparelabs.com: 38 — pure MFE shell, SPA catch-all everywhere; CSP infra leak (admin Vercel apps + Metabase + 9 cloud services) stable but no API surface behind it. | routing.sparelabs.com: 10 — envoy 404 on all paths since 2026-08-07, zero surface. | forms.sparelabs.com: 20 — infra-leak JS bundle patched (main.8a2a39cb.js zero refs), 3 referrer-restricted GMaps keys; Engage PII schema disclosure flapping/unreliable, downgraded. | web (spare.com/sparelabs.com): 12 — static Cloudflare+Webflow marketing, HSTS 31536000, no internal infra leaks, no dynamic surface.
+## 2026-08-15 08:52:37 UTC [api] (model bigpickle)
+[CHANGED] api.sparelabs.com/v1/public/terms: per-tenant config map COMPLETED — spare UUID→107B `{"termsOfUseUrl":"asdfd",...}` literal placeholder junk, winnipeg→197B real external URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic default (sha256 a4e85168…); byte-stable across 2 probe rounds this session
+[CHANGED] api.sparelabs.com/v1/identity/workos/auth: direct authorize-URL GET now 302→error.workos.com/sso/invalid-connection-selector (was live corporate IdP 302 per KB) — IdP-redirect/Entra-fingerprint chain NOT reproducible without signed relayState; mbta/kingcounty/saskatoon connection_ids captured (conn_01JXNAX59WE7XMTW0EEFHPV9DF, conn_01JKRZ46KNAQRZN3J3PYTJKWAQ, conn_01G29CFD168BP9D4390FM9X40M)
+[NEW] api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidate keys (mbta,kingcounty,massdot,translink,dart,saskatoon,portland,boston,metro,seattle,soundtransit,dartgolink,translinkbc,thebus,kcmetro,metrokingcounty,stoon,toronto,ttc,vancouver,richmond,seattlemetro) ALL 404 NotFoundError; SSO roster and org-key set fully disjoint
+[NEW] api.sparelabs.com/v1/public/organizations/key/{key}: 5/5 confirmed org bodies expose enabledPublicFeatureFlags differential (spare/grt/winnipeg/hsr feature-flagged, dallas=[]) + logoUrl all on single shared GCS bucket storage.googleapis.com/spare-production-ca-photos/
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: 6.20, (attack 5, business 6, tech 7, gate 10, cloud 4, fresh 5)
+[PRIO] api.sparelabs.com/v1/public/terms: 5.75, (attack 6, business 5, tech 4, gate 10, cloud 3, fresh 6)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}: 5.65, (attack 5, business 6, tech 4, gate 10, cloud 3, fresh 5)
+[PRIO] api.sparelabs.com/v1/global/regions: 5.15, (attack 6, business 4, tech 3, gate 10, cloud 3, fresh 4)
+[HYP] Unvetted per-tenant prod config pattern extends beyond terms (engage schemas, branding, feature flags)
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/terms
+confidence: 55
+reasoning: spare org's termsOfUseUrl is literal "asdfd" (107B junk) live in prod while winnipeg carries real tenant URL (197B) — config chain from unauth org-key oracle → UUID → per-tenant config confirmed; prod-only residency (other 6 fleet hosts return generic 137B)
+evidence_needed: any other per-tenant /v1/public body carrying dev/placeholder value, or feature-flag set differing in capability-significant way
+verify_steps: PASSIVE: compare enabledPublicFeatureFlags across the 5 known org-keys (already captured this session: spare/grt/winnipeg/hsr flagged, dallas empty); if a re-probe of any key shows new flags, confirm twice at sleep 1.5
+impact: unauthenticated per-tenant legal-config + feature-provisioning disclosure incl. prod placeholder junk; LOW
+testability: PASSIVE
+[HYP] SSO-only tenants carry per-tenant legal config hidden from org-key enumeration
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 45
+reasoning: SSO roster (8 tenants: spare.com, dart.org, translink.ca, mbta.com, kingcounty.gov, saskatoon.ca…) is fully disjoint from org-key set (22 brand keys 404); winnipeg-style per-tenant config exists on prod (197B real URL) proving per-tenant residency pattern
+evidence_needed: a UUID for any SSO-only tenant yielding 200 on /v1/public/organizations/{id} or /v1/public/terms
+verify_steps: HUMAN_ONLY: requires authorized UUID from program; then GET /v1/public/terms?organizationId=<uuid> (Origin evil, sleep 1.2) to complete cross-roster config map
+impact: extends per-tenant config chaining to hidden partners; LOW
+testability: HUMAN_ONLY
+[HYP] IdP-redirect replay via signed relayState leaks corporate IdP identity for new SSO tenants
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 35
+reasoning: direct authorize GET → 302 error.workos.com invalid-connection-selector (this session); KB recorded live Entra redirects for dart.org/translink.ca via signed relayState flow
+evidence_needed: relayState replay producing login.microsoftonline.com redirect for mbta/kingcounty/saskatoon
+verify_steps: PASSIVE: POST {"domain":d} capture relayState, GET authorize?state=<relayState> and record 302 Location per tenant, sleep 1.3
+impact: Entra tenant-ID fingerprint of additional partners; LOW
+testability: PASSIVE
+[PARKED] IdP-redirect replay via signed relayState: direct authorize 302→error.workos.com this session, signed relayState not reproducible passive-only; workos.com third-party OOS — confidence 35 < 40
+[PARKED] WorkOS roster extends via US/CA agency email-domain guesses: prior 6/6 + this session 22 org-key/domain variants all 404 — enumeration surface exhausted
+[PARKED] Terms replica-flap on grt/hsr/dallas: 2 rounds ×3 UUIDs all byte-stable 137B — no per-tenant variant, hypothesis dead
+[PARKED] SSO-only tenant org-keys via agency-brand dictionary: 22 new brand/brand-variant keys all 404 — bridging dead, rosters definitively disjoint
+[FINAL] 1. Unvetted per-tenant prod config pattern (BUSLOGIC, 55) — partially confirmed this session (asdfd junk + winnipeg real URL); 2. SSO-only tenants carry hidden per-tenant config (IDOR, 45) — HUMAN_ONLY, requires authorized UUID
+[NEXT] HUMAN: obtain one authorized org UUID or test token (AUTH_HELPED) for an SSO-only tenant (mbta.com, kingcounty.gov, dart.org, translink.ca, saskatoon.ca) and GET /v1/public/terms?organizationId=<uuid> (Origin evil, sleep 1.2) — proves whether SSO-only tenants carry winnipeg-style per-tenant config, completing cross-roster correlation; passive enumeration is now provably exhausted (22 org-key keys + 3 workos domains + terms map all closed this session)
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/terms: per-tenant config chain CONFIRMED — spare→107B literal "asdfd" junk live in prod, winnipeg→197B real external URL, grt/hsr/dallas→137B generic; byte-stable sha256 a4e85168… ×2 rounds; prod-only residency
+[LEARN] REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: agency-brand bridging dead — 22 new keys all 404; SSO roster and org-key set definitively disjoint; live org-key set closed at {spare,grt,dallas,winnipeg,hsr}
+[LEARN] REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: IdP-redirect Entra-fingerprint chain not reproducible passive-only — direct authorize 302→error.workos.com without signed relayState
+[LEARN] REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/terms: replica-flap per-tenant variant for grt/hsr/dallas not observed (2 rounds stable)
+[RISK] api.sparelabs.com: 62 — two stable auth-free read-only bypasses (orgs zero-header 200/11B, regions scheme-only Bearer-x 725B) + 3 unauth enumeration oracles (plural UUID 3-way, org-key closed at 5, SSO closed at 8) + universal CORS credential reflection + confirmed per-tenant config chain with prod placeholder junk, all 85h+ unpatched; caps at read-only low-value payloads. | platform.sparelabs.com: 38 — pure MFE SPA shell, SPA catch-all everywhere, no API surface; CSP infra leak (admin Vercel apps + Metabase + 9 cloud services) stable but non-exploitable. | routing.sparelabs.com: 10 — envoy 404 on all paths since 2026-08-07, zero surface. | forms.sparelabs.com: 18 — JS-bundle infra leak patched (main.8a2a39cb.js zero refs), 3 referrer-restricted GMaps keys; Engage PII schema disclosure flapping/unreliable across envoy replicas, residual if replica stabilizes. | web (spare.com/sparelabs.com): 12 — static Cloudflare+Webflow marketing, HSTS 31536000, no dynamic surface, no infra leaks.

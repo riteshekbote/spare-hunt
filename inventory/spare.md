@@ -1233,3 +1233,9 @@
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy LB replicas
 - CHANGED api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 on current replica (unreliable, multi-version LB)
 - CHANGED api.sparelabs.com/v1/global/regions: Scheme-only bypass CONFIRMED NOT PATCHED — longcat triage "PATCHED" claim (2026-08-11) DISPROVEN; Bearer x still → 200+725B+ACAO+ACAC
+
+## 2026-08-15 08:58:20 UTC
+- CHANGED api.sparelabs.com/v1/public/terms: per-tenant config map COMPLETED — spare UUID→107B `{"termsOfUseUrl":"asdfd",...}` literal placeholder junk, winnipeg→197B real external URL (info.winnipegtransit.com
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: direct authorize-URL GET now 302→error.workos.com/sso/invalid-connection-selector (was live corporate IdP 302 per KB) — IdP-redirect/Entra-fingerprint chain 
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidate keys (mbta,kingcounty,massdot,translink,dart,saskatoon,portland,
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 5/5 confirmed org bodies expose enabledPublicFeatureFlags differential (spare/grt/winnipeg/hsr feature-flagged, dallas=[]) + logoUrl all on single 

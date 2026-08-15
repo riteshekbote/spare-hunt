@@ -1349,3 +1349,7 @@
 - 2026-08-15 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: read-only zero-header bypass + write-gate asymmetry CONFIRMED — GET no-auth→200+11B+ACAO+ACAC, POST/PUT/PATCH/DELETE→401 InvalidTokenError; bypass is read-only
 - 2026-08-15 REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.b0a0c190.js→main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel references; downgrade to recon-only; 3 Google Maps keys all referrer-restricted
 - 2026-08-15 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no surface
+- 2026-08-15 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/terms: per-tenant config chain CONFIRMED — spare→107B literal "asdfd" junk live in prod, winnipeg→197B real external URL, grt/hsr/dallas→137B generic; byte-stable sha256 a4e85168… ×2 rounds; prod-only residency
+- 2026-08-15 REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: agency-brand bridging dead — 22 new keys all 404; SSO roster and org-key set definitively disjoint; live org-key set closed at {spare,grt,dallas,winnipeg,hsr}
+- 2026-08-15 REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: IdP-redirect Entra-fingerprint chain not reproducible passive-only — direct authorize 302→error.workos.com without signed relayState
+- 2026-08-15 REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/terms: replica-flap per-tenant variant for grt/hsr/dallas not observed (2 rounds stable)

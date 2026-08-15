@@ -1718,3 +1718,11 @@ https://api.us2.sparelabs.com/v1/public/organizations/key/spare -> HTTP 404
 https://api.sparelabs.com/v1/identity/workos/auth` -> HTTP 401
 https://api.sparelabs.com/v1/public/terms?organizationId=$u -> HTTP 400
 https://api.sparelabs.com/v1/public/organizations/key/$k -> HTTP 404
+
+## 2026-08-15 08:58:21 UTC
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+https://api.us2.sparelabs.com/v1/public/organizations/key/spare -> HTTP 404
+https://api.sparelabs.com/v1/public/organizations/key/cambus -> HTTP 404
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth` -> HTTP 401
