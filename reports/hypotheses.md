@@ -5311,3 +5311,20 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: read-only zero-header bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 In
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: winnipeg.ca = 8th SSO tenant; org-key oracle overlap (winnipeg org-key ↔ winnipeg.ca SSO) closes "dis
 - LEARN: NO_DELTA: regions (sha256 fb9800ac... re-verified), orgs zero-header {"data":[]} 200, org-key winnipeg 200+UUID 6c84b370-5cc2-42c6-8cdd-146c99648535, grt.ca con
+
+## RANKED HYPOTHESES 2026-08-15 18:07:28 UTC
+- [95] api.sparelabs.com/v1/identity/workos/auth: WorkOS SSO Tenant Enumeration via Domain Discriminator (from reports/hypotheses-nemotron3.txt)
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass + infra topology disclosure on /regions (from reports/hypotheses-laguna.txt)
+- [75] api.sparelabs.com/v1/public/engage/caseForms: caseForms unauthenticated write IDOR via org-key→formId bridge (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"winnipeg.
+- NEXT(hypotheses-laguna.txt): PROBE: curl -s -m15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | sha256sum — verify byte-sta
+- NEXT(hypotheses-bigpickle.txt): HUMAN: request one authorized test-org token; use it to list caseTypes (authorized endpoint) and capture a real caseTypeKey+defaultFormKey, then run GET /v1/pub
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO tenant roster expanded — 8th tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS), dist
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 NotFoundE
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 "Form
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr}; 22 new candidates 404; pro
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NOW live (was TIMEOUT→200 MFE SPA shell); CSP infra leak STABLE (admin Vercel apps+Metabase+9 cloud services)
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: NOW live but STABLE dead — envoy 404 on ALL probed paths; NO_DELTA since 2026-08-07
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: NOT patched despite longcat false-positive claim (2026-08-11) — Bearer x → 200+725B+ACAO+ACAC, sha256 fb980
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: read-only zero-header bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 In

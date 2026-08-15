@@ -8698,3 +8698,33 @@ testability: PASSIVE
 [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: winnipeg.ca = 8th SSO tenant; org-key oracle overlap (winnipeg org-key ↔ winnipeg.ca SSO) closes "disjoint" assumption — SSO domain is city/municipality top-level domain, NOT agency domain.
 [LEARN] NO_DELTA: regions (sha256 fb9800ac... re-verified), orgs zero-header {"data":[]} 200, org-key winnipeg 200+UUID 6c84b370-5cc2-42c6-8cdd-146c99648535, grt.ca control 404.
 [RISK] api.sparelabs.com: 99 — unchanged; 8-tenant SSO enumeration now confirmed.
+## 2026-08-15 18:07:15 UTC [api] (model bigpickle)
+[HYP] caseForms unauthenticated write IDOR via org-key→formId bridge
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseForms (POST)
+confidence: 75
+reasoning: cases+caseForms POST reach handler without auth (400 ValidationError on empty, 404 nil-UUID, 403 spare-UUID feature-flag gate, no InvalidTokenError). Missing formId UUID: caseType GET is OpenAPI-validating on current replica (400 required caseTypeKey/organizationId) and formKey oracle deterministic (404 123B "Form was not found"), but no key resolves 200; authoritative caseTypes list only on OOS api.us.sparelabs.com.
+evidence_needed: one valid caseTypeKey+defaultFormKey+organizationId → 200 form schema → formId UUID → caseForms POST POC.
+verify_steps: AUTH_HELPED: obtain test-org caseTypeKey+defaultFormKey (authorized caseTypes list or Spare docs), then GET form?caseTypeKey=<k>&formKey=<dk>&organizationId=<uuid> at 1/30s, capture formId, POST caseForms against test org, delete. Passive-only closed.
+impact: unauth cross-tenant form-response injection carrying PII contact fields; MEDIUM
+testability: AUTH_HELPED
+[HYP] SSO domain-matching granularity (exact vs contains) fingerprint
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 50
+reasoning: 8 tenants confirmed, connection_id byte-stable per domain; dictionary exhausted (regionofwaterloo.ca, waterloo.ca rejected this cycle). Whether lookup is exact-match vs suffix/contains is untested — variants of CONFIRMED tenants would reveal matching semantics.
+evidence_needed: a variant of a confirmed tenant (www., m., alt-TLD) resolving 200 (would indicate loose matching and expand enumeration surface).
+verify_steps: PASSIVE: POST {"domain":<variant>} at 1/30s with spare.com 200 control: www.spare.com, m.winnipeg.ca, spare.co, sparelabs.com.
+impact: if loose match found, expands SSO roster beyond 8; LOW
+testability: PASSIVE
+[HYP] Regions scheme-gate strictness — token value fully ignored across replicas
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions (GET)
+confidence: 60
+reasoning: live this cycle — lowercase `bearer x`, empty `Bearer` (no token), JWT-shape token all → 200+725B; gate is header-presence + case-insensitive scheme-prefix only, token never parsed. Remaining check: slow-replica (≥500ms upstream class) also returns 200 for empty `Bearer`, proving no replica validates token values.
+evidence_needed: slow-replica sample returns 200+725B for `Authorization: Bearer`.
+verify_steps: PASSIVE: repeat empty-token probe until x-envoy-upstream-service-time ≥500ms sample returns 200; control /v1/journeys 401.
+impact: full token-omission bypass on data-bearing route; strengthens HIGH infra-topology disclosure severity; LOW-MED
+testability: PASSIVE
+[NEXT] HUMAN: request one authorized test-org token; use it to list caseTypes (authorized endpoint) and capture a real caseTypeKey+defaultFormKey, then run GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<uuid> → formId, then POST /v1/public/engage/caseForms with the spare-UUID (d736519f-f384-4771-a2d2-4f95e884d790) orgId to complete the unauth write-IDOR POC (delete after).
+[RISK] api.sparelabs.com: 99 — full finding family stable 86h+ (regions token-value-ignored bypass now confirmed weaker than recorded, orgs zero-header read-only, engage write chain auth-absent, 8-tenant SSO oracle, org-key+UUID oracles, universal CORS, all NOT patched; longcat PATCHED claims disproven) | platform.sparelabs.com: 75 — CSP infra leak (admin Vercel apps loadable 200 + Metabase + 9 cloud services); strict HTML CSP+x-frame mitigate HTML-level only | routing.sparelabs.com: 8 — envoy 404 on all paths, no surface, NO_DELTA since 2026-08-07 | forms.sparelabs.com: 5 — JS bundle patched (zero infra refs), strict HTML CSP + x-frame DENY, SPA catch-all only, recon-only residual | web (spare.com/sparelabs.com): 5 — static Cloudflare+Webflow marketing, CSP frame-ancestors, HSTS, no internal infra leaks.
