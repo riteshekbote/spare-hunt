@@ -1152,3 +1152,13 @@
 - CHANGED api.sparelabs.com: positively identified as envoy edge gateway (server: envoy, via: 1.1 google)
 
 ## 2026-08-15 05:40:33 UTC
+
+## 2026-08-15 06:01:05 UTC
+- NEW platform.sparelabs.com: NOW live — was TIMEOUT→200 (MFE SPA shell); envoy + Google CDN
+- NEW routing.sparelabs.com: NOW live — was TIMEOUT→envoy 404 (STABLE dead, no surface)
+- NEW forms.sparelabs.com: NOW live — was TIMEOUT→200 (Engage SPA); JS bundle main.8a2a39cb.js patched (zero infra leaks)
+- NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT)
+- NEW api.sparelabs.com: positively identified as envoy edge gateway (server: envoy, via: 1.1 google)
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy LB replicas
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 on current replica (unreliable, multi-version LB)
+- CHANGED api.sparelabs.com/v1/global/regions: Scheme-only bypass CONFIRMED NOT PATCHED — longcat triage "PATCHED" claim (2026-08-11) DISPROVEN; Bearer x still → 200+725B+ACAO+ACAC
