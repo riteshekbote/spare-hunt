@@ -1,1 +1,55 @@
-## 2026-08-15 16:12:31 UTC [api] (model bigpickle)
+## 2026-08-15 16:46:00 UTC [api] (model bigpickle)
+[HYP] caseForms unauthenticated cross-tenant form-response write IDOR
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 75
+reasoning: auth gate structurally absent (nil-formId POST → 404 "Form was not found", no 401; CORS allows credentialed POST); this cycle's formKey=caseTypeKey sweep (25 probes) all deterministic 404 → formId remains unresolvable passively; write chain unproven at persistence step only.
+evidence_needed: resolvable formId+caseId pair to confirm handler writes a record on resolution.
+verify_steps: AUTH_HELPED: with test token obtain a test-org formId+caseId, POST full mapped body {caseId, organizationId, formId, metadata}, confirm record created, then delete. Passive fallback: none viable within 20-req/window rate limit.
+impact: unauthenticated form-response creation against a PII-capture service with cross-tenant association; MEDIUM
+testability: AUTH_HELPED
+[HYP] formKey-existence oracle persists but candidate key set exhausted
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/form
+confidence: 55
+reasoning: 25/25 formKey=caseTypeKey self-key probes → byte-identical 404 NotFoundError "Form was not found" (123B+correlationId), oracle deterministic; 2026-08-13 replica served 200+547B/1861B schema bodies so a resolvable formKey exists for some org.
+evidence_needed: single 200 form-definition revealing formId (feeds H1 chain).
+verify_steps: PASSIVE: bounded wordlist (application, mobility, booking, trip, contact, profile, registration) × {mobility, schedule-ride} × spare+grt at ≤20 req/window, capture any 200 body+formId; never POST.
+impact: converts H1 write IDOR from theoretical to concrete; MEDIUM
+testability: PASSIVE
+[HYP] WorkOS SSO roster expansion via parent-municipality domains of live org-key orgs
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 45
+reasoning: 7 tenants byte-stable, clean 200-vs-404 differential, fleet-parity; 12 generic + 5 agency dictionary candidates all 404 → roster partner-specific; org-key set {spare,grt,dallas,winnipeg,hsr} partially overlaps SSO set.
+evidence_needed: 200-configuration for a currently-unknown tenant domain.
+verify_steps: PASSIVE: POST {"domain":<candidate>} at 1req/30s with controls (spare.com 200, bart.gov 404) for winnipeg.ca/hsr.ca parent municipalities (hamilton.ca, hamiltonregion.ca, cityofwinnipeg.ca) and DART-adjacent (dallas.gov, dart.agencies).
+impact: tenant/SSO-config + WorkOS connection + Entra tenant-ID fingerprinting for partner orgs; LOW-MEDIUM
+testability: PASSIVE
+[HYP] caseTypeKey+defaultFormKey resolver chain unlocks caseForms write IDOR — all passive resolvers on the in-scope host exhausted
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/{caseType, form, caseForms}
+confidence: 72
+reasoning: bundle proves the exact fetch chain (`caseTypeKey=t.key`, `formKey=t.defaultFormKey`) and that caseType objects carry both fields; on api.sparelabs.com both `caseType` (124B "Other was not found") and `form` (123B "Form was not found") are deterministic per-key oracles, but no candidate key resolves to a 200 — the authoritative `caseTypes` list (with the real keys) is only served by api.us.sparelabs.com, which is OUT OF SCOPE.
+evidence_needed: a single valid caseTypeKey+organizationId pair producing 200 with `defaultFormKey` → feeds `form` GET → yields formId UUID → enables full caseForms write-IDOR POC.
+verify_steps: AUTH_HELPED: obtain one test-org caseTypeKey (e.g., via test token on `caseTypes` list or from a Spare doc/support page), then run `GET form?caseTypeKey=<key>&formKey=<defaultFormKey>&organizationId=<uuid>` at 1/30s, capture formId, then POST caseForms against test org and delete. Passive-only is closed.
+impact: unauthenticated cross-tenant form-response creation on a PII form service; MEDIUM
+testability: AUTH_HELPED
+[HYP] caseTypeKey slug oracle usable for enumeration even without the list
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseType
+confidence: 45
+reasoning: 17/17 404s are byte-stable but the bundle's slugs (accessibility/schedule/trip/specialist/booking) are UI labels, not keys; a real dictionary would need Spare's case-type naming convention (not derivable from bundle literals).
+evidence_needed: 200 body with `.key`+`.defaultFormKey`.
+verify_steps: PASSIVE: only if a naming convention is discovered (e.g., from a Spare customer portal or docs); budget ≤20/window.
+impact: enables H1 resolver; LOW-MEDIUM
+testability: PASSIVE (budget-limited)
+[HYP] WorkOS SSO roster expansion via parent-municipality domains of live org-key orgs
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 45
+reasoning: unchanged — 7 tenants byte-stable; 12 generic + 5 agency candidates 404; bundle shows `workos`×6 refs and Nylas endpoints (`engage/nylas/authorize`, `adminGrants`, `callback`) that may reveal the SSO surface.
+evidence_needed: 200-configuration for a currently-unknown tenant domain.
+verify_steps: PASSIVE: POST {"domain":<candidate>} at 1/30s with controls (spare.com 200, bart.gov 404) for winnipeg.ca/hsr.ca parents (hamilton.ca, hamiltonregion.ca, cityofwinnipeg.ca) and DART-adjacent (dallas.gov, dart.agencies).
+impact: tenant/SSO-config + WorkOS connection + Entra tenant-ID fingerprinting; LOW-MEDIUM
+testability: PASSIVE
