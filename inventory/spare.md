@@ -1595,3 +1595,10 @@
 - NEW api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B "asdfd" prod junk, winnipeg→197B real URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic; byte-stable sha256
 - CHANGED api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); fleet-parity across 7 hosts
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak-only
+
+## 2026-08-15 23:20:36 UTC
+- NEW forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED (downgraded f
+- NEW api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass CONFIRMED NOT PATCHED — longcat "PATCHED" (2026-08-11) false positive (only tested no-auth path); bypass stable 86h+ across 7 fleet hosts
+- NEW api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET only, auth asymmetry verified at handler level
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); fleet-parity across 7 hosts; universal CORS on both 200/404 branches
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 new candidates 404; prod-only data (uat/us2/jp→404); SSO roster and or

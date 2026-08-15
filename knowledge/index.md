@@ -1565,3 +1565,7 @@
 - 2026-08-15 REJECTED @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET only; auth gate active on write methods
 - 2026-08-15 ACCEPTED @ api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B "asdfd" prod junk, winnipeg→197B real URL; byte-stable sha256; prod-only residency
 - 2026-08-15 REJECTED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas; downgraded to validation-leak-only, not oracle class
+- 2026-08-15 ACCEPTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED (downgraded from ACCEPTED to recon-only)
+- 2026-08-15 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass CONFIRMED NOT PATCHED — longcat "PATCHED" (2026-08-11) false positive, only tested no-auth path; bypass stable 86h+ across 7 fleet hosts
+- 2026-08-15 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET only, auth asymmetry verified at handler level
+- 2026-08-15 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 new candidates 404; prod-only data (uat/us2/jp→404); SSO roster and org-key set definitively disjoint
