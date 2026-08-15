@@ -5369,3 +5369,26 @@
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/* (controller-wide): 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 on ALL probed paths since 2026-08-07; newly responsive but STABLE dead, NO_DELTA
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all refer
+
+## RANKED HYPOTHESES 2026-08-15 19:34:16 UTC
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on /regions with full infra topology disclosure (from reports/hypotheses-laguna.txt)
+- [95] api.sparelabs.com/v1/global/organizations: Zero-Header Read-Only Bypass on Global Organizations (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" | sha256sum — verify byte-stability of
+- NEXT(hypotheses-laguna.txt): PROBE: curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d79
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 In
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — Bearer x → 200+725B+ACAO+ACAC (sha256 fb9800acb…585c3fe verified); no-auth→400,
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO tenant roster expanded — 8th tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); flee
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 NotFoundE
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr}; 22 new candidates 404; pro
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NOW live (was TIMEOUT→200 MFE SPA shell); CSP infra leak STABLE (admin Vercel apps+Metabase+9 cloud services)
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: NOW live but STABLE dead — envoy 404 on ALL probed paths; NO_DELTA since 2026-08-07
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/* (controller-wide): 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: bypass NOT patched — fresh probe confirms `Bearer x` → 200 + 725B (sha256 fb9800acb09b65ec92591f4536e3ecfd0
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 86h+ — GET no-auth → 200+11B+ACAO+ACAC, POST/PUT/PATCH/DELETE → 4
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed live (conn_01HP76PPV8CMRJH6RYRTWEPSGS); 7th tenant kingcounty.go
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle STABLE — spare→200+351B, grt→200+288B, dallas→200+237B, winnipeg→200+288B, hsr
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 NotFo
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; no surface, NO_DELTA s
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js confirmed PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel references; 3 Google Map

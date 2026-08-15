@@ -1516,3 +1516,9 @@
 - 2026-08-15 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 new candidate keys all 404; feature-flag differential stable
 - 2026-08-15 REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 on ALL probed paths since 2026-08-07; newly responsive but STABLE dead, NO_DELTA
 - 2026-08-15 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED
+- 2026-08-15 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: bypass NOT patched — fresh probe confirms `Bearer x` → 200 + 725B (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-exact); longcat "PATCHED" (2026-08-11) is FALSE POSITIVE
+- 2026-08-15 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 86h+ — GET no-auth → 200+11B+ACAO+ACAC, POST/PUT/PATCH/DELETE → 401 InvalidTokenError (read-only confirmed)
+- 2026-08-15 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed live (conn_01HP76PPV8CMRJH6RYRTWEPSGS); 7th tenant kingcounty.gov confirmed this cycle; fleet-parity across 7 hosts; universal CORS confirmed
+- 2026-08-15 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle STABLE — spare→200+351B, grt→200+288B, dallas→200+237B, winnipeg→200+288B, hsr→200+318B, cambus→404; prod-only (uat/us2/jp→404); live set closed at 5
+- 2026-08-15 REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404 on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; no surface, NO_DELTA since 2026-08-07
+- 2026-08-15 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js confirmed PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel references; 3 Google Maps keys all referrer-restricted (REQUEST_DENIED)

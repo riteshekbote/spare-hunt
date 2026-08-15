@@ -8784,3 +8784,4 @@ evidence_needed: newly-onboarded agency domain resolving 200 (roster growth even
 verify_steps: PASSIVE: re-sweep only newly-announced agency/municipality domains at 1/30s with spare.com 200 control; no productive continuous enumeration.
 impact: tenant/SSO-config enumeration (WorkOS client_id + Entra tenant_ids); bounded at 8. LOW-MED.
 testability: PASSIVE
+## 2026-08-15 19:34:03 UTC [api] (model bigpickle)
