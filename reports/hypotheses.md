@@ -4826,3 +4826,44 @@
 - LEARN: STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 85h+ — writes gated 401, auth asymmetry confirmed
 - LEARN: STABLE @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 85h+ — non-path-conditional via 22-sibling sweep
 - LEARN: STABLE @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07, NO_DELTA
+
+## RANKED HYPOTHESES 2026-08-15 11:21:38 UTC
+- [80] api.sparelabs.com/v1/public/engage/{cases,caseForms}: Engage Unauthenticated Write Chain (valid-org handler reach) (from reports/hypotheses-laguna.txt)
+- [75] api.sparelabs.com/v1/public/engage/caseForms: Unauthenticated public write via engage caseForms (from reports/hypotheses-nemotron3.txt)
+- [58] api.sparelabs.com/v1/public/engage/{cases,caseForms}: Engage write routes permit cross-tenant case creation / record spam (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"winnipeg.
+- NEXT(hypotheses-laguna.txt): AUTH_HELPED: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationI
+- NEXT(hypotheses-bigpickle.txt): PROBE: PASSIVE drift baseline re-confirmed this cycle — 5/5 org-keys byte-stable (spare 351, grt 288, dallas 277, winnipeg 352, hsr 321; sha 3099f1ba/c440540b/6
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/caseForms POST: unauth public write route confirmed (500→400 on empty, 400 validation, 404 nil-UUID handler) 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases POST: unauth public write route confirmed (400 on empty, validation chain, 404 nil-UUID handler) — writ
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: OpenAPI validation now active on current replica (400 required caseTypeKey/organiza
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.8a2a39cb.js confirmed PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NOW live (was TIMEOUT→200 MFE SPA shell); CSP infra leak STABLE (admin Vercel apps+Metabase+9 cloud services)
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: NOW live but STABLE dead — envoy 404 on ALL probed paths; NO_DELTA since 2026-08-07
+- LEARN: REJECTED MISCONFIG @ sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS, static-only, no new surface
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO tenant roster expanded — 7th tenant kingcounty.gov confirmed (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ), 7
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidates all 404
+- LEARN: STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 85h+ — GET no-auth → 200+11B+ACAO+ACAC; writes POST→401 (read-only confi
+- LEARN: STABLE @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC (sha256 fb9800acb…585c3fe); no-auth→400; POST→401
+- LEARN: STABLE @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle STABLE — spare→200+351B, grt→200+288B, dallas→200+277B, nil→404; prod-only (uat/us2/j
+- LEARN: STABLE @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — ?mobileAppId=nil → 200+137B (termsOfUseUrl+privacyPolicyUrl→sparelabs.com apex) no-auth+COR
+- LEARN: STABLE @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 85h+ — ACAO:evil+ACAC:true + all methods on OPTIONS 204 + GET 200/401/404, non-pat
+- LEARN: STABLE @ platform.sparelabs.com/login: CSP infra leak STABLE — admin-eam-app+admin-fixed-route-app (prod+staging, script-src+frame-src+style-src→loadable 200) +
+- LEARN: STABLE @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/{cases,caseForms}: unauth POST routes confirmed live — empty-body POST → 400 ValidationError with no Inva
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com JS bundle: leak REACTIVATED on main.8a2a39cb.js (sha256 34f336cd… contains sparelabs.atlassian.net, api-spare.ngrok.io,
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 7th SSO tenant kingcounty.gov confirmed live (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ), fleet-parity across p
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: complete org-key roster {spare,grt,dallas,winnipeg,hsr} with feature-flag differential; clo
+- LEARN: STABLE @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — NOT patched, longcat false positive
+- LEARN: STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 85h+ — writes gated 401, auth asymmetry confirmed
+- LEARN: STABLE @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 85h+ — non-path-conditional via 22-sibling sweep
+- LEARN: STABLE @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07, NO_DELTA
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js confirmed PATCHED — live grep returns 0 matches for atlassian/ngrok/staging/vercel/api.us; 
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases: AUTH gate ABSENT — valid-org UUID POST returns ForbiddenError "External case creation is not enabl
+- LEARN: STABLE @ api.sparelabs.com/v1/public/engage/{caseForms,cases}: empty-body POST → 400 ValidationError with NO InvalidTokenError + ACAO+ACAC; nil-UUID handler rea
+- LEARN: STABLE @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle intact (spare→200+351B, grt→200+288B, dallas→200+237B, winnipeg→200+288B, hsr→200+318
+- LEARN: STABLE @ api.sparelabs.com/v1/identity/workos/auth: 7th SSO tenant kingcounty.gov confirmed live (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ); fleet-parity across 7 hosts;
+- LEARN: REJECTED @ platform.sparelabs.com (admin API path sweep): all 10 probed paths return SPA catch-all 200 text/html — no real API behind MFE shell; CSP infra leak 
+- LEARN: REJECTED @ routing.sparelabs.com: envoy 404/0B on ALL paths — STABLE dead since 2026-08-07, NO_DELTA
+- LEARN: ACCEPTED STABLE @ api.sparelabs.com: full finding family unchanged this cycle — org-key baseline, regions/orgs bypass (byte-stable), engage write chain all re-c
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: no drift event this cycle (5/5 byte-stable); HYP2 held at 42 pending a second drift event.
