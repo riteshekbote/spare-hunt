@@ -1572,3 +1572,15 @@
 - CHANGED routing.sparelabs.com NOW live (was TIMEOUT→envoy 404); STABLE dead, NO_DELTA since 2026-08-07
 - CHANGED sparelabs.com NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS static-only
 - CHANGED api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 3-way↔2-way across envoy replicas — downgraded to validation-leak-only
+
+## 2026-08-15 22:07:44 UTC
+- NEW api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); fleet-parity across 7 hosts; universal CORS on both 200/404 branches
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 "Form was not found" (handler reached); CORS reflected
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 new candidates 404; prod-only data (uat/us2/jp→404); SSO roster and or
+- NEW api.sparelabs.com/v1/public/terms: per-tenant config chain CONFIRMED — spare→107B literal "asdfd" junk live in prod, winnipeg→197B real external URL (info.winnipegtransit.com), grt/hsr/dallas→137B gen
+- NEW forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak eliminated (downgraded t
+- NEW api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas — nil→404 fast / 400 slow; downgraded to validation-leak-only, not oracle class
+- NEW api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId) and router-level "not found" — multi-version LB replica divergence
+- NEW platform.sparelabs.com: NOW live (was TIMEOUT→200 MFE SPA shell); CSP on /login discloses prod admin Vercel apps + Metabase + 9 cloud services
+- NEW routing.sparelabs.com: NOW live (was TIMEOUT→envoy 404); STABLE dead, NO_DELTA since 2026-08-07
+- NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS static-only
