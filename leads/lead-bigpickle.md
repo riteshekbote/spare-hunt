@@ -7458,3 +7458,32 @@ impact: extended Ontario transit-tenant roster (UUID/logo/flags) for Engage/PII 
 testability: PASSIVE
 [NEXT] PROBE: `for d in metro.kingcounty.gov njt.com pacebus.com metrolinktrains.com capmetro.org rtachicago.com ac-transit.org; do curl -s -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d "{\"domain\":\"$d\"}" https://api.sparelabs.com/v1/identity/workos/auth -w "$d HTTP %{http_code} %{size_download}B"; echo; sleep 1.2; done` — on any 200, follow the returned authorizationUrl 302 Location header → record Entra tenant ID sha256 for KB
 [RISK] api.sparelabs.com: 72 — new SSO tenant (MBTA) + Entra fingerprint + Milton tenant; stable 85h+ read-only bypass family (orgs/regions, 7-host fleetwide, byte-stable), universal CORS cred reflection, UUID+key oracles, terms disclosure; all new bundle endpoints gated; engage schema HUMAN_ONLY — capped read-only/empty | platform.sparelabs.com: 40 — MFE shell; CSP infra leak stable; embedded 170-path OpenAPI all gated; confirmed as relayState redirect_uri target (workos/callback) | routing.sparelabs.com: 15 — envoy 404 all paths since 2026-08-07, no surface | forms.sparelabs.com: 35 — Engage SPA 200; bundle redeployed with RE-INTRODUCED infra leak (staging APIs, ngrok, JIRA, metabase SDK) — recon value only; Maps keys referrer-restricted | web (spare.com/sparelabs.com): 15 — static Webflow/Cloudflare marketing, 301 apex, no dynamic surface
+## 2026-08-15 04:05:19 UTC [api] (model bigpickle)
+[HYP] SSO discriminator keys on exact corporate domain — bridge confirmed org-key set to SSO set
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 62
+reasoning: mbta.com hit with fresh connection_id this session while 15 corporate-parent/guess domains all 404; kingcounty.gov 200 vs metro.kingcounty.gov 404 proves exact-domain match only; confirmed SSO set (spare.com, dart.org, translink.ca, regina.ca, oakville.ca, kingcounty.gov, mbta.com) partially disjoint from org-key set (grt/hsr/milton keys, no SSO)
+evidence_needed: mbta.com connection_id byte-stability across re-probes + one more bridge hit from a confirmed org-key agency's domain
+verify_steps: PASSIVE: re-POST /v1/identity/workos/auth {"domain":"mbta.com"} ×1 (sleep 1.2, Origin evil) to fingerprint-dedupe; then POST {"domain":d} for d in hamilton.ca winnipeg.ca dallasgov.com yrt.ca miway.ca; on 200 record connection_id sha256 + follow authorize 302 Location → Entra tenant sha256
+impact: complete partner SSO roster + Entra tenant-ID fingerprints + org-key↔SSO bridge map; LOW
+testability: PASSIVE
+[HYP] Org-key enumeration is agency-brand-keyed, not municipality-keyed
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 42
+reasoning: batch-4 municipal sweep 0/10 but oracle alive (spare/grt byte-stable); confirmed live keys are agency brands (grt, hsr, milton, winnipeg, dallas, oakville) not municipality names; mississauga/oshawa/markham (major cities) all 404
+evidence_needed: one more 200 from an agency-brand key string
+verify_steps: PASSIVE: GET /v1/public/organizations/key/{miway,gothab,yrt,durham-region,go-transit,via-rail} (Origin evil, sleep 1.2); on 200 record UUID + body sha256, then bridge POST workos/auth
+impact: extended transit-tenant roster (UUID/logo/flags) for Engage/PII chaining; LOW
+testability: PASSIVE
+[HYP] Bypass family /v1/global/regions remains unpatched fleetwide
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 85
+reasoning: 85h+ byte-stable (sha256 fb9800acb…585c3fe) across 7 fleet hosts; longcat PATCHED claim disproven (tested only no-auth 400); multi-version LB means any fix could land per-replica
+evidence_needed: live re-probe Bearer x → 200+725B+ACAO+ACAC on prod + ≥1 regional host this cycle
+verify_steps: PASSIVE: GET /v1/global/regions (Authorization: Bearer x, Origin evil) on api.sparelabs.com + api.us2.sparelabs.com, sha256 body, record no-auth 400 control, sleep 1.2
+impact: unauthenticated infra-topology disclosure (6 OOS hosts) + CORS-credential region-registry read; LOW-MED
+testability: PASSIVE
+[NEXT] PROBE: `for d in hamilton.ca winnipeg.ca dallasgov.com yrt.ca miway.ca; do curl -s -m 15 -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d "{\"domain\":\"$d\"}" https://api.sparelabs.com/v1/identity/workos/auth -w "$d HTTP %{http_code} %{size_download}B"; echo; sleep 1.2; done` — bridge direction: test domains of CONFIRMED org-key tenants (HSR, winnipeg, DART, YRT, MiWay); on any 200 record connection_id sha256 + follow authorize 302 → Entra tenant sha256
