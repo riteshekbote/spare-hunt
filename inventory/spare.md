@@ -1150,3 +1150,5 @@
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy LB replicas
 - CHANGED api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 on current replica (unreliable, multi-version LB)
 - CHANGED api.sparelabs.com: positively identified as envoy edge gateway (server: envoy, via: 1.1 google)
+
+## 2026-08-15 05:40:33 UTC

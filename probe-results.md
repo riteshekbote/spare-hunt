@@ -1649,3 +1649,14 @@ https://api.sparelabs.com/v1/journeys -> HTTP 401
 https://api.us2.sparelabs.com/v1/public/organizations/key/spare -> HTTP 404
 https://api.sparelabs.com/v1/public/organizations/key/zzz_not_a_key -> HTTP 404
 https://api.us2.sparelabs.com/v1/global/regions -> HTTP 400
+
+## 2026-08-15 05:40:35 UTC
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/grt -> 200 len=288 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/dallas -> 200 len=277 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/cambus -> HTTP 404
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth` -> HTTP 401
+https://api.api.us2.sparelabs.com/v1/global/regions -> ERR <urlopen error [Errno -5] No address associated wi
+https://api.sparelabs.com/v1/public/organizations/key/$k -> HTTP 404

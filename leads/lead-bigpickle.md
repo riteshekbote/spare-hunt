@@ -7545,3 +7545,23 @@ verify_steps: PASSIVE: GET /v1/public/organizations/key/{translink,coastmountain
 impact: extends tenant roster toward Engage/PII chaining; LOW
 testability: PASSIVE
 [NEXT] PROBE: `curl -s -m 15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.us2.sparelabs.com/v1/global/regions | sha256sum` + same on api.sparelabs.com, compare against fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe; then no-auth control (expect 400); sleep 1.2 between requests.
+## 2026-08-15 05:38:36 UTC [api] (model bigpickle)
+[HYP] Org-key and SSO rosters are mutually reflective but use divergent key/domain strings for 3 SSO-only and 3 org-key-only tenants
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key} + /v1/identity/workos/auth
+confidence: 52
+reasoning: regina+oakville proved mutual reflection this cycle (org-key 200 AND municipal-domain SSO 200); yet kingcounty/mbta/massdot/translink org-keys 404 and milton.ca/regionofwaterloo.ca/peelregion.ca SSO 404 — the remaining tenants likely use non-brand strings, not absence
+evidence_needed: one 200 org-key body or SSO authorizeUrl under a variant string for a remaining tenant
+verify_steps: PASSIVE: GET /v1/public/organizations/key/{bctransit,hsr,huronia,king-county} and POST /v1/identity/workos/auth {"domain":d} for d in hamilton.ca hsr.ca translink.bc.ca milton.on.ca (Origin evil, sleep 1.2 between); on any 200 record UUID + connection_id sha256
+impact: complete tenant roster for Engage/PII schema chaining; LOW
+testability: PASSIVE
+[HYP] workos/auth domain discriminator uses exact-match normalization — casing/suffix variants expose normalization behavior and possible alias tenants
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 48
+reasoning: confirmed tenants return byte-stable 200+172B with deterministic connection_id; all non-tenant guesses return uniform 404+124B, implying exact string match; case/trailing-dot handling never tested
+evidence_needed: any confirmed-domain variant returning 200 (permissive normalization) or a distinct connection_id (alias tenant)
+verify_steps: PASSIVE: POST {"domain":d} for d in SPARE.COM spare.com. winnipeg.ca. Oakville.ca (Origin evil, sleep 1.2); record 200-vs-404 per variant
+impact: normalization flaw expands SSO tenant set without domain guessing; LOW
+testability: PASSIVE
+[NEXT] PROBE: `for k in bctransit hsr king-county translink; do curl -s -m 15 -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/public/organizations/key/$k -w "$k HTTP %{http_code} %{size_download}B"; echo; sleep 1.2; done; for d in hamilton.ca hsr.ca translink.bc.ca; do curl -s -m 15 -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d "{\"domain\":\"$d\"}" https://api.sparelabs.com/v1/identity/workos/auth -w "$d HTTP %{http_code} %{size_download}B"; echo; sleep 1.2; done` — complete the mutual-roster map for the 6 asymmetric tenants.
