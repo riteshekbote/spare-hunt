@@ -4368,3 +4368,29 @@
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle confirmed live with kingcounty.gov (US agency); SSO roster and org-key DB are parti
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed, unrel
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.b0a0c190.js → main.8a2a39cb.js — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (infra leak 
+
+## RANKED HYPOTHESES 2026-08-15 03:28:32 UTC
+- [95] api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-configuration oracle discloses WorkOS client IDs and Entra tenant IDs (from reports/hypotheses-nemotron3.txt)
+- [95] api.sparelabs.com/v1/identity/workos/auth: US transit SSO oracle mapping via WorkOS domain discriminator (from reports/hypotheses-laguna.txt)
+- [48] api.sparelabs.com/v1/identity/workos/auth: US transit SSO roster extends beyond MBTA/King County via agency-specific corporate domains (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com
+- NEXT(hypotheses-laguna.txt): PROBE: `for d in soundtransit.org trimet.org bart.gov sfmta.gov caltrain.com kingcounty.gov; do curl -s -o /tmp/opencode/sso_${d}.json -w "${d}: HTTP %{http_cod
+- NEXT(hypotheses-bigpickle.txt): PROBE: `for d in metro.kingcounty.gov njt.com pacebus.com metrolinktrains.com capmetro.org rtachicago.com ac-transit.org; do curl -s -H "Origin: https://evil.ex
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: unauthenticated SSO-config oracle — POST domain param discriminates 200 (configured tenant) vs 404; d
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way discrimination stable (spare/grt/dallas→200 distinct bodies, cambus→404); prod-only d
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (G
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC; body sha256 fb9800acb09b65ec92591f4536e3ecf
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle rotated to main.8a2a39cb.js — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (leak PATCHED); 3 Go
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed, unrel
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes ALL 401 — bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com bundle OpenAPI: 170 paths extracted, ALL 131 non-param paths properly gated (401/404) — no bypass, recon only
+- LEARN: REJECTED BUSLOGIC @ sparelabs.ca: DNS only dev.sparelabs.ca → GCP LB "fault filter abort" 404 — no live surface
+- LEARN: REJECTED MISCONFIG @ admin-*.vercel.app: all 4 hosts ALIVE 200 but dev-only (admin-eam-app api-baseurl=localhost:3057); no prod API base hardcoded
+- LEARN: REJECTED (OOS) @ metabase.sparelabs.com: exposed Metabase v0.58.24 with unauth /api/session/properties config dump (106KB), but host OOS per scope exclusions
+- LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; NO_DELT
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: Flapped to 400 "not found" on current envoy replica (was 200+547B/1861B schema bodies) 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle confirmed live with kingcounty.gov + fleet parity across prod/uat/us2/jp; domain pa
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way discrimination stable (spare/grt/dallas→200 distinct bodies, cambus→404+131B); prod-o
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.b0a0c190.js→main.8a2a39cb.js contains ZERO sparelabs/atlassian/ngrok/metabase/vercel references (infra 
+- LEARN: REJECTED AUTH (controller-wide) @ api.sparelabs.com/v1/global/*: 22 sibling routes ALL 401 (zero-auth + Bearer-x) — bypass family DEFINITIVELY scoped to exactly
+- LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) is FALSE POSITIVE — longcat only tested no-auth path (400), never 
