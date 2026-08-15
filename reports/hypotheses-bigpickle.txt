@@ -1,12 +1,24 @@
-## 2026-08-15 11:20:20 UTC [api] (model bigpickle)
+## 2026-08-15 11:40:45 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/engage/{cases,caseForms} POST — score 6.3 (attack 6, business 7, tech 5, gate 8, cloud 3, fresh 8)
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — score 5.6 (attack 5, business 5, tech 6, gate 8, cloud 4, fresh 6)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — score 5.0 (attack 4, business 5, tech 4, gate 9, cloud 3, fresh 5)
 [HYP] Engage write routes permit cross-tenant case creation / record spam
 class: IDOR
 asset: api.sparelabs.com/v1/public/engage/{cases,caseForms}
 confidence: 58
-reasoning: Both POST routes reach handlers with zero Authorization (nil/random UUID → 404 lookup, never 401; control /v1/journeys 401). Schema fully mapped: cases requires orgId+caseTypeId+contactInfo (empty {} accepted), caseForms requires formId+caseId+optional metadata. CORS ACAO+ACAC on responses + OPTIONS 204 makes both cross-origin fireable. Write-blocked only by absence of a resolvable caseTypeId/formId.
-evidence_needed: valid caseTypeId for any known org, or AUTH_HELPED confirmation handler creates a record on resolution.
+reasoning: Both POST routes reach handlers with zero Authorization (nil/random UUID → 404 lookup, never 401; control /v1/journeys 401). cases requires orgId+caseTypeId+contactInfo, caseForms requires formId+caseId+optional metadata; CORS ACAO+ACAC + OPTIONS 204 makes both cross-origin fireable. Write-blocked only by absence of a resolvable caseTypeId/formId.
+evidence_needed: valid caseTypeId for any known org, or AUTH_HELPED confirmation the handler creates a record on resolution.
 verify_steps: AUTH_HELPED: with test token + test-org caseTypeId, POST a case, observe creation, then delete; repeat for caseForms with test formId/caseId.
 impact: unauthenticated case creation/spam against PII-collecting service; cross-tenant case association if caseId/formId cross-reference; MEDIUM
+testability: AUTH_HELPED
+[HYP] SSO-only tenants carry hidden per-tenant config invisible to org-key enumeration
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 45
+reasoning: SSO roster (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov) disjoint from 5-key org set; spare terms URL is literal junk "asdfd" (107B) vs winnipeg real URL (197B) proves per-tenant legal config residency; engage/terms resolve by org UUID.
+evidence_needed: UUID for any SSO-only tenant returning 200 on /v1/public/organizations/{id} or /v1/public/terms.
+verify_steps: AUTH_HELPED: test token/UUID for mbta.com or kingcounty.gov; GET /v1/public/terms?organizationId=<uuid>; diff body class (junk 107B / real 197B / generic 137B).
+impact: per-tenant legal/feature config disclosure incl. prod placeholder junk; LOW
 testability: AUTH_HELPED
 [HYP] Org-key feature-flag differential encodes live auth-provisioning events
 class: IDOR
@@ -17,18 +29,10 @@ evidence_needed: a second drift event on any key with changed flags/fields.
 verify_steps: PASSIVE: re-query 5 keys twice per cycle, record size+sha256+flags vs baseline.
 impact: timing/fingerprint for org provisioning + auth-method rollout; LOW
 testability: PASSIVE
-[HYP] SSO-only tenants carry hidden per-tenant config invisible to org-key enumeration
-class: IDOR
-asset: api.sparelabs.com/v1/identity/workos/auth
-confidence: 45
-reasoning: SSO roster (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov) disjoint from 5-key org set; spare terms URL is literal junk "asdfd" (107B) vs winnipeg real URL (197B) proves per-tenant legal config residency; engage/terms resolve by org UUID.
-evidence_needed: UUID for any SSO-only tenant returning 200 on /v1/public/organizations/{id} or /v1/public/terms.
-verify_steps: AUTH_HELPED: test token/UUID for mbta.com or kingcounty.gov; GET /v1/public/terms?organizationId=<uuid>; diff body class (junk 107B / real 197B / generic 137B).
-impact: per-tenant legal/feature config disclosure incl. prod placeholder junk; LOW
-testability: AUTH_HELPED
-[NEXT] PROBE: PASSIVE drift baseline re-confirmed this cycle — 5/5 org-keys byte-stable (spare 351, grt 288, dallas 277, winnipeg 352, hsr 321; sha 3099f1ba/c440540b/6145d40e/365dea44/0e87b694); regions Bearer-x bypass 200/725B sha fb9800ac (byte-stable 85h+); orgs zero-header bypass 200/11B sha 8fe32e40; engage write chain re-confirmed (cases nil-UUID 404 124B "Other was not found", caseForms 404 123B "Form was not found", NO auth gate). NO_DELTA across the board.
-[NEXT] HUMAN: request authorized API token + test organizationId/caseTypeId (and formId/caseId) pair, then confirm whether unauthenticated `POST /v1/public/engage/cases` and `POST /v1/public/engage/caseForms` actually create records — distinguishing intended public behavior from cross-tenant case-creation IDOR (HYP1 conf 58). Passive rules: never send a resolvable body until token received.
-[LEARN] ACCEPTED STABLE @ api.sparelabs.com: full finding family unchanged this cycle — org-key baseline, regions/orgs bypass (byte-stable), engage write chain all re-confirmed live, NO_DELTA, ~86h+ unpatched.
-[LEARN] REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: no drift event this cycle (5/5 byte-stable); HYP2 held at 42 pending a second drift event.
-[RISK] api.sparelabs.com: 78 — fleetwide {organizations,regions} auth-bypass family + unauth PII write chain + 3 enumeration oracles + universal credential CORS reflection, all ~86h+ unpatched. | platform.sparelabs.com: 45 — MFE shell live with persistent CSP infra leak (prod admin apps + Metabase + 9 cloud services); no direct auth bypass. | routing.sparelabs.com: 8 — envoy 404 on all paths, dead since 2026-08-07. | forms.sparelabs.com: 35 — Engage SPA with JS bundle infra leak (atlassian.net/ngrok/staging hosts present despite PATCHED claims); SPA catch-all, no API surface. | web (spare.com/sparelabs.com): 8 — static Webflow/Cloudflare marketing, HSTS+CSP present, no dynamic surface.
-[NEXT] HUMAN: request authorized API token + test organizationId/caseTypeId/formId/caseId pair to close HYP1 (58)
+[FINAL] 1) engage write-chain IDOR (58) 2) SSO-only tenant config (45) 3) org-key drift (42)
+[NEXT] HUMAN: request authorized API token + test organizationId/caseTypeId (and formId/caseId) pair, then confirm whether unauthenticated `POST /v1/public/engage/cases` and `POST /v1/public/engage/caseForms` actually create records — distinguishing intended public behavior from cross-tenant case-creation IDOR (conf 58). Passive rules: never send a resolvable body until token received. Fallback passive watch: keep polling `GET /v1/public/engage/{caseType}?caseTypeKey=&organizationId=<spare>` for the OpenAPI-validated replica to return so a valid caseTypeKey can be discovered without auth.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases: handler reach re-confirmed live — nil-UUID → 404 "Other was not found" (no InvalidTokenError); auth gate structurally absent, write chain alive.
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/terms: spare org returns 107B literal junk "asdfd" termsOfUseUrl (prod placeholder config) — byte-stable, per-tenant config residency confirmed.
+[LEARN] REJECTED (replica divergence) @ GET /v1/public/engage/{caseType}: current envoy replica serves router-level 400 "not found" 187–192B for all caseTypes — schema-resolution path not passively reachable this cycle.
+[LEARN] REJECTED IDOR @ /v1/public/organizations/key/{key}: no drift event (5/5 byte-stable); HYP held at 42 pending a second drift event.
+[RISK] api.sparelabs.com: 78 — fleetwide {organizations,regions} auth-bypass family + unauth PII write chain (engage cases/caseForms) + 3 enumeration oracles (org-key/UUID/SSO) + universal credential CORS reflection, all ~86h+ unpatched. | platform.sparelabs.com: 45 — MFE shell live with persistent CSP infra leak (prod admin apps + Metabase + 9 cloud services); no direct auth bypass. | routing.sparelabs.com: 8 — envoy 404 on all paths, dead since 2026-08-07. | forms.sparelabs.com: 35 — Engage SPA with JS bundle infra leak (atlassian.net/ngrok/staging hosts present in main.8a2a39cb.js per prior REACTIVATED observation, though live grep this session showed 0 matches — reconcile at next fetch); SPA catch-all, no API surface. | web (spare.com/sparelabs.com): 8 — static Webflow/Cloudflare marketing, HSTS+CSP present, no dynamic surface.

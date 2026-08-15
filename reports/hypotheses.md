@@ -4867,3 +4867,41 @@
 - LEARN: REJECTED @ routing.sparelabs.com: envoy 404/0B on ALL paths — STABLE dead since 2026-08-07, NO_DELTA
 - LEARN: ACCEPTED STABLE @ api.sparelabs.com: full finding family unchanged this cycle — org-key baseline, regions/orgs bypass (byte-stable), engage write chain all re-c
 - LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: no drift event this cycle (5/5 byte-stable); HYP2 held at 42 pending a second drift event.
+
+## RANKED HYPOTHESES 2026-08-15 11:42:58 UTC
+- [85] api.sparelabs.com/v1/public/engage/cases: Unauthenticated public write via engage cases (from reports/hypotheses-nemotron3.txt)
+- [80] api.sparelabs.com/v1/public/engage/{cases,caseForms}: Engage Unauthenticated Write Chain (handler reach, auth gate absent) (from reports/hypotheses-laguna.txt)
+- [58] api.sparelabs.com/v1/public/engage/{cases,caseForms}: Engage write routes permit cross-tenant case creation / record spam (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"winnipeg.
+- NEXT(hypotheses-laguna.txt): PROBE: curl -s -m 15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"00000000-0000-0000-0000-0000000000
+- NEXT(hypotheses-bigpickle.txt): HUMAN: request authorized API token + test organizationId/caseTypeId (and formId/caseId) pair, then confirm whether unauthenticated `POST /v1/public/engage/case
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases POST: unauth public write route confirmed (400 on empty, validation chain, 404 nil-UUID handler) — writ
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/caseForms POST: unauth public write route confirmed (500→400 on empty, 400 validation, 404 nil-UUID handler) 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: OpenAPI validation now active on current replica (400 required caseTypeKey/organiza
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.8a2a39cb.js confirmed PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NOW live (was TIMEOUT→200 MFE SPA shell); CSP infra leak STABLE (admin Vercel apps+Metabase+9 cloud services)
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: NOW live but STABLE dead — envoy 404 on ALL probed paths; NO_DELTA since 2026-08-07
+- LEARN: REJECTED MISCONFIG @ sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS, static-only, no new surface
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO tenant roster expanded — 7th tenant kingcounty.gov confirmed (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ), 7
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidates all 404
+- LEARN: STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 85h+ — GET no-auth → 200+11B+ACAO+ACAC; writes POST→401 (read-only confi
+- LEARN: STABLE @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC (sha256 fb9800acb…585c3fe); no-auth→400; POST→401
+- LEARN: STABLE @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle STABLE — spare→200+351B, grt→200+288B, dallas→200+277B, nil→404; prod-only (uat/us2/j
+- LEARN: STABLE @ api.sparelabs.com/v1/public/terms: data disclosure STABLE — ?mobileAppId=nil → 200+137B (termsOfUseUrl+privacyPolicyUrl→sparelabs.com apex) no-auth+COR
+- LEARN: STABLE @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 85h+ — ACAO:evil+ACAC:true + all methods on OPTIONS 204 + GET 200/401/404, non-pat
+- LEARN: STABLE @ platform.sparelabs.com/login: CSP infra leak STABLE — admin-eam-app+admin-fixed-route-app (prod+staging, script-src+frame-src+style-src→loadable 200) +
+- LEARN: STABLE @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases: AUTH gate ABSENT — valid-org UUID POST returns ForbiddenError "External case creation is not enabl
+- LEARN: STABLE @ api.sparelabs.com/v1/public/engage/{caseForms,cases}: empty-body POST → 400 ValidationError with NO InvalidTokenError + ACAO+ACAC; nil-UUID handler rea
+- LEARN: STABLE @ api.sparelabs.com/v1/public/engage/{cases,caseForms}: auth gate ABSENT — nil-UUID POST reaches handler (404 NotFoundError, not 401 InvalidTokenError); 
+- LEARN: STABLE @ api.sparelabs.com/v1/global/regions: scheme-only bypass NOT patched despite longcat "PATCHED" (2026-08-11) false positive — longcat only tested no-auth
+- LEARN: STABLE @ api.sparelabs.com/v1/global/organizations: complete zero-header read-only bypass — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 Invalid
+- LEARN: STABLE @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle intact, live set closed at {spare,grt,dallas,winnipeg,hsr} (5 orgs), 22 new candidate
+- LEARN: STABLE @ api.sparelabs.com/v1/identity/workos/auth: 7th SSO tenant kingcounty.gov confirmed (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ), fleet-parity across 7 hosts, univ
+- LEARN: STABLE @ platform.sparelabs.com/login: CSP infra leak — admin-eam-app + admin-fixed-route-app (prod+staging, loadable 200) + Metabase (prod+staging 200) + 9 clo
+- LEARN: STABLE @ forms.sparelabs.com: JS bundle main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restrict
+- LEARN: STABLE @ routing.sparelabs.com: envoy 404/0B on ALL probed paths (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map/,/directions/,/openapi.json,/swagger.json,/d
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases: handler reach re-confirmed live — nil-UUID → 404 "Other was not found" (no InvalidTokenError); auth ga
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/terms: spare org returns 107B literal junk "asdfd" termsOfUseUrl (prod placeholder config) — byte-stable, per-te
+- LEARN: REJECTED (replica divergence) @ GET /v1/public/engage/{caseType}: current envoy replica serves router-level 400 "not found" 187–192B for all caseTypes — schema-
+- LEARN: REJECTED IDOR @ /v1/public/organizations/key/{key}: no drift event (5/5 byte-stable); HYP held at 42 pending a second drift event.
