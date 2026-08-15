@@ -1472,3 +1472,7 @@
 
 ## 2026-08-15 17:33:50 UTC
 - NEW NO_DELTA — surface unchanged since 2026-08-15 15:00 UTC; all core bypasses re-confirmed live this cycle
+
+## 2026-08-15 17:51:53 UTC
+- NEW SSO tenant roster EXPANDED to 8: winnipeg.ca CONFIRMED live (conn_01HP76PPV8CMRJH6RYRTWEPSGS), distinct from spare.com (conn_01GRW7M1CJEJGYKMEMPBCQEZHY), saskatoon.ca (conn_01G29CFD168BP9D4390FM9X40M)
+- NEW Rejected this round (all 404): hamilton.ca, cityofwinnipeg.ca, hamiltonregion.ca, dallas.gov, dart.agencies, hsr.ca, calgary.ca, vancouver.ca, toronto.ca, grt.ca(control). Non-municipality pattern hol

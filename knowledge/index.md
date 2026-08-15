@@ -1500,3 +1500,5 @@
 - 2026-08-15 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC, POST/PUT/PATCH/DELETE → 401, auth-asymmetry confirmed
 - 2026-08-15 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle STABLE — 5 live orgs (spare/grt/dallas/winnipeg/hsr), 22 new candidates 404, prod-only (uat/us2/jp→404)
 - 2026-08-15 REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak eliminated (downgraded to recon-only)
+- 2026-08-15 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: winnipeg.ca = 8th SSO tenant; org-key oracle overlap (winnipeg org-key ↔ winnipeg.ca SSO) closes "disjoint" assumption — SSO domain is city/municipality top-level domain, NOT agency domain.
+- 2026-08-15 NO_DELTA: regions (sha256 fb9800ac... re-verified), orgs zero-header {"data":[]} 200, org-key winnipeg 200+UUID 6c84b370-5cc2-42c6-8cdd-146c99648535, grt.ca control 404.
