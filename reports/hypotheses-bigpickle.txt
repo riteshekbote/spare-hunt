@@ -1,4 +1,4 @@
-## 2026-08-15 09:15:15 UTC [api] (model bigpickle)
+## 2026-08-15 09:44:52 UTC [api] (model bigpickle)
 [HYP] SSO-only tenants carry per-tenant legal config hidden from org-key enumeration
 class: IDOR
 asset: api.sparelabs.com/v1/identity/workos/auth
@@ -26,3 +26,35 @@ evidence_needed: a second drift event on any known key with new/different enable
 verify_steps: PASSIVE: re-query the 5 known org-keys twice this cycle at sleep 1.5; record size+sha256 per key and diff flags; repeat next cycle to establish drift baseline
 impact: timing/fingerprint signal for org provisioning + flag rollout, no direct data exposure; LOW
 testability: PASSIVE
+[HYP] SSO-only tenants carry per-tenant legal config hidden from org-key enumeration
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 45
+reasoning: WorkOS roster (spare.com, dart.org, translink.ca, mbta.com, kingcounty.gov, saskatoon.ca) is fully disjoint from org-key set (5 keys, closed via 22-key sweep); winnipeg org-key→197B real terms URL proves per-tenant residency; saskatoon.ca has SSO but no org-key
+evidence_needed: a UUID for any SSO-only tenant returning 200 on /v1/public/organizations/{id} or /v1/public/terms
+verify_steps: HUMAN_ONLY: obtain authorized UUID/test token for mbta.com/kingcounty.gov/dart.org/translink.ca/saskatoon.ca; then GET /v1/public/terms?organizationId=<uuid> (Origin evil, sleep 1.2); compare body class (junk 107B / real 197B / generic 137B)
+impact: extends per-tenant config chaining to hidden partners incl. possible prod placeholder junk; LOW
+testability: HUMAN_ONLY
+[HYP] Unvetted per-tenant prod config pattern extends beyond terms (engage schemas, branding, feature flags)
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/terms
+confidence: 55
+reasoning: spare's termsOfUseUrl is literal "asdfd" junk live in prod (107B) while winnipeg carries real tenant URL (197B) — byte-stable; org records actively managed in prod (feature-flag differential {5,2,0,4,2})
+evidence_needed: any other unauthenticated /v1/public body carrying tenant-distinct dev/placeholder value, or capability-significant flag difference
+verify_steps: PASSIVE: on each envoy replica round, GET /v1/public/engage/{caseType,form} for the 5 org keys (sleep 1.2) until a 200-schema replica appears; diff schemas per tenant for junk/placeholder fields; also re-check terms per UUID each cycle
+impact: unauthenticated per-tenant legal-config + feature-provisioning disclosure incl. prod placeholder junk; LOW
+testability: PASSIVE
+[HYP] Org-key record drift + riderLoginless flag encode live auth-provisioning events for tenant capability fingerprinting
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 42
+reasoning: winnipeg +64B and hsr +3B cross-session churn observed (now static baseline); spare uniquely carries riderLoginless flag = loginless rider-auth active on a prod tenant; per-tenant records actively managed in prod
+evidence_needed: a second drift event on any known key with changed enabledPublicFeatureFlags or new fields
+verify_steps: PASSIVE: re-query the 5 known org-keys twice per cycle at sleep 1.5; record size+sha256+flags; diff vs this cycle's baseline {351/288/277/352/321} and flag set; repeat each cycle to catch drift events
+impact: timing/fingerprint signal for org provisioning + auth-method rollout; LOW
+testability: PASSIVE
+[NEXT] PROBE: retry GET https://api.sparelabs.com/v1/public/engage/caseType (Origin https://evil.example.com) then /v1/public/engage/form, alternating spare/grt/dallas/winnipeg/hsr, sleep 1.2 between each, up to 8 probes — catching a 200-schema replica to diff per-tenant junk/placeholder fields and close the BUSLOGIC (55) verify; if all 400 again, re-run the 5-key drift baseline next cycle
+[LEARN] REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: no intra-session drift observed — 5/5 keys byte-stable × 2 rounds; cross-session churn (winnipeg +64B, hsr +3B) is a settled baseline, not active provisioning this cycle
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: feature-flag differential re-confirmed stable — spare 5 (incl. riderLoginless), winnipeg 4, grt 2, hsr 2, dallas 0; capability-significant auth-method disclosure persists
+[LEARN] REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/*: 200-schema replica still not reachable this cycle (all 400 "not found" 189–193B) — schema-disclosure hypothesis remains unconfirmed across 2 consecutive sessions
+[RISK] api.sparelabs.com: 62 — two stable auth-free read-only bypasses (orgs zero-header 200/11B, regions scheme-only Bearer-x 725B) + 3 unauth enumeration oracles (plural UUID 3-way, org-key closed at 5, SSO closed at 8) + universal CORS credential reflection + confirmed per-tenant config chain with prod placeholder junk ("asdfd"), all 85h+ unpatched; caps at read-only low-value payloads. | platform.sparelabs.com: 38 — pure MFE SPA shell, SPA catch-all everywhere, no API surface; CSP infra leak (admin Vercel apps + Metabase + 9 cloud services) stable but non-exploitable. | routing.sparelabs.com: 10 — envoy 404 on all paths since 2026-08-07, zero surface. | forms.sparelabs.com: 18 — JS-bundle infra leak patched (main.8a2a39cb.js zero refs), 3 referrer-restricted GMaps keys; Engage PII schema disclosure flapping/unreliable across envoy replicas, residual if replica stabilizes. | web (spare.com/sparelabs.com): 12 — static Cloudflare+Webflow marketing, HSTS 31536000, no dynamic surface, no infra leaks.

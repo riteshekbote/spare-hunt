@@ -1255,3 +1255,15 @@
 - CHANGED api.sparelabs.com/v1/identity/workos/auth: direct authorize-URL GET now 302→error.workos.com/sso/invalid-connection-selector (was live corporate IdP 302 per KB)
 - NEW api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidate keys all 404
 - NEW api.sparelabs.com/v1/public/organizations/key/{key}: 5/5 confirmed org bodies expose enabledPublicFeatureFlags differential (spare/grt/winnipeg/hsr feature-flagged, dallas=[]) + logoUrl all on single 
+
+## 2026-08-15 09:46:03 UTC
+- NEW api.sparelabs.com/v1/public/terms: per-tenant config map COMPLETED — spare UUID→107B placeholder "asdfd", winnipeg→197B real URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic; byte-stable sh
+- NEW api.sparelabs.com/v1/identity/workos/auth: direct authorize-URL GET now 302→error.workos.com/sso/invalid-connection-selector (was live corporate IdP 302 per KB) — IdP-redirect/Entra-fingerprint chain 
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidate keys all 404; SSO roster and org-key set definitively disjoint
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 5/5 confirmed org bodies expose enabledPublicFeatureFlags differential (spare/grt/winnipeg/hsr feature-flagged, dallas=[]) + logoUrl all on single 
+- CHANGED api.sparelabs.com/v1/global/regions: Scheme-only bypass CONFIRMED NOT PATCHED — Bearer x still → 200+725B+ACAO+ACAC; longcat triage "PATCHED" claim (2026-08-11) DISPROVEN; longcat only tested no-auth 
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy LB replicas — nil-uuid→404 on fast replica (3-way intact), 400 on slow (2-way); plural /organizations
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js confirmed PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (infra leak ELIMINATED); 3 Google Maps keys all referrer-restricted (geoco
+- CHANGED platform.sparelabs.com: NOW live — was TIMEOUT→200 (MFE SPA shell); envoy + Google CDN; CSP on /login still discloses prod admin Vercel apps + Metabase + 9 cloud services
+- CHANGED routing.sparelabs.com: NOW live — was TIMEOUT→envoy 404 (STABLE dead, no surface); NO_DELTA since 2026-08-07
+- CHANGED sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS, static-only
