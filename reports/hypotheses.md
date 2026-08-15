@@ -5244,3 +5244,24 @@
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: NOW live but STABLE dead — envoy 404 on ALL probed paths; NO_DELTA since 2026-08-07
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: NOT patched despite longcat false-positive claim (2026-08-11) — Bearer x → 200+725B+ACAO+ACAC, sha256 fb980
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: read-only zero-header bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 In
+
+## RANKED HYPOTHESES 2026-08-15 17:03:11 UTC
+- [95] api.sparelabs.com/v1/identity/workos/auth: WorkOS SSO Tenant Enumeration via Domain Discriminator (from reports/hypotheses-laguna.txt)
+- [95] api.sparelabs.com/v1/identity/workos/auth: SSO tenant enumeration via WorkOS auth domain discriminator (from reports/hypotheses-nemotron3.txt)
+- [75] api.sparelabs.com/v1/public/engage/caseForms: caseForms unauthenticated cross-tenant form-response write IDOR (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"winnipeg.
+- NEXT(hypotheses-laguna.txt): PROBE: curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d79
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO tenant roster expanded — 7th tenant kingcounty.gov confirmed (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ), f
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 NotFoundE
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr}; 22 new candidates 404; pro
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NOW live (was TIMEOUT→200 MFE SPA shell); CSP infra leak STABLE (admin Vercel apps+Metabase+9 cloud services)
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: NOW live but STABLE dead — envoy 404 on ALL probed paths; NO_DELTA since 2026-08-07
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: NOT patched despite longcat false-positive claim (2026-08-11) — Bearer x → 200+725B+ACAO+ACAC, sha256 fb980
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: read-only zero-header bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 In
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO tenant enumeration CONFIRMED STABLE — 7 tenants (spare.com, dart.org, translink.ca, mbta.com, sas
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 86h+ — Bearer x → 200+725B+ACAO+ACAC, sha256 fb9800acb…585c3fe verified, POST→401
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC, POST/PUT/PATCH/DELETE → 401, a
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle STABLE — 5 live orgs (spare/grt/dallas/winnipeg/hsr), 22 new c
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all refer
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths since 2026-08-07, NO_DELTA

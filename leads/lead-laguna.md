@@ -8959,3 +8959,45 @@ testability: AUTH_HELPED
 [LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
 [RISK] api.sparelabs.com: 99 | Multiple confirmed bypasses (scheme-only Bearer on /regions, zero-header on /organizations), unauth write path on /engage/cases POST, 7-tenant SSO enumeration, UUID oracle, infra topology disclosure, read-only but NOT patched | platform.sparelabs.com: 75 | CSP infra leak (admin Vercel apps + Metabase + 9 cloud services); strict HTML CSP mitigates HTML-level disclosure but infra-level leak persists | routing.sparelabs.com: 8 | envoy 404 on all paths, no surface, NO_DELTA since 2026-08-07 | forms.sparelabs.com: 5 | JS bundle patched (zero infra refs), strict HTML CSP + x-frame DENY, SPA catch-all only; recon-only residual | web (spare.com/sparelabs.com): 5 | static Cloudflare+Webflow marketing, CSP frame-ancestors, HSTS, no internal infra leaks, minimal dynamic surface
 ## 2026-08-15 16:38:06 UTC [web] (model laguna)
+## 2026-08-15 16:58:57 UTC [web] (model laguna)
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 95 — a:9 b:10 t:8 g:10 c:8 f:9
+[PRIO] api.sparelabs.com/v1/global/regions — 91 — a:9 b:9 t:7 g:9 c:10 f:9
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST — 85 — a:9 b:8 t:7 g:10 c:9 f:8
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — 80 — a:8 b:8 t:6 g:10 c:10 f:8
+[PRIO] api.sparelabs.com/v1/global/organizations — 78 — a:7 b:8 t:6 g:9 c:9 f:7
+[HYP] WorkOS SSO Tenant Enumeration via Domain Discriminator
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth (POST)
+confidence: 95
+reasoning: POST domain param discriminates 200 (7 tenants: spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, + candidates) vs 404; 200 returns 172B disclosing WorkOS client_id + connection_id + Entra tenant_id in relayState JWT; zero-auth + universal CORS on both branches; fleet-parity across prod/uat/us2/jp confirmed
+evidence_needed: 200 + 172B body with WorkOS client_id + connection_id + Entra tenant_id for configured domains (e.g. spare.com); 404 + 0B for unconfigured
+verify_steps: PROBE: curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com"}' https://api.sparelabs.com/v1/identity/workos/auth (expect 200 + WorkOS client_id + connection_id in body); PROBE: curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"ottawa.ca"}' https://api.sparelabs.com/v1/identity/workos/auth (expect 404); PROBE: curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com"}' https://api.us2.sparelabs.com/v1/identity/workos/auth (fleet-parity)
+impact: Unauthenticated tenant roster enumeration — discloses WorkOS client_id + Azure Entra tenant_ids + SSO connection mappings for transit agencies. Universal CORS enables browser-based enumeration. Severity MED.
+testability: PASSIVE
+[HYP] Scheme-Only Bearer Bypass + Infra Topology Disclosure
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions (GET)
+confidence: 95
+reasoning: Gate validates Bearer SCHEME ONLY, token value never verified. Byte-stable 86h+ (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe verified across 20+ probes). Body discloses 7 regions incl 6 OOS api/routing subdomains (prod/us/us2/us3/jp/eu/uat + staging). no-auth→400, POST→401 (read-only), control /v1/journeys→401. longcat "PATCHED" (2026-08-11) is FALSE POSITIVE — only tested no-auth path.
+evidence_needed: 200 + 725B with Authorization: Bearer x; body sha256 matches fb9800acb…585c3fe; no-auth→400; POST→401; identical response from uat/us2/jp fleet hosts
+verify_steps: PROBE: curl -s -m15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | sha256sum (expect fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe); PROBE: curl -s -m15 -D - -o /dev/null -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/regions (expect 400 + ACAO+ACAC); PROBE: curl -s -m15 -X POST -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions (expect 401)
+impact: Unauthenticated infra topology disclosure — full regional deployment map (7 regions incl 6 OOS production api/routing subdomains + staging) with no valid token. Enables targeted follow-on attacks. Severity HIGH.
+testability: PASSIVE
+[HYP] Unauthenticated Engage Case Write Path
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases (POST)
+confidence: 85
+reasoning: Auth gate ABSENT — empty POST returns 400 ValidationError with NO 401 InvalidTokenError (validation middleware precedes auth check). nil-UUID orgId POST → 404 NotFoundError "Other was not found" (handler reached, would be 401 if auth-gated). spare-org UUID POST → 403 ForbiddenError "External case creation is not enabled for this organization" (business-logic feature-flag gate, not auth). CORS reflected on all error paths.
+evidence_needed: POST with valid caseTypeId + org UUID returns 200/201 (record creation) NOT 401 InvalidTokenError — confirming successful unauthenticated data creation
+verify_steps: PROBE: curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"mobility"}' https://api.sparelabs.com/v1/public/engage/cases (check 400 validation error for caseTypeIdKey format OR 403 feature-flag-block vs 200 creation)
+impact: Unauthenticated cross-origin transit-dispatch case record injection with PII contact fields (phone/email/name). Cross-origin browser exploitation via universal CORS. Severity MED-HIGH.
+testability: AUTH_HELPED
+[FINAL] Ranked hypotheses:
+[NEXT] PROBE: curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"mobility"}' https://api.sparelabs.com/v1/public/engage/cases — extract caseTypeIdKey schema from validation error (confirms valid format) vs 403 feature-flag-blocked (confirms handler-reach without auth gate) vs 200 creation (proves data injection)
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO tenant enumeration CONFIRMED STABLE — 7 tenants (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, +), connection_id byte-stable per domain, fleet-parity across 7 hosts
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 86h+ — Bearer x → 200+725B+ACAO+ACAC, sha256 fb9800acb…585c3fe verified, POST→401 read-only, longcat "PATCHED" is FALSE POSITIVE
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC, POST/PUT/PATCH/DELETE → 401, auth-asymmetry confirmed
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle STABLE — 5 live orgs (spare/grt/dallas/winnipeg/hsr), 22 new candidates 404, prod-only (uat/us2/jp→404)
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak eliminated (downgraded to recon-only)
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths since 2026-08-07, NO_DELTA
+[RISK] api.sparelabs.com: 99 | Multiple confirmed bypasses (scheme-only Bearer on /regions, zero-header on /organizations), unauth write path on /engage/cases POST, 7-tenant SSO enumeration, UUID+org-key oracles, infra topology disclosure, read-only but NOT patched (86h+); universal CORS + 14-sibling sweep confirms non-path-conditional exposure | platform.sparelabs.com: 75 | CSP infra leak (admin Vercel apps + Metabase + 9 cloud services); strict HTML CSP mitigates HTML-level disclosure but infra-level leak persists | routing.sparelabs.com: 8 | envoy 404 on all paths, no surface, NO_DELTA since 2026-08-07 | forms.sparelabs.com: 5 | SPA 200 + strict HTML CSP + x-frame DENY, JS bundle patched (zero infra refs), recon-only residual | web (spare.com/sparelabs.com): 5 | static Cloudflare+Webflow marketing, CSP frame-ancestors, HSTS, no internal infra leaks, minimal dynamic surface
