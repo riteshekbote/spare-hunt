@@ -46422,3 +46422,87 @@ testability: PASSIVE
 - [RISK] routing.sparelabs.com: 10 — envoy 404 on all paths since 2026-08-07, zero surface, NO_DELTA.
 - [RISK] forms.sparelabs.com: 18 — JS-bundle infra leak patched (main.8a2a39cb.js zero refs), 3 referrer-restricted GMaps keys; Engage PII schema disclosure flapping/unreliable across envoy replicas, residual if a 200-schema replica stabilizes.
 - [RISK] web (spare.com/sparelabs.com): 12 — static Cloudflare+Webflow marketing, HSTS 31536000, no dynamic surface, no infra leaks.
+===== ANALYST bigpickle 2026-08-15 10:58:42 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mcurl -s -o /tmp/opencode/c2.json -w "HTTP %{http_code} %{size_download}B %{time_total}s\n" -X POST "https://api.sparelabs.com/v1/public/engage/caseForms" -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -H "User-Agent: passive-recon" -d '{"formId":"00000000-0000-0000-0000-000000000000","caseId":"00000000-0000-0000-0000-000000000000","metadata":{}}' --max-time 20
+HTTP 404 123B 0.114457s
+[0m
+[0m$ [0mcurl -s -o /tmp/opencode/c1.json -w "HTTP %{http_code} %{size_download}B %{time_total}s\n" -X POST "https://api.sparelabs.com/v1/public/engage/cases" -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -H "User-Agent: passive-recon" -d '{"organizationId":"00000000-0000-0000-0000-000000000000","caseTypeId":"00000000-0000-0000-0000-000000000000"}' --max-time 20; sleep 1.2
+HTTP 400 297B 0.197907s
+[0m
+[0m$ [0mcat /tmp/opencode/c1.json; echo; echo "---"; cat /tmp/opencode/c2.json
+{"name":"ValidationError","message":"request/body must have required property 'contactInfo'","metadata":{"errors":[{"path":"/body/contactInfo","message":"must have required property 'contactInfo'","errorCode":"required.openapi.validation"}],"correlationId":"c25fa048-4e3f-4914-9789-658a9dbfc00f"}}
+---
+{"name":"NotFoundError","message":"Form was not found","metadata":{"correlationId":"83e4db2e-d59e-4dbc-92b8-9846fc83dacc"}}
+[0m
+[0m$ [0mcurl -s -o /tmp/opencode/c3.json -w "HTTP %{http_code} %{size_download}B %{time_total}s\n" -X POST "https://api.sparelabs.com/v1/public/engage/cases" -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -H "User-Agent: passive-recon" -d '{"organizationId":"00000000-0000-0000-0000-000000000000","caseTypeId":"00000000-0000-0000-0000-000000000000","contactInfo":{}}' --max-time 20; sleep 1.2
+HTTP 404 124B 0.346654s
+[0m
+[0m$ [0mcat /tmp/opencode/c3.json
+{"name":"NotFoundError","message":"Other was not found","metadata":{"correlationId":"f72508aa-e725-4cbb-a916-a931be97b5de"}}
+[0m
+All probes this cycle were nil-UUID validation-chain requests (never a resolvable body), ≤1 rps. Results below.
+
+---
+
+### STEP 1 — DELTA
+- [CHANGED] api.sparelabs.com/v1/public/engage/cases POST: schema fully mapped — required `{organizationId, caseTypeId, contactInfo}`; `contactInfo:{}` passes OpenAPI (object-typed only, no required sub-props); nil-UUID org+caseType → 404 "Other was not found" 124B (handler reach, NO auth gate)
+- [CHANGED] api.sparelabs.com/v1/public/engage/caseForms POST: metadata sub-schema confirmed empty/optional (`metadata:{}` passes); nil formId → 404 "Form was not found" 123B (handler reach, NO auth gate)
+- NO_DELTA otherwise: regions/orgs bypass, org-key oracle, workos SSO oracle, UUID oracle, CORS reflection, platform CSP all STABLE per KB.
+
+### STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/public/engage/{cases,caseForms}: score 6.75 | attack 7, business 7, tech 5, gate 10, cloud 2, fresh 8
+- [PRIO] api.sparelabs.com/v1/public/organizations/key/{key}: score 5.95 | attack 6, business 6, tech 5, gate 10, cloud 3, fresh 4
+- [PRIO] api.sparelabs.com/v1/identity/workos/auth: score 5.80 | attack 5, business 5, tech 6, gate 10, cloud 4, fresh 5
+
+### STEP 3 — HYPOTHESES
+[HYP] Engage write routes permit cross-tenant case creation / record spam
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/{cases,caseForms}
+confidence: 58
+reasoning: Both POST routes reach handlers with zero Authorization (nil/random UUID → 404 lookup, never 401; control /v1/journeys 401). Schema fully mapped: cases requires orgId+caseTypeId+contactInfo (empty {} accepted), caseForms requires formId+caseId+optional metadata. CORS ACAO+ACAC on responses + OPTIONS 204 makes both cross-origin fireable. Write-blocked only by absence of a resolvable caseTypeId/formId.
+evidence_needed: valid caseTypeId for any known org, or AUTH_HELPED confirmation handler creates a record on resolution.
+verify_steps: AUTH_HELPED: with test token + test-org caseTypeId, POST a case, observe creation, then delete; repeat for caseForms with test formId/caseId.
+impact: unauthenticated case creation/spam against PII-collecting service; cross-tenant case association if caseId/formId cross-reference; MEDIUM
+testability: AUTH_HELPED
+
+[HYP] Org-key feature-flag differential encodes live auth-provisioning events
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 42
+reasoning: 5 live orgs with stable feature-flag differential (spare 5 incl. riderLoginless, winnipeg 4, grt 2, hsr 2, dallas 0); cross-session churn (winnipeg +64B, hsr +3B) settled to static baseline; records actively managed, capability-significant auth-method disclosure.
+evidence_needed: a second drift event on any key with changed flags/fields.
+verify_steps: PASSIVE: re-query 5 keys twice per cycle, record size+sha256+flags vs baseline.
+impact: timing/fingerprint for org provisioning + auth-method rollout; LOW
+testability: PASSIVE
+
+[HYP] SSO-only tenants carry hidden per-tenant config invisible to org-key enumeration
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 45
+reasoning: SSO roster (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov) disjoint from 5-key org set; spare terms URL is literal junk "asdfd" (107B) vs winnipeg real URL (197B) proves per-tenant legal config residency; engage/terms resolve by org UUID.
+evidence_needed: UUID for any SSO-only tenant returning 200 on /v1/public/organizations/{id} or /v1/public/terms.
+verify_steps: AUTH_HELPED: test token/UUID for mbta.com or kingcounty.gov; GET /v1/public/terms?organizationId=<uuid>; diff body class (junk 107B / real 197B / generic 137B).
+impact: per-tenant legal/feature config disclosure incl. prod placeholder junk; LOW
+testability: AUTH_HELPED
+
+### STEP 4 — SELF-CRITIQUE
+- Kept all 3 (confidence ≥40, no REJECTED class, concrete verify_steps).
+- [PARKED] engage/{caseType,form} GET 200-schema replica chasing: flapping across replicas, unconfirmed across consecutive sessions — BUSLOGIC class already REJECTED in KB for this exact vector; schema-disclosure already fully mapped via POST validation chain instead.
+- [FINAL] 1) engage write chain IDOR (58) 2) SSO-only hidden config (45) 3) org-key feature-flag drift (42)
+
+### STEP 5 — NEXT ACTION
+[NEXT] HUMAN: request authorized API token + test organizationId/caseTypeId (and formId/caseId) pair, then confirm whether unauthenticated `POST /v1/public/engage/cases` and `POST /v1/public/engage/caseForms` actually create records — distinguishing intended public behavior from cross-tenant case-creation IDOR. Passive rules: never send a resolvable body until token received.
+
+### STEP 6 — LEARNING
+- ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/{cases,caseForms}: both POST routes reach handlers with zero Authorization (validation → 404 lookup, never 401) — auth omission confirmed on the write surface, not just GET.
+- ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases: contactInfo accepts empty `{}` (object-typed only, zero content validation) on a PII-collecting write route.
+
+### STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 78 — fleetwide {organizations,regions} auth-bypass family + unauth PII write chain + 3 enumeration oracles + universal credential CORS reflection, all 85h+ unpatched
+- [RISK] platform.sparelabs.com: 45 — MFE shell live with persistent CSP infra leak (prod admin apps + Metabase + 9 cloud services); no direct auth bypass
+- [RISK] routing.sparelabs.com: 8 — envoy 404 on all paths, dead since 2026-08-07
+- [RISK] forms.sparelabs.com: 35 — Engage SPA with JS bundle infra leak (latest evidence shows atlassian.net/ngrok/staging hosts still present despite PATCHED claims); SPA catch-all, no API surface
+- [RISK] web (spare.com/sparelabs.com): 8 — static Webflow/Cloudflare marketing, HSTS+CSP present, no dynamic surface

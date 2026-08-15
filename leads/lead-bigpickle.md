@@ -7998,3 +7998,32 @@ verify_steps: PASSIVE: re-probe engage/form+caseType per replica each cycle (sle
 impact: Unauthenticated per-tenant engage config/legal disclosure incl. placeholder junk; LOW
 testability: PASSIVE
 [NEXT] HUMAN: request an authorized API token + a test organizationId/caseTypeId (and formId/caseId) pair, then confirm whether unauthenticated `POST /v1/public/engage/cases` (and `POST /v1/public/engage/caseForms`) actually creates records — distinguishing intended public behavior from cross-tenant case-creation IDOR and closing HYP1 (IDOR 58). Under passive rules NEVER send a resolvable body.
+## 2026-08-15 10:55:10 UTC [api] (model bigpickle)
+[HYP] Engage write routes permit cross-tenant case creation / record spam
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/{cases,caseForms}
+confidence: 58
+reasoning: Both POST routes reach handlers with zero Authorization (nil/random UUID → 404 lookup, never 401; control /v1/journeys 401). Schema fully mapped: cases requires orgId+caseTypeId+contactInfo (empty {} accepted), caseForms requires formId+caseId+optional metadata. CORS ACAO+ACAC on responses + OPTIONS 204 makes both cross-origin fireable. Write-blocked only by absence of a resolvable caseTypeId/formId.
+evidence_needed: valid caseTypeId for any known org, or AUTH_HELPED confirmation handler creates a record on resolution.
+verify_steps: AUTH_HELPED: with test token + test-org caseTypeId, POST a case, observe creation, then delete; repeat for caseForms with test formId/caseId.
+impact: unauthenticated case creation/spam against PII-collecting service; cross-tenant case association if caseId/formId cross-reference; MEDIUM
+testability: AUTH_HELPED
+[HYP] Org-key feature-flag differential encodes live auth-provisioning events
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 42
+reasoning: 5 live orgs with stable feature-flag differential (spare 5 incl. riderLoginless, winnipeg 4, grt 2, hsr 2, dallas 0); cross-session churn (winnipeg +64B, hsr +3B) settled to static baseline; records actively managed, capability-significant auth-method disclosure.
+evidence_needed: a second drift event on any key with changed flags/fields.
+verify_steps: PASSIVE: re-query 5 keys twice per cycle, record size+sha256+flags vs baseline.
+impact: timing/fingerprint for org provisioning + auth-method rollout; LOW
+testability: PASSIVE
+[HYP] SSO-only tenants carry hidden per-tenant config invisible to org-key enumeration
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 45
+reasoning: SSO roster (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov) disjoint from 5-key org set; spare terms URL is literal junk "asdfd" (107B) vs winnipeg real URL (197B) proves per-tenant legal config residency; engage/terms resolve by org UUID.
+evidence_needed: UUID for any SSO-only tenant returning 200 on /v1/public/organizations/{id} or /v1/public/terms.
+verify_steps: AUTH_HELPED: test token/UUID for mbta.com or kingcounty.gov; GET /v1/public/terms?organizationId=<uuid>; diff body class (junk 107B / real 197B / generic 137B).
+impact: per-tenant legal/feature config disclosure incl. prod placeholder junk; LOW
+testability: AUTH_HELPED
+[NEXT] HUMAN: request authorized API token + test organizationId/caseTypeId (and formId/caseId) pair, then confirm whether unauthenticated `POST /v1/public/engage/cases` and `POST /v1/public/engage/caseForms` actually create records — distinguishing intended public behavior from cross-tenant case-creation IDOR. Passive rules: never send a resolvable body until token received.

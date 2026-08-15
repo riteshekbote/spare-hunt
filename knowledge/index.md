@@ -1391,3 +1391,15 @@
 - 2026-08-15 STABLE @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 85h+ — ACAO:evil+ACAC:true + all methods on OPTIONS 204 + GET 200/401/404, non-path-conditional via 22-sibling sweep
 - 2026-08-15 STABLE @ platform.sparelabs.com/login: CSP infra leak STABLE — admin-eam-app+admin-fixed-route-app (prod+staging, script-src+frame-src+style-src→loadable 200) + Metabase (prod+staging 200) + 9 cloud services; strict HTML CSP+x-frame does NOT prevent infra-level leak
 - 2026-08-15 STABLE @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- 2026-08-15 ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/caseForms POST: unauth public write route confirmed (500→400 on empty, 400 validation, 404 nil-UUID handler) — write path reaches handler without auth gate
+- 2026-08-15 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: OpenAPI validation now active on current replica (400 required caseTypeKey/organizationId) vs prior 400 "not found" — multi-version LB replica divergence confirmed
+- 2026-08-15 ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle main.8a2a39cb.js confirmed PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys referrer-restricted (infra leak ELIMINATED)
+- 2026-08-15 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidates all 404; SSO roster and org-key set definitively disjoint
+- 2026-08-15 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/{cases,caseForms}: unauth POST routes confirmed live — empty-body POST → 400 ValidationError with no InvalidTokenError, CORS reflected; route structure exists without auth gate
+- 2026-08-15 ACCEPTED MISCONFIG @ forms.sparelabs.com JS bundle: leak REACTIVATED on main.8a2a39cb.js (sha256 34f336cd… contains sparelabs.atlassian.net, api-spare.ngrok.io, staging hosts); KB "PATCHED" claim is false positive
+- 2026-08-15 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 7th SSO tenant kingcounty.gov confirmed live (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ), fleet-parity across prod/uat/us2/jp
+- 2026-08-15 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: complete org-key roster {spare,grt,dallas,winnipeg,hsr} with feature-flag differential; closed set (22 candidates 404)
+- 2026-08-15 STABLE @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — NOT patched, longcat false positive
+- 2026-08-15 STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 85h+ — writes gated 401, auth asymmetry confirmed
+- 2026-08-15 STABLE @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 85h+ — non-path-conditional via 22-sibling sweep
+- 2026-08-15 STABLE @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07, NO_DELTA
