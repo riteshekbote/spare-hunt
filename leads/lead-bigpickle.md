@@ -8941,3 +8941,24 @@ impact: tenant/SSO-config enumeration (WorkOS client_id + connection_id + Entra 
 testability: PASSIVE
 [NEXT] HUMAN: request one authorized test-org token from the program; with it enumerate authorized caseTypes to capture a real caseTypeKey+defaultFormKey, resolve formId via `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>`, then complete the unauth write-IDOR POC on `POST /v1/public/engage/caseForms` (and /cases) with org UUID d736519f-f384-4771-a2d2-4f95e884d790, deleting test data after. (All PASSIVE leads this cycle are confirmed; regions empty-token refinement is closed pending optional uat fleet check.)
 [RISK] api.sparelabs.com: 99 — full finding family 86h+ unpatched (regions scheme-only bypass now refined to empty-token/effectively-unauthenticated with CORS, orgs zero-header read-only, universal CORS credential reflection, engage write chain auth-absent, SSO 8-tenant + org-key 5-org oracles); all re-verified byte-stable live this cycle | platform.sparelabs.com: 75 — CSP infra leak stable (prod+staging admin Vercel apps loadable, Metabase, 9 cloud services); strict HTML CSP + x-frame mitigate HTML-level only | routing.sparelabs.com: 8 — envoy 404 on all paths, no surface, NO_DELTA since 2026-08-07 | forms.sparelabs.com: 5 — JS bundle patched (zero infra refs), strict HTML CSP + x-frame DENY, SPA catch-all, recon-only residual | web (spare.com/sparelabs.com): 5 — static Cloudflare+Webflow marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks.
+## 2026-08-15 22:33:44 UTC [api] (model bigpickle)
+[HYP] Unauthenticated cross-tenant Engage write-IDOR via absent auth gate
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/cases (POST) + /caseForms (POST)
+confidence: 68
+reasoning: empty-body POST → 400 ValidationError with no InvalidTokenError; nil-UUID → 404 handler-reach "Other was not found"; spare-UUID → 403 ForbiddenError (feature-flag gate, not auth); CORS+credentials reflected on all branches — handler reached with zero auth.
+evidence_needed: one real caseTypeKey + defaultFormKey from an authorized caseTypes listing (bundle + formKey oracle both rule out passive derivation).
+verify_steps: AUTH_HELPED: test-org token → authorized caseTypes → capture caseTypeKey+defaultFormKey → resolve formId via `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>` → `POST /v1/public/engage/caseForms` (and /cases) with org UUID d736519f-f384-4771-a2d2-4f95e884d790; delete test data after.
+impact: unauth cross-tenant PII-bearing case/form-response injection; MEDIUM.
+testability: AUTH_HELPED
+[HYP] Regions registry self-first ordering is per-host request-time assembly
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/global/regions
+confidence: 55
+reasoning: UAT returns UAT-first (api.uat.sparelabs.com) vs prod CA-first; identical 725B 7-region set → ordering varies by serving host, content otherwise static.
+evidence_needed: third fleet host ordering sample; all alternate fleet hosts are OOS per scope exclusions.
+verify_steps: cannot verify in-scope — only api.sparelabs.com is in scope; skip.
+impact: none beyond already-disclosed topology; implementation detail only. LOW.
+testability: PASSIVE
+[NEXT] HUMAN: request one authorized test-org token from the program; with it enumerate authorized caseTypes to capture a real caseTypeKey + defaultFormKey, resolve formId via `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>`, then complete the unauth write-IDOR POC on `POST /v1/public/engage/caseForms` (and /cases) with org UUID d736519f-f384-4771-a2d2-4f95e884d790, deleting test data after.
+[RISK] api.sparelabs.com: 99 — full finding family 86h+ unpatched (regions scheme-only bypass with fully-omissible token + CORS, orgs zero-header read-only, universal CORS credential reflection, absent-auth engage write chain, SSO 8-tenant + org-key 5-org oracles); all re-verified byte-stable live this cycle, empty-token fleet-parity closed | platform.sparelabs.com: 75 — CSP infra leak stable (prod+staging admin Vercel apps loadable, Metabase prod+staging, 9 cloud services); strict HTML CSP + x-frame mitigate HTML-level only | routing.sparelabs.com: 8 — envoy 404 on all paths, no surface, NO_DELTA since 2026-08-07 | forms.sparelabs.com: 5 — JS bundle patched (zero infra refs), strict HTML CSP + x-frame DENY, SPA catch-all, recon-only residual | web (spare.com/sparelabs.com): 5 — static Cloudflare+Webflow marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks.
