@@ -1496,3 +1496,5 @@
 - NEW api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant confirmed — winnipeg.ca (conn_01HP76PPV8CMRJH6RYRTWEPSGS), fleet-parity across 7 hosts, universal CORS on both 200/404 branches
 - NEW api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); feature-flag differential confirmed stable; 22 new candidate keys all 404
 - CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js (was main.b0a0c190.js→main.8a2a39cb.js confirmed PATCHED) — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restric
+
+## 2026-08-15 19:08:47 UTC
