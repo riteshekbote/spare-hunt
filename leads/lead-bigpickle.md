@@ -8485,3 +8485,4 @@ evidence_needed: 200-configuration for a currently-unknown tenant domain.
 verify_steps: PASSIVE: POST {"domain":<candidate>} at 1/30s with controls (spare.com 200, bart.gov 404) for winnipeg.ca/hsr.ca parents (hamilton.ca, hamiltonregion.ca, cityofwinnipeg.ca) and DART-adjacent (dallas.gov, dart.agencies).
 impact: tenant/SSO-config + WorkOS connection + Entra tenant-ID fingerprinting; LOW-MEDIUM
 testability: PASSIVE
+## 2026-08-15 17:32:52 UTC [api] (model bigpickle)
