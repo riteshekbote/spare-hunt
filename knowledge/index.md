@@ -1538,3 +1538,4 @@
 - 2026-08-15 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted (infra leak ELIMINATED, downgraded to recon-only)
 - 2026-08-15 REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (was TIMEOUT→404) but zero surface, NO_DELTA
 - 2026-08-15 REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10 probed paths return SPA catch-all 200 text/html — no real API surface behind MFE shell; CSP infra leak via /login is only finding
+- 2026-08-15 REJECTED IDOR @ api.sparelabs.com/v1/public/engage/form: 5 guessed formKeys × case-request all handler-level 404 "Form was not found" — key namespace not passively guessable; formId bridge remains AUTH_HELPED-gated.
