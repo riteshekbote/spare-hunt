@@ -1,29 +1,30 @@
-## 2026-08-15 11:59:34 UTC [api] (model bigpickle)
-[HYP] Engage write routes permit cross-tenant case creation / record spam
+## 2026-08-15 12:48:03 UTC [api] (model bigpickle)
+[HYP] Unauth engage POST is cross-tenant case-creation IDOR (write chain, not auth gap)
 class: IDOR
 asset: api.sparelabs.com/v1/public/engage/{cases,caseForms}
 confidence: 58
-reasoning: Both POST routes reach handlers with zero Authorization (nil/random UUID → 404 "Other/Form was not found", never 401; control /v1/journeys 401). Valid-org spare UUID → ForbiddenError feature-flag gate, not auth. CORS ACAO+ACAC + OPTIONS 204 makes both cross-origin fireable. Write-blocked only by absence of a resolvable caseTypeId/formId.
-evidence_needed: valid caseTypeId for a known org, or AUTH_HELPED confirmation the handler creates a record on resolution.
-verify_steps: AUTH_HELPED: with test token + test-org caseTypeId, POST a case, observe creation, then delete; repeat for caseForms with test formId/caseId.
-impact: unauthenticated case creation/spam against PII-collecting service; cross-tenant case association; MEDIUM
+reasoning: Both POST routes reach handlers with zero Authorization (nil-UUID → 404 "Other/Form was not found", never 401; control /v1/journeys 401). This cycle confirms caseForms route registered POST-only (400 "method not allowed") + OPTIONS 204 full-write CORS — cross-origin fireable. spare-UUID → ForbiddenError feature-flag gate, not auth.
+evidence_needed: resolvable caseTypeId/formId for any known org, or AUTH_HELPED confirmation handler creates a record on resolution.
+verify_steps: AUTH_HELPED: with test token + test-org caseTypeId/formId pair, POST a case + caseForm, observe creation, then delete; passive fallback: keep polling GET engage for validated replica to leak caseTypeKey schema.
+impact: unauthenticated case/record creation against PII-collecting service; cross-tenant association; MEDIUM
 testability: AUTH_HELPED
 [HYP] SSO-only tenants carry hidden per-tenant config invisible to org-key enumeration
 class: IDOR
 asset: api.sparelabs.com/v1/identity/workos/auth
 confidence: 45
-reasoning: SSO roster (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov) disjoint from 5-key org set; spare terms URL is literal junk "asdfd" (107B) vs winnipeg real URL (197B) proves per-tenant legal config residency; engage/terms resolve by org UUID.
+reasoning: SSO roster (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov) disjoint from 5-key org set; spare terms URL is literal junk "asdfd" (107B) vs winnipeg real URL (197B) proves per-tenant legal config residency.
 evidence_needed: UUID for any SSO-only tenant returning 200 on /v1/public/organizations/{id} or /v1/public/terms.
-verify_steps: AUTH_HELPED: test token/UUID for mbta.com or kingcounty.gov; GET /v1/public/terms?organizationId=<uuid>; diff body class (junk 107B / real 197B / generic 137B).
+verify_steps: AUTH_HELPED: test UUID for mbta.com or kingcounty.gov; GET /v1/public/terms?organizationId=<uuid>; diff body class (junk/real/generic).
 impact: per-tenant legal/feature config disclosure incl. prod placeholder junk; LOW
 testability: AUTH_HELPED
-[HYP] Re-activated forms bundle leak signals renewed dev-channel activity (ngrok tunnel domain now live at edge)
-class: MISCONFIG
-asset: forms.sparelabs.com/static/js/main.8a2a39cb.js
-confidence: 40
-reasoning: Same bundle filename rotated 2.2MB→7.16MB (sha 34f336cd) with infra strings re-present (JIRA FIN-1093, ngrok, staging hosts); api-spare.ngrok.io now resolves to live ngrok edge (404) vs prior ERR_NGROK_3200 — tunnel domain re-bound, dev activity resumed.
-evidence_needed: ngrok tunnel returning a live backend, or another bundle rotation exposing new endpoints.
-verify_steps: PASSIVE: re-fetch bundle + sha each cycle; re-probe api-spare.ngrok.io status; watch /v1/metabase/staticEmbed registration.
-impact: re-opened dev/staging infra exposure if tunnel relives; deploy-timing fingerprint; LOW
+[HYP] Org-key feature-flag differential encodes live auth-provisioning events
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 42
+reasoning: 5 live orgs with stable feature-flag differential (spare 5 incl. riderLoginless, winnipeg 4, grt 2, hsr 2, dallas 0); records actively managed; capability-significant auth-method disclosure.
+evidence_needed: a second drift event on any key with changed flags/fields.
+verify_steps: PASSIVE: re-query 5 keys twice per cycle, record size+sha256+flags vs baseline.
+impact: timing/fingerprint for org provisioning + auth-method rollout; LOW
 testability: PASSIVE
-[NEXT] HUMAN: request authorized API token + test organizationId/caseTypeId (and formId/caseId) pair, then confirm whether unauthenticated `POST /v1/public/engage/cases` and `POST /v1/public/engage/caseForms` actually create records — distinguishing intended public behavior from cross-tenant case-creation IDOR (conf 58). Passive rules: never send a resolvable body until token received. Fallback passive watch: re-poll `GET /v1/public/engage/{caseType}?caseTypeKey=&organizationId=<spare>` for the OpenAPI-validated replica to return a discoverable caseTypeKey without auth.
+[NEXT] HUMAN: request authorized API token + test organizationId/caseTypeId (and formId/caseId) pair, then confirm whether unauthenticated `POST /v1/public/engage/cases` and `POST /v1/public/engage/caseForms` actually create records — distinguishing intended public behavior from cross-tenant case-creation IDOR (conf 58). Passive rules: never send a resolvable body until token received. Fallback passive watch: keep polling `GET /v1/public/engage/{caseType}?caseTypeKey=&organizationId=<spare-uuid>` for the OpenAPI-validated replica (400 299–308B) to leak a discoverable caseTypeKey.
+[RISK] api.sparelabs.com: 78 — fleetwide {organizations,regions} auth-bypass family + unauth PII write chain (engage cases/caseForms, handler reach + CORS confirmed this cycle) + 3 enumeration oracles (org-key/UUID/SSO) + universal credential CORS reflection, all ~86h+ unpatched. | platform.sparelabs.com: 45 — MFE shell live, persistent CSP infra leak (prod admin apps + Metabase + 9 cloud services), no auth bypass. | routing.sparelabs.com: 8 — envoy 404 on all paths, dead since 2026-08-07. | forms.sparelabs.com: 20 — Engage SPA, JS bundle infra leak PATCHED (main.8a2a39cb.js zero refs, keys referrer-restricted), SPA catch-all only. | web (spare.com/sparelabs.com): 8 — static Webflow/Cloudflare marketing, HSTS+CSP, no dynamic surface.
