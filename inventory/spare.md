@@ -1267,3 +1267,27 @@
 - CHANGED platform.sparelabs.com: NOW live — was TIMEOUT→200 (MFE SPA shell); envoy + Google CDN; CSP on /login still discloses prod admin Vercel apps + Metabase + 9 cloud services
 - CHANGED routing.sparelabs.com: NOW live — was TIMEOUT→envoy 404 (STABLE dead, no surface); NO_DELTA since 2026-08-07
 - CHANGED sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS, static-only
+
+## 2026-08-15 10:09:23 UTC
+- NEW platform.sparelabs.com: NOW live — was TIMEOUT→200 (MFE SPA shell); envoy + Google CDN; CSP on /login discloses prod admin Vercel apps + Metabase + 9 cloud services
+- NEW routing.sparelabs.com: NOW live — was TIMEOUT→envoy 404 (STABLE dead, no surface); NO_DELTA since 2026-08-07
+- NEW forms.sparelabs.com: NOW live — was TIMEOUT→200 (Engage SPA); JS bundle main.8a2a39cb.js patched (zero infra leaks)
+- NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS, static-only
+- NEW api.sparelabs.com: positively identified as envoy edge gateway (server: envoy, via: 1.1 google)
+- NEW api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-config oracle — POST domain param discriminates 200 (configured tenant) vs 404; discloses WorkOS client_id + connection_id + Entra tenant
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org-key enumeration oracle CONFIRMED live (spare→200+351B, grt→200+288B, dallas→200+237B, cambus→404); no-auth + universal CORS; prod-only da
+- NEW /v1/global/* namespace EXHAUSTIVE: 22 sibling routes ALL 401 (zero-auth + Bearer-x); bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- NEW CONFIRMED FLEETWIDE parity for /v1/global/{organizations,regions} bypass across 7 hosts (prod/us/us2/us3/jp/eu/uat) with byte-stable responses
+- NEW api.sparelabs.com/v1/identity/workos/auth: MBTA (mbta.com) confirmed as hidden WorkOS SSO tenant — POST `{"domain":"mbta.com"}` → 200+172B with distinct connection_id
+- NEW api.sparelabs.com/v1/public/organizations/key/winnipeg: Confirmed 200+288B — UUID `6c84b370-5cc2-42c6-8cdd-146c99648535`, name "Winnipeg Transit", logoUrl on storage.googleapis.com
+- NEW api.sparelabs.com/v1/public/organizations/key/hsr: Confirmed 200+318B — UUID `83303a6b-fb96-4ff3-8f58-d6069a043fbb`, name "Hamilton Street Railway"
+- NEW api.sparelabs.com/v1/public/organizations/key/dallas: Confirmed 200+277B — UUID `e5f587ba-50e7-4b0c-a2e6-e01f061d048d`, name "DART GoLink - City of Dallas"
+- CHANGED api.sparelabs.com/v1/public/terms: per-tenant config map COMPLETED — spare UUID→107B placeholder "asdfd", winnipeg→197B real URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic; byte-stable sh
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: direct authorize-URL GET now 302→error.workos.com/sso/invalid-connection-selector (was live corporate IdP 302 per KB)
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidate keys all 404; SSO roster and org-key set definitively disjoint
+- CHANGED api.sparelabs.com/v1/global/regions: Scheme-only bypass CONFIRMED NOT PATCHED — Bearer x still → 200+725B+ACAO+ACAC; longcat triage "PATCHED" claim (2026-08-11) DISPROVEN
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy LB replicas — nil-uuid→404 on fast replica (3-way intact), 400 on slow (2-way); plural /organizations
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js confirmed PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (infra leak ELIMINATED); 3 Google Maps keys all referrer-restricted
+- NEW api.sparelabs.com /v1/public/engage/caseForms POST — unauth public write route, body {formId,caseId,metadata}; OpenAPI validation chain 400→nil-UUID handler 404 "Form was not found"; NO auth gate betw
+- NEW api.sparelabs.com /v1/public/engage/cases POST — unauth public write route, body {organizationId,caseTypeId,contactInfo,...}; validation chain 400→nil-UUID handler 404 "Other was not found"; NO auth g
+- CHANGED api.sparelabs.com /v1/public/engage/{caseType,form} GET — now OpenAPI-validated on current replica (400 required caseTypeKey/organizationId, 299/308B) vs prior 400 "not found" 189–193B; all candidate 

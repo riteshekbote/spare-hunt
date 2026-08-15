@@ -8219,3 +8219,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 10 — STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no unauthenticated surface
 [RISK] forms.sparelabs.com: 12 — Engage SPA 200 (envoy+Google CDN, x-frame DENY, strict HTML CSP); JS bundle patched (main.8a2a39cb.js, zero infra leaks); all 8 admin/API paths return SPA catch-all; residual exposure = static SPA only
 [RISK] web (spare.com/sparelabs.com): 8 — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
+## 2026-08-15 10:01:50 UTC [web] (model laguna)
