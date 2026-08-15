@@ -8218,3 +8218,31 @@ verify_steps: AUTH_HELPED: with test token resolve UUID for mbta.com/kingcounty.
 impact: potential unauthenticated case/response creation against PII service for enabled orgs; MEDIUM if one found enabled
 testability: AUTH_HELPED
 [NEXT] HUMAN: request authorized API token + a test-org `formId`/`caseId`/`caseTypeId` pair (test org preferred). The caseForms body schema is fully mapped (formId→caseId→metadata) and handler-reach confirmed without auth or flag gate; the token unlocks the only missing evidence — whether a resolvable formId actually persists a record (distinguishing intended public behavior from cross-tenant write IDOR, conf 70). Passive fallback meanwhile: poll `GET /v1/public/engage/form?formKey=<guess>&organizationId=<grt-uuid>` (1/30s) for the 200-schema replica.
+## 2026-08-15 14:09:38 UTC [api] (model bigpickle)
+[HYP] Engage caseForms unauth schema oracle + handler-reach differential
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 72
+reasoning: KB confirms empty-body POST → 400 ValidationError with no InvalidTokenError, nil formId → 404 "Form was not found" (handler reached), and no feature-flag gate on caseForms (unlike /cases 403). Validation replica is now serving required-field bodies.
+evidence_needed: full required/optional field set enumerated via nil-formId POSTs; confirm caseForms has no 403 gate for a resolvable orgId (spare).
+verify_steps: PASSIVE: POST /v1/public/engage/caseForms with always-nil formId + spare organizationId, incrementally completing metadata ({} → {"contactInfo":{}} → {"contactInfo":{"phoneNumber":"0"}}) at ≤1rps; record 400 field names vs 404; never send a resolvable formId.
+impact: unauthenticated body-schema disclosure of the PII-capture write API + write-chain map; LOW-MEDIUM, incremental to accepted validation-leak family.
+testability: PASSIVE
+[HYP] Org-key/terms config fingerprint chains to engage flag-state per org
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 60
+reasoning: Live org-key set closed at 5; per-tenant terms chain byte-stable (spare→107B junk, winnipeg→197B real URL, grt/hsr/dallas→137B generic); feature-flag differential (spare 5, winnipeg 4, grt 2, hsr 2, dallas 0) discloses capability posture.
+evidence_needed: confirm terms chain stability across sessions and whether the engage schema-resolution path (200-replica) discriminates per resolved org flag state.
+verify_steps: PASSIVE: GET /v1/public/terms?organizationId=<each resolved org UUID> at ≤1rps recording byte-lengths; poll GET /v1/public/engage/form?formKey=<guess>&organizationId=<grt-uuid> at 1/30s for the 200-schema replica; never POST resolvable ids.
+impact: partner config/flag-posture disclosure — LOW; real value is chaining flag state → engage write-gate state.
+testability: PASSIVE
+[HYP] WorkOS SSO roster chaining for cross-roster tenant discovery
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 58
+reasoning: 7 tenants confirmed with byte-stable per-domain connection fingerprints; SSO roster (mbta/kingcounty/saskatoon) disjoint from the 5-key org set — two independent enumeration vectors; fleet parity confirmed.
+evidence_needed: additional tenant domains via transit-agency wordlist, 200 vs 404 differential with known set as controls.
+verify_steps: PASSIVE: POST {"domain":<candidate>} at ≤1rps for a curated US/CA transit-agency domain list; record 200 (configured) vs 404; cross-reference against org-key set.
+impact: tenant/SSO config enumeration + IdP/Entra tenant-ID disclosure for partner orgs; LOW.
+testability: PASSIVE

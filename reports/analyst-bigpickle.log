@@ -47772,3 +47772,66 @@ testability: AUTH_HELPED
 
 ## STEP 7 — RISK SCORE
 - [RISK] api.sparelabs.com: 82 — full family 86h+ unpatched; engage write chain now fully schema-mapped with handler-reach on caseForms (no auth gate, no flag gate) + 3 enumeration oracles + universal credential CORS; no record-creation proven, severity capped. | platform.sparelabs.com: 45 — MFE shell live, persistent CSP infra leak (prod admin apps + Metabase + 9 cloud services), no auth bypass. | routing.sparelabs.com: 8 — envoy 404 on all paths, dead since 2026-08-07. | forms.sparelabs.com: 15 — Engage SPA, JS bundle leak PATCHED (main.8a2a39cb.js clean, keys referrer-restricted), SPA catch-all only. | web (spare.com/sparelabs.com): 8 — static Webflow/Cloudflare marketing, HSTS+CSP, no dynamic surface.
+===== ANALYST bigpickle 2026-08-15 14:12:52 UTC =====
+[0m
+> build · big-pickle
+[0m
+Note: analysis only this turn — I did not execute new live probes; all claims trace to the provided knowledge base (through 2026-08-15 23:31 UTC).
+
+STEP 1 — DELTA
+- [CHANGED] api.sparelabs.com/v1/public/engage/cases POST — body-schema oracle corroborated: current validation replica serves required-field ValidationError bodies (e.g. contactInfo) with zero Authorization and no InvalidTokenError (KB 23:30–23:31).
+- [CHANGED] api.sparelabs.com/v1/public/engage/caseForms POST — full body schema mapped live (formId→caseId→metadata→handler); nil formId → 404 "Form was not found" with NO feature-flag gate (unlike /cases 403); handler reach confirmed.
+- [CHANGED] api.sparelabs.com/v1/identity/workos/auth — 7th tenant kingcounty.gov (byte-stable per-domain connection fingerprint); fleet parity across prod/uat/us2/jp.
+- [CHANGED] forms.sparelabs.com JS bundle — main.8a2a39cb.js confirmed PATCHED (0 sparelabs/atlassian/ngrok/metabase/vercel refs); the 10:55 "REACTIVATED" claim is a false positive (23:31 grep).
+- All other inventory (bypass family 86h+, org-key set closed at 5, CORS family, routing dead, platform CSP leak) — STABLE re-confirmation, NO_DELTA.
+
+STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/public/engage/{cases,caseForms} POST — 7.05 (attack 8, business 7, tech 6, gate 8, cloud 4, fresh 8)
+- [PRIO] api.sparelabs.com/v1/identity/workos/auth — 6.60 (attack 6, business 6, tech 7, gate 9, cloud 6, fresh 6)
+- [PRIO] api.sparelabs.com/v1/public/organizations/key/{key} + /v1/public/terms — 5.85 (attack 6, business 6, tech 4, gate 9, cloud 3, fresh 6)
+
+STEP 3 — HYPOTHESES
+[HYP] Engage caseForms unauth schema oracle + handler-reach differential
+class: MISCONFIG
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 72
+reasoning: KB confirms empty-body POST → 400 ValidationError with no InvalidTokenError, nil formId → 404 "Form was not found" (handler reached), and no feature-flag gate on caseForms (unlike /cases 403). Validation replica is now serving required-field bodies.
+evidence_needed: full required/optional field set enumerated via nil-formId POSTs; confirm caseForms has no 403 gate for a resolvable orgId (spare).
+verify_steps: PASSIVE: POST /v1/public/engage/caseForms with always-nil formId + spare organizationId, incrementally completing metadata ({} → {"contactInfo":{}} → {"contactInfo":{"phoneNumber":"0"}}) at ≤1rps; record 400 field names vs 404; never send a resolvable formId.
+impact: unauthenticated body-schema disclosure of the PII-capture write API + write-chain map; LOW-MEDIUM, incremental to accepted validation-leak family.
+testability: PASSIVE
+[HYP] Org-key/terms config fingerprint chains to engage flag-state per org
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 60
+reasoning: Live org-key set closed at 5; per-tenant terms chain byte-stable (spare→107B junk, winnipeg→197B real URL, grt/hsr/dallas→137B generic); feature-flag differential (spare 5, winnipeg 4, grt 2, hsr 2, dallas 0) discloses capability posture.
+evidence_needed: confirm terms chain stability across sessions and whether the engage schema-resolution path (200-replica) discriminates per resolved org flag state.
+verify_steps: PASSIVE: GET /v1/public/terms?organizationId=<each resolved org UUID> at ≤1rps recording byte-lengths; poll GET /v1/public/engage/form?formKey=<guess>&organizationId=<grt-uuid> at 1/30s for the 200-schema replica; never POST resolvable ids.
+impact: partner config/flag-posture disclosure — LOW; real value is chaining flag state → engage write-gate state.
+testability: PASSIVE
+[HYP] WorkOS SSO roster chaining for cross-roster tenant discovery
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 58
+reasoning: 7 tenants confirmed with byte-stable per-domain connection fingerprints; SSO roster (mbta/kingcounty/saskatoon) disjoint from the 5-key org set — two independent enumeration vectors; fleet parity confirmed.
+evidence_needed: additional tenant domains via transit-agency wordlist, 200 vs 404 differential with known set as controls.
+verify_steps: PASSIVE: POST {"domain":<candidate>} at ≤1rps for a curated US/CA transit-agency domain list; record 200 (configured) vs 404; cross-reference against org-key set.
+impact: tenant/SSO config enumeration + IdP/Entra tenant-ID disclosure for partner orgs; LOW.
+testability: PASSIVE
+
+STEP 4 — SELF-CRITIQUE
+- [PARKED] Engage GET schema replica polling (conf 55): 200-schema replica unreachable across 2+ sessions; current replica serves OpenAPI-validated 400 — not passively reproducible; folded into the HYP3 polling step.
+- [PARKED] SSO-only tenant write target (conf 45): requires authorized UUIDs for mbta/kingcounty/saskatoon + flag state — AUTH_HELPED; park until token available.
+- [FINAL] 1) engage caseForms unauth schema oracle (MISCONFIG, 72) → 2) org-key/terms config→flag-state chain (BUSLOGIC, 60) → 3) workos SSO roster chaining (IDOR, 58)
+
+STEP 5 — NEXT ACTION
+- [NEXT] PROBE: complete the caseForms body-schema oracle on POST https://api.sparelabs.com/v1/public/engage/caseForms — always nil formId + spare organizationId, incrementally-complete contactInfo/metadata at ≤1rps; capture 400 ValidationError field names vs 404 "Form was not found" (nil formId cannot resolve a record). If persistence evidence is needed, escalate: HUMAN — request authorized test token + test-org formId/caseId pair.
+
+STEP 6 — LEARNING
+- ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{cases,caseForms} POST: auth gate structurally absent — validation→handler reach with no InvalidTokenError; 403 only via feature-flag gate on /cases; class alive.
+- ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle alive — 7 tenants, byte-stable fingerprints, fleet parity; class alive.
+- REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js PATCHED (0 refs); earlier "REACTIVATED" flag was a false positive.
+- REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404/0B on all paths — class remains dead, NO_DELTA.
+
+STEP 7 — RISK SCORE
+- [RISK] api.sparelabs.com: 82 — full finding family 86h+ unpatched; new unauth write-chain surface on PII-capture POST routes (auth gate absent, feature-flag gated for known orgs); no record creation proven, severity capped. | platform.sparelabs.com: 45 — MFE shell, persistent CSP infra leak (prod admin apps + Metabase + 9 cloud services), no auth bypass. | routing.sparelabs.com: 8 — envoy 404 on all paths, dead since 2026-08-07. | forms.sparelabs.com: 12 — Engage SPA, JS bundle leak patched, SPA catch-all only. | web (spare.com/sparelabs.com): 8 — static Webflow/Cloudflare, HSTS+CSP, no dynamic surface.
