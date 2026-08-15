@@ -8246,3 +8246,31 @@ evidence_needed: additional tenant domains via transit-agency wordlist, 200 vs 4
 verify_steps: PASSIVE: POST {"domain":<candidate>} at ≤1rps for a curated US/CA transit-agency domain list; record 200 (configured) vs 404; cross-reference against org-key set.
 impact: tenant/SSO config enumeration + IdP/Entra tenant-ID disclosure for partner orgs; LOW.
 testability: PASSIVE
+## 2026-08-15 14:39:04 UTC [api] (model bigpickle)
+[HYP] caseForms unauthenticated cross-tenant form-response write IDOR
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 72
+reasoning: Full top-level body now mapped live ({caseId,organizationId,formId,metadata}); metadata shape unvalidated; nil-formId reaches handler 404 "Form was not found" with NO InvalidTokenError and NO flag gate (unlike /cases 403). Control /v1/journeys 401. CORS preflight advertises POST+credentials.
+evidence_needed: a resolvable formId/caseId pair for any org to observe persistence, or AUTH_HELPED confirmation the handler writes on resolution.
+verify_steps: AUTH_HELPED: with test token obtain test-org formId+caseId, POST full mapped body, confirm record created, then delete. Passive fallback: poll GET /v1/public/engage/form?formKey=<guess>&organizationId=<grt-uuid> at 1/30s for the 200-schema replica leaking a real formKey; never POST a resolvable formId.
+impact: unauthenticated form-response creation against PII-capture service, cross-tenant association; MEDIUM
+testability: AUTH_HELPED
+[HYP] cases POST SSO-only tenant write target
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/cases
+confidence: 45
+reasoning: All 3 resolvable orgs (spare/grt/dallas) 403 at feature-flag check; SSO roster (mbta/kingcounty/saskatoon) disjoint from 5-key org set so their UUIDs unresolvable passively; cases chain maps organizationId→caseTypeId without auth.
+evidence_needed: UUID of an SSO-only tenant + external-case-creation flag state.
+verify_steps: AUTH_HELPED: resolve UUID for mbta.com/kingcounty.gov with test token, GET flag state; only with explicit authorization POST a test case in a test org and delete it.
+impact: potential unauth case creation against PII service for enabled orgs; MEDIUM if one found enabled
+testability: AUTH_HELPED
+[HYP] workos SSO roster chaining
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 50
+reasoning: 7 tenants byte-stable connection fingerprints; roster disjoint from 5-key org set = two independent vectors; fleet parity confirmed; 6/6 generic Canadian guesses 404 last cycle (partner-specific set).
+evidence_needed: additional tenant domains via curated US/CA transit-agency wordlist with known-set controls.
+verify_steps: PASSIVE: POST {"domain":<candidate>} at ≤1rps for curated transit domains; record 200 (configured) vs 404; cross-ref org-key set; never beyond header-level interaction.
+impact: tenant/SSO-config enumeration + Entra tenant-ID disclosure for partner orgs; LOW
+testability: PASSIVE
