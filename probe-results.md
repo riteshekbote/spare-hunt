@@ -1690,3 +1690,17 @@ https://api.sparelabs.com/v1/global/regions -> HTTP 400
 https://api.sparelabs.com/v1/identity/workos/auth` -> HTTP 401
 https://api.sparelabs.com/v1/public/organizations/key/portland` -> HTTP 404
 https://api.sparelabs.com/v1/public/terms?organizationId=d736519f-f384-4771-a2d2-4f95e884d790 -> 200 len=107 type=application/json; charset=utf-8
+
+## 2026-08-15 07:55:20 UTC
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/grt -> 200 len=288 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/dallas -> 200 len=277 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/winnipeg -> 200 len=352 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/hsr -> 200 len=321 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/cambus -> HTTP 404
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.us.sparelabs.com/v1/public/organizations/key/spare -> HTTP 404
+https://api.sparelabs.com/v1/identity/workos/auth` -> HTTP 401
+https://api.sparelabs.com/v1/identity/workos/auth/{tenant-or-connection -> HTTP 401
+https://api.sparelabs.com/v1/public/terms?organizationId=$u -> HTTP 400

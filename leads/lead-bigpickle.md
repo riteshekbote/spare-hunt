@@ -7642,3 +7642,23 @@ verify_steps: PASSIVE: loop GET /v1/public/terms?organizationId=d736519f-f384-47
 impact: per-tenant legal config incl. dev placeholder junk; LOW
 testability: PASSIVE
 [NEXT] PROBE: `for i in 1 2 3; do curl -s -m 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?organizationId=d736519f-f384-4771-a2d2-4f95e884d790" | sha256sum; curl -s -m 15 -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"dart.org."}' "https://api.sparelabs.com/v1/identity/workos/auth" | sha256sum; sleep 1.5; done` — characterize terms replica divergence (137B generic vs 107B per-tenant) and confirm workos connection_id canonicalization stability
+## 2026-08-15 07:54:23 UTC [api] (model bigpickle)
+[HYP] Org-key chained per-tenant terms config leaks prod-only legal config incl. dev placeholder junk
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/terms
+confidence: 72
+reasoning: winnipeg UUID → 197B real external URLs, spare UUID → 107B literal "asdfd", grt/hsr/dallas → generic 137B; all 6 other fleet hosts return generic 137B → prod-only residency. Chain complete: unauth org-key oracle → UUID → per-tenant config.
+evidence_needed: a per-tenant body ≠ 137B/107B/197B on any other UUID, or replica-flap of grt/hsr/dallas to non-default
+verify_steps: PASSIVE: loop GET /v1/public/terms?organizationId={1966c7f8…,83303a6b…,e5f587ba…} ×2, sleep 1.5, record body+sha256 per hit — detect per-tenant variants for remaining tenants
+impact: unauthenticated per-tenant legal-config disclosure + evidence of unconfigured prod config ("asdfd") for spare org; LOW
+testability: PASSIVE
+[HYP] WorkOS connection_id fingerprints enable cross-roster correlation of SSO-only tenants once any UUID is obtained
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 55
+reasoning: connection_id deterministic byte-stable per canonical domain; roster closed at 8 domains (9 new all 404); SSO set {dart,translink,kingcounty,mbta} partially disjoint from org-key set {spare,grt,dallas,winnipeg,hsr} — hidden partners invisible to key enumeration
+evidence_needed: a UUID for any SSO-only tenant yielding 200 on /v1/public/organizations/{id} or /key/{key}
+verify_steps: HUMAN_ONLY: requires authorized UUID from program; then GET /v1/public/terms?organizationId=<uuid> to extend chaining to hidden tenants
+impact: per-tenant config chaining extends to hidden partners if UUID obtained; LOW
+testability: HUMAN_ONLY
+[NEXT] PROBE: `for u in 1966c7f8-3e36-4320-b0d7-de0f7d8d4355 83303a6b-fb96-4ff3-8f58-d6069a043fbb e5f587ba-50e7-4b0c-a2e6-e01f061d048d; do echo -n "$u: "; curl -s -m 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?organizationId=$u" -w "|%{http_code}|%{size_download}B\n"; sleep 1.3; done` twice — catch replica-flap and determine whether grt/hsr/dallas carry non-default per-tenant config on the slow replica, completing the per-tenant config map

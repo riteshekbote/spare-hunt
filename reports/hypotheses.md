@@ -4582,3 +4582,33 @@
 - LEARN: REJECTED AUTH (controller-wide) @ api.sparelabs.com/v1/global/*: 22 sibling routes ALL 401 (zero-auth + Bearer-x) — bypass family DEFINITIVELY scoped to exactly
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths since 2026-08-07, NO_DELTA
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (G
+
+## RANKED HYPOTHESES 2026-08-15 07:55:17 UTC
+- [95] api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-configuration oracle enumerates hidden transit partner rosters (from reports/hypotheses-nemotron3.txt)
+- [72] api.sparelabs.com/v1/public/terms: Org-key chained per-tenant terms config leaks prod-only legal config incl. dev placeholder junk (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -m 15 -w "\n[%{http_code}] [%{size_download}]" -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"dart.org
+- NEXT(hypotheses-bigpickle.txt): PROBE: `for u in 1966c7f8-3e36-4320-b0d7-de0f7d8d4355 83303a6b-fb96-4ff3-8f58-d6069a043fbb e5f587ba-50e7-4b0c-a2e6-e01f061d048d; do echo -n "$u: "; curl -s -m 1
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-config oracle — POST domain param discriminates 200 (configured tenant) vs 404; d
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way discrimination stable (spare/grt/dallas/winnipeg/hsr→200 distinct bodies, cambus→404)
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (G
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE 85h+ — Bearer x → 200+725B+ACAO+ACAC; body sha256 fb9800acb09b65ec92591f4536e3ecf
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle rotated to main.8a2a39cb.js — ZERO sparelabs/atlassian/ngrok/metabase/vercel references (leak PATCHED); 3 Go
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica — multi-version LB confirmed, unrel
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes ALL 401 — bypass family DEFINITIVELY scoped to exactly {organizations, regions}
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com bundle OpenAPI: 170 paths extracted, ALL 131 non-param paths properly gated (401/404) — no bypass, recon only
+- LEARN: REJECTED BUSLOGIC @ sparelabs.ca: DNS only dev.sparelabs.ca → GCP LB "fault filter abort" 404 — no live surface
+- LEARN: REJECTED MISCONFIG @ admin-*.vercel.app: all 4 hosts ALIVE 200 but dev-only (admin-eam-app api-baseurl=localhost:3057); no prod API base hardcoded
+- LEARN: REJECTED (OOS) @ metabase.sparelabs.com: exposed Metabase v0.58.24 with unauth /api/session/properties config dump (106KB), but host OOS per scope exclusions
+- LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; NO_DELT
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.b0a0c190.js→main.8a2a39cb.js contains ZERO sparelabs/atlassian/ngrok/metabase/vercel references (infra 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass CONFIRMED NOT PATCHED live 2026-08-15 — `Bearer x` → 200+725B+ACAO+ACAC; longcat triage 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle STABLE live 2026-08-15 — confirmed tenants: spare.com + dart.org + translink.ca + m
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: org-key 3-way oracle STABLE — spare→200+351B, grt→200+288B, dallas→200+277B, winnipeg→200+2
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com: JS bundle main.8a2a39cb.js confirmed PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel references; 3 Google Map
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404 on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; NO_DELTA
+- LEARN: REJECTED AUTH (controller-wide) @ api.sparelabs.com/v1/global/*: 22 sibling routes ALL 401 + 8 additional undocumented controllers (search/audit/exports/metrics
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — auth gate active on writ
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form}: FLAPPED to 400 "not found" on current envoy replica (was 200+schema); multi-version LB 
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas — nil→404 on fast, 400 on slow;
+- LEARN: REJECTED (OOS) @ metabase.sparelabs.com + metabase.staging.sparelabs.com: exposed Metabase v0.58.24 with unauth /api/session/properties config dump (106KB) but 
