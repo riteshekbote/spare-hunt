@@ -7622,3 +7622,23 @@ verify_steps: PASSIVE: GET /v1/public/terms?organizationId=<uuid> for 1966c7f8-�
 impact: per-tenant legal/terms config disclosure incl. dev placeholder junk; LOW
 testability: PASSIVE
 [NEXT] PROBE: `for u in 1966c7f8-3e36-4320-b0d7-de0f7d8d4355 83303a6b-fb96-4ff3-8f58-d6069a043fbb e5f587ba-0000-0000-0000-000000000000; do curl -s -m 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?organizationId=$u" -w "|$u|%{http_code}|%{size_download}B\n"; sleep 1.2; done` — confirm per-tenant terms config chaining across all known real org UUIDs; record distinct bodies + sha256.
+## 2026-08-15 07:25:22 UTC [api] (model bigpickle)
+[HYP] workos/auth normalization is purely canonicalizing — no tenant-set expansion possible
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 45
+reasoning: case+trailing-dot variants of 6 known tenants all 200 with identical connection_ids; www-prefix 404 → exact-after-canonicalization match. Roster must be dictionary-derived, not derivable by transformation of in-scope domains.
+evidence_needed: 200 on a variant that canonicalizes to a NEW tenant not in known set
+verify_steps: PASSIVE: POST {"domain":d} for d in {sparelabs.com., spare.com, SPARELABS.CA, DART.ORG., translink.ca, kingcounty.gov} (Origin evil, sleep 1.2); compare connection_id per canonical domain — expect byte-stable, roster closed
+impact: closes SSO-oracle enumeration as a growth vector; remaining value = partner IdP fingerprinting of known tenants; LOW
+testability: PASSIVE
+[HYP] terms endpoint flapping between replicas yields per-tenant config only on slow replica — chaining not fully dead
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/terms
+confidence: 42
+reasoning: this session all 3 real UUIDs + nil-uuid → identical 137B; prior session recorded 107B with "asdfd" placeholder for spare UUID → replica-version divergence (multi-version envoy LB established fleet-wide)
+evidence_needed: one 107B/different body under spare UUID on any replica
+verify_steps: PASSIVE: loop GET /v1/public/terms?organizationId=d736519f-f384-4771-a2d2-4f95e884d790 ×3 (Origin evil, sleep 1.5 between), sha256 each body — detect slow-replica variant
+impact: per-tenant legal config incl. dev placeholder junk; LOW
+testability: PASSIVE
+[NEXT] PROBE: `for i in 1 2 3; do curl -s -m 15 -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/terms?organizationId=d736519f-f384-4771-a2d2-4f95e884d790" | sha256sum; curl -s -m 15 -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"dart.org."}' "https://api.sparelabs.com/v1/identity/workos/auth" | sha256sum; sleep 1.5; done` — characterize terms replica divergence (137B generic vs 107B per-tenant) and confirm workos connection_id canonicalization stability

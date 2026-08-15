@@ -1679,3 +1679,14 @@ https://api.sparelabs.com/v1/global/regions -> HTTP 400
 https://api.sparelabs.com/v1/identity/workos/auth` -> HTTP 401
 https://api.sparelabs.com/v1/public/organizations/key/mbta` -> HTTP 404
 https://api.sparelabs.com/v1/public/terms?organizationId=$u -> HTTP 400
+
+## 2026-08-15 07:28:05 UTC
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/grt -> 200 len=288 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/dallas -> 200 len=277 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/cambus -> HTTP 404
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth` -> HTTP 401
+https://api.sparelabs.com/v1/public/organizations/key/portland` -> HTTP 404
+https://api.sparelabs.com/v1/public/terms?organizationId=d736519f-f384-4771-a2d2-4f95e884d790 -> 200 len=107 type=application/json; charset=utf-8
