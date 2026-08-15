@@ -1488,3 +1488,11 @@
 - CHANGED routing.sparelabs.com: NOW live (was TIMEOUT→envoy 404); STABLE dead, no surface, NO_DELTA since 2026-08-07
 - CHANGED sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS static-only
 - CHANGED api.sparelabs.com: positively identified as envoy edge gateway (server: envoy, via: 1.1 google)
+
+## 2026-08-15 18:43:42 UTC
+- NEW NO_DELTA — surface unchanged since 2026-08-15 15:00 UTC; all core bypasses re-confirmed live this cycle
+- NEW api.sparelabs.com/v1/public/engage/cases POST: unauthenticated write path confirmed live — auth gate ABSENT (empty POST→400 ValidationError, no 401 InvalidTokenError; nil-UUID→404 NotFoundError handle
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: unauthenticated write path confirmed live — auth gate ABSENT (empty POST→400 ValidationError, nil-UUID→404 "Form was not found", no 401; CORS reflect
+- NEW api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant confirmed — winnipeg.ca (conn_01HP76PPV8CMRJH6RYRTWEPSGS), fleet-parity across 7 hosts, universal CORS on both 200/404 branches
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); feature-flag differential confirmed stable; 22 new candidate keys all 404
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js (was main.b0a0c190.js→main.8a2a39cb.js confirmed PATCHED) — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restric

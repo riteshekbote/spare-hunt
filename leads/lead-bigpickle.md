@@ -8728,3 +8728,31 @@ impact: full token-omission bypass on data-bearing route; strengthens HIGH infra
 testability: PASSIVE
 [NEXT] HUMAN: request one authorized test-org token; use it to list caseTypes (authorized endpoint) and capture a real caseTypeKey+defaultFormKey, then run GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<uuid> → formId, then POST /v1/public/engage/caseForms with the spare-UUID (d736519f-f384-4771-a2d2-4f95e884d790) orgId to complete the unauth write-IDOR POC (delete after).
 [RISK] api.sparelabs.com: 99 — full finding family stable 86h+ (regions token-value-ignored bypass now confirmed weaker than recorded, orgs zero-header read-only, engage write chain auth-absent, 8-tenant SSO oracle, org-key+UUID oracles, universal CORS, all NOT patched; longcat PATCHED claims disproven) | platform.sparelabs.com: 75 — CSP infra leak (admin Vercel apps loadable 200 + Metabase + 9 cloud services); strict HTML CSP+x-frame mitigate HTML-level only | routing.sparelabs.com: 8 — envoy 404 on all paths, no surface, NO_DELTA since 2026-08-07 | forms.sparelabs.com: 5 — JS bundle patched (zero infra refs), strict HTML CSP + x-frame DENY, SPA catch-all only, recon-only residual | web (spare.com/sparelabs.com): 5 — static Cloudflare+Webflow marketing, CSP frame-ancestors, HSTS, no internal infra leaks.
+## 2026-08-15 18:43:23 UTC [api] (model bigpickle)
+[HYP] Engage cases write-IDOR blocked by feature-flag gate on all known orgs
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/cases (POST)
+confidence: 42
+reasoning: auth gate absent (empty→400, nil-UUID→404 handler-reach, no 401), but this cycle all 5 known org UUIDs → 403 ForbiddenError "External case creation is not enabled". Exploitation requires an org with the external-case-creation flag ON, which is internal config not discoverable passively. Write chain structurally auth-free but business-logic-gated on known orgs.
+evidence_needed: one org UUID with flag ON returning 201/200 (case created) instead of 403.
+verify_steps: AUTH_HELPED: authorized test-org token + its org UUID with flag enabled → POST /v1/public/engage/cases, observe 201; no passive path to find a flag-ON org.
+impact: unauth case creation + PII injection into a transit agency's case management if any org enables the flag; currently capped by 403 on all known orgs. MEDIUM (latent).
+testability: AUTH_HELPED
+[HYP] Regions token-value-ignored gate — complete token omission on data-bearing route
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions (GET)
+confidence: 90
+reasoning: empty `Bearer`, lowercase `bearer x`, and `Bearer x` all → 200 + byte-identical 725B (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe); no-auth → 400. Gate is header-presence + case-insensitive scheme-prefix only; token never parsed. 86h+ byte-stable across 7 fleet hosts. Finding already ACCEPTED; this is a severity-refinement confirmation (token fully omissible, not just garbage-value).
+evidence_needed: (already met) empty-token 200 + byte-stable body; control /v1/journeys 401.
+verify_steps: PROBE: curl -s -m15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer" https://api.sparelabs.com/v1/global/regions | sha256sum (expect fb9800acb…c3fe) — done this cycle, 200.
+impact: unauthenticated full infra-topology disclosure (7 regions incl 6 OOS api/routing hosts) with token completely omitted. HIGH.
+testability: PASSIVE
+[HYP] SSO roster closed at 8 via exact-match domain keying
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 60
+reasoning: exact-match confirmed (www./m./alt-TLD variants → 404); dict of transit/municipality domains exhausted; 8 tenants confirmed (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, +1). connection_id byte-stable per domain = reliable fingerprint; fleet-parity 7 hosts.
+evidence_needed: none new — roster closed; residual risk is new-agency domains not yet guessed.
+verify_steps: PASSIVE: periodic re-sweep of newly-announced agency names only; no productive continuous enumeration.
+impact: tenant/SSO config enumeration (WorkOS client_id + Entra tenant_ids); roster bounded at 8. LOW-MED.
+testability: PASSIVE

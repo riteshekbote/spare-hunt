@@ -5328,3 +5328,24 @@
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: NOW live but STABLE dead — envoy 404 on ALL probed paths; NO_DELTA since 2026-08-07
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: NOT patched despite longcat false-positive claim (2026-08-11) — Bearer x → 200+725B+ACAO+ACAC, sha256 fb980
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: read-only zero-header bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 In
+
+## RANKED HYPOTHESES 2026-08-15 18:43:42 UTC
+- [95] api.sparelabs.com/v1/global/organizations: Zero-Header Read-Only Bypass on Global Organizations (from reports/hypotheses-nemotron3.txt)
+- [85] api.sparelabs.com/v1/public/engage/cases: Engagecases unauthenticated write handler reach (from reports/hypotheses-laguna.txt)
+- [42] api.sparelabs.com/v1/public/engage/cases: Engage cases write-IDOR blocked by feature-flag gate on all known orgs (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" | sha256sum — verify byte-stability of
+- NEXT(hypotheses-laguna.txt): PROBE: curl -s -m15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | sha256sum — verify byte-sta
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 In
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass STABLE — Bearer x → 200+725B+ACAO+ACAC (sha256 fb9800acb…585c3fe verified); no-auth→400,
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO tenant roster expanded — 8th tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); flee
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 NotFoundE
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr}; 22 new candidates 404; pro
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com: NOW live (was TIMEOUT→200 MFE SPA shell); CSP infra leak STABLE (admin Vercel apps+Metabase+9 cloud services)
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: NOW live but STABLE dead — envoy 404 on ALL probed paths; NO_DELTA since 2026-08-07
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/* (controller-wide): 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET 
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401 InvalidTokenError); 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed live (conn_01HP76PPV8CMRJH6RYRTWEPSGS), fleet-parity across 7 ho
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 new candidate 
