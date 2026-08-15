@@ -1556,3 +1556,12 @@
 - 2026-08-15 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js confirmed PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED
 - 2026-08-15 REJECTED BUSLOGIC @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE → 401 InvalidTokenError — auth gate active on write methods, bypass is GET read-only only
 - 2026-08-15 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07, no surface, NO_DELTA
+- 2026-08-15 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — empty POST→400 ValidationError (no 401), nil-UUID→404 NotFoundError (handler reached), spare-UUID→403 ForbiddenError (feature-flag gate, not auth)
+- 2026-08-15 REJECTED @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak eliminated
+- 2026-08-15 ACCEPTED @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401), handler reached (nil-UUID→404, spare-UUID→403); CORS reflected
+- 2026-08-15 ACCEPTED @ api.sparelabs.com/v1/public/engage/caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401), nil-UUID→404 "Form was not found"; handler reached without auth
+- 2026-08-15 ACCEPTED @ api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); fleet-parity across 7 hosts
+- 2026-08-15 ACCEPTED @ api.sparelabs.com/v1/global/regions: scheme-only bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, only tested no-auth path; bypass stable 86h+
+- 2026-08-15 REJECTED @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET only; auth gate active on write methods
+- 2026-08-15 ACCEPTED @ api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B "asdfd" prod junk, winnipeg→197B real URL; byte-stable sha256; prod-only residency
+- 2026-08-15 REJECTED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas; downgraded to validation-leak-only, not oracle class

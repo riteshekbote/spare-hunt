@@ -1586,3 +1586,12 @@
 - NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS static-only
 
 ## 2026-08-15 22:34:20 UTC
+
+## 2026-08-15 22:56:01 UTC
+- CHANGED forms.sparelabs.com JS bundle: `main.8a2a39cb.js` CONFIRMED PATCHED (zero sparelabs/atlassian/ngrok/metabase/vercel refs) — prior "REACTIVATED @ 34f336cd" (10:55 UTC) was false positive
+- CHANGED api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, only tested no-auth path, bypass stable 86h+
+- CHANGED api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET, not read+write
+- NEW api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401), handler reached (nil-UUID→404, spare-UUID→403 feature-flag ga
+- NEW api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B "asdfd" prod junk, winnipeg→197B real URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic; byte-stable sha256
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); fleet-parity across 7 hosts
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak-only
