@@ -8852,3 +8852,33 @@ testability: PASSIVE
 [NEXT] HUMAN: request one authorized test-org token from the program; with it enumerate authorized caseTypes to capture a real caseTypeKey + defaultFormKey, resolve formId via `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>`, then complete the unauth write-IDOR POC on `POST /v1/public/engage/caseForms` (and /cases) with org UUID d736519f-f384-4771-a2d2-4f95e884d790, deleting test data after.
 [LEARN] REJECTED IDOR @ api.sparelabs.com/v1/public/engage/form: 5 guessed formKeys × case-request all handler-level 404 "Form was not found" — key namespace not passively guessable; formId bridge remains AUTH_HELPED-gated.
 [RISK] api.sparelabs.com: 99 — full finding family 86h+ unpatched (regions scheme-only bypass, orgs zero-header read-only, universal CORS credential reflection, engage write chain auth-absent, SSO 8-tenant + org-key 5-org oracles); all re-verified live this cycle | platform.sparelabs.com: 75 — CSP infra leak stable (prod+staging admin Vercel apps loadable, Metabase, 9 cloud services); strict HTML CSP + x-frame mitigate HTML-level only | routing.sparelabs.com: 8 — envoy 404 on all paths, no surface, NO_DELTA since 2026-08-07 | forms.sparelabs.com: 5 — JS bundle patched (zero infra refs), strict HTML CSP + x-frame DENY, SPA catch-all, recon-only residual | web (spare.com/sparelabs.com): 5 — static Cloudflare+Webflow marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks.
+## 2026-08-15 21:47:26 UTC [api] (model bigpickle)
+[HYP] formKey namespace not passively guessable — formId bridge stays AUTH_HELPED-gated
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/form (GET) + /caseForms (POST)
+confidence: 68
+reasoning: handler-level formKey oracle re-confirmed this cycle (case-request × default × spare UUID → 404 NotFoundError "Form was not found" 123B, no 401). Forms bundle main.8a2a39cb.js (7.1MB) contains zero formKey/caseTypeKey literals — values come from auth-gated caseTypes listing only; route `/forms/:orgId/:caseTypeKey` confirmed.
+evidence_needed: one real formKey/formId pair from an authorized caseTypes listing (bundle + oracle both rule out passive derivation).
+verify_steps: AUTH_HELPED: test-org token → authorized caseTypes list → capture caseTypeKey+defaultFormKey → GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid> → formId → POST /v1/public/engage/caseForms; delete after.
+impact: unauth cross-tenant form-response injection carrying PII contact fields; MEDIUM (latent).
+testability: AUTH_HELPED
+[HYP] regions token value fully omissible — gate is header-presence + case-insensitive scheme-prefix only
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions (GET)
+confidence: 88
+reasoning: Bearer x → 200/725B sha256 fb9800acb…c3fe byte-identical this cycle (3ms); empty-Bearer and lowercase `bearer x` previously 200; no-auth → 400. Token never parsed across 7 fleet hosts, 86h+.
+evidence_needed: slow-replica (≥500ms upstream) empty-`Bearer` sample → 200 + 725B (severity refinement only; finding already ACCEPTED).
+verify_steps: PROBE: repeat `curl -H "Authorization: Bearer"` until x-envoy-upstream-service-time ≥500ms → expect 200+725B; control /v1/journeys 401.
+impact: complete unauthenticated infra-topology disclosure (7 regions incl. 6 OOS api/routing hosts) with token fully omitted; HIGH.
+testability: PASSIVE
+[HYP] SSO roster closed at 8 — exact-match domain keying, residual = new-agency growth events
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 55
+reasoning: exact-match confirmed (www./m./alt-TLD/email-shaped variants → 404); transit dictionary exhausted; 8 tenants (spare.com conn_01GRW7M1CJEJGYKMEMPBCQEZHY byte-stable re-verified), fleet-parity 7 hosts.
+evidence_needed: newly-onboarded agency/municipality domain returning 200.
+verify_steps: PASSIVE: re-sweep only newly-announced agency domains at 1/30s with spare.com 200 control; no continuous enumeration.
+impact: tenant/SSO-config enumeration (WorkOS client_id + connection_id + Entra tenant IDs); bounded at 8. LOW-MED.
+testability: PASSIVE
+[NEXT] HUMAN: request one authorized test-org token from the program; with it enumerate authorized caseTypes to capture a real caseTypeKey + defaultFormKey, resolve formId via `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>`, then complete the unauth write-IDOR POC on `POST /v1/public/engage/caseForms` (and /cases) with org UUID d736519f-f384-4771-a2d2-4f95e884d790, deleting test data after.
+[RISK] api.sparelabs.com: 99 — full finding family 86h+ unpatched (regions scheme-only bypass, orgs zero-header read-only, universal CORS credential reflection, engage write chain auth-absent, SSO 8-tenant + org-key 5-org oracles); all re-verified byte-stable live this cycle | platform.sparelabs.com: 75 — CSP infra leak stable (prod+staging admin Vercel apps loadable, Metabase, 9 cloud services); strict HTML CSP + x-frame mitigate HTML-level only | routing.sparelabs.com: 8 — envoy 404 on all paths, no surface, NO_DELTA since 2026-08-07 | forms.sparelabs.com: 5 — JS bundle patched (zero infra refs), strict HTML CSP + x-frame DENY, SPA catch-all, recon-only residual | web (spare.com/sparelabs.com): 5 — static Cloudflare+Webflow marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks.
