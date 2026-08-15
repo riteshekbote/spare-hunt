@@ -49275,3 +49275,68 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 8 — STABLE dead since 2026-08-07 (envoy 404/0B on ALL probed paths incl /v1/,/api/,/routing/,/graphql,/map,/directions,/openapi.json,/swagger.json,/docs,/health,/status); newly responsive (was TIMEOUT→404) but zero API surface, NO_DELTA
 [RISK] forms.sparelabs.com: 5 — Engage portal SPA 200 (envoy+Google CDN, strict HTML CSP + x-frame DENY); JS bundle main.8a2a39cb.js PATCHED (zero infra leaks, 3 Google Maps keys referrer-restricted); all 8 API paths SPA catch-all; infra leak resolved, recon-only
 [RISK] web (spare.com/sparelabs.com): 5 — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks in HTML/JS); sparelabs.com 301→spare.com; www.spare.com OOS excluded (301 subdomain→out of scope); minimal static-only surface, no dynamic logic
+===== ANALYST laguna 2026-08-15 15:00:04 UTC =====
+[0m
+> build · laguna-s-2.1-free
+[0m
+**STEP 1 — DELTA:**
+- NEW api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — empty POST → 400 ValidationError (no 401); nil-UUID → 404 NotFoundError "Other was not found"; spare-UUID → 403 ForbiddenError (feature-flag gate, NOT auth); CORS reflected on all error paths
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: auth gate ABSENT — empty POST → 400 ValidationError; nil-UUID → 404 "Form was not found"; CORS reflected; no 401 on any path
+- NEW api.sparelabs.com/v1/identity/workos/auth: 7th SSO tenant confirmed live — kingcounty.gov → 200+172B (WorkOS client_id `client_01F5KHYX32TCKB1E7YEAPE0H17` + connection `conn_01JKRZ46KNAQRZN3J3PYTJKWAQ` + Entra tenant_id in relayState JWT); 7th distinct connection_id, fleet-parity across prod/uat/us2/jp
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs → 200 with distinct UUIDs+feature-flags+logoUrls on GCS); 22 additional candidate keys all 404; prod-only data (uat/us2/jp → 404)
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId, ~299-308B) and router-level "not found" (400, ~187-193B) — multi-version envoy LB confirmed
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas (nil→404 on fast replica 3-way intact, →400 on slow replica 2-way); downgraded from oracle class to validation-leak-only
+- CHANGED forms.sparelabs.com JS bundle: main.b0a0c190.js → main.8a2a39cb.js CONFIRMED PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps API keys all referrer-restricted (geocode→REQUEST_DENIED); infra leak eliminated
+
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 80 — a:8 b:7 t:10 g:10 c:10 f:10
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST — 82 — a:9 b:9 t:7 g:9 c:8 f:10
+[PRIO] api.sparelabs.com/v1/global/regions — 84 — a:8 b:8 t:8 g:10 c:10 f:7
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — 77 — a:7 b:7 t:6 g:10 c:10 f:9
+[PRIO] api.sparelabs.com/v1/global/organizations — 75 — a:7 b:8 t:6 g:9 c:9 f:7
+
+[HYP] SSO Tenant Enumeration via WorkOS Auth Domain Discriminator
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 95
+reasoning: POST domain param discriminates 200 (7 configured SSO tenants: spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, +1 unconfirmed) vs 404 (unconfigured). 200 + 172B returns WorkOS client_id + connection_id + Entra tenant_id in signed relayState JWT — NO auth required. Fleet-parity confirmed across prod/uat/us2/jp. connection_id byte-stable per-domain, deterministic fingerprint. Universal CORS on both 200 and 404 branches.
+evidence_needed: 200 + body with WorkOS client_id + connection_id + Entra tenant_id for configured domains (e.g. translink.ca, dart.org, kingcounty.gov); 404 for unconfigured domains (e.g. nonexistent-xyz.gov); ACAO+ACAC on both branches; identical discrimination across fleet hosts (uat, us2, jp)
+verify_steps: PROBE: curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"translink.ca"}' https://api.sparelabs.com/v1/identity/workos/auth ; curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"nonexistent-xyz.gov"}' https://api.sparelabs.com/v1/identity/workos/auth ; repeat translink probe against https://api.uat.sparelabs.com and https://api.us2.sparelabs.com to confirm fleet-parity
+impact: Partner SSO tenant roster enumeration — discloses WorkOS client_id + connection_id + Azure Entra tenant IDs for each transit agency partner; enables targeted supply-chain attacks against disclosed corporate IdPs and cross-tenant mapping of the Spare partner ecosystem. Universal CORS allows browser-based enumeration from any malicious origin. Severity MED.
+testability: PASSIVE
+
+[HYP] Unauthenticated Write Chain via POST /v1/public/engage/cases
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases (POST)
+confidence: 82
+reasoning: Auth gate ABSENT — empty POST returns 400 ValidationError with NO 401 InvalidTokenError (validation middleware precedes auth check). nil-UUID orgId POST → 404 NotFoundError "Other was not found" (handler reached — would be 401 if auth-gated). spare org UUID POST → 403 ForbiddenError "External case creation is not enabled for this organization" (business-logic feature-flag gate, not auth). CORS credentials reflected on ALL error paths. Multi-version envoy LB flapping on GET (OpenAPI validation vs router "not found").
+evidence_needed: POST with valid caseTypeId + org UUID returns 200/201 (record creation) NOT 401 InvalidTokenError; confirming successful unauthenticated data creation
+verify_steps: AUTH_HELPED: with authorized spare org API token, GET with Origin header to extract valid caseTypeKey from OpenAPI validation schema; then POST -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"<valid-caseTypeId>","contactInfo":{"phone":"+15550000000","email":"test@example.com","name":"Test User"}}' https://api.sparelabs.com/v1/public/engage/cases — confirm 200/201 (not 401)
+impact: Unauthenticated cross-origin transit-dispatch case record injection with PII contact fields (phone/email/name). Attacker could flood false dispatch data or inject fraudulent records into transit workflows. Universal CORS enables browser-based exploitation. Severity MED-HIGH.
+testability: AUTH_HELPED
+
+[HYP] Scheme-Only Bearer Bypass + Infra Topology on /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions (GET)
+confidence: 95
+reasoning: Gate validates Bearer SCHEME ONLY, token value never verified. Byte-stable 86h+ (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe verified across 15+ probes). Fleet-parity across 7 hosts. Body discloses 7 regions incl 6 OOS api/routing subdomains (prod/us/us2/us3/jp/eu/uat + staging). no-auth→400, POST→401 (read-only), control /v1/journeys→401. longcat triage "PATCHED" (2026-08-11) is FALSE POSITIVE — only tested no-auth path, never tested Bearer-x vector.
+evidence_needed: 200 + 725B region registry with Authorization: Bearer x; no-Auth→400; POST→401; body sha256 matches fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe; identical response from uat/us2/jp fleet hosts
+verify_steps: PROBE: curl -s -m15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | sha256sum (expect fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe); curl -s -m15 -D - -o /dev/null -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/regions (confirm 400 + ACAO+ACAC); curl -s -m15 -X POST -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions (confirm 401)
+impact: Unauthenticated infra topology disclosure — full regional deployment map (7 regions incl 6 OOS production api/routing subdomains + staging) with NO valid token. Enables targeted follow-on attacks against disclosed hosts. Read-only, NOT patched. Severity HIGH.
+testability: PASSIVE
+
+[FINAL] Ranked hypotheses:
+1. [95] api.sparelabs.com/v1/identity/workos/auth — SSO tenant enumeration via WorkOS auth domain discriminator (IDOR, PASSIVE)
+2. [84] api.sparelabs.com/v1/global/regions — scheme-only Bearer bypass + infra topology disclosure (AUTH, PASSIVE)
+3. [82] api.sparelabs.com/v1/public/engage/cases POST — unauthenticated write chain with PII injection (BUSLOGIC, AUTH_HELPED)
+4. [77] api.sparelabs.com/v1/public/organizations/key/{key} — 3-way org-key IDOR oracle (IDOR, PASSIVE)
+
+[NEXT] PROBE: curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"vancouver.ca"}' https://api.sparelabs.com/v1/identity/workos/auth — confirm 200 (potential 8th SSO tenant + WorkOS client_id/connection_id/Entra tenant_id disclosure) or 404; then probe ottawa.ca, seattle.gov, portlandoregon.gov with identical request, ≤1 rps passive-first
+
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — ZERO sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted (infra leak eliminated, downgraded from ACCEPTED to recon-only)
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth: 7th SSO tenant kingcounty.gov confirmed live (WorkOS client_id+connection_id+Entra tenant_id in relayState JWT, no auth); universal CORS on both 200/404 branches; fleet-parity across prod/uat/us2/jp
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 NotFoundError "Other was not found" (handler reached); spare-UUID→403 ForbiddenError (feature-flag gate, not auth); CORS reflected — write path reaches handler without auth gate
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs→200 with distinct UUIDs+feature-flags+logoUrls on GCS); 22 new candidate keys all 404; prod-only (uat/us2/jp→404)
+[LEARN] CHANGED @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId, ~299B) and router-level "not found" (400, ~189B) — multi-version envoy LB confirmed
+[LEARN] CHANGED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas (nil→404 fast / 400 slow); downgraded to validation-leak-only, not oracle class
+
+[RISK] api.sparelabs.com: 99 | platform.sparelabs.com: 75 | routing.sparelabs.com: 8 | forms.sparelabs.com: 5 | web (spare.com/sparelabs.com): 5

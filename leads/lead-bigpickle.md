@@ -8274,3 +8274,33 @@ evidence_needed: additional tenant domains via curated US/CA transit-agency word
 verify_steps: PASSIVE: POST {"domain":<candidate>} at ≤1rps for curated transit domains; record 200 (configured) vs 404; cross-ref org-key set; never beyond header-level interaction.
 impact: tenant/SSO-config enumeration + Entra tenant-ID disclosure for partner orgs; LOW
 testability: PASSIVE
+## 2026-08-15 14:58:58 UTC [api] (model bigpickle)
+[HYP] WorkOS SSO roster expansion via US/CA transit-agency wordlist
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 75
+reasoning: 8 tenants confirmed (octa.net new), per-domain connection_id byte-stable fingerprints, clean 200-vs-404 differential, fleet-parity across 7 hosts. SSO roster remains partially disjoint from the closed 5-key org set — two independent enumeration vectors.
+evidence_needed: additional tenant domains; confirm 200 (configured) vs 404 with known controls (spare.com 200, octa.net 200, bart.gov 404).
+verify_steps: PASSIVE: POST {"domain":<candidate>} at ≤1rps for next curated batch (trirail.com, vta.org, metrolinktrains.com, rta.org, octa.net control); record 200 configured vs 404; never exceed header-level interaction.
+impact: tenant/SSO-config enumeration + WorkOS connection + Entra tenant-ID fingerprinting for partner orgs; LOW-MEDIUM, chainable to authorize-URL IdP mapping.
+testability: PASSIVE
+[HYP] Engage cases unauth write chain for SSO-only tenants
+class: AUTH
+asset: api.sparelabs.com/v1/public/engage/cases
+confidence: 62
+reasoning: schema maps 3 layers deep with no 401 at any layer; nil-UUID handler-reach 404; spare-UUID → 403 feature-flag gate (not auth). SSO-only tenants (octa/kingcounty/mbta/saskatoon) have no org-key → UUIDs unresolvable passively, but write would land if any is external-case-enabled.
+evidence_needed: UUID of an SSO-only tenant + external-case-creation flag state.
+verify_steps: AUTH_HELPED: with test token resolve UUID for octa.net/kingcounty.gov, GET flag state; only with explicit authorization POST a test case in a test org and delete it.
+impact: unauthenticated case creation against PII-capture service for enabled orgs; MEDIUM if one found enabled
+testability: AUTH_HELPED
+[HYP] caseForms unauthenticated cross-tenant form-response write IDOR
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseForms
+confidence: 72
+reasoning: full top-level body mapped live; nil-formId handler-reach 404 "Form was not found" with no InvalidTokenError and no feature-flag gate (unlike /cases 403); CORS preflight advertises POST+credentials. Control /v1/journeys 401.
+evidence_needed: a resolvable formId/caseId pair to observe persistence, or AUTH_HELPED confirmation handler writes on resolution.
+verify_steps: AUTH_HELPED: with test token obtain test-org formId+caseId, POST full mapped body, confirm record, then delete. Passive fallback: poll GET /v1/public/engage/form?formKey=<guess>&organizationId=<grt-uuid> at 1/30s for the 200-schema replica; never POST a resolvable formId.
+impact: unauthenticated form-response creation against PII-capture service, cross-tenant association; MEDIUM
+testability: AUTH_HELPED
+[NEXT] PROBE: `POST https://api.sparelabs.com/v1/identity/workos/auth` with `{"domain":<candidate>}` at ≤1rps for next transit-agency batch: trirail.com, vta.org, metrolinktrains.com, rta.org, miamidade.gov, with octa.net as 200 control and bart.gov as 404 control — extending the 8-tenant SSO roster.
+[RISK] api.sparelabs.com: 78 — three unpatched bypass families (regions/orgs 86h+, engage unauth write surface, universal CORS credential reflection) + two live enumeration oracles (SSO, org-key) on PII-adjacent write paths | platform.sparelabs.com: 30 — CSP infra leak only, MFE shell no API surface | routing.sparelabs.com: 5 — envoy 404 dead since 2026-08-07 | forms.sparelabs.com: 15 — bundle patched, SPA catch-all, no API endpoints | web (spare.com/sparelabs.com): 10 — static Cloudflare/Webflow marketing, HSTS, no dynamic surface
