@@ -7001,3 +7001,15 @@
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED
 - LEARN: 2026-08-16 23:14 UTC replica-split baseline: regions Bearer-x 8/8→200+725B @0.11-0.14s (FAST replicas), orgs zero-header 8/8→200+11B @0.55-1.04s (SLOW replicas)
+
+## RANKED HYPOTHESES 2026-08-16 23:40:07 UTC
+- [97] ?: Unauthenticated SSO configuration oracle disclosing WorkOS + Microsoft Entra identifiers (from reports/hypotheses-bigpickle.txt)
+- [95] api.sparelabs.com/v1/global/regions: Fleet-wide infrastructure topology disclosure via scheme-only Bearer bypass on global regions with write-method CORS convergence and multi-version LB replica split (from reports/hypotheses-nemotron3.txt)
+- LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) is FALSE POSITIVE — longcat only tested no-auth path (400), never 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED
+- LEARN: 2026-08-16 23:14 UTC replica-split baseline: regions Bearer-x 8/8→200+725B @0.11-0.14s (FAST replicas), orgs zero-header 8/8→200+11B @0.55-1.04s (SLOW replicas)
+- LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) is FALSE POSITIVE — longcat only tested no-auth path (400), never 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED
+- LEARN: 2026-08-16 23:14 UTC replica-split baseline: regions Bearer-x 8/8→200+725B @0.11-0.14s (FAST replicas), orgs zero-header 8/8→200+11B @0.55-1.04s (SLOW replicas)
