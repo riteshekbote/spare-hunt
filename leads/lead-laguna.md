@@ -11428,3 +11428,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths (/, /v1/, /api/, /routing/, /router, /v2/, /graphql, /map, /directions/, /openapi.json, /swagger.json, /docs, /health, /status); newly responsive (was TIMEOUT→404 on 2026-08-13) but zero surface; NO_DELTA since 2026-08-07
 [RISK] forms.sparelabs.com: 12 — Engage SPA 200 (resurrected from TIMEOUT 2026-08-13); JS bundle main.8a2a39cb.js PATCHED (zero infra refs, 3 Google Maps keys referrer-restricted); SPA catch-all on all 8 API paths (200 text/html); no real API behind host; infra leak ELIMINATED — recon-only residual
 [RISK] web (spare.com/sparelabs.com): 15 — spare.com apex HTTP 200 static Webflow/Cloudflare (CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com apex (Cloudflare+HSTS); www.spare.com OOS excluded per scope; minimal static-only surface, no dynamic logic
+## 2026-08-16 20:58:49 UTC [web] (model laguna)

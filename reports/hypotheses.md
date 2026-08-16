@@ -6861,3 +6861,5 @@
 - LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — both bypass routes READ-ONLY GET only; no
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; NO_DELTA
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 siblings + 8 undocumented controllers ALL 401 — bypass family scoped to exactly {/organizations, /regions
+
+## RANKED HYPOTHESES 2026-08-16 21:00:52 UTC
