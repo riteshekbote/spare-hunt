@@ -1924,3 +1924,10 @@
 - NEW forms.sparelabs.com: NOW live (was TIMEOUT→200 Engage SPA); JS bundle main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restrict
 - NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS static-only
 - NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster NOT closed at 8 — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) + cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC) confirmed live; roster ≥10
+
+## 2026-08-16 18:25:14 UTC
+- NEW api.sparelabs.com/v1/public/organizations/{id}/*: 6-subpath sweep exhausted (/, status, branding, logo, config, tenants) → all 400 ValidationError "not found"; plural namespace fully mapped to {id} le
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥10 tenants — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) + cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC) confirmed live; fleet-parity 
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED (resolves pri
+- CHANGED api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass re-verified NOT patched — longcat "PATCHED" claim (2026-08-11) confirmed FALSE POSITIVE; bypass stable 86h+ across 7 fleet hosts, body sh
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: auth gate ABSENT confirmed live — handler reached without auth (400 ValidationError, 404 NotFoundError, 403 ForbiddenError); multi-versi

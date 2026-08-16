@@ -9774,3 +9774,7 @@ testability: AUTH_HELPED
 [RISK] web (spare.com/sparelabs.com): 15 — spare.com apex HTTP 200 static Webflow/Cloudflare (CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks in HTML/JS); sparelabs.com 301→spare.com (Cloudflare+HSTS max-age=0); www.spare.com OOS excluded; minimal static-only surface, no dynamic logic
 [LEARN] ACCEPTED BUSLOGIC @ /v1/public/engage/cases: cross-route oracle reconfirmed live 17:48 UTC — grt+dallas+winnipeg all 403 'External case creation is not enabled', nil 404; ACAO reflected on 403 responses
 [RISK] api.sparelabs.com: 86 — unchanged (regions bypass 90h+ stable, cross-route oracle 3/3 orgs, write gates active)
+## 2026-08-16 18:17:47 UTC [api] (model bigpickle)
+[LEARN] ACCEPTED BUSLOGIC @ /v1/public/engage/cases: cross-route oracle reconfirmed live 17:48 UTC — grt+dallas+winnipeg all 403 'External case creation is not enabled', nil 404; ACAO reflected on 403 responses
+[RISK] api.sparelabs.com: 86 — unchanged (regions bypass 90h+ stable, cross-route oracle 3/3 orgs, write gates active)
+[RISK] api.sparelabs.com: 86 — unchanged (regions 90h+ stable, orgs bypass stable, SSO oracle stable, engage/cases 4/4 gated, write gates active)
