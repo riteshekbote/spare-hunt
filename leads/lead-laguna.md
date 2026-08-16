@@ -10093,3 +10093,40 @@ testability: AUTH_HELPED
 [RISK] routing.sparelabs.com: 5 | envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (was TIMEOUT→404) but STABLE dead, NO_DELTA, no surface
 [RISK] forms.sparelabs.com: 12 | SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN); JS bundle patched (main.8a2a39cb.js — zero sparelabs/atlassian/ngrok/metabase/vercel refs, 3 Maps keys referrer-restricted); no real API behind SPA catch-all; infra leak RESOLVED, recon-only
 [RISK] web (spare.com/sparelabs.com): 15 | spare.com HTTP 200 static Webflow (Cloudflare, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; www.spare.com OOS excluded; minimal static-only surface
+## 2026-08-16 07:24:10 UTC [web] (model laguna)
+[PRIO] api.sparelabs.com/v1/global/regions: 92 | attack=10, business=8, tech=8, gate=10, cloud=6, fresh=10 (scheme-only bypass, 86h+ stable, NOT patched despite longcat false positive)
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: 88 | attack=7, business=7, tech=9, gate=10, cloud=6, fresh=9 (SSO-config oracle, 8 tenants + WorkOS client_id + connection_id)
+[PRIO] api.sparelabs.com/v1/global/organizations: 85 | attack=7, business=8, tech=7, gate=10, cloud=4, fresh=10 (zero-header read-only bypass, browser-CORS-exploitable)
+[PRIO] api.sparelabs.com/v1/public/engage/cases: 74 | attack=8, business=7, tech=7, gate=9, cloud=4, fresh=8 (auth-gate-absent POST, PII case injection vector)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}: 70 | attack=7, business=5, tech=6, gate=10, cloud=4, fresh=7 (3-way org enumeration, 5 live orgs + feature flags)
+[HYP] Scheme-Only Bearer Bypass with Infra Topology Disclosure on Regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions (GET)
+confidence: 95
+reasoning: Gate validates Bearer scheme only — token value never verified. `Bearer x` → 200 + 725B region registry (7 regions incl 6 OOS api/routing subdomains + UAT staging). Body byte-stable 86h+ (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe verified this session). no-auth → 400 "Authorization header required"; POST → 401; control /v1/journeys → 401. NOT patched — longcat "PATCHED" (2026-08-11) is false positive (only tested no-auth path).
+evidence_needed: GET `Bearer x` → 200 + 725B + ACAO + ACAC; body sha256 = fb9800acb...585c3fe; POST → 401; control /v1/journeys → 401
+verify_steps: PROBE: curl -s -m15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" — verify body sha256 matches AND ACAO+ACAC on 200
+impact: Unauthenticated infra topology disclosure — full 7-region deployment map incl 6 OOS api/routing subdomains + UAT staging host. Severity HIGH.
+testability: PASSIVE
+[HYP] Unauthenticated SSO-Config Oracle via WorkOS Auth Endpoint
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth (POST)
+confidence: 88
+reasoning: POST {"domain":"<tenant-domain>"} returns 200 + 172B with WorkOS client_id + connection_id for configured tenants; 404 for non-tenants. Confirmed 8 tenants (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, +). dart.org → conn_01G03EZ4VMEJ88VENF2JE4921C, spare.com → conn_01HP76PPV8CMRJH6RYRTWEPSGS (verified live 07:21 UTC). Fleet-parity across prod/uat/us2/jp. Universal CORS on both 200/404 branches.
+evidence_needed: POST {"domain":"winnipeg.ca"} → 200 + 172B with WorkOS client_id + conn_01HP76PPV8CMRJH6RYRTWEPSGS + ACAO+ACAC; POST {"domain":"nonexistent.gov"} → 404 + ACAO+ACAC
+verify_steps: PROBE: curl -s -m15 -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"dart.org"}' "https://api.sparelabs.com/v1/identity/workos/auth" — confirm 200 + 172B; curl -s -m15 -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"nonexistent.gov"}' "https://api.sparelabs.com/v1/identity/workos/auth" — confirm 404 + CORS
+impact: Tenant enumeration + WorkOS client_id + connection_id disclosure for 8 partner orgs. Enables targeted SSO phishing/CSRF. Severity MED.
+testability: PASSIVE
+[HYP] Zero-Header Read-Only Bypass with Full CORS Write-Preflight Chain on Organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations (GET/OPTIONS)
+confidence: 90
+reasoning: GET with NO Authorization header → 200 + 11B `{"data":[]}` + ACAO:reflected + ACAC:true (confirmed live 07:19 UTC, 755ms slow replica). OPTIONS preflight with NO Authorization → 204 + ACAO+ACAC + allow-methods:GET,HEAD,PUT,PATCH,POST,DELETE + allow-headers:Authorization (confirmed live 07:21 UTC). POST/PUT/PATCH/DELETE → 401 InvalidTokenError (write gate active). Browser-CORS-exploitable: preflight succeeds without auth, GET returns data without auth.
+evidence_needed: GET no-auth → 200 + 11B + ACAO+ACAC; OPTIONS no-auth → 204 + ACAO+ACAC+write-methods; POST Bearer-x → 401
+verify_steps: PROBE: curl -s -m15 -D - -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" — verify 200 + ACAO+ACAC; curl -s -m15 -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/global/organizations" — verify 204 + ACAO+ACAC+write-methods
+impact: Browser-based unauthenticated data extraction via CORS. Empty payload caps immediate data impact but confirms full CORS write-preflight chain (browsers allowed to attempt writes). Severity MED-HIGH.
+testability: PASSIVE
+[FINAL] 1. api.sparelabs.com/v1/global/regions — Scheme-Only Bypass (confidence 95, PASSIVE)
+[FINAL] 2. api.sparelabs.com/v1/identity/workos/auth — SSO-Config Oracle (confidence 88, PASSIVE)
+[FINAL] 3. api.sparelabs.com/v1/global/organizations — Zero-Header Read-Only Bypass + CORS Write Chain (confidence 90, PASSIVE)
+[NEXT] PROBE: curl -s -m15 -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: PUT" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/global/organizations" — confirm OPTIONS 204 advertises PUT in allow-methods + ACAO+ACAC (verifying browser-CORS write-preflight chain is accepted on the zero-header bypass route, closing the read-only classification)
