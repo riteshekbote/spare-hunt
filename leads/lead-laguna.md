@@ -10447,3 +10447,4 @@ impact: Tenant enumeration + WorkOS client_id + connection_id + Entra tenant ID 
 testability: PASSIVE
 [FINAL]
 [NEXT] PROBE: curl -s -m15 -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" — verify 200 + 725B + ACAO+ACAC; pipe body | sha256sum and confirm matches KB hash fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe; then curl -s -m15 -D -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type" "https://api.sparelabs.com/v1/global/regions" — verify 204 + ACAO+ACAC + allow-methods (GET,HEAD,PUT,PATCH,POST,DELETE); finally curl -s -m15 -D "https://api.sparelabs.com/v1/journeys" → expect 401 control
+## 2026-08-16 10:57:34 UTC [web] (model laguna)
