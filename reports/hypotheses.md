@@ -6212,3 +6212,31 @@
 - LEARN: REJECTED @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — multi-version 
 - LEARN: REJECTED @ forms.sparelabs.com JS bundle: main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restri
 - LEARN: REJECTED @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+
+## RANKED HYPOTHESES 2026-08-16 08:52:47 UTC
+- [95] api.sparelabs.com/v1/global/regions: Scheme-Only Bearer Bypass with Infra Topology Disclosure on Regions (86h stable, NOT patched) (from reports/hypotheses-laguna.txt)
+- [85] api.sparelabs.com/v1/public/engage/cases: Unauthenticated case creation via public engage API (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"caseTypeId":"000000
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -m15 -D -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"bart.gov"}' "https://api.sparelabs.com/
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401), handler reached (n
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401), nil-UUID→404 "
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); fleet-parity across 7 hosts; 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 new candidates
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, only tested no-auth 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET only,
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — nil→404 fast, 400 slow; downg
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — mult
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET only; auth gate 
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions (write escalation): POST `Bearer x` → 401 — bypass is read-only
+- LEARN: STABLE @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — live probe confirms `Bearer x` → 200 + 725B + ACAO+ACAC, body sha256 fb980
+- LEARN: STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass — GET no-auth → 200 + 11B + ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 InvalidToken
+- LEARN: STABLE @ api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed; 200/404 differential + CORS on both branches; fleet-parity across 7 ho
+- LEARN: STABLE @ api.sparelabs.com/v1/public/organizations/key/{key}: org-key oracle {spare,grt,dallas,winnipeg,hsr} closed at 5; prod-only (uat/us2/jp→404); cambus→404
+- LEARN: STABLE @ api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B "asdfd" prod junk, winnipeg→197B real external URL; byte-stable
+- LEARN: STABLE @ api.sparelabs.com/v1/**: universal CORS credential reflection (ACAO+ACAC+all methods) uniform across all probe paths; non-path-conditional via 22-sibli
+- LEARN: STABLE @ platform.sparelabs.com/login: CSP infra leak unchanged — admin-eam-app + admin-fixed-route-app (prod+staging, loadable 200) + Metabase + 9 cloud servic
+- LEARN: STABLE @ forms.sparelabs.com: JS bundle main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restrict
+- LEARN: STABLE @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- LEARN: REJECTED @ api.sparelabs.com/v1/global/*: 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family scoped to exactly {/organizations, /regions}

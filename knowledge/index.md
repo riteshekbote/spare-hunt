@@ -1681,3 +1681,17 @@
 - 2026-08-16 STABLE @ api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); fleet-parity across 7 hosts; universal CORS on both 200/404 branches
 - 2026-08-16 REJECTED @ forms.sparelabs.com JS bundle: main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED
 - 2026-08-16 REJECTED @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- 2026-08-16 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401), handler reached (nil-UUID→404 NotFoundError, spare-UUID→403 ForbiddenError feature-flag gate); CORS reflected
+- 2026-08-16 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401), nil-UUID→404 "Form was not found" (handler reached); CORS reflected
+- 2026-08-16 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — nil→404 fast, 400 slow; downgraded to validation-leak-only, not oracle class
+- 2026-08-16 REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET only; auth gate active on write methods
+- 2026-08-16 REJECTED AUTH @ api.sparelabs.com/v1/global/regions (write escalation): POST `Bearer x` → 401 — bypass is read-only
+- 2026-08-16 STABLE @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — live probe confirms `Bearer x` → 200 + 725B + ACAO+ACAC, body sha256 fb9800acb…585c3fe byte-identical (86h+ stable); longcat "PATCHED" claim is false positive (only tested no-auth path 400)
+- 2026-08-16 STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass — GET no-auth → 200 + 11B + ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 InvalidTokenError (read-only, auth asymmetry verified)
+- 2026-08-16 STABLE @ api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed; 200/404 differential + CORS on both branches; fleet-parity across 7 hosts
+- 2026-08-16 STABLE @ api.sparelabs.com/v1/public/organizations/key/{key}: org-key oracle {spare,grt,dallas,winnipeg,hsr} closed at 5; prod-only (uat/us2/jp→404); cambus→404 NotFoundError confirms discrimination
+- 2026-08-16 STABLE @ api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B "asdfd" prod junk, winnipeg→197B real external URL; byte-stable
+- 2026-08-16 STABLE @ api.sparelabs.com/v1/**: universal CORS credential reflection (ACAO+ACAC+all methods) uniform across all probe paths; non-path-conditional via 22-sibling sweep
+- 2026-08-16 STABLE @ platform.sparelabs.com/login: CSP infra leak unchanged — admin-eam-app + admin-fixed-route-app (prod+staging, loadable 200) + Metabase + 9 cloud services
+- 2026-08-16 STABLE @ forms.sparelabs.com: JS bundle main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted
+- 2026-08-16 STABLE @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
