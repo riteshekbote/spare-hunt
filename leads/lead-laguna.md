@@ -10546,3 +10546,49 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 12 | SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN); JS bundle main.8a2a39cb.js PATCHED (zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted); 8/8 API paths SPA catch-all (index.html), no real API behind host; infra leak ELIMINATED, downgraded to recon-only
 [RISK] web (spare.com/sparelabs.com): 15 | spare.com apex HTTP 200 static Webflow (Cloudflare, CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com apex (was TIMEOUT→live); minimal static-only surface, no dynamic logic, no form processing
 ## 2026-08-16 12:04:47 UTC [web] (model laguna)
+## 2026-08-16 12:56:56 UTC [web] (model laguna)
+[HYP] Scheme-only Bearer bypass on global regions exposing fleet-wide infra topology
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 96
+reasoning: Live probe 2026-08-16 confirms `Bearer x` → 200 + 725B region registry (7 regions incl 6 OOS api/routing subdomains + UAT staging) + ACAO:https://evil.example.com + ACAC:true. Body sha256 `fb9800acb…585c3fe` byte-stable across 86h+/15+ probes and 7 fleet hosts (prod/us/us2/us3/jp/eu/uat). no-auth→400, POST→401 (read-only bypass). longcat "PATCHED" (2026-08-11) is false positive — only tested no-auth path.
+evidence_needed: GET `Bearer x` + Origin → 200 + 725B + ACAO+ACAC; body sha256 matches; OPTIONS 204 → write-method CORS preflight; control /v1/journeys → 401
+verify_steps: PROBE: curl -s -m15 -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions (expect 200+725B+ACAO+ACAC; sha256sum fb9800acb…585c3fe); curl -s -m15 -D -H "Origin: https://evil.example.com" -H "Authorization: x" https://api.sparelabs.com/v1/global/regions (expect 400 scheme-validation); curl -s -m15 -D https://api.sparelabs.com/v1/journeys (expect 401 control)
+impact: Unauthenticated fleet-wide infra topology disclosure (7 regions + 6 OOS api/routing subdomains + staging host) enabling precise targeting of regional deployments; CORS credentials reflected. Severity HIGH.
+testability: PASSIVE
+[HYP] Unauth cross-tenant Engage write via structurally-absent auth gate
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST + /caseForms POST
+confidence: 87
+reasoning: Empty POST → 400 ValidationError with NO 401 InvalidTokenError (auth gate absent); nil-UUID org + caseTypeId → 400 handler-reach (not 401); spare-UUID (d736519f…) + caseTypeId → 400 ValidationError "caseTypeId must match format uuid" (handler reached); winnipeg UUID (6c84b370…), empty body → 400 "contactInfo" (handler reached); CORS+ACAC reflected on all branches. Multi-version envoy LB confirmed flapping on GET variants but POST path stable.
+evidence_needed: Valid organizationId + caseTypeIdKey combination that bypasses feature-flag gate (returns 201/200); or confirmation that feature-flag-gated organizations accept cross-tenant submission
+verify_steps: PROBE: curl -s -m15 -D -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"caseTypeId":"00000000-0000-0000-0000-000000000000","organizationId":"6c84b370-5cc2-42c6-8cdd-146c99648535"}' https://api.sparelabs.com/v1/public/engage/cases (expect 400/403/404, NOT 401 — confirms auth-gate absence); then same POST with spare UUID and a valid caseTypeId UUID to test feature-flag bypass
+impact: Anonymous case/form-response injection into Spare Engage support system — spam, PII probing, or bypassing internal workflows across any org with external-creation flag enabled. Severity MEDIUM-HIGH (auth gate fully absent, only feature-flag limits blast radius).
+testability: PASSIVE
+[HYP] Zero-header read-only bypass on organizations with write-method CORS preflight
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 91
+reasoning: Live probe confirms GET with NO Authorization header → 200 + 11B `{"data":[]}` + ACAO:https://evil.example.com + ACAC:true; POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError (write gate active — read-only bypass confirmed). OPTIONS → 204 + write methods + ACAO+ACAC. Auth-asymmetry: GET fails open with zero header, writes require valid token.
+evidence_needed: GET zero-auth+Origin → 200+11B+ACAO+ACAC; OPTIONS no-auth → 204 + write methods + CORS; POST Bearer-x → 401 InvalidTokenError
+verify_steps: PROBE: curl -s -m15 -D -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations (expect 200+11B+ACAO+ACAC); curl -s -m15 -D -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization" https://api.sparelabs.com/v1/global/organizations (expect 204 + write-methods + CORS); curl -s -m15 -D -X POST -H "Authorization: Bearer x" -d '{}' https://api.sparelabs.com/v1/global/organizations (expect 401 InvalidTokenError, read-only confirmed)
+impact: Browser-based unauthenticated data readout via CORS on auth-gated endpoint; empty `{"data":[]}` caps immediate exposure but confirms permissive CORS write-preflight chain; future code change could expose write methods. Severity MED-HIGH.
+testability: PASSIVE
+[FINAL] api.sparelabs.com/v1/global/regions (AUTH, 96) — scheme-only Bearer bypass, 86h+ byte-stable, infra topology disclosure, CORS reflected, NOT patched, longcat false positive disproven
+[FINAL] api.sparelabs.com/v1/global/organizations (AUTH, 91) — zero-header read-only bypass, write-method CORS preflight advertised but writes gated 401, auth asymmetry confirmed
+[FINAL] api.sparelabs.com/v1/public/engage/cases POST (BUSLOGIC, 87) — auth-gate absent, handler reached, feature-flag gate not auth gate, cross-tenant injection vector
+[NEXT] PROBE: curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"caseTypeId":"00000000-0000-0000-0000-000000000000","organizationId":"6c84b370-5cc2-42c6-8cdd-146c99648535"}' https://api.sparelabs.com/v1/public/engage/cases — confirm 400/403/404 (NOT 401) proving auth-gate absence on engage write path, then repeat with spare UUID + valid caseTypeId UUID to test feature-flag bypass
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — live 2026-08-16 confirms 200+725B+ACAO+ACAC; sha256 `fb9800acb…585c3fe` byte-identical (86h+ stable)
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 InvalidTokenError (write gate active, read-only confirmed)
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — empty POST→400 ValidationError (no 401); handler reached on nil-UUID and spare-UUID
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS), fleet-parity across 7 hosts
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle STABLE — {spare,grt,dallas,winnipeg,hsr} closed at 5 orgs, prod-only, universal CORS
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B "asdfd" prod junk, winnipeg→197B real external URL; byte-stable sha256 a4e85168…
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+[LEARN] REJECTED MISCONFIG @ platform.sparelabs.com (admin API path sweep): 10/10 paths SPA catch-all 200 text/html — no real API behind MFE shell; CSP infra leak via /login is only finding
+[RISK] api.sparelabs.com: 98 | scheme-only Bearer bypass on /v1/global/regions (infra topology, 7 regions incl 6 OOS subdomains, 86h+ byte-stable NOT patched, longcat false positive) + zero-header read-only bypass on /v1/global/organizations (CORS write-preflight + auth asymmetry) + SSO-config oracle (8 tenants, WorkOS+Entra ID disclosure) + 3-way UUID oracle (/organizations/{id}) + org-key oracle (5 orgs→200 distinct bodies) + engage/cases POST auth-gate-absent (handler-reached, feature-flag gate not auth gate) + per-tenant terms config chain (spare→"asdfd" junk, winnipeg→real URL); multi-version envoy LB confirmed; control /v1/journeys stable 401
+[RISK] platform.sparelabs.com: 70 | MFE SPA shell 200; CSP on /login infra leak STABLE exposes admin-eam-app + admin-fixed-route-app (prod+staging, both loadable 200 via script-src/frame-src/style-src) + Metabase (prod+staging, frame-src→200) + 9 cloud services (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit); strict HTML CSP + x-frame SAMEORIGIN mitigates HTML-level only; 10/10 admin paths SPA catch-all, no real API behind MFE shell; embedded OpenAPI 170 paths all properly gated (401/404)
+[RISK] routing.sparelabs.com: 5 | STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface; no API/routes/discovery endpoints
+[RISK] forms.sparelabs.com: 12 | SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN); JS bundle main.8a2a39cb.js PATCHED (zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted); 8/8 API paths SPA catch-all (index.html), no real API behind host; infra leak ELIMINATED
+[RISK] web (spare.com/sparelabs.com): 15 | spare.com apex HTTP 200 static Webflow (Cloudflare, CSP `frame-ancestors 'self'`, HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com apex (Cloudflare+HSTS, static-only); minimal static-only surface, no dynamic logic, no form processing
