@@ -9285,3 +9285,4 @@ verify_steps: PROBE (once, already proven): `curl -s -m15 -D - -H "Origin: https
 impact: auth-fail-open on GET confirming route-level omission pattern; empty payload → LOW data impact but HIGH pattern severity with universal CORS.
 testability: PASSIVE
 ## 2026-08-16 11:44:20 UTC [api] (model bigpickle)
+## 2026-08-16 12:00:30 UTC [api] (model bigpickle)
