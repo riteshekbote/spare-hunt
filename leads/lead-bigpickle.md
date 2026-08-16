@@ -9883,3 +9883,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths including /openapi.json,/swagger.json,/docs,/health,/status; NO_DELTA since 2026-08-07; zero surface
 [RISK] forms.sparelabs.com: 12 — Engage SPA 200; JS bundle main.8a2a39cb.js PATCHED (zero infra refs); 3 Google Maps keys all referrer-restricted; SPA catch-all (8/8 API paths index.html); no real API endpoints behind host; infra leak ELIMINATED
 [RISK] web (spare.com/sparelabs.com): 15 — spare.com HTTP 200 static Webflow/Cloudflare (CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com (Cloudflare+HSTS max-age=0); minimal static-only surface
+## 2026-08-16 19:53:42 UTC [api] (model bigpickle)
