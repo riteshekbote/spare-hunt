@@ -9112,3 +9112,4 @@ verify_steps: PASSIVE: re-sweep only newly-announced agency domains at 1/30s wit
 impact: tenant/SSO-config enumeration (WorkOS client_id + connection_id + Entra tenant IDs); bounded at 8. LOW-MED.
 testability: PASSIVE
 ## 2026-08-16 03:36:02 UTC [api] (model bigpickle)
+## 2026-08-16 04:19:44 UTC [api] (model bigpickle)
