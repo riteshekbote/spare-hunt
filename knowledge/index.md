@@ -1825,3 +1825,5 @@
 - 2026-08-16 ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirectUri/state param reflection hypothesis UNTESTED — NEXT action; SSO oracle already confirmed 10+ tenants
 - 2026-08-16 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — handler reached without 401; cross-route org-UUID oracle validated; AUTH_HELPED pending
 - 2026-08-16 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07, NO_DELTA
+- 2026-08-16 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, only tested no-auth path (400), missed Bearer-x vector; bypass stable 86h+ but now multi-version LB splits traffic (fast replicas bypass, slow replicas 401)
+- 2026-08-16 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: write-method CORS chain convergence CONFIRMED live on KB — OPTIONS 204 returns ACAO:reflected + ACAC:true + allow-methods:GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization

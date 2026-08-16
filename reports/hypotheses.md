@@ -6956,3 +6956,21 @@
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — handler reached without 401; cross-route org-UUID oracle validat
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07, NO_DELTA
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED
+
+## RANKED HYPOTHESES 2026-08-16 22:58:41 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on /v1/global/regions with write-method CORS chain convergence (from reports/hypotheses-laguna.txt)
+- [95] api.sparelabs.com/v1/global/regions: Fleet-wide infrastructure topology disclosure via scheme-only Bearer bypass on global regions with write-method CORS convergence (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -s -m 10 -X OPTIONS "https://api.sparelabs.com/v1/global/regions" -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, only tested no-auth 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: write-method CORS chain convergence CONFIRMED live on KB — OPTIONS 204 returns ACAO:reflected + ACAC:true +
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET only,
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥10 — oakville.ca + cota.com confirmed live 2026-08-16; fleet-parity across 7 hos
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (NOT 401); nil-UUID→404 NotF
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId, ~299B
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped to exactly {/orga
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError — both bypas
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy LB replicas (nil→404 fast, 400 slow); do
+- LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) is FALSE POSITIVE — longcat only tested no-auth path (400), never 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED

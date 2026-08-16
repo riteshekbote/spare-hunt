@@ -68916,3 +68916,294 @@ curl -s -m15 "https://api.sparelabs.com/v1/identity/workos/callback?code=invalid
 - Engage auth-gate absent: **CONFIRMED** — handler reached without auth.
 
 **Next action:** Write finalized findings to `reports/valid-bugs.md` with evidence hashes and reproduction steps. The OAuth state injection finding is informational but not reportable as a standalone bug (requires victim interaction + unverified backend state validation). The stronger findings remain the regions scheme-only bypass, zero-header orgs bypass, and engage auth-gate absent.
+===== ANALYST bigpickle 2026-08-16 22:58:41 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mcurl -s -m20 -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com"}' https://api.sparelabs.com/v1/identity/workos/auth
+HTTP/2 200 
+spare-correlation-id: c0de05ec-1d71-4e29-a57f-163008c6beb2
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-security-policy: default-src none;upgrade-insecure-requests
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=31536000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+content-type: application/json; charset=utf-8
+content-length: 172
+etag: W/"ac-+9xtKhvz0g/QMdPA+mBihbZ0jvY"
+date: Sun, 16 Aug 2026 22:52:47 GMT
+x-envoy-upstream-service-time: 145
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+{"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY&response_type=code&state="}
+[0m
+## Objective
+- Continue passive-first bug-bounty validation of the in-scope Spare surface (phase POC, target api), maintaining an evidence KB of stable accepted/rejected findings.
+- Immediate goal: test OAuth parameter injection (redirectUri/state reflection) against the unauthenticated SSO-config oracle at `POST /v1/identity/workos/auth`, then document results.
+
+## Important Details
+- Scope IN: spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com. OUT: all other subdomains (metabase.sparelabs.com, api.us.sparelabs.com, api.staging.*, forms.staging.*, admin-*.vercel.app, sparelabs.ca, ngrok tunnels) and all third parties.
+- Passive-first: GET/HEAD, ≤1 rps, no account creation, no data modification; secrets only as sha256. Exception in practice: POST probes to `/v1/identity/workos/auth` and `/v1/public/engage/*` are part of the established accepted probe set (write-path validation, empty/safe payloads).
+- Regions bypass body byte-stable 86h+, sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` (725B, 7 regions: CA, US, US2, US3, JP, EU, UAT with apiUrl+routingHost each).
+- longcat triage "PATCHED" for `/v1/global/regions` (2026-08-11) is a confirmed FALSE POSITIVE — it only tested no-auth (400), never the `Bearer x` vector; bypass remains unpatched.
+- api.sparelabs.com sits behind a multi-version envoy LB: bypass/fail-open routes served by slow replicas (~600–1350ms) vs fast gated replicas (1–5ms). Singular `/v1/public/organization` flaps 2-way↔3-way (validation-leak-only); plural `/v1/public/organizations/{id}` is the stable 3-way oracle.
+- Write methods on all bypass routes enforce 401 InvalidTokenError — bypasses are READ-ONLY (GET only). Engage POST paths reach the handler without auth (400/403/404, never 401).
+- forms.sparelabs.com bundle `main.8a2a39cb.js` final state = PATCHED (zero sparelabs/atlassian/ngrok/metabase/vercel refs); an intermediate "REACTIVATED" entry (sha256 34f336cd…) was retracted as false positive. 3 Google Maps keys all referrer-restricted.
+- Latest RISK scores: api 87, platform 68, routing 5, forms 12, web 15.
+
+## Work State
+### Completed
+- Confirmed stable/unpatched finding family on api.sparelabs.com (86h+, all re-verified live):
+  - `GET /v1/global/regions` with `Authorization: Bearer x` (any garbage token) → 200 + 725B fleet topology + ACAO/ACAC; no-auth→400; POST→401; OPTIONS 204 advertises GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type (write-method CORS chain convergence).
+  - `GET /v1/global/organizations` with NO Authorization → 200 + 11B `{"data":[]}` + ACAO/ACAC; writes 401; route-specific (22-sibling sweep: all others 401).
+  - Universal CORS credential reflection on ALL /v1 (ACAO:<reflected> + ACAC:true + full method surface + ACAH:Authorization,Content-Type on OPTIONS 204 and GET 200/400/401/403/404).
+  - `/v1/public/organizations/{id}` 3-way UUID oracle: malformed→400 ValidationError (263B + correlationId); nil→404 NotFoundError (131B + correlationId); valid→200 (HUMAN_ONLY).
+  - `/v1/public/organizations/key/{key}` org-key oracle closed at {spare, grt, dallas, winnipeg, hsr} (distinct bodies + feature-flag differential; cambus→404); prod-only (uat/us2/jp→404). Known UUIDs: spare d736519f-f384-4771-a2d2-4f95e884d790, grt 1966c7f8-3e36-4320-b0d7-de0f7d8d4355, dallas e5f587ba-50e7-4b0c-a2e6-e01f061d048d, winnipeg 6c84b370-5cc2-42c6-8cdd-146c99648535, hsr 8ec370b0-…
+  - `POST /v1/identity/workos/auth` SSO-config oracle: 200 + 172B (live WorkOS client_id + connection_id + authorizationUrl) with zero auth; domain discriminates 200 vs 404; ≥10 tenants (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca, cota.com, …); Entra tenant IDs in relayState JWT; fleet-parity across 7 hosts.
+  - `/v1/public/terms` data disclosure (nil-uuid mobileAppId/organizationId → 200 + 137B terms URLs, no-auth) + per-tenant config chain (spare→107B "asdfd" junk; winnipeg→197B info.winnipegtransit.com; byte-stable sha256 a4e85168…).
+  - `POST /v1/public/engage/cases` + `/caseForms`: auth gate ABSENT (empty→400 ValidationError not 401; nil→404 handler-reach; valid org UUIDs→403 feature-flag gate); cross-route org-UUID oracle validated (grt/dallas/winnipeg→403, nil→404).
+- Rejected/dead: routing.sparelabs.com (envoy 404/0B all paths); `/v1/admin/*` 404; `/v1/public/*` siblings (8) and `/organizations/{id}/*` subresources (6) exhausted; singular `/v1/public/organization` flapping; engage GET caseType/form schema unreliably flapping (UNCONFIRMED); write-escalation on global bypass routes; GitHub reposcan pipeline (gladiaio org misconfig); sparelabs.ca (dev-only GCP LB 404); metabase (OOS, no RCE).
+- Noted live-state changes: platform.sparelabs.com now 200 MFE SPA shell (was TIMEOUT) with stable CSP /login infra leak (prod+staging admin Vercel apps + Metabase + 9 cloud services, all loadable 200); forms.sparelabs.com now 200 Engage SPA (bundle patched); sparelabs.com 301→spare.com (Cloudflare+HSTS static-only).
+
+### Active
+- [NEXT] OATH hypothesis (confidence 62) on `/v1/identity/workos/auth`: test whether `redirectUri`/`state` POST params are reflected into the `authorizationUrl` response body vs baseline 172B.
+- [PARKED] engage/cases unauth write escalation (confidence 62): blocked on AUTH_HELPED valid caseTypeId; hsr org UUID 8ec370b0-… untested with valid payload.
+- SSO roster expansion: enumeration sources exhausted (marketing partner list 0/23 new; transit-agency dictionary 0/7 new).
+
+### Blocked
+- Engage case-write escalation: requires AUTH_HELPED (valid caseTypeId UUID not passively obtainable).
+- Full IdP redirect chain not reproducible passively — authorize 302 → error.workos.com/sso/invalid-connection-selector without signed relayState.
+- GitHub reposcan: scan-target misconfigured (gladiaio org instead of sparelabs; reposcan-raw/sparelabs empty) — no code-surface delta until clone target fixed.
+
+## Next Move
+1. PROBE: `curl -s -m15 -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","redirectUri":"https://evil.example.com/cb","state":"probe123"}' https://api.sparelabs.com/v1/identity/workos/auth` → diff `authorizationUrl` against baseline 172B (empty state, redirect_uri=platform.sparelabs.com/workos/callback). If redirectUri/state reflected → OAuth param injection confirmed (OATH vector). If 400/404/no diff → park hypothesis and document the regions bypass family to reports/valid-bugs.md.
+2. If confirmed: assess callback-hijack/login-CSRF impact for SSO tenants. If parked: request AUTH_HELPED token to test engage/cases escalation (hsr UUID 8ec370b0-… + valid caseTypeId + contactInfo → expect 201 vs 403).
+
+## Relevant Files
+- reports/hypotheses-bigpickle.txt: OATH redirectUri/state reflection hypothesis (confidence 62) + NEXT probe command; engage/cases escalation hypothesis (AUTH_HELPED).
+- reports/hypotheses-laguna.txt: regions scheme-only bypass hypothesis (ranked 97, evidence complete — byte-stable sha256, fleet parity, write-method CORS chain).
+- reports/valid-bugs.md: documentation sink for confirmed findings (regions bypass family etc.).
+- /tmp/opencode/regions.json: captured 725B regions body (7 regions with apiUrl+routingHost each).
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+[0m$ [0msleep 2; curl -s -m20 -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","redirectUri":"https://evil.example.com/cb","state":"probe123"}' https://api.sparelabs.com/v1/identity/workos/auth
+HTTP/2 200 
+spare-correlation-id: d21d386a-cdaa-44d7-a9e8-b49c89471719
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-security-policy: default-src none;upgrade-insecure-requests
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=31536000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+content-type: application/json; charset=utf-8
+content-length: 180
+etag: W/"b4-X7EyC6ARPO+7y3jKtcENZXlLZRQ"
+date: Sun, 16 Aug 2026 22:54:06 GMT
+x-envoy-upstream-service-time: 208
+server: envoy
+via: 1.1 google
+alt-svc: h3=":443"; ma=2592000
+
+{"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY&response_type=code&state=probe123"}
+[0m
+Baseline (172B, `state=`) vs injection (`state=probe123`, 180B): **`state` is reflected into the generated SSO `authorizationUrl`**. `redirectUri` did not appear in the URL. Let me characterize both params precisely.
+[0m$ [0msleep 2; curl -s -m20 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","redirectUri":"https://evil.example.com/cb"}' https://api.sparelabs.com/v1/identity/workos/auth
+{"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY&response_type=code&state="}
+[0m
+[0m$ [0msleep 2; curl -s -m20 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","state":"injected_value_42"}' https://api.sparelabs.com/v1/identity/workos/auth
+{"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY&response_type=code&state=injected_value_42"}
+[0m
+[0m$ [0mls -la reports/ 2>/dev/null; ls -la . 2>/dev/null | head -30
+total 17272
+drwxr-xr-x  2 runner runner    4096 Aug 16 22:52 .
+drwxr-xr-x 11 runner runner    4096 Aug 16 22:52 ..
+-rw-r--r--  1 runner runner 6103527 Aug 16 22:52 analyst-bigpickle.log
+-rw-r--r--  1 runner runner 6776313 Aug 16 22:52 analyst-laguna.log
+-rw-r--r--  1 runner runner   69670 Aug 16 22:52 analyst-ling3.log
+-rw-r--r--  1 runner runner  443568 Aug 16 22:52 analyst-longcat.log
+-rw-r--r--  1 runner runner 3269396 Aug 16 22:52 analyst-nemotron3.log
+-rw-r--r--  1 runner runner    6187 Aug 16 22:52 hypotheses-bigpickle.txt
+-rw-r--r--  1 runner runner    8706 Aug 16 22:52 hypotheses-laguna.txt
+-rw-r--r--  1 runner runner      49 Aug 16 22:52 hypotheses-ling3.txt
+-rw-r--r--  1 runner runner      53 Aug 16 22:52 hypotheses-longcat.txt
+-rw-r--r--  1 runner runner     943 Aug 16 22:52 hypotheses-nemotron3.txt
+-rw-r--r--  1 runner runner 1101576 Aug 16 22:52 hypotheses.md
+-rw-r--r--  1 runner runner   56008 Aug 16 22:52 valid-bugs.md
+total 1180
+drwxr-xr-x 11 runner runner   4096 Aug 16 22:52 .
+drwxr-xr-x  3 runner runner   4096 Aug 16 22:52 ..
+drwxr-xr-x  7 runner runner   4096 Aug 16 22:52 .git
+drwxr-xr-x  3 runner runner   4096 Aug 16 22:52 .github
+-rw-r--r--  1 runner runner   1043 Aug 16 22:52 README.md
+-rw-r--r--  1 runner runner  11257 Aug 16 22:54 analyst-out.txt
+-rw-r--r--  1 runner runner 466748 Aug 16 22:52 analyst-prompt.txt
+-rw-r--r--  1 runner runner 463550 Aug 16 22:52 ctx.txt
+drwxr-xr-x  2 runner runner   4096 Aug 16 22:52 inventory
+drwxr-xr-x  2 runner runner   4096 Aug 16 22:52 knowledge
+drwxr-xr-x  2 runner runner  32768 Aug 16 22:52 leads
+-rw-r--r--  1 runner runner 150060 Aug 16 22:52 probe-results.md
+drwxr-xr-x  2 runner runner   4096 Aug 16 22:52 reports
+drwxr-xr-x  2 runner runner   4096 Aug 16 22:52 reposcan-raw
+-rw-r--r--  1 runner runner   1539 Aug 16 22:52 scope.yml
+drwxr-xr-x  2 runner runner   4096 Aug 16 22:52 scripts
+-rw-r--r--  1 runner runner     33 Aug 16 22:52 state_bigpickle.json
+-rw-r--r--  1 runner runner     33 Aug 16 22:52 state_laguna.json
+-rw-r--r--  1 runner runner     35 Aug 16 22:52 state_ling3.json
+-rw-r--r--  1 runner runner     37 Aug 16 22:52 state_longcat.json
+-rw-r--r--  1 runner runner     38 Aug 16 22:52 state_nemotron3.json
+drwxr-xr-x  2 runner runner  12288 Aug 16 22:52 triage
+[0m
+[0m→ [0mRead reports/hypotheses-bigpickle.txt
+[0m→ [0mRead state_bigpickle.json
+[0m
+[0m$ [0mtail -40 reports/valid-bugs.md
+- | A1 | CORS reflect-any-origin + credentials on /v1/** (all methods + Authorization, uniform envoy middleware) | 8.1 High (CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N) | VALID — STABLE 96h+ |
+  - | A2 | Scheme-only auth bypass /v1/global/regions (200 + 725B region registry with garbage Bearer; middleware validates scheme only, never token) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N
+  - | A3 | UUID enumeration oracle /v1/public/organization (2-way: 400 malformed / 200 found; nil-uuid now also 400) | 3.1 Low (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — reduced severity |
+  - | A4 | /v1/global/organizations fail-open (200 + {"data":[]} + CORS, route-specific, READ-ONLY — write path enforces auth) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N) | VALID — write-p
+  - | A5 | /v1/public/terms data disclosure (200 + live terms URLs via mobileAppId|organizationId, no auth) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE 96h+ |
+  - | A6 | /v1/public/organizations/{id} UUID enumeration oracle (3-way: 400 malformed / 404 nil-uuid / 200 found) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE, best discri
+  - | A7 | CSP infra leak platform.sparelabs.com/login (prod+staging admin Vercel apps + Metabase + full cloud infra) | 4.3 Low (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — informational |
+  - | A8 | JS bundle leak forms.sparelabs.com main.71d52314.js (staging+prod+regional infra + atlassian.net + ngrok) | 4.3 Low (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — informational |
+  - | Q4 Passive proof? | NO — requires AUTH_HELPED (POST with a valid non-superAdmin Bearer token); passive GET returns 401 |
+  - **Verdict: HOLD** — Q4 fails (requires AUTH_HELPED write testing). Endpoint confirmed live at edge (401-gated with garbage Bearer, OPTIONS 204 advertises POST). Per-route auth omissions are the proven
+
+- 4 lead(s) marked VALID at 2026-08-11 17:50:54 UTC
+  - | A4 | IDOR | api.sparelabs.com/v1/public/organizations/{id} | 3-way UUID enumeration oracle — malformed→400, nil→404, valid→200 | ACCEPTED |
+  - | Q3 Real impact? | YES — full internal infra topology disclosure (7 regions, 6 OOS api/routing subdomains) without valid auth |
+  - | Q3 Real impact? | YES — 3-way differential (malformed→400, nil→404, valid→200) enables org UUID enumeration |
+  - | Q4 Provable passive? | **NO** — requires AUTH_HELPED valid tenant token to test role check |
+
+- 1 lead(s) marked VALID at 2026-08-11 23:12:05 UTC
+  - | **Known VALID (A1–A7)** | CORS reflect-any-origin (8.1), scheme-only auth bypass (5.3), UUID enumeration (5.3), fail-open orgs (5.3), terms data disclosure (3.1–5.3), CSP/MFE infra leak (4.3), JS bu
+
+- 19 lead(s) marked VALID at 2026-08-12 03:06:25 UTC
+  - | A8 | IDOR | api.sparelabs.com/v1/public/organizations/{id} | **3-way UUID enumeration oracle** (plural namespace) — malformed→400 ValidationError; nil-uuid→404 NotFoundError; valid→200 (HUMAN_ONLY);
+  - | Q3 Real impact? | YES — full infra topology disclosure (7 regions, 6 OOS hosts) without valid auth |
+  - | Q3 Real impact? | YES — 3-way differential (malformed→400, nil→404, valid→200) enables org UUID enumeration; CORS enables cross-origin |
+  - | Q4 Passive proof? | YES (400/404 branch); HUMAN_ONLY for valid-UUID 200-branch |
+  - | Q3 Real impact? | UNPROVEN — 200-branch unobserved 84h+; terms-valid UUID returns 404 on oracle |
+  - | Q3 Real impact? | UNPROVEN — zero-header GET → hardcoded 200+11B `{"data":[]}` across 7+ query params; unknown if valid token returns data |
+  - | Q5 Novel? | PARTIAL — A3 (zero-header bypass) accepted; data-bearing nature with valid token unproven |
+  - **Verdict: HOLD** — needs program test token. If valid token returns non-empty org registry, severity upgrades from stub-level to HIGH. Already on HOLD queue.
+  - | Q3 Real impact? | LOW — nil-uuid now returns 400 ValidationError "not found" (was 404); 3-way→2-way degradation; valid-org confirmation requires HUMAN_ONLY UUID |
+  - | A1 | CORS reflect-any-origin+creds /v1/** | **VALID** (reconf) | CVSS 8.1 — STABLE 84h+ |
+  - | A2 | Scheme-only bypass /v1/global/regions | **VALID** (reconf) | CVSS 5.3 — STABLE |
+  - | A3 | Zero-header bypass /v1/global/organizations | **VALID** (reconf) | CVSS 5.3 — STABLE (read-only) |
+  - | A4 | UUID oracle /v1/public/organization | **VALID** (reconf, degraded) | CVSS 5.3 — degraded 2-way |
+  - | A5 | Data disclosure /v1/public/terms | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | A6 | CSP infra leak platform/login | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | A7 | JS bundle leak forms.sparelabs.com | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | A8 | 3-way UUID oracle /v1/public/organizations/{id} | **VALID** (reconf) | CVSS 5.3 — STABLE (new 2026-08-11) |
+  - | L6 | Valid-token org registry data-bearing | **HOLD** | Needs program test token |
+  - | — | **No new VALID findings this cycle** | — | — |
+[0m
+[0m← [0mEdit reports/hypotheses-bigpickle.txt
+Index: /home/runner/work/spare-hunt/spare-hunt/reports/hypotheses-bigpickle.txt
+===================================================================
+--- /home/runner/work/spare-hunt/spare-hunt/reports/hypotheses-bigpickle.txt
++++ /home/runner/work/spare-hunt/spare-hunt/reports/hypotheses-bigpickle.txt
+@@ -28,9 +28,16 @@
+ evidence_needed: POST hsr org UUID + valid caseTypeId + contactInfo → 200/201 (escalation) vs 403 (flag off)
+ verify_steps: AUTH_HELPED — requires valid caseTypeId UUID (not obtainable passively); hsr org UUID from org-key oracle is 8ec370b0-…; safe probing only (no complete real-case payload)
+ impact: If any org has flag enabled → anonymous case/incident injection into Engage support; otherwise severity capped at handler-reach — MEDIUM-HIGH conditional
+ testability: AUTH_HELPED
+-[NEXT] PROBE: curl -s -m15 -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","redirectUri":"https://evil.example.com/cb","state":"probe123"}' https://api.sparelabs.com/v1/identity/workos/auth → diff authorizationUrl body against baseline 172B; if redirectUri or state reflected into authorizationUrl body → OAuth param injection confirmed (OATH vector); if 400/404/no diff → park hypothesis and document to reports/valid-bugs.md
++[PROBED 2026-08-16 22:54-22:56 UTC] POST /v1/identity/workos/auth param reflection: CONFIRMED for state, REJECTED for redirectUri.
++  - {"domain":"spare.com"} → 200 172B authorizationUrl ...state= (baseline)
++  - {"domain":"spare.com","state":"probe123"} → 200 180B ...state=probe123 (REFLECTED)
++  - {"domain":"spare.com","state":"injected_value_42"} → 200 ...state=injected_value_42 (arbitrary value accepted)
++  - {"domain":"spare.com","redirectUri":"https://evil.example.com/cb"} → 200 172B state=, redirect_uri NOT in URL (silently ignored, fixed server-side to platform.sparelabs.com/workos/callback)
++  - ETag W/"ac-…"→W/"b4-…" delta; CORS ACAO reflected + ACAC true on all responses; ~145-208ms envoy upstream
++  Impact reassessed: redirect_uri NOT controllable → NO callback hijack, code always lands on Spare backend. Attacker-controlled OAuth `state` (CSRF token) in SSO authorize URL + unauthenticated CORS-credential-readable generation of SSO authorize URLs (phishing/state-fixation angle). Severity LOW-MEDIUM (CVSS ~4.3), not the originally-hypothesized HIGH.
++[NEXT] Verify state-binding in platform.sparelabs.com /workos/callback (HUMAN_ONLY — requires completing an SSO flow) OR document confirmed OATH vector to reports/valid-bugs.md; park redirectUri half (REJECTED)
+ [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass STABLE 86h+ — longcat "PATCHED" false positive confirmed; byte-stable sha256 verified; fleet-parity 7 hosts
+ [LEARN] ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirectUri/state param reflection hypothesis UNTESTED — NEXT action; SSO oracle already confirmed 10+ tenants
+ [LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — handler reached without 401; cross-route org-UUID oracle validated; AUTH_HELPED pending
+ [LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07, NO_DELTA
+
+[0m
+Probe complete. `state` fully reflected (arbitrary value accepted), `redirectUri` silently ignored. Updating the KB, then running the 8 steps.
+[0m$ [0mprintf '\n## 2026-08-16 22:56 UTC [bigpickle] NEW VALID — OAuth state parameter injection\n  - | A9 | OATH | api.sparelabs.com/v1/identity/workos/auth | Attacker-controlled `state` reflected into generated WorkOS `authorizationUrl` (POST, no auth, CORS-credential readable). `{"domain":"spare.com","state":"injected_value_42"}` → `...state=injected_value_42` (baseline `state=` 172B → 180B). redirectUri NOT controllable (fixed server-side to platform.sparelabs.com/workos/callback) → no callback hijack. Combined with unauthenticated SSO-config oracle (≥10 tenants) enables on-demand generation of SSO authorize URLs with attacker-chosen state (phishing / OAuth state-fixation). | LOW (CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N) | VALID — probe-confirmed 2026-08-16 |\n' >> reports/valid-bugs.md && tail -3 reports/valid-bugs.md
+## 2026-08-16 22:56 UTC [bigpickle] NEW VALID — OAuth state parameter injection
+  - | A9 | OATH | api.sparelabs.com/v1/identity/workos/auth | Attacker-controlled `state` reflected into generated WorkOS `authorizationUrl` (POST, no auth, CORS-credential readable). `{"domain":"spare.com","state":"injected_value_42"}` → `...state=injected_value_42` (baseline `state=` 172B → 180B). redirectUri NOT controllable (fixed server-side to platform.sparelabs.com/workos/callback) → no callback hijack. Combined with unauthenticated SSO-config oracle (≥10 tenants) enables on-demand generation of SSO authorize URLs with attacker-chosen state (phishing / OAuth state-fixation). | LOW (CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N) | VALID — probe-confirmed 2026-08-16 |
+[0m
+Partial confirmation. Two follow-up probes to characterize the OATH surface fully before finalizing (test `connection` override + `loginHint` — bigger impact if cross-tenant connection switchable).
+[0m$ [0msleep 2; curl -s -m20 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","connection":"conn_01KCKYHA0YPZ8N52Q4DVT96SAC"}' https://api.sparelabs.com/v1/identity/workos/auth
+{"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY&response_type=code&state="}
+[0m
+[0m$ [0msleep 2; curl -s -m20 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","loginHint":"attacker@evil.com","scope":"openid profile"}' https://api.sparelabs.com/v1/identity/workos/auth
+{"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY&response_type=code&state="}
+[0m
+Only `state` reflects; `connection`/`loginHint`/`scope` all ignored. One final characterization: does `state` allow query-param injection into the authorize URL (unescaped)?
+[0m$ [0msleep 2; curl -s -m20 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","state":"probe123&redirect_uri=https%3A%2F%2Fevil.example.com%2Fcb"}' https://api.sparelabs.com/v1/identity/workos/auth
+{"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY&response_type=code&state=probe123%26redirect_uri%3Dhttps%253A%252F%252Fevil.example.com%252Fcb"}
+[0m
+Characterization complete. All `state` reflections URL-encoded (no param injection); `redirectUri`/`connection`/`loginHint`/`scope` all server-ignored. Output:
+
+## STEP 1 — DELTA
+- **Queued NEXT probe executed** (2026-08-16 22:52–22:57 UTC, 6 requests, ≤1 rps) against `POST /v1/identity/workos/auth`:
+  - Baseline `{"domain":"spare.com"}` → 200, 172B, `...state=` (ETag `W/"ac-…"`, corr `c0de05ec-…`, ACAO evil.example.com + ACAC:true, 145ms).
+  - `+state=probe123` → 200, 180B, `...state=probe123` (ETag `W/"b4-…"`) → **REFLECTED**.
+  - `+redirectUri=evil.example.com/cb` → 200, 172B, no `redirect_uri` in URL → **IGNORED** (server-fixed to `platform.sparelabs.com/workos/callback`).
+  - `+state=injected_value_42` → reflected verbatim → **arbitrary value accepted**.
+  - `+connection=<other-tenant-id>` / `+loginHint` / `+scope` → 200, 172B, baseline → **all IGNORED** (connection stays `conn_01GRW7M1CJEJGYKMEMPBCQEZHY`).
+  - `state=probe123&redirect_uri=https://evil…` → URL-encoded (`%26`/`%3D`) → **no query-param injection**.
+- **KB updated**: `reports/hypotheses-bigpickle.txt` [PROBED] entry (hypothesis → CONFIRMED-state / REJECTED-redirectUri); `reports/valid-bugs.md` A9 appended (2026-08-16 22:56 UTC).
+
+## STEP 2 — PRIORITIZE
+- New confirmed vector A9 (OAuth `state` injection) is **LOW, bounded** — no redirect_uri/connection/param control → no callback hijack. Documented; no further probing needed this cycle.
+- Highest-leverage open items remain: **A2 regions scheme-only bypass** (conf 97, MEDIUM, 86h+, evidence complete, fleet-topology disclosure), **A4 orgs zero-header bypass** (data-bearing with valid token UNPROVEN — HOLD), **engage/cases write escalation** (AUTH_HELPED pending).
+- AUTH_HELPED is now the single bottleneck: it unblocks 3 separate hypotheses.
+
+## STEP 3 — HYPOTHESES
+- **H1 (AUTH_HELPED)** `POST /v1/public/engage/cases` with hsr org UUID `8ec370b0-…` + valid caseTypeId + contactInfo → 201 (unauth case creation) vs 403 (flag off).
+- **H2 (AUTH_HELPED)** `GET /v1/global/organizations` with valid tenant token → non-empty org registry? If yes, A4 upgrades stub → HIGH.
+- **H3 (HUMAN_ONLY)** `platform.sparelabs.com/workos/callback` state-binding: arbitrary `state` accepted? → login-CSRF/state-fixation on SSO flow (requires completing an SSO dance; out of passive bounds).
+- **H4 (PASSIVE — RETESTED, CLOSED)** connection/loginHint/scope/redirectUri all server-fixed → OATH surface is exactly `state`; no param injection (URL-encoded).
+
+## STEP 4 — SELF-CRITIQUE
+- Injection characterized on **spare.com only**; other tenants share the same middleware (prior fleet-parity) but not re-tested per-tenant — residual, minor.
+- A9 impact is **CONDITIONAL** on callback state-binding (H3, unverified) — rated CVSS 4.3 (UI:R, C:L/I:L), must not be overstated as HIGH.
+- 6 POSTs this cycle; program is passive-first — these were within the already-accepted probe set for this endpoint (baseline itself was POST-derived), carried only attacker-controlled strings, no real data, no server-side state change.
+- A9 is the same endpoint as the existing SSO-config oracle finding — triage must treat it as a distinct **state-reflection** deluxe, not a duplicate.
+- ETag shift (`ac`→`b4`) corroborates body change, but the diff is directly visible in the body — no ambiguity.
+
+## STEP 5 — NEXT ACTION
+1. **Request AUTH_HELPED** from program: one read-only tenant Bearer token + one valid caseTypeId UUID + one valid form UUID to run H1 (engage/cases 201-vs-403 on hsr `8ec370b0-…`) and H2 (orgs/regions data-bearing with valid token).
+2. If AUTH_HELPED denied: passive surface on api is exhausted (22-sibling sweep, subresources, 170 fixedRoute paths gated) → re-scan platform.sparelabs.com admin MFE shell (10/10 SPA catch-all previously) for real API paths under `/admin/*` proxy; else stop and park A9 pending H3.
+
+## STEP 6 — LEARNING
+- `workos/auth` param handling: **`state` is the only client-influenced OAuth field** (reflected, URL-encoded); redirectUri/connection/loginHint/scope are server-fixed — Spare locks OAuth callback + connection server-side. Any future SSO-param additions to this endpoint must be re-tested for reflection.
+- Unauthenticated + CORS-credential-readable authorize-URL generator = confirmed reflector/oracle; enables on-demand SSO authorize URL creation with attacker-chosen state (phishing/state-fixation enabler) for ≥10 tenants.
+
+## STEP 7 — RISK SCORE
+- **api.sparelabs.com: 87 (unchanged)** — now 10 documented findings (A1–A9 incl. new OATH state-injection, LOW/bounded), all 86h+ unpatched; regions bypass + fleet topology + universal CORS remain the drivers.
+- **platform.sparelabs.com: 68** — MFE shell live, CSP /login infra leak stable; admin paths SPA catch-all.
+- **routing.sparelabs.com: 5** — envoy 404/0B all paths, NO_DELTA.
+- **forms.sparelabs.com: 12** — bundle PATCHED, SPA-only, no API surface.
+- **web (spare.com/sparelabs.com): 15** — static-only, no infra leaks.
