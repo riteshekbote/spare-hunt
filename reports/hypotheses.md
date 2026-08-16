@@ -6830,3 +6830,34 @@
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle STABLE — live set closed at {spare,grt,dallas,winnipeg,hsr} (5
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — mult
+
+## RANKED HYPOTHESES 2026-08-16 20:41:27 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on global regions with full read+write CORS convergence (from reports/hypotheses-laguna.txt)
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on /v1/global/regions exposing fleet-wide infrastructure topology (from reports/hypotheses-bigpickle.txt)
+- [94] api.sparelabs.com/v1/identity/workos/auth: SSO tenant enumeration and Entra ID disclosure via WorkOS auth endpoint (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"oakville.
+- NEXT(hypotheses-laguna.txt): PROBE: Confirm write-method CORS chain convergence on /v1/global/regions — curl -s -m15 -D - -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control
+- NEXT(hypotheses-bigpickle.txt): PROBE: `curl -s -m15 -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","redirectUri":"https://evi
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, only tested no-auth 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET only,
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥10 — oakville.ca + cota.com confirmed live 2026-08-16; fleet-parity across 7 hos
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (NOT 401); nil-UUID→404 NotF
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId, ~299B
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped to exactly {/orga
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError — both bypas
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy LB replicas (nil→404 fast, 400 slow); do
+- LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) is FALSE POSITIVE — longcat only tested no-auth path (400), never 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: write-method CORS chain convergence CONFIRMED live — OPTIONS 204 returns ACAO:reflected + ACAC:true + allow
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all refer
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — mult
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — 86h+ byte-stable (sha256 fb9800acb…585c3fe); longcat "PATCHED" (202
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401 (400 validation / 404 nil-UUID / 403 feature-f
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster closed ≥10 tenants (oakville.ca, cota.com added); fleet-parity 7 hosts; transit-agency dic
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO set NOT derivable from published marketing partner list (0/23) — enumeration requires municipalit
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping 400 validation ↔ 400 not-found across envoy replicas — unreliable passive 
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — both bypass routes READ-ONLY GET only; no
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; NO_DELTA
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 siblings + 8 undocumented controllers ALL 401 — bypass family scoped to exactly {/organizations, /regions
