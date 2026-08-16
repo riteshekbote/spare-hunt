@@ -14043,3 +14043,40 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 reason — STABLE dead; envoy 404 on ALL probed paths; no surface; NO_DELTA since 2026-08-07
 [RISK] forms.sparelabs.com: 15 reason — Engage SPA 200 (newly live); strict HTML CSP + x-frame DENY; JS bundle patched (zero infra leaks); 3 Google Maps keys referrer-restricted; SPA catch-all returns index.html for all paths; no real API endpoints behind host
 [RISK] web (spare.com/sparelabs.com): 10 reason — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
+## 2026-08-16 11:23:02 UTC [platform] (model nemotron3)
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST, 8.20, attack=9, business=8, tech=8, gate=10, cloud=6, fresh=9
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}, 7.85, attack=8, business=8, tech=7, gate=10, cloud=6, fresh=8
+[PRIO] api.sparelabs.com/v1/global/regions, 7.85, attack=8, business=8, tech=8, gate=10, cloud=7, fresh=9
+[PRIO] api.sparelabs.com/v1/global/organizations, 7.70, attack=8, business=7, tech=8, gate=10, cloud=5, fresh=9
+[PRIO] api.sparelabs.com/v1/public/organizations/{id}, 7.35, attack=7, business=7, tech=7, gate=10, cloud=6, fresh=8
+[PRIO] platform.sparelabs.com/login, 6.80, attack=6, business=8, tech=7, gate=10, cloud=7, fresh=7
+[PRIO] api.sparelabs.com/v1/public/terms, 6.50, attack=6, business=6, tech=6, gate=10, cloud=5, fresh=8
+[PRIO] api.sparelabs.com/v1/**, 6.20, attack=7, business=5, tech=8, gate=10, cloud=4, fresh=7
+[PRIO] forms.sparelabs.com, 4.00, attack=5, business=5, tech=5, gate=10, cloud=3, fresh=6
+[HYP] Unauthenticated case creation via public engage API
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 87
+reasoning: POST with empty body returns 400 ValidationError (no 401 InvalidTokenError); nil-UUID org + valid caseTypeId reaches handler (404 NotFoundError "Other was not found"); spare org UUID + valid caseTypeId reaches handler and returns 403 ForbiddenError "External case creation is not enabled for this organization" (feature-flag gate, NOT auth gate); CORS reflected on all responses; multi-version envoy LB confirmed flapping on GET but POST path stable
+evidence_needed: Valid organizationId + caseTypeId combination that returns 201/200 (bypasses feature-flag gate) or confirmation that feature flag is per-org configurable
+verify_steps: PROBE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"caseTypeId":"00000000-0000-0000-0000-000000000000","organizationId":"d736519f-f384-4771-a2d2-4f95e884d790"}' (spare org UUID from org-key oracle); PROBE: POST same with winnipeg org UUID (6c84b370-5cc2-42c6-8cdd-146c99648535); PROBE: POST with caseForms endpoint to compare validation chains
+impact: Unauthenticated case creation in Spare Engage platform — could allow anonymous riders to create support cases, spam, or probe internal workflows; severity MEDIUM (feature-flag limits blast radius but auth gate fully absent)
+testability: PASSIVE
+[HYP] Organization enumeration via public org-key oracle
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 85
+reasoning: 3-way discrimination stable (spare→200+351B, grt→200+288B, dallas→200+237B, winnipeg→200+288B, hsr→200+318B, cambus→404+131B); prod-only data (uat/us2/jp→404); universal CORS on GET+OPTIONS confirmed; live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 new candidate keys all 404; SSO roster and org-key set definitively disjoint; returns tenant UUID, name, logo URL on GCS, feature flags
+evidence_needed: Confirmation that disclosed org UUIDs map to real tenant data in other endpoints; check if feature flags correlate to auth bypass paths
+verify_steps: PROBE: GET https://api.sparelabs.com/v1/public/organizations/key/spare -H "Origin: https://evil.example.com" (confirm 200+351B + ACAO+ACAC); PROBE: GET https://api.sparelabs.com/v1/public/organizations/key/winnipeg -H "Origin: https://evil.example.com" (confirm 200+288B); PROBE: OPTIONS https://api.sparelabs.com/v1/public/organizations/key/cambus -H "Origin: https://evil.example.com" (confirm CORS on 404 branch)
+impact: Enumeration of Spare's transit-agency customers + disclosure of tenant UUIDs, feature flags, logo URLs; enables targeted reconnaissance; severity LOW-MEDIUM (config disclosure, no user data/auth bypass)
+testability: PASSIVE
+[HYP] Scheme-only auth bypass on global regions exposing fleet-wide infra topology
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 96
+reasoning: GET with `Authorization: Bearer x` (garbage token, valid scheme only) returns 200 + 725B region registry across all 7 fleet hosts (prod/us/us2/us3/jp/eu/uat); body includes 6 OOS api/routing subdomains; no-auth→400 "Authorization header required"; wrong-scheme→400 "scheme 'Bearer' required"; POST→401 InvalidTokenError (read-only bypass); body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable 86h+; longcat "PATCHED" claim FALSE POSITIVE (only tested no-auth path)
+evidence_needed: Confirmation that OOS subdomains are reachable and serve API surface (passive HEAD); check if UAT staging has additional debug endpoints
+verify_steps: PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" (confirm 200+725B+ACAO+ACAC); PROBE: GET https://api.uat.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" (UAT parity); PROBE: HEAD https://api.us.sparelabs.com/ (OOS subdomain reachability — OOS per scope, log only); PROBE: GET with `Authorization: x` (wrong scheme) to confirm 400 scheme validation
+impact: Full infra topology disclosure (7 regions, 6 OOS API/routing subdomains) with scheme-only bypass; enables targeting of regional/staging environments; severity MEDIUM (info disclosure + attack surface expansion, read-only)
+testability: PASSIVE

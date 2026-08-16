@@ -6343,3 +6343,14 @@
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — mult
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET only; auth gate 
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions (write escalation): POST `Bearer x` → 401 — bypass is read-only
+
+## RANKED HYPOTHESES 2026-08-16 11:23:47 UTC
+- [97] api.sparelabs.com/v1/global/regions: regions gate validates header-presence + Bearer-scheme only; token fully omissible (from reports/hypotheses-bigpickle.txt)
+- [96] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on global regions exposing fleet-wide infra topology (from reports/hypotheses-laguna.txt)
+- [87] api.sparelabs.com/v1/public/engage/cases: Unauthenticated case creation via public engage API (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: curl -s -m15 -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" — verify 200 + 725B + AC
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: `main.8a2a39cb.js` CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs, 3 Google Maps ke
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — byte-verified sha256 `fb9800acb…585c3fe` live 2026-08-16 11:22 UTC;
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: read-only bypass confirmed — GET no-auth → 200+11B+ACAO+ACAC (761ms slow replica); POST/PUT/PATCH/DEL
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle STABLE — POST domain discriminator returns 200+172B+ACAO+ACAC on configured tenants
