@@ -9314,3 +9314,4 @@ evidence_needed: confirmed; dictionary exhausted (22 candidates 404); roster clo
 verify_steps: PROBE (once, already proven): `curl -s -m15 -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"winnipeg.ca"}' https://api.sparelabs.com/v1/identity/workos/auth` → expect 200 + 172B + ACAO+ACAC.
 impact: tenant/SSO-config enumeration + Entra tenant-ID fingerprinting for partner orgs; no user data/creds; LOW-MEDIUM.
 testability: PASSIVE
+## 2026-08-16 13:31:48 UTC [api] (model bigpickle)
