@@ -9721,3 +9721,23 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 0 — envoy 404/0B on ALL probed paths since 2026-08-07; completely dead, NO_DELTA
 [RISK] forms.sparelabs.com: 12 — SPA catch-all, JS bundle patched (zero infra refs), 3 Maps keys referrer-restricted; no auth bypass, no API surface, no data disclosure; minimal static-only
 [RISK] web (spare.com/sparelabs.com): 8 — static Webflow marketing (Cloudflare, CSP frame-ancestors 'self', HSTS), sparelabs.com 301→spare.com; no dynamic logic, no internal infra leaks, no API surface
+## 2026-08-16 17:36:17 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 6.5/10 (roster CLOSED, enumeration exhausted)
+[PRIO] api.sparelabs.com/v1/global/regions — 8.1/10 (bypass stable, top finding)
+[PRIO] api.sparelabs.com/v1/public/engage/cases — 7.5/10 (cross-route org-UUID oracle NEW)
+[HYP] SSO roster expansion via municipality/transit domain enumeration — CONFIDENCE DOWNGRADED 88→55: 7/7 transit-agency candidates all 404; enumeration surface exhausted; roster closed at 10 tenants, only remaining vector is guessing municipality domains with zero signal
+[HYP] Engage caseForms POST chain with formKey oracle — 72 UNCHANGED; still needs valid formKey; cases POST validates org UUIDs at handler (403 vs 404) but does NOT expose caseTypeId
+[HYP] Cross-route org-UUID oracle via /engage/cases POST — NEW, confidence 85: valid org UUID → 403, nil → 404; grt+dallas confirmed live; complements plural /public/organizations/{id} 3-way oracle
+[PARKED] Regions-as-mapping-source: stays PARKED (58 < threshold)
+[FINAL]
+[NEXT] DOCUMENT regions bypass as primary deliverable: map 7 regions (CA/US/US2/US3/JP/EU/UAT) to 6 OOS api/routing subdomain pairs (api.{us,us2,us3,jp,eu,uat}.sparelabs.com + routing.{us,us2,us3,jp,eu,uat}.sparelabs.com) — fleet topology fully enumerated via unauth Bearer-x on in-scope api.sparelabs.com; write finding to reports/valid-bugs.md
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster CLOSED at ≥10 tenants — 7 transit-agency domains (go-transit.com, trimet.org, mta.info, metro.net, goctabus.com, tri-met.org, gotransit.com) all 404; enumeration exhausted; do not re-probe candidates without new domain source
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: cross-route org-UUID oracle confirmed — 403 "External case creation is not enabled" for grt+dallas (valid live orgs) vs 404 for nil; handler reached before auth; CORS credential reflection on 403; independent cross-route confirmation of org-key oracle UUIDs
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions: fleet topology leak stable ~90h — body enumerates 7 regions × {apiUrl, routingHost}; CA→in-scope api/routing, US/US2/US3/JP/EU/UAT→12 OOS subdomains; byte-stable sha256; ACAO reflected + ACAC:true on bypass; primary deliverable
+[RISK] api.sparelabs.com: 86 — regions fleet-topology bypass (90h stable) + cross-route org-UUID oracle (403/404) + org-key 5-way oracle + SSO oracle (roster closed 10) + universal CORS credential reflection; write gates still active; regions body is the strongest evidence (enumerates 12 OOS infra hosts)
+[RISK] platform.sparelabs.com: 32 (unchanged)
+[RISK] routing.sparelabs.com: 0 (unchanged)
+[RISK] forms.sparelabs.com: 12 (unchanged)
+[RISK] web (spare.com/sparelabs.com): 8 (unchanged)
+[LEARN] ACCEPTED BUSLOGIC @ /v1/public/engage/cases: winnipeg (6c84b370…) → 403 "External case creation is not enabled" — 3rd org confirmed at handler level (grt, dallas, winnipeg); cross-route oracle solid, 403/404 discriminator reliable
+[LEARN] ACCEPTED BUSLOGIC @ /v1/public/engage/cases: winnipeg `6c84b370…` confirmed 403 — cross-route org-UUID oracle validated on 3rd org (grt, dallas, winnipeg); org-key oracle UUIDs independently reconfirmed at handler-before-auth.

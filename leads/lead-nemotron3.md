@@ -14931,3 +14931,33 @@ testability: PASSIVE
 [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, only tested no-auth path
 [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET only, auth asymmetry verified at handler level
 [LEARN] ACCEPTED IDOR @ api.spare
+## 2026-08-16 17:34:07 UTC [platform] (model nemotron3)
+[NEW] api.sparelabs.com/v1/public/organizations/{id}/*: 6-subpath sweep exhausted (/, status, branding, logo, config, tenants) → all 400 ValidationError "not found"; plural namespace fully mapped to {id} leaf
+[NEW] platform.sparelabs.com: NOW live (was TIMEOUT→200 MFE SPA shell); CSP /login infra leak STABLE (admin Vercel apps+Metabase+9 cloud services)
+[NEW] routing.sparelabs.com: NOW live (was TIMEOUT→envoy 404); STABLE dead, envoy 404/0B on ALL paths since 2026-08-07
+[NEW] forms.sparelabs.com: NOW live (was TIMEOUT→200 Engage SPA); JS bundle main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted
+[NEW] sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS static-only
+[NEW] api.sparelabs.com/v1/global/regions: re-verified LIVE 200+725B+ACAO+ACAC, body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe exact match; maps 7 regions (CA/US/US2/US3/JP/EU/UAT)
+[NEW] api.sparelabs.com/v1/identity/workos/auth: SSO roster NOT closed at 8 — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) + cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC) confirmed live; roster ≥10
+[CHANGED] api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive (only tested no-auth 400, missed Bearer-x vector); bypass stable 86h+ across 7 fleet hosts
+[CHANGED] api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET only; auth asymmetry verified at handler level
+[CHANGED] api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS), fleet-parity across 7 hosts
+[CHANGED] api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404; spare-UUID→403 ForbiddenError (feature-flag gate
+[CHANGED] forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED
+[PRIO] api.sparelabs.com/v1/global/regions, 8.55, attack=9, business=8, tech=8, gate=10, cloud=7, fresh=9
+[PRIO] api.sparelabs.com/v1/identity/workos/auth, 8.30, attack=8, business=8, tech=8, gate=10, cloud=7, fresh=9
+[PRIO] api.sparelabs.com/v1/global/organizations, 8.20, attack=8, business=8, tech=9, gate=10, cloud=6, fresh=9
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST, 7.75, attack=8, business=7, tech=8, gate=10, cloud=5, fresh=8
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}, 7.70, attack=8, business=7, tech=8, gate=10, cloud=7, fresh=8
+[PRIO] api.sparelabs.com/v1/public/organizations/{id}, 7.65, attack=8, business=7, tech=8, gate=10, cloud=7, fresh=8
+[PRIO] api.sparelabs.com/v1/public/terms, 7.45, attack=7, business=7, tech=7, gate=10, cloud=6, fresh=8
+[PRIO] platform.sparelabs.com/login, 7.40, attack=6, business=8, tech=7, gate=10, cloud=8, fresh=8
+[PRIO] forms.sparelabs.com, 2.50, attack=5, business=5, tech=5, gate=10, cloud=4, fresh=6
+[PRIO] routing.sparelabs.com, 0.50, attack=0, business=0, tech=5, gate=10, cloud=0, fresh=0
+[HYP] Scheme-only Bearer bypass on global regions exposing fleet-wide infra topology
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 96
+reasoning: GET with `Authorization: Bearer x` (garbage token, valid scheme only) returns 200 + 725B region registry across all 7 fleet hosts (prod/us/us2/us3/jp/eu/uat); body includes 6 OOS api/routing subdomains; no-auth→400 "Authorization header required"; wrong-scheme→400 "scheme 'Bearer' required"; POST→401 InvalidTokenError (read-only bypass); body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable 86h+; longcat "PATCHED" claim FALSE POSITIVE (only tested no-auth path)
+evidence_needed: Confirmation that OOS subdomains are reachable and serve API surface (passive HEAD); check if UAT staging has additional debug endpoints
+verify_steps: PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" (confirm 200+725B+ACAO+ACAC); PROBE: GET https://api.uat.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" (UAT

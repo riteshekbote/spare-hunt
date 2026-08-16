@@ -6651,3 +6651,20 @@
 - LEARN: REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: Spare customer-stories partner list does NOT expand SSO roster — 0/23 new tenants; SSO set is transit
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: "LEAK REACTIVATED" (34f336cd sha256) was FALSE POSITIVE — main.8a2a39cb.js confirmed PATCHED with zero infra
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler-level feature-flag gate (ForbiddenError), not auth gate; validatio
+
+## RANKED HYPOTHESES 2026-08-16 17:38:10 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on global regions exposing fleet-wide infrastructure topology (from reports/hypotheses-laguna.txt)
+- [0] ?: SSO roster expansion via municipality/transit domain enumeration — CONFIDENCE DOWNGRADED 88→55: 7/7 transit-agency candidates all 404; enumeration surface exhausted; roster closed at 10 tenants, only remaining vector is guessing municipality domains with zero signal (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: Test engage/cases POST escalation across remaining org-key UUIDs — POST https://api.sparelabs.com/v1/public/engage/cases with Origin + Content-Type:appli
+- NEXT(hypotheses-bigpickle.txt): DOCUMENT regions bypass as primary deliverable: map 7 regions (CA/US/US2/US3/JP/EU/UAT) to 6 OOS api/routing subdomain pairs (api.{us,us2,us3,jp,eu,uat}.sparela
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — live 2026-08-16 17:33 UTC confirms `Bearer x` → 200 + 725B + ACAO+A
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE confirmed live 17:33 UTC — GET no-auth → 200+11B+ACAO+ACAC; write
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥10 tenants confirmed live — cota.com → 200+172B (conn_01KCKYHA0YPZ8N52Q4DVT96
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle STABLE — spare→200+351B (5 feature flags incl riderLoginless); dallas→200+237B
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (NOT 401); nil-UUID→404 NotF
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster CLOSED at ≥10 tenants — 7 transit-agency domains (go-transit.com, trimet.org, mta.info, me
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: cross-route org-UUID oracle confirmed — 403 "External case creation is not enabled" for grt+d
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions: fleet topology leak stable ~90h — body enumerates 7 regions × {apiUrl, routingHost}; CA→in-scope api/r
+- LEARN: ACCEPTED BUSLOGIC @ /v1/public/engage/cases: winnipeg (6c84b370…) → 403 "External case creation is not enabled" — 3rd org confirmed at handler level (grt, dalla
+- LEARN: ACCEPTED BUSLOGIC @ /v1/public/engage/cases: winnipeg `6c84b370…` confirmed 403 — cross-route org-UUID oracle validated on 3rd org (grt, dallas, winnipeg); org-
