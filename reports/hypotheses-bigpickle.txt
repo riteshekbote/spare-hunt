@@ -1,1 +1,45 @@
-## 2026-08-16 16:48:42 UTC [api] (model bigpickle)
+## 2026-08-16 17:08:32 UTC [api] (model bigpickle)
+[CHANGED] api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥10 — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) + cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC) confirmed; prior oakville→spare.com conn attribution corrected
+[CHANGED] forms.sparelabs.com JS bundle: REACTIVATED claim (34f336cd…) retracted — main.8a2a39cb.js confirmed PATCHED (zero infra refs, 3 Maps keys referrer-restricted); "leak reinstated" entry was FALSE POSITIVE
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 8.1/10
+[PRIO] api.sparelabs.com/v1/global/regions — 7.8/10
+[PRIO] api.sparelabs.com/v1/global/organizations — 7.2/10
+[HYP] SSO roster expansion via municipality domain enumeration
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 88
+reasoning: 10 tenants confirmed, all follow pattern city/cityname+TLD (.ca/.gov/.org). Customer-stories list (23 domains) exhausted 0/23. Connection_id byte-stable per domain, fleet-parity across 7 hosts. Domain param is tenant discriminator (200 vs 404).
+evidence_needed: each additional 200+172B response confirms new SSO tenant with WorkOS client_id + connection_id + Entra tenant ID
+verify_steps: PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"<candidate>"}' for: go-transit.com, trimet.org, mta.info, cta.com, metro.net, tri-met.org, goctabus.com, vREDACTED, cota.com(already confirmed)
+impact: SSO tenant enumeration discloses partner identity + WorkOS SSO connection_id + Microsoft Entra tenant GUID for each partner; enables targeted phishing/SSO abuse against partner IdPs; MEDIUM
+testability: PASSIVE
+[HYP] Engage caseForms POST chains with formKey oracle for unauth case submission
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/caseForms POST
+confidence: 72
+reasoning: Auth gate ABSENT on caseForms POST (empty→400 no InvalidTokenError, nil-UUID→404 handler reached). FormKey oracle exists on /v1/public/engage/form (404 "not found" vs 200 on valid key). If formKey maps to a valid caseTypeId + orgId, POST with caseTypeId+orgId+contactInfo could submit cases without auth.
+evidence_needed: a valid formKey that returns 200+data from /engage/form; then POST that form's caseTypeId+orgId to /engage/caseForms without auth, confirm handler progression past 400 validation
+verify_steps: PROBE: GET https://api.sparelabs.com/v1/public/engage/form -H "Origin: https://evil.example.com" with caseTypeKey candidates (case-request, mobility, schedule-ride, feedback, complaint, lost-item) + orgId from org-key oracle; if any 200, chain to POST /engage/caseForms with required fields
+impact: Unauthenticated case submission into any org's Engage system; could create fake cases, spam, or social-engineer support staff; MEDIUM-HIGH if formKey guessable
+testability: PASSIVE
+[HYP] Regions bypass body as orgKey → caseTypeId mapping source
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/global/regions
+confidence: 58
+reasoning: Regions body contains 725B of fleet topology including apiUrl + routingHost per region. The engage/write chain requires organizationId (derivable from org-key oracle) + caseTypeId (unknown). Regions body might contain route/zone data that maps to caseType UUIDs.
+evidence_needed: regions body contains caseType or zone UUIDs that could feed engage POST chain
+verify_steps: PASSIVE: re-read /tmp/opencode/regions.json (already captured) for any UUIDs beyond region IDs; cross-reference with engage validation error schema dumps
+impact: Would bridge regions topology disclosure → engage write chain; LOW-MEDIUM
+testability: PASSIVE
+[PARKED] Regions-as-mapping-source: confidence 58 < threshold for actionability; regions body is region registry (7 regions with apiUrl+routingHost), not caseType data. Hypothesis based on speculation, not evidence. DROPPED.
+[FINAL]
+[NEXT] PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"go-transit.com"}' (confirm 200+172B or 404); then POST with "trimet.org"; then POST with "mta.info" — 3 high-probability transit agency domains targeting SSO roster expansion toward ≥13 tenants
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥10 — oakville.ca + cota.com confirmed live 2026-08-16; fleet-parity across 7 hosts; 23 customer-stories partner list domains all 404 (roster NOT derivable from marketing)
+[LEARN] REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: Spare customer-stories partner list does NOT expand SSO roster — 0/23 new tenants; SSO set is transit-agency or municipality domain, NOT partner brand domain
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: "LEAK REACTIVATED" (34f336cd sha256) was FALSE POSITIVE — main.8a2a39cb.js confirmed PATCHED with zero infra refs; KB contradicts itself but final state is PATCHED
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler-level feature-flag gate (ForbiddenError), not auth gate; validation precedes auth in request pipeline
+[RISK] api.sparelabs.com: 84 — multiple unauth-bypass families (regions scheme-only 86h+, orgs zero-header read-only, engage write chain auth-absent, SSO oracle ≥10 tenants, org-key 5-way oracle, universal CORS credential reflection); write gates active on bypass routes; no data exfil of authenticated resources proven; all stable 86h+
+[RISK] platform.sparelabs.com: 32 — CSP header leaks prod+staging admin Vercel apps (loadable 200) + Metabase (prod+staging 200) + 9 cloud services; admin apps are dev-only (localhost:3057); strict HTML CSP + x-frame mitigate HTML-level; no API surface behind MFE shell
+[RISK] routing.sparelabs.com: 0 — envoy 404/0B on ALL probed paths since 2026-08-07; completely dead, NO_DELTA
+[RISK] forms.sparelabs.com: 12 — SPA catch-all, JS bundle patched (zero infra refs), 3 Maps keys referrer-restricted; no auth bypass, no API surface, no data disclosure; minimal static-only
+[RISK] web (spare.com/sparelabs.com): 8 — static Webflow marketing (Cloudflare, CSP frame-ancestors 'self', HSTS), sparelabs.com 301→spare.com; no dynamic logic, no internal infra leaks, no API surface

@@ -1886,3 +1886,19 @@
 - CHANGED api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS), fleet-parity across 7 hosts
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404; spare-UUID→403 ForbiddenError (feature-flag gat
 - CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED
+
+## 2026-08-16 17:10:42 UTC
+- NEW api.sparelabs.com/v1/global/regions: re-verified LIVE 200+725B+ACAO+ACAC, body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe exact match; maps 7 regions (CA/US/US2/US3/JP/EU/
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster NOT closed at 8 — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) + cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC) confirmed live; roster ≥10
+- CHANGED api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive (only tested no-auth 400, missed Bearer-x vector); bypass stable 86h+ across 
+- CHANGED api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET only; auth asymmetry verified at handler level
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS), fleet-parity across 7 hosts
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404; spare-UUID→403 ForbiddenError (feature-flag gat
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED
+- NEW api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS) — roster expanded from 7 to 8; fleet-parity across 7 hosts re-confirmed
+- NEW api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: auth-gate-ABSENT write path re-confirmed live — empty POST→400 ValidationError (no 401), nil-UUID→404 NotFoundError (handler reached), s
+- CHANGED api.sparelabs.com/v1/public/organizations/{id} (plural): 3-way oracle STABLE — confirmed live this cycle (malformed→400, nil→404, valid→200), superior to flapping singular /organization
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy LB replicas — downgraded to validation-leak-only
+- CHANGED api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B literal "asdfd" junk (prod placeholder), winnipeg→197B real external URL (info.winnipegtransit.com); byte-stable sha25
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥10 — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) + cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC) confirmed; prior oakville→spare.com conn
+- CHANGED forms.sparelabs.com JS bundle: REACTIVATED claim (34f336cd…) retracted — main.8a2a39cb.js confirmed PATCHED (zero infra refs, 3 Maps keys referrer-restricted); "leak reinstated" entry was FALSE POSITI

@@ -6629,3 +6629,25 @@
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — mult
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET only; auth gate 
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions (write escalation): POST `Bearer x` → 401 — bypass is read-only
+
+## RANKED HYPOTHESES 2026-08-16 17:10:42 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on global regions exposing fleet-wide infra topology (from reports/hypotheses-laguna.txt)
+- [88] api.sparelabs.com/v1/identity/workos/auth: SSO roster expansion via municipality domain enumeration (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" (confirm 200+725B+ACAO+ACAC; validate 
+- NEXT(hypotheses-laguna.txt): PROBE: test engage/cases POST escalation across all remaining org-key UUIDs — POST `https://api.sparelabs.com/v1/public/engage/cases` with `Origin: https://evil
+- NEXT(hypotheses-bigpickle.txt): PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"go-transi
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, only tested no-auth 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET only,
+- LEARN: ACCEPTED IDOR @ api.spare
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId, ~299B
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (was TIMEOUT→404) but zero surface,
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped to exactly {/orga
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError — both bypas
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy LB replicas (nil→404 fast, 400 slow); do
+- LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) is FALSE POSITIVE — longcat only tested no-auth path (400), never 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true + all methods (GET,HEAD,PUT,PATCH,PO
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥10 — oakville.ca + cota.com confirmed live 2026-08-16; fleet-parity across 7 hos
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: Spare customer-stories partner list does NOT expand SSO roster — 0/23 new tenants; SSO set is transit
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: "LEAK REACTIVATED" (34f336cd sha256) was FALSE POSITIVE — main.8a2a39cb.js confirmed PATCHED with zero infra
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler-level feature-flag gate (ForbiddenError), not auth gate; validatio
