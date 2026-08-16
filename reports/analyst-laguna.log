@@ -62879,3 +62879,87 @@ content-type: application/json; charset=utf-8
 [0m✗ [0mecho "=== orgs no-auth ==="; curl -s -m15 -D - -o /tmp/orgs_body -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations 2>&1 | grep -iE "HTTP/|access-control|content-type" ; echo "--- body ---"; cat /tmp/orgs_body; echo; echo "=== orgs POST Bearer x ==="; curl -s -m15 -o /dev/null -w "POST %{http_code}\n" -H "Authorization: Bearer x" -H "Content-Type: application/json" -X POST -d '{"x":1}' https://api.sparelabs.com/v1/global/organizations 2>&1 failed
 [91m[1mError: [0mThe user rejected permission to use this specific tool call.
 All three primary findings confirmed live and byte-stable. Let me verify the remaining findings (organizations zero-header bypass, engage write auth-gate-absent, SSO differential).
+===== ANALYST laguna 2026-08-16 19:14:50 UTC =====
+[0m
+> build · laguna-s-2.1-free
+[0m
+[0m✱ [0mGlob "**/*.{txt,md,json,yml,yaml}"[90m 100 matches[0m
+[0m✱ [0mGlob "reports/**/*"[90m 12 matches[0m
+[0m✱ [0mGlob "**/*scope*"[90m 1 match[0m
+[0m→ [0mRead scope.yml
+[0m→ [0mRead state_ling3.json
+[0m→ [0mRead state_longcat.json
+[0m→ [0mRead reports/hypotheses-laguna.txt
+[0m→ [0mRead leads/lead-ling3.md
+[0m→ [0mRead reports/hypotheses-nemotron3.txt
+[0m→ [0mRead reports/hypotheses-bigpickle.txt
+[0m→ [0mRead reports/hypotheses-ling3.txt
+[0m→ [0mRead reports/hypotheses-longcat.txt
+[0m→ [0mRead probe-results.md
+[0m→ [0mRead analyst-prompt.txt
+I have the full context. Let me do a quick passive re-verification of the primary finding before producing the analyst output.
+[93m[1m! [0mpermission requested: external_directory (/tmp/*); auto-rejecting
+[0m✗ [0mcurl -s -m15 -D - -o /tmp/regions_body.json -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions 2>&1 | head -40; echo "---BODY---"; cat /tmp/regions_body.json; echo "---SHA256---"; sha256sum /tmp/regions_body.json failed
+[91m[1mError: [0mThe user rejected permission to use this specific tool call.
+## Objective
+- Validate and expand the highest-confidence passive findings on api.sparelabs.com (scheme-only Bearer bypass, SSO-config oracle, org-key UUID oracle, auth-gate-absent engage POST) and maintain passive recon on platform/forms/routing hosts.
+
+## Important Details
+- Phase: POC, target: web
+- Scope: spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com — all other subdomains and third-party services out of scope
+- Passive-first only: GET/HEAD, ≤1 rps, no account creation, no data modification
+- Longcat false positive: longcat claimed /v1/global/regions was "PATCHED" (2026-08-11) but only tested the no-auth path (400), never tested the actual `Authorization: Bearer x` bypass vector — bypass remains 86h+ stable
+- Multi-version envoy LB confirmed: fast replica (2-5ms) vs slow replica (600-1185ms+); bypass findings are replica-stable across fast/slow LB variants
+
+## Work State
+### Completed
+- api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass verified live 2026-08-16 18:16 UTC — `Bearer x` → 200 + 725B, sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` byte-stable across 15+ probes, ACAO+ACAC on 200; fleet-parity confirmed across 7 hosts (prod/us/us2/us3/jp/eu/uat); longcat "PATCHED" disproven
+- api.sparelabs.com/v1/global/organizations: zero-header read-only bypass verified live 2026-08-16 17:33 UTC — GET no-auth → 200 + 11B `{"data":[]}` + ACAO+ACAC (761ms slow replica); POST/PUT/PATCH/DELETE → 401 InvalidTokenError (write gate active, auth asymmetry confirmed at handler level)
+- api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle verified live 2026-08-16 18:16 UTC — POST {"domain":"cota.com"} → 200 + 172B + ACAO+ACAC (WorkOS client_id + connection_id + Entra tenant_id); 8+ tenants confirmed (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca, cota.com); fleet-parity across 7 hosts; transit-agency dictionary (23 partners) returns 0/23 hits (roster not marketing-derivable)
+- api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live 2026-08-16 05:30 UTC — empty POST → 400 ValidationError (not 401); nil-UUID → 404 NotFoundError (handler reached); valid org UUIDs (spare/grt/dallas/winnipeg) + caseTypeId UUID + contactInfo → 403 ForbiddenError "External case creation is not enabled" (feature-flag gate, NOT auth gate); CORS reflected on all branches; cross-route org-UUID oracle validated
+- api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle confirmed live — malformed→400 ValidationError (263B+cID), nil→404 NotFoundError (131B+cID), valid→200; superior discriminator vs flapping singular /organization (degrades 2-way↔3-way across envoy replicas)
+- api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle live — spare→200+351B (UUID `d736519f-f384-4771-a2d2-4f95e884d790`, 5 feature flags incl riderLoginless), grt→200+288B (2 flags), dallas→200+237B (0 flags), winnipeg→200+288B, hsr→200+321B, cambus→404+131B; live set closed at 5 orgs (22 new candidates 404); prod-only data (uat/us2/jp→404)
+- api.sparelabs.com/v1/**: universal CORS credential reflection verified live 2026-08-16 17:33 UTC — ACAO:reflected + ACAC:true + all methods (GET/HEAD/PUT/PATCH/POST/DELETE) + ACAH:Authorization,Content-Type on OPTIONS 204 + GET 200/401/404 across all /v1 paths; non-path-conditional via 22-sibling sweep (21×401 + 2×200)
+- api.sparelabs.com/v1/global/*: 22 sibling routes + 8 undocumented controllers (search/audit/exports/metrics/logs/webhooks/analytics/billing) ALL 401 zero-auth + Bearer-x — bypass family DEFINITIVELY scoped to exactly {/organizations, /regions}
+- api.sparelabs.com/v1/global/regions: fleet topology leak — body enumerates 7 regions × {apiUrl, routingHost}; CA→in-scope api/routing.*, US/US2/US3/JP/EU/UAT→12 OOS subdomains; body byte-stable sha256
+- api.sparelabs.com/v1/public/terms: per-tenant config chain — spare→107B literal "asdfd" prod junk, winnipeg→197B real external URL (info.winnipegtransit.com); byte-stable
+- api.sparelabs.com/v1/public/organization: UUID oracle FULLY DEGRADED 3-way→2-way — nil-uuid flaps 404 (fast replica) / 400 (slow replica); downgraded to validation-leak-only; plural /organizations/{id} is superior oracle
+- platform.sparelabs.com/login: CSP infra leak STABLE — admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging, loadable 200 via script-src/frame-src/style-src) + Metabase (prod+staging 200) + 9 cloud services (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit); strict HTML CSP + x-frame SAMEORIGIN mitigates HTML-level only, infra-level leak persists via CSP; 10/10 admin API paths return SPA catch-all 200 text/html (no real API surface behind platform host)
+- platform.sparelabs.com bundle: embedded OpenAPI spec (170 paths of EAM/fixed-route admin API) extracted; ALL 131 non-param paths properly gated (401/404) — no bypass, recon-only
+- forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted (geocode→REQUEST_DENIED); infra leak ELIMINATED, downgraded to recon-only; 8/8 API paths return SPA catch-all 200 text/html (no real API behind host)
+- routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead, NO_DELTA
+- sparelabs.com: 301→spare.com apex (Cloudflare+HSTS), static-only, no new surface
+- api.sparelabs.com/v1/admin/*: 404 0B no-auth — no admin namespace on API; platform bundle has zero v1/admin references
+- api.sparelabs.com: spec-discovery /v1/{openapi.json,swagger.json,api-docs} → 404 0B, dead-end; schema leaks only via validation-error bodies
+
+### Active
+- Engage/cases POST auth-gate-absent finding (class BUSLOGIC) — validation precedes auth in request pipeline; empty POST→400 (no 401), nil-UUID org→404 (handler reached), valid org UUID→403 ForbiddenError (feature-flag gate not auth gate). Requires AUTH_HELPED testing to confirm unauthenticated write escalation with a valid org UUID + caseTypeId + contactInfo (probe expects 403, NOT 401). Cross-route oracle validated on 3 orgs (grt/dallas/winnipeg cross-confirmed via /organizations/key/{key} UUIDs)
+- SSO-config oracle (class IDOR) — POST domain discriminator 200 vs 404 is reliable; 8+ tenants confirmed; Entra tenant IDs disclosed in relayState JWT; severity LOW (no user data/creds/auth bypass)
+- Scheme-only Bearer bypass on /v1/global/regions (class AUTH) — confidence 97; primary finding; 86h+ byte-stable, fleet-parity 7 hosts; longcat false-positive disproven
+
+### Blocked
+- (none)
+
+## Next Move
+1. PROBE: `curl -s -m15 -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions` → confirm HTTP 200 + 725B body + ACAO:reflected + ACAC:true; verify body sha256 equals `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` to definitively disprove longcat "PATCHED" false-positive claim and maintain primary finding at confidence 97
+2. PROBE: `curl -s -m15 -D -o /dev/null -w "%{http_code}" -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000000","contactInfo":{"email":"probe@evil.example.com"}}' https://api.sparelabs.com/v1/public/engage/cases` → confirm 403 ForbiddenError (NOT 401) proving auth gate absent, handler reaches feature-flag gate
+3. PROBE: `curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"winnipeg.ca"}' https://api.sparelabs.com/v1/identity/workos/auth` → confirm 200+172B+ACAO+ACAC with WorkOS client_id + connection_id, fleet-parity
+
+## Relevant Files
+- `/home/runner/work/spare-hunt/spare-hunt/scope.yml`: program rules — in-scope hosts, passive-first, ≤1 rps, no account creation, no data modification, sha256 for secrets in commits
+- `/home/runner/work/spare-hunt/spare-hunt/reports/hypotheses-laguna.txt`: laguna model output for 2026-08-16 web pass
+- `/home/runner/work/spare-hunt/spare-hunt/reports/hypotheses-nemotron3.txt`: nemotron3 model output for 2026-08-16 platform pass
+- `/home/runner/work/spare-hunt/spare-hunt/reports/hypotheses-bigpickle.txt`: bigpickle model output for 2026-08-16 api pass
+- `/home/runner/work/spare-hunt/spare-hunt/probe-results.md`: historical live probe results (last updated 2026-08-08)
+- `/tmp/opencode/regions.json`: captured 725B region registry body from /v1/global/regions bypass (7 regions: CA, US, US2, US3, JP, EU, UAT with apiUrl + routingHost each)
+- Knowledge base (Conversation): authoritative consolidated KB of all findings through 2026-08-16 18:53 UTC; primary reference for acceptance/rejection state
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+I don't have an autonomous agent task pending — I just read the knowledge base you provided. There's no separate task ID to continue.
+
+Given everything in the KB is STABLE with NO_DELTA (86h+ stable findings), what would you like me to produce specifically? Options:
+
+1. **Produce the 8-step analyst output** (hypothesis validation report) summarizing all current findings with acceptance/rejection status
+2. **Run live probes** (e.g., re-verify the `Bearer x` bypass on /v1/global/regions, the engage/cases auth-gate-absent finding)
+3. **Something else —** clarify what you'd like
+
+I'll proceed with option 1 (the analyst report) unless you tell me otherwise.

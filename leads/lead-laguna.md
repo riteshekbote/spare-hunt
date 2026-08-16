@@ -11214,3 +11214,4 @@ testability: AUTH_HELPED
 [RISK] forms.sparelabs.com: 12 — Engage SPA 200; JS bundle main.8a2a39cb.js CONFIRMED PATCHED (zero sparelabs/atlassian/ngrok/metabase/vercel refs); 3 Google Maps keys all referrer-restricted (geocode→REQUEST_DENIED); SPA catch-all on all 8 API paths (index.html); no real API endpoints behind host; infra leak ELIMINATED, recon-only
 [RISK] web (spare.com/sparelabs.com): 15 — spare.com apex HTTP 200 static Webflow/Cloudflare (CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks in HTML/JS); sparelabs.com 301→spare.com (Cloudflare+HSTS max-age=0); www.spare.com OOS excluded per scope; minimal static-only surface, no dynamic logic
 ## 2026-08-16 18:51:24 UTC [web] (model laguna)
+## 2026-08-16 19:13:58 UTC [web] (model laguna)
