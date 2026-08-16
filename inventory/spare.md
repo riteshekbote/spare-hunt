@@ -2046,3 +2046,20 @@
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping 2-way↔3-way across envoy replicas — downgraded to validation-leak-only
 - CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted
 - NEW /v1/identity/workos/auth POST redirect_uri/state reflection hypothesis UNTESTED — potential OAUTH parameter injection vector via SSO oracle
+
+## 2026-08-16 23:15:51 UTC
+- NEW api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass now ONLY on subset of LB replicas (multi-version LB confirmed) — GET `Bearer x` → 200+725B on fast replicas (~300ms), 401 on others; prev
+- NEW api.sparelabs.com/v1/global/organizations: Zero-header read-only bypass now ONLY on slow LB replicas (~600-1100ms) — GET no-auth → 200+11B `{"data":[]}`, 401 on fast replicas; previously stable across
+- NEW forms.sparelabs.com: JS bundle rotated to `main.8a2a39cb.js` (~7MB) — infra leak ELIMINATED (zero sparelabs/atlassian/ngrok/metabase/vercel refs); 3 Google Maps keys all referrer-restricted (geocode→R
+- NEW platform.sparelabs.com: NOW live (was TIMEOUT) — MFE SPA shell 200; CSP `/login` infra leak STABLE (admin Vercel apps dev-only, Metabase prod+staging, 9 cloud services)
+- NEW forms.sparelabs.com: NOW live (was TIMEOUT) — Engage portal SPA 200; strict HTML CSP (`connect-src https://*.sparelabs.com`); all API paths return SPA catch-all
+- NEW routing.sparelabs.com: NOW live (was TIMEOUT) — envoy 404 on ALL paths; STABLE dead, NO_DELTA since 2026-08-07
+- NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT) — Cloudflare+HSTS, static-only
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 10+ tenants — saskatoon.ca + mbta.com + oakville.ca + cota.com newly confirmed; fleet-parity across 7 hosts (prod/us/us2/us3/jp/eu/uat
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: org-key oracle extended — saskatoon.ca confirmed as 11th SSO tenant, live org-key set {spare,grt,dallas,winnipeg,hsr} closed at 5 (22 new candidate
+- NEW /v1/identity/workos/auth POST redirect_uri/state reflection hypothesis UNTESTED — potential OAUTH parameter injection vector via SSO oracle
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥10 tenants — oakville.ca + cota.com confirmed live; fleet-parity across 7 hosts; universal CORS on both 200/404 branches
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: Auth gate ABSENT re-confirmed live — handler reached without auth (400 ValidationError, 404 NotFoundError, 403 ForbiddenError); multi-ve
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400, ~299B) and router-level "not found" (400, ~189B) — multi-version envoy LB confirmed, downgraded to UNC
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping 2-way↔3-way across envoy replicas — downgraded to validation-leak-only
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted

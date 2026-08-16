@@ -2368,3 +2368,14 @@ https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.uat.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
 https://api.uat.sparelabs.com/v1/public/engage/cases -> HTTP 400
+
+## 2026-08-16 23:15:52 UTC
+https://*.sparelabs.com` -> ERR <urlopen error [Errno -2] Name or service not know
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.us.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.uat.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.uat.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/organizations/key/cambus -> HTTP 404
