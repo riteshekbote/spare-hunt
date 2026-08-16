@@ -1677,3 +1677,17 @@
 - CHANGED platform.sparelabs.com: NOW live (was TIMEOUT→200 MFE SPA shell); CSP infra leak STABLE (admin Vercel apps+Metabase+9 cloud services)
 - CHANGED routing.sparelabs.com: NOW live (was TIMEOUT→envoy 404); STABLE dead, envoy 404/0B on ALL paths since 2026-08-07
 - CHANGED sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS static-only
+
+## 2026-08-16 09:16:40 UTC
+- NEW api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS), fleet-parity across 7 hosts
+- NEW api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404; spare-UUID→403 ForbiddenError (feature-flag gat
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 new candidates 404; prod-only (uat/us2/jp→404)
+- NEW api.sparelabs.com/v1/public/terms: per-tenant config chain CONFIRMED — spare→107B "asdfd" prod junk, winnipeg→197B real URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic; byte-stable sha256
+- NEW api.sparelabs.com/v1/public/organizations/{id}/*: 6-subpath sweep exhausted (/, status, branding, logo, config, tenants) → all 400 ValidationError "not found"; plural namespace fully mapped to {id} le
+- CHANGED api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive (only tested no-auth 400, missed Bearer-x vector); bypass stable 86h+ across 
+- CHANGED api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET only; auth asymmetry verified at handler level
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED (downgraded t
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — nil→404 fast, 400 slow; downgraded to validation-leak-only, not oracle class
+- CHANGED platform.sparelabs.com: NOW live (was TIMEOUT→200 MFE SPA shell); CSP infra leak STABLE (admin Vercel apps+Metabase+9 cloud services)
+- CHANGED routing.sparelabs.com: NOW live (was TIMEOUT→envoy 404); STABLE dead, envoy 404/0B on ALL paths since 2026-08-07
+- CHANGED sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS static-only
