@@ -9430,3 +9430,248 @@ class: BUSLOGIC
 class: MISCONFIG
 [LEARN]
 class: IDOR
+## 2026-08-16 16:27:28 UTC [api] (model bigpickle)
+asset: api.sparelabs.com/v1/identity/workos/auth
+reasoning: unauth POST resolves SSO config per domain (8 tenants); error schema distinguishes configured vs not; WorkOS client_id + connection_id + signed relayState with Entra tenant IDs disclosed
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+testability: PASSIVE
+[HYP]
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: unauth POST resolves SSO config per domain (8 tenants); error schema distinguishes configured vs not; WorkOS client_id + connection_id + signed relayState with Entra tenant IDs disclosed
+evidence_needed: roster closure confirmed
+verify_steps: dictionary probes (transit-agency wordlist) — closed at 8
+impact: partner/SSO tenant enumeration; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+[NEXT] DOCUMENT: regions finding as primary deliverable — map the 7 returned regions to the 6 OOS subdomains to quantify topology exposure for the report.
+[LEARN]
+class: AUTH
+[LEARN]
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[LEARN]
+class: IDOR
+[HYP]
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 96
+reasoning: scheme-only `Bearer x` (token never validated) returns 7-region fleet registry incl. 6 OOS api/routing hostnames; CORS credentials reflected; 86h+ byte-stable; reprobed 200/725B/sha256 exact
+evidence_needed: none — confirmed
+verify_steps: GET with `Authorization: Bearer x` + `Origin: https://evil.example.com`
+impact: fleet infra topology disclosure (read-only); HIGH
+testability: PASSIVE
+[HYP]
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 75
+reasoning: no auth gate (empty→400, nil→404 handler); only per-org feature flag gates writes; flag OFF on all 4 reachable orgs; org-key oracle enumerates the org set so a flag-enabled org would be findable if it exists
+evidence_needed: any org returning non-403 with a valid caseTypeId
+verify_steps: POST nil caseTypeId per org UUID; look for 400/404 vs 403
+impact: unauth case creation/spam into Engage if flag enabled; MEDIUM (capped today)
+testability: PASSIVE
+[HYP]
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: unauth POST resolves SSO config per domain (8 tenants); error schema distinguishes configured vs not; WorkOS client_id + connection_id + signed relayState with Entra tenant IDs disclosed
+evidence_needed: roster closure confirmed
+verify_steps: dictionary probes (transit-agency wordlist) — closed at 8
+impact: partner/SSO tenant enumeration; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+[NEXT] DOCUMENT: regions finding as primary deliverable — map the 7 returned regions to the 6 OOS subdomains to quantify topology exposure for the report.
+[LEARN]
+class: AUTH
+[LEARN]
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[LEARN]
+class: IDOR
+testability: PASSIVE
+[HYP]
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: unauth POST resolves SSO config per domain (8 tenants); error schema distinguishes configured vs not; WorkOS client_id + connection_id + signed relayState with Entra tenant IDs disclosed
+evidence_needed: roster closure confirmed
+verify_steps: dictionary probes (transit-agency wordlist) — closed at 8
+impact: partner/SSO tenant enumeration; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+[NEXT] DOCUMENT: regions finding as primary deliverable — map the 7 returned regions to the 6 OOS subdomains to quantify topology exposure for the report.
+[LEARN]
+class: AUTH
+[LEARN]
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[LEARN]
+class: IDOR
+[HYP]
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 96
+reasoning: scheme-only `Bearer x` (token never validated) returns 7-region fleet registry incl. 6 OOS api/routing hostnames; CORS credentials reflected; 86h+ byte-stable; reprobed 200/725B/sha256 exact
+evidence_needed: none — confirmed
+verify_steps: GET with `Authorization: Bearer x` + `Origin: https://evil.example.com`
+impact: fleet infra topology disclosure (read-only); HIGH
+testability: PASSIVE
+[HYP]
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 75
+reasoning: no auth gate (empty→400, nil→404 handler); only per-org feature flag gates writes; flag OFF on all 4 reachable orgs; org-key oracle enumerates the org set so a flag-enabled org would be findable if it exists
+evidence_needed: any org returning non-403 with a valid caseTypeId
+verify_steps: POST nil caseTypeId per org UUID; look for 400/404 vs 403
+impact: unauth case creation/spam into Engage if flag enabled; MEDIUM (capped today)
+testability: PASSIVE
+[HYP]
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: unauth POST resolves SSO config per domain (8 tenants); error schema distinguishes configured vs not; WorkOS client_id + connection_id + signed relayState with Entra tenant IDs disclosed
+evidence_needed: roster closure confirmed
+verify_steps: dictionary probes (transit-agency wordlist) — closed at 8
+impact: partner/SSO tenant enumeration; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+[NEXT] DOCUMENT: regions finding as primary deliverable — map the 7 returned regions to the 6 OOS subdomains to quantify topology exposure for the report.
+[LEARN]
+class: AUTH
+[LEARN]
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[LEARN]
+class: IDOR
+testability: PASSIVE
+[HYP]
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: unauth POST resolves SSO config per domain (8 tenants); error schema distinguishes configured vs not; WorkOS client_id + connection_id + signed relayState with Entra tenant IDs disclosed
+evidence_needed: roster closure confirmed
+verify_steps: dictionary probes (transit-agency wordlist) — closed at 8
+impact: partner/SSO tenant enumeration; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+[NEXT] DOCUMENT: regions finding as primary deliverable — map the 7 returned regions to the 6 OOS subdomains to quantify topology exposure for the report.
+[LEARN]
+class: AUTH
+[LEARN]
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[LEARN]
+class: IDOR
+evidence_needed: none — confirmed
+verify_steps: GET with `Authorization: Bearer x` + `Origin: https://evil.example.com`
+impact: fleet infra topology disclosure (read-only); HIGH
+testability: PASSIVE
+[HYP]
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 75
+reasoning: no auth gate (empty→400, nil→404 handler); only per-org feature flag gates writes; flag OFF on all 4 reachable orgs; org-key oracle enumerates the org set so a flag-enabled org would be findable if it exists
+evidence_needed: any org returning non-403 with a valid caseTypeId
+verify_steps: POST nil caseTypeId per org UUID; look for 400/404 vs 403
+impact: unauth case creation/spam into Engage if flag enabled; MEDIUM (capped today)
+testability: PASSIVE
+[HYP]
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: unauth POST resolves SSO config per domain (8 tenants); error schema distinguishes configured vs not; WorkOS client_id + connection_id + signed relayState with Entra tenant IDs disclosed
+evidence_needed: roster closure confirmed
+verify_steps: dictionary probes (transit-agency wordlist) — closed at 8
+impact: partner/SSO tenant enumeration; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+[NEXT] DOCUMENT: regions finding as primary deliverable — map the 7 returned regions to the 6 OOS subdomains to quantify topology exposure for the report.
+[LEARN]
+class: AUTH
+[LEARN]
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[LEARN]
+class: IDOR
+testability: PASSIVE
+[HYP]
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: unauth POST resolves SSO config per domain (8 tenants); error schema distinguishes configured vs not; WorkOS client_id + connection_id + signed relayState with Entra tenant IDs disclosed
+evidence_needed: roster closure confirmed
+verify_steps: dictionary probes (transit-agency wordlist) — closed at 8
+impact: partner/SSO tenant enumeration; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+[NEXT] DOCUMENT: regions finding as primary deliverable — map the 7 returned regions to the 6 OOS subdomains to quantify topology exposure for the report.
+[LEARN]
+class: AUTH
+[LEARN]
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+verify_steps: PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"winnipeg.ca"}' (confirm 200+172B+ACAO+ACAC); PROBE: POST same with bart.gov/soundtransit.org (confirm 404+ACAO+ACAC); PROBE: OPTIONS https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" (confirm CORS on 404 branch)
+reasoning: unauth POST resolves SSO config per domain (8 tenants); error schema distinguishes configured vs not; WorkOS client_id + connection_id + signed relayState with Entra tenant IDs disclosed
+evidence_needed: roster closure confirmed
+verify_steps: dictionary probes (transit-agency wordlist) 
+impact: partner/SSO tenant enumeration; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+[NEXT] DOCUMENT: regions finding as primary deliverable 
+[LEARN]
+class: AUTH
+[LEARN]
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[LEARN]
+class: IDOR
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[LEARN]
+class: IDOR
+[NEXT] DOCUMENT: regions finding as primary deliverable — map the 7 returned regions to the 6 OOS subdomains to quantify topology exposure for the report.
+[LEARN]
+class: AUTH
+[LEARN]
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[LEARN]
+class: IDOR
+testability: PASSIVE
+[HYP]
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: unauth POST resolves SSO config per domain (8 tenants); error schema distinguishes configured vs not; WorkOS client_id + connection_id + signed relayState with Entra tenant IDs disclosed
+evidence_needed: roster closure confirmed
+verify_steps: dictionary probes (transit-agency wordlist) — closed at 8
+impact: partner/SSO tenant enumeration; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+[NEXT] DOCUMENT: regions finding as primary deliverable — map the 7 returned regions to the 6 OOS subdomains to quantify topology exposure for the report.
+[LEARN]
+class: AUTH
+[LEARN]
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[LEARN]
+class: IDOR
+[NEW] api.sparelabs.com/v1/global/regions: re-verified LIVE 200+725B+ACAO+ACAC, body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe exact match; maps 7 regions (CA/US/US2/US3/JP/EU/UAT) to 6 OOS api/routing subdomain pairs — topology exposure deliverable.
+[CHANGED] api.sparelabs.com/v1/identity/workos/auth: SSO roster NOT closed at 8 — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) + cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC) confirmed live; roster ≥10; prior log attribution oakville→conn_01GRW7M1CJEJGYKMEMPBCQEZHY CORRECTED (that id is spare.com's).
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — reprobed live 2026-08-16 16:24 UTC, 200+725B+ACAO+ACAC, sha256 fb9800acb…95c3fe exact; longcat "PATCHED" (2026-08-11) false positive confirmed.
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: roster NOT closed at 8 — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) + cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC) confirmed live; roster ≥10; 23 Spare-partner-list domains all 404 (roster closure validated); prior oakville id attribution was spare.com's — corrected.
+[LEARN] REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: Spare public customer-stories partner list (psta.net, c-tran.com, capmetro.org, milton.ca, etc.) does NOT expand the SSO roster — 0/23 new tenants; SSO set is not derivable from published marketing material.
