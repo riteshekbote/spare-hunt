@@ -9284,3 +9284,4 @@ evidence_needed: confirmed; residual = payload size (empty `{"data":[]}`) caps s
 verify_steps: PROBE (once, already proven): `curl -s -m15 -D - -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations` → expect 200 + 11B + ACAO+ACAC.
 impact: auth-fail-open on GET confirming route-level omission pattern; empty payload → LOW data impact but HIGH pattern severity with universal CORS.
 testability: PASSIVE
+## 2026-08-16 11:44:20 UTC [api] (model bigpickle)
