@@ -9675,3 +9675,4 @@ class: IDOR
 [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — reprobed live 2026-08-16 16:24 UTC, 200+725B+ACAO+ACAC, sha256 fb9800acb…95c3fe exact; longcat "PATCHED" (2026-08-11) false positive confirmed.
 [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: roster NOT closed at 8 — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) + cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC) confirmed live; roster ≥10; 23 Spare-partner-list domains all 404 (roster closure validated); prior oakville id attribution was spare.com's — corrected.
 [LEARN] REJECTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: Spare public customer-stories partner list (psta.net, c-tran.com, capmetro.org, milton.ca, etc.) does NOT expand the SSO roster — 0/23 new tenants; SSO set is not derivable from published marketing material.
+## 2026-08-16 16:48:42 UTC [api] (model bigpickle)
