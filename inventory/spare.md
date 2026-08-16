@@ -2075,3 +2075,15 @@
 - NEW forms.sparelabs.com: NOW live (was TIMEOUT) — Engage portal SPA 200; strict HTML CSP (`connect-src https://*.sparelabs.com`); all API paths return SPA catch-all
 - NEW routing.sparelabs.com: NOW live (was TIMEOUT) — envoy 404 on ALL paths; STABLE dead, NO_DELTA since 2026-08-07
 - NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT) — Cloudflare+HSTS, static-only
+
+## 2026-08-16 23:55:50 UTC
+- NEW api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass now ONLY on FAST LB replicas (~0.11-0.14s) — 8/8 probes 200+725B; SLOW replicas return 401; previously stable across all replicas
+- NEW api.sparelabs.com/v1/global/organizations: Zero-header read-only bypass now ONLY on SLOW LB replicas (~0.55-1.04s) — 8/8 probes 200+11B; FAST replicas return 401; previously stable across all replicas
+- CHANGED api.sparelabs.com/v1/global/regions: Multi-version LB replica split confirmed as mechanism behind 96h intermittent flapping — NOT a patch, bypasses are replica-version-dependent
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants — saskatoon.ca + mbta.com + oakville.ca + cota.com newly confirmed; fleet-parity across 7 hosts
+- NEW /v1/identity/workos/auth POST redirect_uri/state reflection hypothesis UNTESTED — potential OAuth parameter injection vector via SSO oracle
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted (infra leak ELIMINATED)
+- NEW platform.sparelabs.com: NOW live (was TIMEOUT) — MFE SPA shell 200; CSP `/login` infra leak STABLE (admin Vercel apps dev-only, Metabase prod+staging, 9 cloud services)
+- NEW forms.sparelabs.com: NOW live (was TIMEOUT) — Engage portal SPA 200; strict HTML CSP (`connect-src https://*.sparelabs.com`); all API paths return SPA catch-all
+- NEW routing.sparelabs.com: NOW live (was TIMEOUT) — envoy 404 on ALL paths; STABLE dead, NO_DELTA since 2026-08-07
+- NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT) — Cloudflare+HSTS, static-only
