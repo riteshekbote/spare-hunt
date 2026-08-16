@@ -1728,3 +1728,8 @@
 - 2026-08-16 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, only tested no-auth path, bypass stable 86h+
 - 2026-08-16 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); prod-only data
 - 2026-08-16 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401), handler reached (nil→404, spare→403 feature-flag gate)
+- 2026-08-16 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: NOT patched — Bearer x → 200+725B+ACAO+ACAC confirmed live 2026-08-16 15:55 UTC; longcat "PATCHED" (2026-08-11) false positive, only tested no-auth path
+- 2026-08-16 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — POST/PUT/PATCH/DELETE → 401 InvalidTokenError, bypass is GET read-only only
+- 2026-08-16 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth-gate absent confirmed — empty POST→400, nil-UUID→404, spare UUID+valid caseTypeId+contactInfo→403 ForbiddenError (feature-flag gate, NOT auth gate)
+- 2026-08-16 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/spare: 200+351B confirmed live (UUID d736519f-f384-4771-a2d2-4f95e884d790, 5 feature flags, logoUrl on GCS)
+- 2026-08-16 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js confirmed PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted

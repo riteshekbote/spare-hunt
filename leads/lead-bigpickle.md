@@ -9409,3 +9409,24 @@ class: BUSLOGIC
 class: MISCONFIG
 [LEARN]
 class: IDOR
+## 2026-08-16 15:57:48 UTC [api] (model bigpickle)
+testability: PASSIVE
+[HYP]
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: unauth POST resolves SSO config per domain (8 tenants); error schema distinguishes configured vs not; WorkOS client_id + connection_id + signed relayState with Entra tenant IDs disclosed
+evidence_needed: roster closure confirmed
+verify_steps: dictionary probes (transit-agency wordlist) — closed at 8
+impact: partner/SSO tenant enumeration; MEDIUM
+testability: PASSIVE
+[NEXT] PROBE (workos roster closure): POST 3 remaining agency domains to `/v1/identity/workos/auth`:
+[NEXT] DOCUMENT: regions finding as primary deliverable — map the 7 returned regions to the 6 OOS subdomains to quantify topology exposure for the report.
+[LEARN]
+class: AUTH
+[LEARN]
+class: BUSLOGIC
+[LEARN]
+class: MISCONFIG
+[LEARN]
+class: IDOR
