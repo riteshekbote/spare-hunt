@@ -57883,3 +57883,131 @@ DELTA = NO_DELTA. Live probes at 1s spacing confirm the core family is byte-stab
 **7. RISK SCORE** — api.sparelabs.com **99** (full family 86h+ unpatched, byte-stable, auth asymmetry + CORS credential reflection compound); platform.sparelabs.com **75** (CSP infra leak stable); routing.sparelabs.com **8** (no surface); forms.sparelabs.com **5** (patched); web (spare.com/sparelabs.com) **5** (static).
 
 **Summary**: Nothing new to action passively. The complete write-IDOR POC and the `formId`-resolution step are token-gated; the remaining hypotheses (SSO closure, org-key completeness) are closed or knowledge-bound. Recommend the program-provided test-org token as the single unlock.
+===== ANALYST bigpickle 2026-08-16 06:44:51 UTC =====
+[0m
+> build · big-pickle
+[0m
+STEP 1 — DELTA
+NO_DELTA — knowledge base current through 2026-08-16 05:31 UTC; inventory gladia 05:58 UTC shows only reconfirmations of the existing finding family (regions/orgs bypass, engage write-chain, SSO/org-key oracles, CORS reflection, platform CSP leak); no new or changed surface across last 6 cycles.
+
+STEP 2 — PRIORITIZE
+[PRIO] api.sparelabs.com/v1/global/regions (GET): priority 8.9 | attack 9 business 9 tech 8 gate 10 cloud 8 fresh 7
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST: priority 7.6 | attack 7 business 9 tech 7 gate 9 cloud 5 fresh 8
+[PRIO] api.sparelabs.com/v1/global/organizations (GET): priority 7.3 | attack 7 business 8 tech 7 gate 10 cloud 5 fresh 7
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: priority 6.6 | attack 6 business 7 tech 7 gate 9 cloud 5 fresh 7
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}: priority 6.4 | attack 6 business 7 tech 6 gate 10 cloud 4 fresh 7
+[PRIO] platform.sparelabs.com/login CSP leak: priority 5.2 | attack 4 business 6 tech 5 gate 8 cloud 4 fresh 4
+[PRIO] api.sparelabs.com/v1/**: CORS credential reflection: priority 5.0 | attack 6 business 5 tech 6 gate 5 cloud 4 fresh 4
+
+STEP 3 — HYPOTHESES
+[HYP] Regions gate validates only header presence + Bearer scheme prefix; token fully omissible
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions (GET)
+confidence: 97
+reasoning: live re-verified — `Authorization: Bearer x` → 200 + 725B sha fb9800acb…585c3fe byte-exact vs 86h+ baseline; no-auth → 400; control /v1/journeys 401; ACAO+ACAC on the 200; fleet-parity 7 hosts.
+evidence_needed: confirmed; empty-token variant `Bearer ` retained for record only.
+verify_steps: PROBE (once, already proven): `curl -H "Authorization: Bearer" -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/regions` → expect 200 + 725B.
+impact: fully-unauthenticated infra topology disclosure (7 regions, 6 OOS api/routing hosts) + CORS credentials — HIGH.
+testability: PASSIVE
+[HYP] Unauth cross-tenant Engage write-IDOR via absent auth gate
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/cases (POST) + /caseForms (POST)
+confidence: 68
+reasoning: empty POST → 400 ValidationError with no InvalidTokenError; nil-UUID → 404 handler-reach; spare-UUID → 403 feature-flag gate (not auth); CORS+credentials reflected on all branches.
+evidence_needed: one real caseTypeKey + defaultFormKey from authorized caseTypes listing; passive derivation ruled out (bundle + formKey guesses 404).
+verify_steps: AUTH_HELPED: test-org token → authorized caseTypes → capture caseTypeKey+defaultFormKey → `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>` → `POST /v1/public/engage/caseForms` (+ /cases) with org d736519f-f384-4771-a2d2-4f95e884d790; delete test data after.
+impact: unauth cross-tenant PII-bearing case/form-response injection into any org with external-creation flag; MEDIUM.
+testability: AUTH_HELPED
+[HYP] SSO roster closed at 8 — exact-match domain keying; residual = new-agency growth events
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 55
+reasoning: exact-match confirmed (www./m./alt-TLD/email-shaped → 404); transit dictionary exhausted; 8 tenants (winnipeg.ca 8th, conn_01HP76… byte-stable), connection_id byte-stable per domain, fleet-parity 7 hosts.
+evidence_needed: newly-onboarded agency/municipality domain returning 200.
+verify_steps: PASSIVE: re-sweep only newly-announced agency domains at 1/30s with spare.com 200 control; no continuous enumeration.
+impact: tenant/SSO-config enumeration (WorkOS client_id + connection_id + Entra tenant IDs); bounded at 8. LOW-MED.
+testability: PASSIVE
+
+STEP 4 — SELF-CRITIQUE
+No drops: regions AUTH 97 (class AUTH live-proven, stable 86h+), Engage IDOR 68 (class not rejected, concrete AUTH_HELPED steps), SSO roster IDOR 55 (class not rejected, bounded passive sweep defined). All above confidence floor with executable verify_steps.
+[FINAL] 1. regions scheme-only bypass (97) | 2. Engage write-IDOR (68) | 3. SSO roster closure (55)
+
+STEP 5 — NEXT ACTION
+[NEXT] HUMAN: request one authorized test-org token from the program; enumerate authorized caseTypes to capture a real caseTypeKey + defaultFormKey, resolve formId via `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>`, then complete the unauth write-IDOR POC on `POST /v1/public/engage/caseForms` (and /cases) with org UUID d736519f-f384-4771-a2d2-4f95e884d790, deleting test data after. All passive leads confirmed stable; only this gated step can move the Engage chain from latent to proven.
+
+STEP 6 — LEARNING
+No class newly proven dead or alive this cycle — full finding family re-verified stable (86h+), all prior REJECTED/ACCEPTED classes unchanged. Only reconfirmation-level output; no [LEARN] emission warranted.
+
+STEP 7 — RISK SCORE
+[RISK] api.sparelabs.com: 99 — full finding family 86h+ unpatched and byte-stable (regions scheme-only bypass with fully-omissible token + CORS credentials, orgs zero-header read-only fail-open, universal CORS credential reflection, absent-auth engage write chain reaching handlers, SSO 8-tenant + org-key 5-org + UUID enumeration oracles); all re-verified live this cycle | platform.sparelabs.com: 75 — CSP infra leak stable (prod+staging admin Vercel apps loadable, Metabase prod+staging, 9 cloud services); strict HTML CSP + x-frame SAMEORIGIN mitigate HTML-level only | routing.sparelabs.com: 8 — envoy 404 on all paths, no surface, NO_DELTA since 2026-08-07 | forms.sparelabs.com: 5 — JS bundle patched (zero infra refs), strict HTML CSP + x-frame DENY, SPA catch-all, recon-only residual | web (spare.com/sparelabs.com): 5 — static Cloudflare+Webflow marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks.
+## Objective
+- Continue the Spare bug-bounty engagement (in scope: spare.com, sparelabs.com, platform/api/routing/forms.sparelabs.com) — current phase is POC on api.sparelabs.com, with all passive leads confirmed stable and one AUTH_HELPED step left to prove the unauth Engage write-IDOR chain.
+
+## Important Details
+- Program rules: GET/HEAD passive-first, ≤1 rps, no account creation, no data modification; all other sparelabs.com/spare.com subdomains + third parties OOS; secrets only as sha256.
+- Engagement strategy: run the 8-step analyst loop (DELTA → PRIORITIZE → HYPOTHESES → SELF-CRITIQUE → NEXT → LEARNING → RISK). Facts vs hypotheses strictly separated.
+- Top FINAL leads (ranked): 1) regions scheme-only bypass (conf 97) 2) Engage write-IDOR (conf 68) 3) SSO roster closure (conf 55).
+- Last cycles (2026-08-16 through 05:58 UTC) are NO_DELTA — all accepted findings reconfirmed live, ~86h+ unpatched.
+- Critical nuance: longcat's "PATCHED" claim (2026-08-11) on `/v1/global/regions` is a FALSE POSITIVE — longcat only tested the no-auth path (400), never the `Bearer x` vector; bypass remains live across all 7 fleet hosts.
+- Engage write chain: auth gate structurally ABSENT on POST /v1/public/engage/cases + /caseForms (empty POST → 400 ValidationError with no InvalidTokenError; nil-UUID → 404 handler-reach; spare-UUID → 403 feature-flag gate, not auth). Flapping GET variant downgraded to UNCONFIRMED.
+- Forms JS bundle `main.8a2a39cb.js` confirmed PATCHED (zero sparelabs/atlassian/ngrok/metabase/vercel refs); earlier "REACTIVATED" claim was a false positive — do not re-open.
+- Routing.sparelabs.com STABLE dead (envoy 404/0B on all paths) — do not re-probe heavily.
+
+## Work State
+### Completed
+- regions scheme-only bypass verified live 2026-08-16 05:28 UTC: `Authorization: Bearer x` → 200 + 725B, sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` byte-identical (86h+); no-auth→400; POST→401 (read-only); ACAO+ACAC on the 200; fleet-parity across prod/us/us2/us3/jp/eu/uat.
+- organizations zero-header bypass verified live 05:29 UTC: GET no auth → 200 + 11B `{"data":[]}` + ACAO+ACAC; writes (POST/PUT/PATCH/DELETE) → 401 InvalidTokenError (read-only, auth asymmetry confirmed).
+- org-key oracle verified live 05:31 UTC: live set closed at `{spare,grt,dallas,winnipeg,hsr}` (22 new candidates 404); prod-only data (uat/us2/jp→404).
+- SSO workos/auth oracle: 8 tenants (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov `conn_01JKRZ46KNAQRZN3J3PYTJKWAQ`, winnipeg.ca `conn_01HP76PPV8CMRJH6RYRTWEPSGS`); connection_id byte-stable per domain; fleet-parity 7 hosts.
+- Engage auth-gate-ABSENT confirmed live 05:30 UTC; universal CORS credential reflection confirmed on 200/400/403/404 paths this session.
+- Known UUIDs: spare `d736519f-f384-4771-a2d2-4f95e884d790`, grt `1966c7f8-3e36-4320-b0d7-de0f7d8d4355`, dallas `e5f587ba-50e7-4b0c-a2e6-e01f061d048d`, winnipeg `6c84b370-5cc2-42c6-8cdd-146c99648535`.
+- /v1/public/terms per-tenant config confirmed: spare→107B literal "asdfd" prod junk, winnipeg→197B real URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic; prod-only.
+- platform.sparelabs.com now live (was TIMEOUT→200 MFE shell); /login CSP leak stable (admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app prod+staging, Metabase prod+staging, 9 cloud services); no API behind MFE (10/10 admin paths SPA catch-all).
+- WorkOS identifiers disclosed: client_id `client_01F5KHYX32TCKB1E7YEAPE0H17`; Entra tenant IDs 4bdf4200-8d79-408b-940d-bdc4a1c9bfaa (dart) / 4157b39d-533a-41f7-8314-898c4d2ff33b (translink).
+
+### Active
+- Engage write-IDOR POC (conf 68) is the only open lead; needs real caseTypeKey + defaultFormKey then POST on /cases + /caseForms with org `d736519f-f384-4771-a2d2-4f95e884d790`.
+- SSO roster closure (conf 55): residual = new-agency onboarding events only; re-sweep newly-announced agency domains, no continuous enumeration.
+- Risk profile (last): api 99 | platform 75 | routing 8 | forms 5 | web 5.
+
+### Blocked
+- Engage write-IDOR evidence requires an AUTH_HELPED test-org token (authorized caseTypes listing) — passive derivation ruled out (bundle + formKey guesses 404; GET form resolution flapping on multi-version envoy LB).
+- GitHub repo scan pipeline broken (scan-target misconfigured — gladiaio org; reposcan-raw/sparelabs dir empty) — do not trust until clone target fixed.
+
+## Next Move
+1. [HUMAN] Request one authorized test-org token from the program; then: GET authorized caseTypes → capture real caseTypeKey + defaultFormKey → `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>` → `POST /v1/public/engage/caseForms` (+ /cases) with org `d736519f-f384-4771-a2d2-4f95e884d790`; delete test data after.
+2. Otherwise PROBE (passive, 1/30s, spare.com 200 control): re-sweep only newly-announced agency/municipality domains against `POST /v1/identity/workos/auth` `{"domain": "<candidate>"}`; no other changes expected (NO_DELTA).
+
+## Relevant Files
+- /tmp/opencode/regions.json: captured 725B regions body (7 regions: CA, US, US2, US3, JP, EU, UAT with apiUrl+routingHost each) — baseline for sha256 drift checks, or "(none)" if regenerated.
+- (none other referenced in context)
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+STEP 1 — DELTA
+NO_DELTA — full finding family re-verified stable across last 6 cycles (86h+); no new or changed surface.
+
+STEP 2 — PRIORITIZE
+[PRIO] regions scheme-only bypass: 8.9 — stable, fully-proven, top asset
+[PRIO] Engage write-IDOR: 7.6 — only latent-to-proven chain remaining
+[PRIO] SSO roster closure: 6.6 — bounded residual (new-agency events)
+[PRIO] orgs zero-header bypass: 7.3 — proven, write-escalation rejected
+[PRIO] org-key oracle: 6.4 — proven, live set closed at 5
+[PRIO] CORS reflection: 5.0 — proven, universal across api.v1
+
+STEP 3 — HYPOTHESES
+[HYP] regions gate = header-presence + Bearer-scheme only (AUTH, conf 97) — proven live 86h+, sha-stable; no further evidence needed.
+[HYP] Engage unauth cross-tenant write-IDOR (IDOR, conf 68) — auth gate structurally absent (400 ValidationError / 404 handler-reach / 403 feature-flag, never auth); blocked on real caseTypeKey+defaultFormKey.
+[HYP] SSO roster closed at 8 (IDOR, conf 55) — exact-match keying, bounded; residual = newly-announced agency domains only.
+
+STEP 4 — SELF-CRITIQUE
+No drops — all three above 40-floor, classes not on REJECTED list, verify_steps executable. Ranking unchanged.
+
+STEP 5 — NEXT ACTION
+Stop for HUMAN: the only forward step is the gated AUTH_HELPED request — one authorized test-org token from the program to enumerate authorized caseTypes, capture a real caseTypeKey + defaultFormKey, resolve formId, and complete the unauth write-IDOR POC on `POST /v1/public/engage/caseForms` (+ /cases) with org UUID `d736519f-f384-4771-a2d2-4f95e884d790`. Without it, the Engage chain cannot move and all passive leads are exhausted and stable.
+
+STEP 6 — LEARNING
+No class newly proven dead/alive this cycle; no [LEARN] warranted.
+
+STEP 7 — RISK SCORE
+[RISK] api 99 | platform 75 | routing 8 | forms 5 | web 5 — unchanged.
+
+I need the test-org token to continue the Engage write-IDOR POC; all passive work is exhausted and stable. Can you request it from the program, or should I do anything else?
