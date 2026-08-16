@@ -9369,3 +9369,4 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 15 reason — Engage SPA 200 (newly live); strict HTML CSP + x-frame DENY; JS bundle patched (zero infra leaks); 3 Google Maps keys referrer-restricted; SPA catch-all returns index.html for all paths; no real API endpoints behind host
 [RISK] web (spare.com/sparelabs.com): 10 reason — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
 ## 2026-08-16 14:26:53 UTC [api] (model bigpickle)
+## 2026-08-16 14:51:43 UTC [api] (model bigpickle)
