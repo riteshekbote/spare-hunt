@@ -60562,3 +60562,883 @@ Probes complete. Compiling analysis.
 - **NEXT ACTION:** AUTH_HELPED token for an org with external case creation enabled → complete the Engage cross-tenant write-IDOR proof. All passive leads otherwise exhausted.
 
 Note: Today's engage probe result (403 feature-gate reach vs prior 404 "Other was not found") means nil-UUID caseTypeIds now pass the caseType lookup; the org feature flag is the sole remaining pre-write gate.
+===== ANALYST bigpickle 2026-08-16 13:59:57 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mls -la /home/runner/work/spare-hunt/spare-hunt 2>/dev/null && ls reports 2>/dev/null
+total 1104
+drwxr-xr-x 11 runner runner   4096 Aug 16 13:55 .
+drwxr-xr-x  3 runner runner   4096 Aug 16 13:55 ..
+drwxr-xr-x  7 runner runner   4096 Aug 16 13:55 .git
+drwxr-xr-x  3 runner runner   4096 Aug 16 13:55 .github
+-rw-r--r--  1 runner runner   1043 Aug 16 13:55 README.md
+-rw-r--r--  1 runner runner     32 Aug 16 13:55 analyst-out.txt
+-rw-r--r--  1 runner runner 437850 Aug 16 13:55 analyst-prompt.txt
+-rw-r--r--  1 runner runner 434652 Aug 16 13:55 ctx.txt
+drwxr-xr-x  2 runner runner   4096 Aug 16 13:55 inventory
+drwxr-xr-x  2 runner runner   4096 Aug 16 13:55 knowledge
+drwxr-xr-x  2 runner runner  28672 Aug 16 13:55 leads
+-rw-r--r--  1 runner runner 140595 Aug 16 13:55 probe-results.md
+drwxr-xr-x  2 runner runner   4096 Aug 16 13:55 reports
+drwxr-xr-x  2 runner runner   4096 Aug 16 13:55 reposcan-raw
+-rw-r--r--  1 runner runner   1539 Aug 16 13:55 scope.yml
+drwxr-xr-x  2 runner runner   4096 Aug 16 13:55 scripts
+-rw-r--r--  1 runner runner     33 Aug 16 13:55 state_bigpickle.json
+-rw-r--r--  1 runner runner     33 Aug 16 13:55 state_laguna.json
+-rw-r--r--  1 runner runner     35 Aug 16 13:55 state_ling3.json
+-rw-r--r--  1 runner runner     37 Aug 16 13:55 state_longcat.json
+-rw-r--r--  1 runner runner     38 Aug 16 13:55 state_nemotron3.json
+drwxr-xr-x  2 runner runner  12288 Aug 16 13:55 triage
+analyst-bigpickle.log
+analyst-laguna.log
+analyst-ling3.log
+analyst-longcat.log
+analyst-nemotron3.log
+hypotheses-bigpickle.txt
+hypotheses-laguna.txt
+hypotheses-ling3.txt
+hypotheses-longcat.txt
+hypotheses-nemotron3.txt
+hypotheses.md
+valid-bugs.md
+[0m
+[0m$ [0mcat AGENTS.md 2>/dev/null | head -50; echo "---"; ls /tmp/opencode 2>/dev/null
+---
+[0m
+## Objective
+- Continue bug-bounty analysis for the Spare program (POC phase, target `api`): maintain the knowledge base, run the 8-step analyst cycle (DELTA/PRIORITIZE/HYPOTHESES/SELF-CRITIQUE/NEXT/LEARNING/RISK), and surface new passive-first leads against in-scope hosts.
+
+## Important Details
+- Scope IN: spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com. OUT: all other subdomains of sparelabs.com/spare.com + third-party hosts; metabase.sparelabs.com and admin-*.vercel.app are OOS per exclusions.
+- Passive-first: GET/HEAD only, ≤1 rps, no account creation, no data modification. No raw secrets in output (sha256 only).
+- Confirmed stable family (86h+ unpatched) on api.sparelabs.com:
+  - `/v1/global/regions` — scheme-only Bearer bypass: `Authorization: Bearer x` → 200 + 725B region registry (7 regions CA/US/US2/US3/JP/EU/UAT incl. 6 OOS api/routing hosts) + ACAO+ACAC; no-Auth→400 "header required"; `Auth: x`→400 "scheme 'Bearer' required"; POST→401 (read-only). Body sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe`. Fleet parity across 7 hosts (prod/us/us2/us3/jp/eu/uat).
+  - `/v1/global/organizations` (GET) — zero-header read-only bypass: no-auth → 200 + 11B `{"data":[]}` + ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 InvalidTokenError; auth asymmetry confirmed; route-specific (22-sibling sweep: all others 401).
+  - `/v1/**` — universal CORS credential reflection: ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type uniform on OPTIONS 204 and GET 200/401/404.
+  - `/v1/public/organizations/{id}` (plural) — 3-way UUID oracle (malformed→400 ValidationError "must match format uuid"; nil→404 NotFoundError 131B; valid→200 HUMAN_ONLY); superior to flapping singular.
+  - `/v1/public/organizations/key/{key}` — org-key 3-way oracle; live set CLOSED at {spare, grt, dallas, winnipeg, hsr}; prod-only data (uat/us2/jp→404). Known UUIDs: spare `d736519f-f384-4771-a2d2-4f95e884d790`, grt `1966c7f8-3e36-4320-b0d7-de0f7d8d4355`, dallas `e5f587ba-50e7-4b0c-a2e6-e01f061d048d`, winnipeg `6c84b370-5cc2-42c6-8cdd-146c99648535`.
+  - `/v1/identity/workos/auth` (POST) — unauth SSO-config oracle: domain param discriminates 200 (configured, 172B: WorkOS client_id `client_01F5KHYX32TCKB1E7YEAPE0H17` + connection_id + Entra tenant_id in relayState) vs 404; 8 tenants confirmed (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov `conn_01JKRZ46KNAQRZN3J3PYTJKWAQ`, winnipeg.ca `conn_01HP76PPV8CMRJH6RYRTWEPSGS`, +1); fleet parity 7 hosts.
+  - `/v1/public/engage/cases` + `/caseForms` (POST) — auth gate structurally ABSENT: empty POST→400 ValidationError (no InvalidTokenError); nil-UUID→404 handler-reach; spare-UUID→403 ForbiddenError "External case creation is not enabled…" (feature-flag gate, NOT auth); CORS reflected.
+  - `/v1/public/terms` — no-auth data disclosure (200 + 137B terms URLs); per-tenant chain: spare→107B junk "asdfd", winnipeg→197B real URL, grt/hsr/dallas→137B generic.
+  - `/v1/public/organization` (singular) — oracle FLAPPING 2-way↔3-way across envoy replicas; downgraded to validation-leak-only.
+- Multi-version envoy LB confirmed (fast replica 1–5ms vs slow replica 500–1500ms); explains route flapping.
+- longcat "PATCHED" claim (2026-08-11) for /v1/global/regions is a FALSE POSITIVE — only tested no-auth (400), never tested Bearer-x vector.
+- Host status deltas: platform.sparelabs.com NOW live (200 MFE SPA shell; `POST /v1/identity/workos/auth` and `/login` CSP leak unchanged); forms.sparelabs.com NOW live (Engage SPA; JS bundle `main.8a2a39cb.js` CONFIRMED PATCHED, zero infra refs, 3 Google Maps keys referrer-restricted); routing.sparelabs.com NOW live but envoy 404/0B on ALL paths (dead since 2026-08-07); sparelabs.com NOW 301→spare.com.
+- Rejected/closed: routing dead; forms bundle leak patched; metabase OOS; admin-*.vercel.app dev-only; platform/forms admin path sweeps = SPA catch-all; write escalation on global routes; engage GET schema disclosure flapping/unreliable; spec-discovery + /v2//v3//health sweeps 404; sparelabs.ca dead; 22 global siblings + 8 undocumented controllers all 401.
+
+## Work State
+### Completed
+- Full stable finding family documented and re-verified across sessions (regions/orgs bypass, CORS, UUID + org-key oracles, WorkOS SSO oracle, engage auth-gate absence, terms disclosure, platform CSP leak).
+- Surface sweeps exhausted: 22 global siblings, 8 public/* siblings, organizations/{id}/* 6 subpaths, engage {caseType,form} 6 subpaths, spec-discovery, undocumented controllers, /v2//v3//health.
+- Forms JS bundle leak retracted/patched; engage/cases + caseForms POST auth gate re-confirmed live (empty→400 ValidationError, nil-UUID→404, spare-UUID→403 feature-flag gate).
+- 8th SSO tenant winnipeg.ca and 7th kingcounty.gov confirmed.
+
+### Active
+- Open HYP (confidence 68, IDOR, AUTH_HELPED): unauth cross-tenant Engage write-IDOR via structurally-absent auth gate at `/v1/public/engage/cases` + `/caseForms` (POST) — blocked on obtaining a real `caseTypeKey` + `defaultFormKey` to pass OpenAPI validation and reach data-write.
+- Confirmed/retained HYP for record: regions scheme-only bypass (97), organizations fail-open (96), WorkOS SSO oracle (90).
+- Latest analysis cycle output pending for session 2026-08-16 13:31+ UTC.
+
+### Blocked
+- Engage write-IDOR proof requires AUTH_HELPED test token: enumerate authorized caseTypes → capture caseTypeKey + defaultFormKey → resolve formId → POST caseForms/cases → delete test data after.
+- GitHub sparelabs repo scan pipeline broken (clone target = gladiaio org, reposcan-raw/sparelabs dir empty) — no code-surface data until fixed.
+
+## Next Move
+1. No new passive surface expected for next cycle; re-run 8-step cycle and, if no AUTH_HELPED token, re-verify the stable family (regions Bearer-x, orgs zero-header, org-key oracle) or probe formKey oracle on the OpenAPI-validating replica: `GET https://api.sparelabs.com/v1/public/engage/form?caseTypeKey=<guess>&formKey=<guess>&organizationId=<spare-uuid>` (≤1 rps).
+2. When authorized token available (HUMAN): enumerate test-org authorized caseTypes → capture caseTypeKey + defaultFormKey → `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>` → `POST /v1/public/engage/caseForms` (+ `/cases`) targeting org `d736519f-f384-4771-a2d2-4f95e884d790`; clean up test data.
+
+## Relevant Files
+- `/tmp/opencode/regions.json`: full 725B regions body captured (7 regions, apiUrl + routingHost each).
+- `reports/hypotheses-bigpickle.txt`: aggregated hypotheses (Engage write-IDOR source).
+- `reports/hypotheses-nemotron3.txt` / `reports/hypotheses-laguna.txt`: next-action probe sources.
+- `reposcan-raw/sparelabs`: empty — repo-scan runner misconfig (gladiaio org instead of sparelabs); fix clone target before trusting.
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+[0m$ [0mcat state_bigpickle.json state_laguna.json 2>/dev/null; echo "---SCOPE---"; cat scope.yml 2>/dev/null | head -60; echo "---OUT---"; cat analyst-out.txt 2>/dev/null
+{"phase": "POC", "target": "api"}{"phase": "POC", "target": "web"}---SCOPE---
+programs:
+  spare:
+    name: Spare Bug Bounty
+    disclosure_policy: TBD - operator-provided program scope (update once public channel confirmed)
+    assets:
+      - name: spare.com
+        priority: In
+      - name: sparelabs.com
+        priority: In
+      - name: platform.sparelabs.com
+        priority: In
+      - name: api.sparelabs.com
+        priority: In
+      - name: routing.sparelabs.com
+        priority: In
+      - name: forms.sparelabs.com
+        priority: In
+    out_of_scope:
+      - "All other subdomains of sparelabs.com"
+      - "All other subdomains of spare.com"
+      - "Third-party services"
+    github_orgs:
+      - sparelabs
+
+rules:
+  passive_first: true          # GET/HEAD reads first; no invasive testing without program approval
+  max_requests_per_second: 1   # never hammer
+  no_doom: true                # no DoS/DDoS, no resource-exhaustion tests
+  no_account_creation: true    # no mass signups without program approval
+  no_data_modification: true   # no writes, deletes, state changes on live infra
+  no_pre_disclosure: true      # never disclose before program response
+  redact_secrets_in_commits: true   # commit sha256 of secrets, never raw values
+
+# Multi-model ensemble: every hunt run picks a rotation of the 5 models.
+models:
+  - { id: opencode/big-pickle, name: bigpickle }
+  - { id: opencode/nemotron-3-ultra-free, name: nemotron3 }
+  - { id: opencode/longcat-2.0-free, name: longcat }
+  - { id: opencode/ling-3.0-flash-free, name: ling3 }
+  - { id: opencode/laguna-s-2.1-free, name: laguna }
+---OUT---
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mls -la /home/runner/work/spare-hunt/spare-hunt 2>/dev/null && ls reports 2>/dev/null
+total 1104
+drwxr-xr-x 11 runner runner   4096 Aug 16 13:55 .
+drwxr-xr-x  3 runner runner   4096 Aug 16 13:55 ..
+drwxr-xr-x  7 runner runner   4096 Aug 16 13:55 .git
+drwxr-xr-x  3 runner runner   4096 Aug 16 13:55 .github
+-rw-r--r--  1 runner runner   1043 Aug 16 13:55 README.md
+-rw-r--r--  1 runner runner     32 Aug 16 13:55 analyst-out.txt
+-rw-r--r--  1 runner runner 437850 Aug 16 13:55 analyst-prompt.txt
+-rw-r--r--  1 runner runner 434652 Aug 16 13:55 ctx.txt
+drwxr-xr-x  2 runner runner   4096 Aug 16 13:55 inventory
+drwxr-xr-x  2 runner runner   4096 Aug 16 13:55 knowledge
+drwxr-xr-x  2 runner runner  28672 Aug 16 13:55 leads
+-rw-r--r--  1 runner runner 140595 Aug 16 13:55 probe-results.md
+drwxr-xr-x  2 runner runner   4096 Aug 16 13:55 reports
+drwxr-xr-x  2 runner runner   4096 Aug 16 13:55 reposcan-raw
+-rw-r--r--  1 runner runner   1539 Aug 16 13:55 scope.yml
+drwxr-xr-x  2 runner runner   4096 Aug 16 13:55 scripts
+-rw-r--r--  1 runner runner     33 Aug 16 13:55 state_bigpickle.json
+-rw-r--r--  1 runner runner     33 Aug 16 13:55 state_laguna.json
+-rw-r--r--  1 runner runner     35 Aug 16 13:55 state_ling3.json
+-rw-r--r--  1 runner runner     37 Aug 16 13:55 state_longcat.json
+-rw-r--r--  1 runner runner     38 Aug 16 13:55 state_nemotron3.json
+drwxr-xr-x  2 runner runner  12288 Aug 16 13:55 triage
+analyst-bigpickle.log
+analyst-laguna.log
+analyst-ling3.log
+analyst-longcat.log
+analyst-nemotron3.log
+hypotheses-bigpickle.txt
+hypotheses-laguna.txt
+hypotheses-ling3.txt
+hypotheses-longcat.txt
+hypotheses-nemotron3.txt
+hypotheses.md
+valid-bugs.md
+[0m
+[0m$ [0mcat AGENTS.md 2>/dev/null | head -50; echo "---"; ls /tmp/opencode 2>/dev/null
+---
+[0m
+## Objective
+- Continue bug-bounty analysis for the Spare program (POC phase, target `api`): maintain the knowledge base, run the 8-step analyst cycle (DELTA/PRIORITIZE/HYPOTHESES/SELF-CRITIQUE/NEXT/LEARNING/RISK), and surface new passive-first leads against in-scope hosts.
+
+## Important Details
+- Scope IN: spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com. OUT: all other subdomains of sparelabs.com/spare.com + third-party hosts; metabase.sparelabs.com and admin-*.vercel.app are OOS per exclusions.
+- Passive-first: GET/HEAD only, ≤1 rps, no account creation, no data modification. No raw secrets in output (sha256 only).
+- Confirmed stable family (86h+ unpatched) on api.sparelabs.com:
+  - `/v1/global/regions` — scheme-only Bearer bypass: `Authorization: Bearer x` → 200 + 725B region registry (7 regions CA/US/US2/US3/JP/EU/UAT incl. 6 OOS api/routing hosts) + ACAO+ACAC; no-Auth→400 "header required"; `Auth: x`→400 "scheme 'Bearer' required"; POST→401 (read-only). Body sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe`. Fleet parity across 7 hosts (prod/us/us2/us3/jp/eu/uat).
+  - `/v1/global/organizations` (GET) — zero-header read-only bypass: no-auth → 200 + 11B `{"data":[]}` + ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 InvalidTokenError; auth asymmetry confirmed; route-specific (22-sibling sweep: all others 401).
+  - `/v1/**` — universal CORS credential reflection: ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type uniform on OPTIONS 204 and GET 200/401/404.
+  - `/v1/public/organizations/{id}` (plural) — 3-way UUID oracle (malformed→400 ValidationError "must match format uuid"; nil→404 NotFoundError 131B; valid→200 HUMAN_ONLY); superior to flapping singular.
+  - `/v1/public/organizations/key/{key}` — org-key 3-way oracle; live set CLOSED at {spare, grt, dallas, winnipeg, hsr}; prod-only data (uat/us2/jp→404). Known UUIDs: spare `d736519f-f384-4771-a2d2-4f95e884d790`, grt `1966c7f8-3e36-4320-b0d7-de0f7d8d4355`, dallas `e5f587ba-50e7-4b0c-a2e6-e01f061d048d`, winnipeg `6c84b370-5cc2-42c6-8cdd-146c99648535`.
+  - `/v1/identity/workos/auth` (POST) — unauth SSO-config oracle: domain param discriminates 200 (configured, 172B: WorkOS client_id `client_01F5KHYX32TCKB1E7YEAPE0H17` + connection_id + Entra tenant_id in relayState) vs 404; 8 tenants confirmed (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov `conn_01JKRZ46KNAQRZN3J3PYTJKWAQ`, winnipeg.ca `conn_01HP76PPV8CMRJH6RYRTWEPSGS`, +1); fleet parity 7 hosts.
+  - `/v1/public/engage/cases` + `/caseForms` (POST) — auth gate structurally ABSENT: empty POST→400 ValidationError (no InvalidTokenError); nil-UUID→404 handler-reach; spare-UUID→403 ForbiddenError "External case creation is not enabled…" (feature-flag gate, NOT auth); CORS reflected.
+  - `/v1/public/terms` — no-auth data disclosure (200 + 137B terms URLs); per-tenant chain: spare→107B junk "asdfd", winnipeg→197B real URL, grt/hsr/dallas→137B generic.
+  - `/v1/public/organization` (singular) — oracle FLAPPING 2-way↔3-way across envoy replicas; downgraded to validation-leak-only.
+- Multi-version envoy LB confirmed (fast replica 1–5ms vs slow replica 500–1500ms); explains route flapping.
+- longcat "PATCHED" claim (2026-08-11) for /v1/global/regions is a FALSE POSITIVE — only tested no-auth (400), never tested Bearer-x vector.
+- Host status deltas: platform.sparelabs.com NOW live (200 MFE SPA shell; `POST /v1/identity/workos/auth` and `/login` CSP leak unchanged); forms.sparelabs.com NOW live (Engage SPA; JS bundle `main.8a2a39cb.js` CONFIRMED PATCHED, zero infra refs, 3 Google Maps keys referrer-restricted); routing.sparelabs.com NOW live but envoy 404/0B on ALL paths (dead since 2026-08-07); sparelabs.com NOW 301→spare.com.
+- Rejected/closed: routing dead; forms bundle leak patched; metabase OOS; admin-*.vercel.app dev-only; platform/forms admin path sweeps = SPA catch-all; write escalation on global routes; engage GET schema disclosure flapping/unreliable; spec-discovery + /v2//v3//health sweeps 404; sparelabs.ca dead; 22 global siblings + 8 undocumented controllers all 401.
+
+## Work State
+### Completed
+- Full stable finding family documented and re-verified across sessions (regions/orgs bypass, CORS, UUID + org-key oracles, WorkOS SSO oracle, engage auth-gate absence, terms disclosure, platform CSP leak).
+- Surface sweeps exhausted: 22 global siblings, 8 public/* siblings, organizations/{id}/* 6 subpaths, engage {caseType,form} 6 subpaths, spec-discovery, undocumented controllers, /v2//v3//health.
+- Forms JS bundle leak retracted/patched; engage/cases + caseForms POST auth gate re-confirmed live (empty→400 ValidationError, nil-UUID→404, spare-UUID→403 feature-flag gate).
+- 8th SSO tenant winnipeg.ca and 7th kingcounty.gov confirmed.
+
+### Active
+- Open HYP (confidence 68, IDOR, AUTH_HELPED): unauth cross-tenant Engage write-IDOR via structurally-absent auth gate at `/v1/public/engage/cases` + `/caseForms` (POST) — blocked on obtaining a real `caseTypeKey` + `defaultFormKey` to pass OpenAPI validation and reach data-write.
+- Confirmed/retained HYP for record: regions scheme-only bypass (97), organizations fail-open (96), WorkOS SSO oracle (90).
+- Latest analysis cycle output pending for session 2026-08-16 13:31+ UTC.
+
+### Blocked
+- Engage write-IDOR proof requires AUTH_HELPED test token: enumerate authorized caseTypes → capture caseTypeKey + defaultFormKey → resolve formId → POST caseForms/cases → delete test data after.
+- GitHub sparelabs repo scan pipeline broken (clone target = gladiaio org, reposcan-raw/sparelabs dir empty) — no code-surface data until fixed.
+
+## Next Move
+1. No new passive surface expected for next cycle; re-run 8-step cycle and, if no AUTH_HELPED token, re-verify the stable family (regions Bearer-x, orgs zero-header, org-key oracle) or probe formKey oracle on the OpenAPI-validating replica: `GET https://api.sparelabs.com/v1/public/engage/form?caseTypeKey=<guess>&formKey=<guess>&organizationId=<spare-uuid>` (≤1 rps).
+2. When authorized token available (HUMAN): enumerate test-org authorized caseTypes → capture caseTypeKey + defaultFormKey → `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>` → `POST /v1/public/engage/caseForms` (+ `/cases`) targeting org `d736519f-f384-4771-a2d2-4f95e884d790`; clean up test data.
+
+## Relevant Files
+- `/tmp/opencode/regions.json`: full 725B regions body captured (7 regions, apiUrl + routingHost each).
+- `reports/hypotheses-bigpickle.txt`: aggregated hypotheses (Engage write-IDOR source).
+- `reports/hypotheses-nemotron3.txt` / `reports/hypotheses-laguna.txt`: next-action probe sources.
+- `reposcan-raw/sparelabs`: empty — repo-scan runner misconfig (gladiaio org instead of sparelabs); fix clone target before trusting.
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+[0m
+[0m$ [0mcat reports/hypotheses-bigpickle.txt 2>/dev/null | tail -40; echo "---LAGUNA---"; cat reports/hypotheses-laguna.txt 2>/dev/null | tail -40
+## 2026-08-16 13:31:48 UTC [api] (model bigpickle)
+---LAGUNA---
+## 2026-08-16 13:30:22 UTC [web] (model laguna)
+[0m
+[0m$ [0mcat reports/hypotheses-bigpickle.txt 2>/dev/null; echo "=====LEADS====="; ls leads | head -30
+## 2026-08-16 13:31:48 UTC [api] (model bigpickle)
+=====LEADS=====
+lead-bigpickle.md
+lead-laguna.md
+lead-ling3.md
+lead-longcat.md
+lead-nemotron3.md
+reposcan-2026-08-07-19-19.md
+reposcan-2026-08-07-19-21.md
+reposcan-2026-08-07-19-31.md
+reposcan-2026-08-07-20-06.md
+reposcan-2026-08-07-20-42.md
+reposcan-2026-08-07-20-59.md
+reposcan-2026-08-07-21-40.md
+reposcan-2026-08-07-21-48.md
+reposcan-2026-08-07-22-09.md
+reposcan-2026-08-07-22-38.md
+reposcan-2026-08-07-22-55.md
+reposcan-2026-08-07-23-29.md
+reposcan-2026-08-07-23-35.md
+reposcan-2026-08-08-00-00.md
+reposcan-2026-08-08-01-03.md
+reposcan-2026-08-08-01-46.md
+reposcan-2026-08-08-03-07.md
+reposcan-2026-08-08-03-28.md
+reposcan-2026-08-08-04-17.md
+reposcan-2026-08-08-04-37.md
+reposcan-2026-08-08-05-12.md
+reposcan-2026-08-08-05-44.md
+reposcan-2026-08-08-06-00.md
+reposcan-2026-08-08-06-39.md
+reposcan-2026-08-08-06-56.md
+[0m
+[0m$ [0mgrep -ril "engage\|caseType\|formKey\|IDOR\|case" leads 2>/dev/null | head -20
+leads/reposcan-2026-08-08-10-15.md
+leads/reposcan-2026-08-15-23-27.md
+leads/reposcan-2026-08-15-03-12.md
+leads/reposcan-2026-08-08-15-57.md
+leads/reposcan-2026-08-15-03-55.md
+leads/lead-longcat.md
+leads/lead-laguna.md
+leads/lead-bigpickle.md
+leads/reposcan-2026-08-09-09-03.md
+leads/reposcan-2026-08-16-07-38.md
+leads/reposcan-2026-08-16-03-33.md
+leads/reposcan-2026-08-12-10-38.md
+leads/reposcan-2026-08-15-19-53.md
+leads/reposcan-2026-08-13-15-30.md
+leads/reposcan-2026-08-15-18-40.md
+leads/reposcan-2026-08-12-17-43.md
+leads/lead-nemotron3.md
+[0m
+[0m→ [0mRead leads/lead-bigpickle.md
+[0m→ [0mRead leads/lead-laguna.md
+[0m
+[0m$ [0mtail -c 3000 leads/lead-longcat.md; echo "====NEMO===="; tail -c 3000 leads/lead-nemotron3.md; echo "====LING3===="; tail -c 3000 leads/lead-ling3.md
+0 UTC [routing] (model longcat)
+## 2026-08-15 10:01:35 UTC [routing] (model longcat)
+## 2026-08-15 10:33:00 UTC [routing] (model longcat)
+## 2026-08-15 10:54:09 UTC [routing] (model longcat)
+## 2026-08-15 11:17:16 UTC [routing] (model longcat)
+## 2026-08-15 11:39:38 UTC [routing] (model longcat)
+## 2026-08-15 11:56:55 UTC [routing] (model longcat)
+## 2026-08-15 12:46:13 UTC [routing] (model longcat)
+## 2026-08-15 13:19:49 UTC [routing] (model longcat)
+## 2026-08-15 13:48:05 UTC [routing] (model longcat)
+## 2026-08-15 14:08:05 UTC [routing] (model longcat)
+## 2026-08-15 14:37:13 UTC [routing] (model longcat)
+## 2026-08-15 14:57:39 UTC [routing] (model longcat)
+## 2026-08-15 15:28:02 UTC [routing] (model longcat)
+## 2026-08-15 15:48:52 UTC [routing] (model longcat)
+## 2026-08-15 16:03:35 UTC [routing] (model longcat)
+## 2026-08-15 16:36:38 UTC [routing] (model longcat)
+## 2026-08-15 16:57:47 UTC [routing] (model longcat)
+## 2026-08-15 17:26:56 UTC [routing] (model longcat)
+## 2026-08-15 17:48:26 UTC [routing] (model longcat)
+## 2026-08-15 18:01:05 UTC [routing] (model longcat)
+## 2026-08-15 18:42:04 UTC [routing] (model longcat)
+## 2026-08-15 19:04:43 UTC [routing] (model longcat)
+## 2026-08-15 19:30:32 UTC [routing] (model longcat)
+## 2026-08-15 19:49:42 UTC [routing] (model longcat)
+## 2026-08-15 20:03:08 UTC [routing] (model longcat)
+## 2026-08-15 20:34:42 UTC [routing] (model longcat)
+## 2026-08-15 21:23:21 UTC [routing] (model longcat)
+## 2026-08-15 21:44:00 UTC [routing] (model longcat)
+## 2026-08-15 22:00:07 UTC [routing] (model longcat)
+## 2026-08-15 22:31:29 UTC [routing] (model longcat)
+## 2026-08-15 22:53:16 UTC [routing] (model longcat)
+## 2026-08-15 23:15:14 UTC [routing] (model longcat)
+## 2026-08-15 23:38:23 UTC [routing] (model longcat)
+## 2026-08-15 23:55:54 UTC [routing] (model longcat)
+## 2026-08-16 01:24:30 UTC [routing] (model longcat)
+## 2026-08-16 02:40:59 UTC [routing] (model longcat)
+## 2026-08-16 03:33:23 UTC [routing] (model longcat)
+## 2026-08-16 04:18:12 UTC [routing] (model longcat)
+## 2026-08-16 04:55:03 UTC [routing] (model longcat)
+## 2026-08-16 05:27:31 UTC [routing] (model longcat)
+## 2026-08-16 05:55:41 UTC [routing] (model longcat)
+## 2026-08-16 06:40:59 UTC [routing] (model longcat)
+## 2026-08-16 07:18:30 UTC [routing] (model longcat)
+## 2026-08-16 07:50:21 UTC [routing] (model longcat)
+## 2026-08-16 08:13:29 UTC [routing] (model longcat)
+## 2026-08-16 08:49:27 UTC [routing] (model longcat)
+## 2026-08-16 09:14:07 UTC [routing] (model longcat)
+## 2026-08-16 09:45:22 UTC [routing] (model longcat)
+## 2026-08-16 10:02:39 UTC [routing] (model longcat)
+## 2026-08-16 10:34:30 UTC [routing] (model longcat)
+## 2026-08-16 10:55:56 UTC [routing] (model longcat)
+## 2026-08-16 11:21:44 UTC [routing] (model longcat)
+## 2026-08-16 11:42:33 UTC [routing] (model longcat)
+## 2026-08-16 11:58:59 UTC [routing] (model longcat)
+## 2026-08-16 12:54:30 UTC [routing] (model longcat)
+## 2026-08-16 13:29:30 UTC [routing] (model longcat)
+====NEMO====
+e-flag gate); CORS reflected
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401), nil-UUID→404 "Form was not found" (handler reached); CORS reflected
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED (downgraded to recon-only)
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — nil→404 fast, 400 slow; downgraded to validation-leak-only, not oracle class
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — multi-version envoy LB confirmed, unreliable across replicas
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET only; auth gate active on write methods
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/regions (write escalation): POST `Bearer x` → 401 — bypass is read-only
+[RISK] api.sparelabs.com: 98 reason — CRITICAL+STABLE: zero-header no-auth bypass on /v1/global/organizations GET (200+11B+ACAO+ACAC fleet-wide); scheme-only bypass on /v1/global/regions (725B infra topology incl. 6 OOS subdomains fleet-wide); credential-reflecting CORS across entire /v1; /v1/public/terms disclosure (137B no-auth); plural /v1/public/organizations/{id} 3-way UUID oracle; /v1/public/organizations/key/{key} 3-way org key oracle (prod-only data); /v1/identity/workos/auth SSO-config oracle (8 tenants); /v1/public/engage/cases+caseForms unauth write paths; multi-version envoy LB; control /v1/journeys stable 401
+[RISK] platform.sparelabs.com: 80 reason — Admin SPA 200 (newly live); strict HTML CSP + x-frame SAMEORIGIN; CSP discloses prod admin Vercel apps (loadable 200) + Metabase (prod+staging 200) + 9 cloud services; MFE shell with embedded OpenAPI spec (170 paths, all properly gated); no real API surface behind platform host
+[RISK] routing.sparelabs.com: 5 reason — STABLE dead; envoy 404 on ALL probed paths; no surface; NO_DELTA since 2026-08-07
+[RISK] forms.sparelabs.com: 15 reason — Engage SPA 200 (newly live); strict HTML CSP + x-frame DENY; JS bundle patched (zero infra leaks); 3 Google Maps keys referrer-restricted; SPA catch-all returns index.html for all paths; no real API endpoints behind host
+[RISK] web (spare.com/sparelabs.com): 10 reason — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
+====LING3====
+del ling3)
+## 2026-08-15 07:51:35 UTC [forms] (model ling3)
+## 2026-08-15 08:15:59 UTC [forms] (model ling3)
+## 2026-08-15 08:49:10 UTC [forms] (model ling3)
+## 2026-08-15 09:12:29 UTC [forms] (model ling3)
+## 2026-08-15 09:43:15 UTC [forms] (model ling3)
+## 2026-08-15 10:01:32 UTC [forms] (model ling3)
+## 2026-08-15 10:33:06 UTC [forms] (model ling3)
+## 2026-08-15 10:54:12 UTC [forms] (model ling3)
+## 2026-08-15 11:17:13 UTC [forms] (model ling3)
+## 2026-08-15 11:39:41 UTC [forms] (model ling3)
+## 2026-08-15 11:56:57 UTC [forms] (model ling3)
+## 2026-08-15 12:46:13 UTC [forms] (model ling3)
+## 2026-08-15 13:19:52 UTC [forms] (model ling3)
+## 2026-08-15 13:48:05 UTC [forms] (model ling3)
+## 2026-08-15 14:08:00 UTC [forms] (model ling3)
+## 2026-08-15 14:37:14 UTC [forms] (model ling3)
+## 2026-08-15 14:57:39 UTC [forms] (model ling3)
+## 2026-08-15 15:28:01 UTC [forms] (model ling3)
+## 2026-08-15 15:48:59 UTC [forms] (model ling3)
+## 2026-08-15 16:03:33 UTC [forms] (model ling3)
+## 2026-08-15 16:36:40 UTC [forms] (model ling3)
+## 2026-08-15 16:57:49 UTC [forms] (model ling3)
+## 2026-08-15 17:26:55 UTC [forms] (model ling3)
+## 2026-08-15 17:48:26 UTC [forms] (model ling3)
+## 2026-08-15 18:01:14 UTC [forms] (model ling3)
+## 2026-08-15 18:42:06 UTC [forms] (model ling3)
+## 2026-08-15 19:04:39 UTC [forms] (model ling3)
+## 2026-08-15 19:30:30 UTC [forms] (model ling3)
+## 2026-08-15 19:49:42 UTC [forms] (model ling3)
+## 2026-08-15 20:03:10 UTC [forms] (model ling3)
+## 2026-08-15 20:34:45 UTC [forms] (model ling3)
+## 2026-08-15 21:23:21 UTC [forms] (model ling3)
+## 2026-08-15 21:44:05 UTC [forms] (model ling3)
+## 2026-08-15 22:00:03 UTC [forms] (model ling3)
+## 2026-08-15 22:31:29 UTC [forms] (model ling3)
+## 2026-08-15 22:53:15 UTC [forms] (model ling3)
+## 2026-08-15 23:15:10 UTC [forms] (model ling3)
+## 2026-08-15 23:38:22 UTC [forms] (model ling3)
+## 2026-08-15 23:55:54 UTC [forms] (model ling3)
+## 2026-08-16 01:24:29 UTC [forms] (model ling3)
+## 2026-08-16 02:41:02 UTC [forms] (model ling3)
+## 2026-08-16 03:33:24 UTC [forms] (model ling3)
+## 2026-08-16 04:18:16 UTC [forms] (model ling3)
+## 2026-08-16 04:55:01 UTC [forms] (model ling3)
+## 2026-08-16 05:27:30 UTC [forms] (model ling3)
+## 2026-08-16 05:55:39 UTC [forms] (model ling3)
+## 2026-08-16 06:41:00 UTC [forms] (model ling3)
+## 2026-08-16 07:18:33 UTC [forms] (model ling3)
+## 2026-08-16 07:50:20 UTC [forms] (model ling3)
+## 2026-08-16 08:13:30 UTC [forms] (model ling3)
+## 2026-08-16 08:49:31 UTC [forms] (model ling3)
+## 2026-08-16 09:14:08 UTC [forms] (model ling3)
+## 2026-08-16 09:45:16 UTC [forms] (model ling3)
+## 2026-08-16 10:02:41 UTC [forms] (model ling3)
+## 2026-08-16 10:34:30 UTC [forms] (model ling3)
+## 2026-08-16 10:55:55 UTC [forms] (model ling3)
+## 2026-08-16 11:21:45 UTC [forms] (model ling3)
+## 2026-08-16 11:42:31 UTC [forms] (model ling3)
+## 2026-08-16 11:58:58 UTC [forms] (model ling3)
+## 2026-08-16 12:54:33 UTC [forms] (model ling3)
+## 2026-08-16 13:29:30 UTC [forms] (model ling3)
+[0m
+[0m$ [0mcat reports/hypotheses-longcat.txt 2>/dev/null | tail -60; echo "====NEMOHYP===="; cat reports/hypotheses-nemotron3.txt 2>/dev/null | tail -40; echo "====LINGHYP===="; cat reports/hypotheses-ling3.txt 2>/dev/null | tail -40
+## 2026-08-16 13:29:30 UTC [routing] (model longcat)
+====NEMOHYP====
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: POST domain param discriminates 200 (configured tenant) vs 404 (non-tenant); discloses WorkOS client_id + connection_id + signed relayState JWT with Entra tenant IDs; 8 tenants confirmed (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca + 1); fleet-parity across 7 hosts; universal CORS on both 200/404 branches
+evidence_needed: Expansion of tenant dictionary to confirm roster completeness; validation that Entra tenant IDs map to real corporate directories
+verify_steps: PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"winnipeg.ca"}' (confirm 200+172B+ACAO+ACAC); PROBE: POST same with bart.gov/soundtransit.org (confirm 404+ACAO+ACAC); PROBE: OPTIONS https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" (confirm CORS on 404 branch)
+impact: Enumeration of Spare's transit-agency customers + disclosure of Entra tenant IDs for partner orgs (dart.org→4bdf4200-8d79-408b-940d-bdc4a1c9bfaa, translink.ca→4157b39d-533a-41f7-8314-898c4d2ff33b); enables targeted reconnaissance; severity LOW-MEDIUM (config disclosure, no user data/auth bypass)
+testability: PASSIVE
+[HYP] Unauthenticated case creation via public engage API
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 87
+reasoning: POST with empty body returns 400 ValidationError (no 401 InvalidTokenError); nil-UUID org + valid caseTypeId reaches handler (404 NotFoundError "Other was not found"); spare org UUID + valid caseTypeId reaches handler and returns 403 ForbiddenError "External case creation is not enabled for this organization" (feature-flag gate, NOT auth gate); CORS reflected on all responses; multi-version envoy LB confirmed flapping on GET but POST path stable
+evidence_needed: Valid organizationId + caseTypeId combination that returns 201/200 (bypasses feature-flag gate) or confirmation that feature flag is per-org configurable
+verify_steps: PROBE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"caseTypeId":"00000000-0000-0000-0000-000000000000","organizationId":"d736519f-f384-4771-a2d2-4f95e884d790"}' (spare org UUID from org-key oracle); PROBE: POST same with winnipeg org UUID (6c84b370-5cc2-42c6-8cdd-146c99648535); PROBE: POST with caseForms endpoint to compare validation chains
+impact: Unauthenticated case creation in Spare Engage platform — could allow anonymous riders to create support cases, spam, or probe internal workflows; severity MEDIUM (feature-flag limits blast radius but auth gate fully absent)
+testability: PASSIVE
+[PARKED] UUID enumeration oracle on singular /v1/public/organization: confidence 35 — FLAPPING 2-way↔3-way across envoy replicas (nil→404 fast, 400 slow); downgraded to validation-leak-only; plural /organizations/{id} retains stable 3-way as superior discriminator; class IDOR on REJECTED list for this specific degraded endpoint
+[PARKED] Schema disclosure via /v1/public/engage/{caseType,form} GET: confidence 25 — FLAPPING between OpenAPI validation (400 required fields) and router-level "not found" (400) across multi-version envoy LB; unreliable across replicas; downgraded to UNCONFIRMED; class MISCONFIG not stable enough
+[FINAL] 1. Scheme-only Bearer bypass on global regions exposing fleet-wide infra topology (api.sparelabs.com/v1/global/regions) — confidence 96, class AUTH, PASSIVE
+[FINAL] 2. SSO tenant enumeration and Entra ID disclosure via WorkOS auth endpoint (api.sparelabs.com/v1/identity/workos/auth) — confidence 92, class IDOR, PASSIVE
+[FINAL] 3. Unauthenticated case creation via public engage API (api.sparelabs.com/v1/public/engage/cases POST) — confidence 87, class BUSLOGIC, PASSIVE
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" (confirm 200+725B+ACAO+ACAC; validate scheme-only bypass on current envoy replica)
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, only tested no-auth path; bypass stable 86h+ across 7 fleet hosts
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) confirmed 401 InvalidTokenError — bypass is READ-ONLY GET only, auth asymmetry verified at handler level
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 8th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); fleet-parity across 7 hosts; universal CORS on both 200/404 branches
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 new candidates 404; prod-only data (uat/us2/jp→404); SSO roster and org-key set definitively disjoint
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401), handler reached (nil-UUID→404 NotFoundError, spare-UUID→403 ForbiddenError feature-flag gate); CORS reflected
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401), nil-UUID→404 "Form was not found" (handler reached); CORS reflected
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED (downgraded to recon-only)
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — nil→404 fast, 400 slow; downgraded to validation-leak-only, not oracle class
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — multi-version envoy LB confirmed, unreliable across replicas
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET only; auth gate active on write methods
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/regions (write escalation): POST `Bearer x` → 401 — bypass is read-only
+[RISK] api.sparelabs.com: 98 reason — CRITICAL+STABLE: zero-header no-auth bypass on /v1/global/organizations GET (200+11B+ACAO+ACAC fleet-wide); scheme-only bypass on /v1/global/regions (725B infra topology incl. 6 OOS subdomains fleet-wide); credential-reflecting CORS across entire /v1; /v1/public/terms disclosure (137B no-auth); plural /v1/public/organizations/{id} 3-way UUID oracle; /v1/public/organizations/key/{key} 3-way org key oracle (prod-only data); /v1/identity/workos/auth SSO-config oracle (8 tenants); /v1/public/engage/cases+caseForms unauth write paths; multi-version envoy LB; control /v1/journeys stable 401
+[RISK] platform.sparelabs.com: 80 reason — Admin SPA 200 (newly live); strict HTML CSP + x-frame SAMEORIGIN; CSP discloses prod admin Vercel apps (loadable 200) + Metabase (prod+staging 200) + 9 cloud services; MFE shell with embedded OpenAPI spec (170 paths, all properly gated); no real API surface behind platform host
+[RISK] routing.sparelabs.com: 5 reason — STABLE dead; envoy 404 on ALL probed paths; no surface; NO_DELTA since 2026-08-07
+[RISK] forms.sparelabs.com: 15 reason — Engage SPA 200 (newly live); strict HTML CSP + x-frame DENY; JS bundle patched (zero infra leaks); 3 Google Maps keys referrer-restricted; SPA catch-all returns index.html for all paths; no real API endpoints behind host
+[RISK] web (spare.com/sparelabs.com): 10 reason — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
+====LINGHYP====
+## 2026-08-16 13:29:30 UTC [forms] (model ling3)
+[0m
+Let me check the freshest leads and the latest hypotheses from other models.
+[0m$ [0mls -t leads/ | head -8; echo "===TRIAGE==="; ls -t triage/ | head -5; echo "===KNOWLEDGE==="; ls knowledge/; echo "===INVENTORY==="; ls inventory/
+reposcan-2026-08-16-10-32.md
+reposcan-2026-08-16-10-37.md
+reposcan-2026-08-16-11-00.md
+reposcan-2026-08-16-11-24.md
+reposcan-2026-08-16-11-28.md
+reposcan-2026-08-16-11-49.md
+reposcan-2026-08-16-12-05.md
+reposcan-2026-08-16-12-36.md
+===TRIAGE===
+triage-2026-08-10-09-00.md
+triage-output.txt
+run-2026-08-16-10-45.md
+run-2026-08-16-11-10.md
+run-2026-08-16-11-41.md
+===KNOWLEDGE===
+index.md
+===INVENTORY===
+spare.md
+[0m
+[0m$ [0mfor f in $(ls -t leads/reposcan-* | head -3); do echo "=== $f ==="; tail -c 1200 "$f"; echo; done
+=== leads/reposcan-2026-08-16-10-32.md ===
+
+===== REPOSCAN 2026-08-16 10:32:37 UTC =====
+## Grep hits:
+SCAN SUMMARY: 0 code/config files scanned, 0 hits
+
+## Model analysis:
+[0m
+> build · nemotron-3-ultra-free
+[0m
+**Triage Result: No findings to report**
+
+| Category | Hits |
+|----------|------|
+| REAL_SECRET | 0 |
+| TEST_OR_EXAMPLE | 0 |
+| ENDPOINT_LEAK | 0 |
+| INTERESTING | 0 |
+
+**Verdict:**
+- REPORT_CANDIDATE: **no** — scan summary shows `0 code/config files scanned, 0 hits`. The gladiaio repos produced no grep matches this run.
+
+**Note:** The knowledge base provided covers Spare Labs (sparelabs.com / spare.com), not Gladia (gladia.io / @gladiaio/sdk). The scan target appears misconfigured (gladiaio org not scanned). Fix the repo clone target before trusting the next scan.
+
+=== leads/reposcan-2026-08-16-10-37.md ===
+
+===== REPOSCAN 2026-08-16 10:37:47 UTC =====
+## Grep hits:
+SCAN SUMMARY: 0 code/config files scanned, 0 hits
+
+## Model analysis:
+[0m
+> build · nemotron-3-ultra-free
+[0m
+No hits to triage — the scan scanned 0 files and found 0 secrets/endpoints.
+
+| Category | Count |
+|----------|-------|
+| REAL_SECRET | 0 |
+| TEST_OR_EXAMPLE | 0 |
+| ENDPOINT_LEAK | 0 |
+| INTERESTING | 0 |
+
+**Verdict:** No candidates to report. The gladiaio org scan appears misconfigured (targeting sparelabs org per KB, but gladiaio clone dir is empty). Fix the repo clone target before next scan.
+
+=== leads/reposcan-2026-08-16-11-00.md ===
+
+===== REPOSCAN 2026-08-16 11:00:21 UTC =====
+## Grep hits:
+SCAN SUMMARY: 0 code/config files scanned, 0 hits
+
+## Model analysis:
+[0m
+> build · nemotron-3-ultra-free
+[0m
+The scan returned **0 code/config files scanned, 0 hits**. There's nothing to triage.
+
+The knowledge base you provided is for **Spare Labs** (sparelabs.com, api.sparelabs.com, etc.), not Gladia. The Gladia scan appears to have found no scannable files in the target repos.
+[0m
+[0m$ [0mls scripts/; echo "===README==="; cat README.md
+sync-issues.py
+===README===
+# spare-hunt
+
+24/7 multi-model bug-hunting automation for **Spare**.
+
+Scope: see `scope.yml` (in-scope assets, exclusions, rules).
+
+How it works:
+
+- 5 opencode models (Big Pickle, Nemotron 3 Ultra, Longcat, Ling 3.0, Laguna) hunt in parallel every **10 minutes**, rotating targets
+- Deep public-repo scan of the `spare/` GitHub org(s) referenced in `scope.yml` every **30 minutes**
+- Triager job validates every lead with a second model + live passive probe, keeping a running count in `reports/valid-bugs.md`
+- All testing is **passive and read-only** (GET/HEAD, ≤1 rps, no account creation, no data modification) per program rules
+- Secrets are committed only as hashes; findings must be reported through the program channel referenced in `scope.yml`
+
+| Artifact | Purpose |
+|---|---|
+| `research/` | Per-model research journals |
+| `leads/` | Candidate findings (UNVALIDATED) |
+| `triage/` | Validation verdicts |
+| `reports/valid-bugs.md` | Validated findings + running count |
+| `scope.yml` | Program scope and rules (edit to adjust) |
+[0m
+[0m$ [0mcat knowledge/index.md | head -60
+# Knowledge Base (seed)
+
+## Program rules (from scope.yml)
+- In scope: spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com
+- Out of scope: ALL OTHER subdomains of sparelabs.com and spare.com; third-party services
+- Passive-first: GET/HEAD only, <=1 rps, no account creation, no data modification
+- Secrets in commits: sha256 only, never raw
+
+## Baseline surface (2026-08-07 passive recon)
+- spare.com: HTTP 200 (apex, in scope)
+- www.spare.com: 301 (subdomain -> OUT OF SCOPE per exclusions; note as excluded)
+- sparelabs.com / platform.sparelabs.com / routing.sparelabs.com / forms.sparelabs.com: TIMEOUT on https (CDN/WAF gating or slow origin; retry, log server headers when reachable)
+- api.sparelabs.com: HTTP 404 on /
+- GitHub org sparelabs (28 repos): dominated by third-party forks (react-native-*, mapbox-*, osrm-backend, graphile-worker, heroku-buildpack-lerna, node-postgres, swagger-express-validator, terraform-provider-typesense, OSM-iD-editor) + docs.sparelabs.com + getspare.github.io. Most are vendored forks -> LOW value; docs.sparelabs.com and getspare.github.io are first-party
+
+## Rejected / parked
+- (none yet)
+- 2026-08-07 REJECTED BUSLOGIC @ routing.sparelabs.com: asset unreachable, confidence below threshold, no auth context available
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1: live probe confirms /v1/journeys returns explicit 401 without auth, proving API surface exists behind edge gateway and auth enforcement is at least partially active
+- 2026-08-07 ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + MFE manifest enumeration of staging admin assets confirmed passively
+- 2026-08-07 REJECTED BUSLOGIC @ routing.sparelabs.com: asset returns envoy 404, no routing API surface visible, confidence below threshold, no auth context available
+- 2026-08-07 ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + `/login` prefetch script CONFIRMED leaking `admin-eam-app-staging.vercel.app`, `admin-fixed-route-app-staging.vercel.app`, `metabase.staging.sparelabs.com`, plus 20+ production infra URLs (Cognito, Stripe, DO Spaces, Sentry, Intercom, Mapbox).
+- 2026-08-07 ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle CONFIRMED leaking `api.staging.us.sparelabs.com`, `api.staging.sparelabs.com`, `forms.staging.sparelabs.com`, `forms.staging.us.sparelabs.com`, `api-spare.ngrok.io` (dev tunnel), `sparelabs.atlassian.net` (JIRA).
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com: `/v1/` API CONFIRMED discoverable via passive enum. 3 unauthenticated endpoints live (200/400/404); 15+ auth-gated endpoints confirmed (401). OpenAPI validation errors leak UUID format requirement + query param schema.
+- 2026-08-07 REJECTED AUTH @ api.sparelabs.com: Previous "auth not challengeable" hypothesis PARKED — edge properly returns 401 for auth-gated routes; new finding is the unauthenticated `/v1/public/*` endpoints.
+- 2026-08-07 REJECTED MISCONFIG @ forms.sparelabs.com: Object-store directory listing hypothesis PARKED — traffic served via envoy+Google CDN (not raw object store); SPA catch-all returns index.html for all paths.
+- 2026-08-07 REJECTED BUSLOGIC @ routing.sparelabs.com: CONFIRMED dead — all `/v1/`, `/api/`, `/routing/`, `/router`, `/v2/`, `/graphql`, `/map`, `/directions` paths return 404; no discoverable surface behind envoy gateway.
+- 2026-08-07 ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + /login prefetch script CONFIRMED leaking admin-eam-app-staging.vercel.app, admin-fixed-route-app-staging.vercel.app, metabase.staging.sparelabs.com, plus 20+ production infra URLs
+- 2026-08-07 ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle CONFIRMED leaking api.staging.us.sparelabs.com, api.staging.sparelabs.com, forms.staging.sparelabs.com, forms.staging.us.sparelabs.com, api-spare.ngrok.io, sparelabs.atlassian.net
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com: /v1/ API CONFIRMED discoverable via passive enum. 3 unauthenticated endpoints live (200/400/404); 15+ auth-gated endpoints confirmed (401). OpenAPI validation errors leak UUID format requirement + query param schema
+- 2026-08-07 REJECTED AUTH @ api.sparelabs.com: Previous "auth not challengeable" hypothesis PARKED — edge properly returns 401 for auth-gated routes; new finding is the unauthenticated /v1/public/* endpoints
+- 2026-08-07 REJECTED BUSLOGIC @ routing.sparelabs.com: CONFIRMED dead — all /v1/, /api/, /routing/, /router, /v2/, /graphql, /map, /directions paths return 404; no discoverable surface behind envoy gateway
+- 2026-08-07 REJECTED BUSLOGIC @ routing.sparelabs.com: CONFIRMED dead — all /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404; no discoverable surface behind envoy gateway
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflect-any-origin with credentials confirmed on all /v1 endpoints (including auth-gated) via live probe
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/*: Endpoints return response data (terms URLs, org list, org existence) despite 401 status code — misleading status, data accessible without auth
+- 2026-08-07 ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + /login MFE manifest confirmed leaking staging admin apps (2x Vercel) and Metabase; all three staging hosts respond 200 and are accessible
+- 2026-08-07 REJECTED MISCONFIG @ api.staging.sparelabs.com: Leaked staging API hosts return 404 behind same envoy gateway — no independent API surface
+- 2026-08-07 REJECTED MISCONFIG @ api-spare.ngrok.io: Ngrok dev tunnel inactive (ERR_NGROK_3200)
+- 2026-08-07 ACCEPTED MISCONFIG @ forms.staging.sparelabs.com / forms.staging.us.sparelabs.com: Staging forms portals live (200, same SPA catch-all behind envoy+Google CDN)
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com: CORS preflight confirms full credential reflection — any malicious origin can issue authenticated GET/PUT/PATCH/POST/DELETE requests with Authorization header via victim browser (escalates read to write)
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle confirmed (400 malformed, 404 not-found, 200 found) with full OpenAPI ValidationError body disclosure
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: Returns live termsOfUseUrl + privacyPolicyUrl without authentication — unauthenticated data disclosure
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: Returns 200 with {"data":[]} and reflected CORS+credentials — auth state inconsistent (was 401 at 20:57 UTC, 200 at 21:30 UTC)
+- 2026-08-07 REJECTED BUSLOGIC @ routing.sparelabs.com: CONFIRMED dead — all paths return 404; no surface
+- 2026-08-07 ACCEPTED MISCONFIG @ forms.sparelabs.com: JS bundle rotated (main.6ed467ae.js → main.71d52314.js) but same staging+prod infra leak persists
+- 2026-08-07 ACCEPTED MISCONFIG @ api.staging.sparelabs.com: Staging API hosts return 404 — no independent API surface
+- 2026-08-07 REJECTED MISCONFIG @ api-staking.sparelabs.com: Staging API hosts return 404 — no independent API surface
+- 2026-08-07 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: fail-open now STABLE — 200 ×6 across ~2h incl. pagination variants (params ignored, hardcoded `{"data":[]}`), control route stable 401 → route-level auth omission confirmed as pattern, not flapping; severity remains capped while payload empty.
+- 2026-08-07 REJECTED BUSLOGIC @ api.sparelabs.com: CORS reflect-any-origin+credentials re-confirmed on all /v1 (401, 404, and 200 paths) — uniformly applied API-scoped middleware, not path-conditional.
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflect-any-origin with credentials confirmed on OPTIONS preflight + GET responses for all /v1 endpoints (methods: GET,HEAD,PUT,PATCH,POST,DELETE; headers: Authorization)
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: fail-open confirmed STABLE (200 + `{"data":[]}` + credentials across 6+ samples over ~2h), not flapping; control route /v1/journeys properly 401s
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organization: UUID enumeration oracle confirmed (400 ValidationError for malformed, 404 NotFoundError for valid-but-unfound, 200 for valid org)
+- 2026-08-07 REJECTED BUSLOGIC @ routing.sparelabs.com: all /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404; envoy 404 on all paths, no surface — CONFIRMED dead
+- 2026-08-07 REJECTED MISCONFIG @ api.staging.sparelabs.com: staging API hosts return 404 behind envoy gateway, no independent API surface
+- 2026-08-07 ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + /login MFE manifest confirmed leaking production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app) in addition to staging
+- 2026-08-07 ACCEPTED MISCONFIG @ platform.sparelabs.com /login: CSP now confirmed leaking production admin app hosts (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app) in addition to staging — production admin surface newly exposed via in-scope platform asset.
+- 2026-08-07 ACCEPTED MISCONFIG @ api.sparelabs.com /v1/**: CORS credential reflection confirmed stable across all scan intervals (OPTIONS preflight + GET on 401/404/200 paths) — uniformly applied API-scoped middleware, not path-conditional.
+- 2026-08-07 REJECTED BUSLOGIC @ routing.sparelabs.com: All /v1/, /api/, /routing/, /router, /v2/, /graphql/, /map/, /directions/ paths return 404 — envoy gateway, no surface. CONFIRMED dead across all intervals.
+- 2026-08-08 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflect-any-origin with credentials confirmed on OPTIONS preflight + GET responses for all /v1 endpoints (methods: GET,HEAD,PUT,PATCH,POST,DELETE; headers: Authorization)
+- 2026-08-08 ACCEPTED MISCONFIG @ platform.sparelabs.com: CSP + /login MFE manifest confirmed leaking production admin Vercel apps (admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app) in addition to staging
+[0m
+[0m$ [0mcat reports/valid-bugs.md 2>/dev/null | tail -40; echo "===TRIAGE-OUT==="; tail -c 1500 triage/triage-output.txt 2>/dev/null
+- | A1 | CORS reflect-any-origin + credentials on /v1/** (all methods + Authorization, uniform envoy middleware) | 8.1 High (CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N) | VALID — STABLE 96h+ |
+  - | A2 | Scheme-only auth bypass /v1/global/regions (200 + 725B region registry with garbage Bearer; middleware validates scheme only, never token) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N
+  - | A3 | UUID enumeration oracle /v1/public/organization (2-way: 400 malformed / 200 found; nil-uuid now also 400) | 3.1 Low (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — reduced severity |
+  - | A4 | /v1/global/organizations fail-open (200 + {"data":[]} + CORS, route-specific, READ-ONLY — write path enforces auth) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N) | VALID — write-p
+  - | A5 | /v1/public/terms data disclosure (200 + live terms URLs via mobileAppId|organizationId, no auth) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE 96h+ |
+  - | A6 | /v1/public/organizations/{id} UUID enumeration oracle (3-way: 400 malformed / 404 nil-uuid / 200 found) | 5.3 Medium (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — STABLE, best discri
+  - | A7 | CSP infra leak platform.sparelabs.com/login (prod+staging admin Vercel apps + Metabase + full cloud infra) | 4.3 Low (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — informational |
+  - | A8 | JS bundle leak forms.sparelabs.com main.71d52314.js (staging+prod+regional infra + atlassian.net + ngrok) | 4.3 Low (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N) | VALID — informational |
+  - | Q4 Passive proof? | NO — requires AUTH_HELPED (POST with a valid non-superAdmin Bearer token); passive GET returns 401 |
+  - **Verdict: HOLD** — Q4 fails (requires AUTH_HELPED write testing). Endpoint confirmed live at edge (401-gated with garbage Bearer, OPTIONS 204 advertises POST). Per-route auth omissions are the proven
+
+- 4 lead(s) marked VALID at 2026-08-11 17:50:54 UTC
+  - | A4 | IDOR | api.sparelabs.com/v1/public/organizations/{id} | 3-way UUID enumeration oracle — malformed→400, nil→404, valid→200 | ACCEPTED |
+  - | Q3 Real impact? | YES — full internal infra topology disclosure (7 regions, 6 OOS api/routing subdomains) without valid auth |
+  - | Q3 Real impact? | YES — 3-way differential (malformed→400, nil→404, valid→200) enables org UUID enumeration |
+  - | Q4 Provable passive? | **NO** — requires AUTH_HELPED valid tenant token to test role check |
+
+- 1 lead(s) marked VALID at 2026-08-11 23:12:05 UTC
+  - | **Known VALID (A1–A7)** | CORS reflect-any-origin (8.1), scheme-only auth bypass (5.3), UUID enumeration (5.3), fail-open orgs (5.3), terms data disclosure (3.1–5.3), CSP/MFE infra leak (4.3), JS bu
+
+- 19 lead(s) marked VALID at 2026-08-12 03:06:25 UTC
+  - | A8 | IDOR | api.sparelabs.com/v1/public/organizations/{id} | **3-way UUID enumeration oracle** (plural namespace) — malformed→400 ValidationError; nil-uuid→404 NotFoundError; valid→200 (HUMAN_ONLY);
+  - | Q3 Real impact? | YES — full infra topology disclosure (7 regions, 6 OOS hosts) without valid auth |
+  - | Q3 Real impact? | YES — 3-way differential (malformed→400, nil→404, valid→200) enables org UUID enumeration; CORS enables cross-origin |
+  - | Q4 Passive proof? | YES (400/404 branch); HUMAN_ONLY for valid-UUID 200-branch |
+  - | Q3 Real impact? | UNPROVEN — 200-branch unobserved 84h+; terms-valid UUID returns 404 on oracle |
+  - | Q3 Real impact? | UNPROVEN — zero-header GET → hardcoded 200+11B `{"data":[]}` across 7+ query params; unknown if valid token returns data |
+  - | Q5 Novel? | PARTIAL — A3 (zero-header bypass) accepted; data-bearing nature with valid token unproven |
+  - **Verdict: HOLD** — needs program test token. If valid token returns non-empty org registry, severity upgrades from stub-level to HIGH. Already on HOLD queue.
+  - | Q3 Real impact? | LOW — nil-uuid now returns 400 ValidationError "not found" (was 404); 3-way→2-way degradation; valid-org confirmation requires HUMAN_ONLY UUID |
+  - | A1 | CORS reflect-any-origin+creds /v1/** | **VALID** (reconf) | CVSS 8.1 — STABLE 84h+ |
+  - | A2 | Scheme-only bypass /v1/global/regions | **VALID** (reconf) | CVSS 5.3 — STABLE |
+  - | A3 | Zero-header bypass /v1/global/organizations | **VALID** (reconf) | CVSS 5.3 — STABLE (read-only) |
+  - | A4 | UUID oracle /v1/public/organization | **VALID** (reconf, degraded) | CVSS 5.3 — degraded 2-way |
+  - | A5 | Data disclosure /v1/public/terms | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | A6 | CSP infra leak platform/login | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | A7 | JS bundle leak forms.sparelabs.com | **VALID** (reconf) | CVSS 3.1 — STABLE |
+  - | A8 | 3-way UUID oracle /v1/public/organizations/{id} | **VALID** (reconf) | CVSS 5.3 — STABLE (new 2026-08-11) |
+  - | L6 | Valid-token org registry data-bearing | **HOLD** | Needs program test token |
+  - | — | **No new VALID findings this cycle** | — | — |
+===TRIAGE-OUT===
+orted | Status | Operator Action |
+|---------|---------------|--------|-----------------|
+| A2 (regions scheme-bypass) | 2026-08-07 | **PATCHED** 2026-08-11 ~06:43 UTC | Token validation now enforced; 400 returned for all unauth probes |
+| A3 (org UUID oracle) | 2026-08-07 | **DEGRADED** 2026-08-11 | nil-uuid now returns 400 (was 404); partial mitigation |
+| A4 (orgs fail-open) | 2026-08-07 | OPEN | Still 200 + empty payload; write path patched (L16) |
+| A5 (terms disclosure) | 2026-08-07 | OPEN | Still 200 + live URLs |
+| A6 (plural orgs oracle) | 2026-08-11 01:55 | OPEN | 3-way differential intact |
+| A1 (CORS) | 2026-08-07 | OPEN | Still reflects any origin + credentials |
+| A7 (CSP leak) | 2026-08-07 | OPEN | Informational |
+| A8 (JS bundle leak) | 2026-08-07 | OPEN | Informational |
+
+---
+
+## NOTES
+- A2 is the first PATCHED finding in the program. Operator responsiveness confirmed.
+- A3 degradation is a partial mitigation but enumeration still possible with valid UUIDs.
+- A6 (plural namespace) is now the primary UUID enumeration vector (3-way intact).
+- All accepted findings re-confirmed STABLE except A2 (patched) and A3 (degraded).
+- L17 (write parity on regions scheme-bypass) is now MOOT - A2 is patched, so write-path testing on a non-existent bypass is unnecessary.
+- L18 (data-bearing 200-branch on A6) remains HOLD - requires program-supplied valid org UUID.
+- Disclosure channel: Spare security channel per scope.yml (operator to confirm exact address - currently TBD).
+[0m
+[0m$ [0mcat inventory/spare.md | head -40; echo "===RECENT TRIAGE RUN==="; tail -c 1500 triage/run-2026-08-16-11-41.md 2>/dev/null
+# Inventory: spare
+
+## Seed 2026-08-07 (passive recon)
+
+### Hosts (in scope)
+- spare.com — 200
+- sparelabs.com — timeout (retry)
+- platform.sparelabs.com — timeout (retry)
+- api.sparelabs.com — 404
+- routing.sparelabs.com — timeout (retry)
+- forms.sparelabs.com — timeout (retry)
+
+### Hosts (EXCLUDED - other subdomains, do NOT test)
+- www.spare.com (301) and every other *.spare.com / *.sparelabs.com not listed above
+
+### Code surface
+- github.com/sparelabs (28 repos) — mostly third-party forks (react-native-*, mapbox, osrm, graphile-worker, heroku-buildpack-lerna, swagger-express-validator); first-party: docs.sparelabs.com, getspare.github.io
+- docs.sparelabs.com repo = marketing/docs site (verify)
+
+### Open questions
+- Authentication model of api.sparelabs.com (Bearer? API key?)
+- What routing.sparelabs.com and forms.sparelabs.com serve (once reachable)
+- CDN/WAF in front (why timeouts?)
+
+## 2026-08-07 18:34:58 UTC
+- NEW sparelabs.com now responds (301→https://spare.com via Cloudflare; HSTS `max-age=0; preload`) — previously TIMEOUT.
+- NEW platform.sparelabs.com now responds 200 — Micro-frontend SPA shell; previously TIMEOUT.
+- NEW routing.sparelabs.com now responds 404 (`server: envoy`, `via: 1.1 google`) — previously TIMEOUT.
+- NEW forms.sparelabs.com now responds 200 ("Spare Engage Web Portal" SPA; object-store headers) — previously TIMEOUT.
+- CHANGED api.sparelabs.com positively re-identified as envoy edge gateway (`server: envoy`, `via: 1.1 google`); was only "404" in seed.
+
+## 2026-08-07 19:01:01 UTC
+- NEW sparelabs.com now responds (301→https://spare.com via Cloudflare; HSTS `max-age=0; preload`) — previously TIMEOUT
+- NEW platform.sparelabs.com now responds 200 — Micro-frontend SPA shell; previously TIMEOUT
+- NEW routing.sparelabs.com now responds 404 (`server: envoy`, `via: 1.1 google`) — previously TIMEOUT
+- NEW forms.sparelabs.com now responds 200 ("Spare Engage Web Portal" SPA; object-store headers) — previously TIMEOUT
+- CHANGED api.sparelabs.com positively re-identified as envoy edge gateway (`server: envoy`, `via: 1.1 google`); was only "404" in seed
+- NEW api.sparelabs.com/v1/** live surface: `/v1/journeys` returns 401 InvalidTokenError (no auth header); `/v1/journeyNotifications/*` enumerated
+- NEW platform.sparelabs.com MFE orchestration: CSP + `/login` prefetch enumerates staging admin apps (`admin-eam-app(-staging).vercel.app`, `admin-fixed-route-app(-staging).vercel.app`), `metabase.sparelab
+- NEW forms.sparelabs.com served from object store (DO Spaces/S3): `content-disposition: inline`, `accept-ranges: bytes`, `etag`, no `server` header
+===RECENT TRIAGE RUN===
+
+===== TRIAGE 2026-08-16 11:41:45 UTC =====
+[91m[1mError: [0m{
+  "name": "UnknownError",
+  "data": {
+    "message": "Unexpected server error. Check server logs for details.",
+    "ref": "err_3fecb554"
+  }
+}
+[0m
+Let me verify the current live state of the key discriminator findings, especially the conflicting A2 status.
+[0m$ [0mtime curl -s -o /tmp/opencode/regions2.json -w "%{http_code} %{size_download}B %{time_total}s\n" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions; sleep 1.3; time curl -s -o /tmp/opencode/orgs2.json -w "%{http_code} %{size_download}B %{time_total}s\n" https://api.sparelabs.com/v1/global/organizations
+200 725B 0.150041s
+
+real	0m0.161s
+user	0m0.022s
+sys	0m0.007s
+200 11B 1.408372s
+
+real	0m1.416s
+user	0m0.026s
+sys	0m0.004s
+[0m
+[0m$ [0msha256sum /tmp/opencode/regions2.json /tmp/opencode/orgs2.json; cat /tmp/opencode/orgs2.json; echo; sleep 1.2; curl -s -o /dev/null -w "%{http_code} %{size_download}B %{time_total}s\n" "https://api.sparelabs.com/v1/public/organizations/key/spare"
+fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe  /tmp/opencode/regions2.json
+8fe32e407a1038ee38753b70e5374b3a46d6ae9d5f16cd5b73c53abaca8f5ed0  /tmp/opencode/orgs2.json
+{"data":[]}
+200 351B 0.145569s
+[0m
+All stable findings re-confirmed live (regions sha256 matches baseline; longcat "PATCHED" was a false positive). Now probing the engage formKey oracle per my next-action plan.
+[0m$ [0mfor k in "caseTypeKey=test&formKey=test" "caseTypeKey=x&formKey=x&organizationId=d736519f-f384-4771-a2d2-4f95e884d790"; do curl -s -o /tmp/opencode/ef.txt -w "%{http_code} %{size_download}B %{time_total}s | " "https://api.sparelabs.com/v1/public/engage/form?$k"; head -c 200 /tmp/opencode/ef.txt; echo; sleep 1.3; done
+400 308B 0.160693s | {"name":"ValidationError","message":"request/query must have required property 'organizationId'","metadata":{"errors":[{"path":"/query/organizationId","message":"must have required property 'organizat
+404 123B 0.164618s | {"name":"NotFoundError","message":"Form was not found","metadata":{"correlationId":"b52d0da8-352c-4ec8-b784-430008aaa322"}}
+[0m
+[0m$ [0mcurl -s "https://api.sparelabs.com/v1/public/organizations/key/spare" | python3 -m json.tool; echo "---GRT---"; sleep 1.3; curl -s "https://api.sparelabs.com/v1/public/organizations/key/grt" | python3 -m json.tool
+{
+    "id": "d736519f-f384-4771-a2d2-4f95e884d790",
+    "name": "Spare",
+    "logoUrl": "https://storage.googleapis.com/spare-production-ca-photos/RM44yNNGLMfOCSwXXXVdYMgmcpGu1jF2.jpg",
+    "isMaintenanceEnabled": false,
+    "organizationKey": "spare",
+    "enabledPublicFeatureFlags": [
+        "callForVerificationCode",
+        "multimodal",
+        "riderEmailAuthentication",
+        "riderPhonePin",
+        "riderLoginless"
+    ]
+}
+---GRT---
+{
+    "id": "1966c7f8-3e36-4320-b0d7-de0f7d8d4355",
+    "name": "GRT",
+    "logoUrl": "https://storage.googleapis.com/spare-production-ca-photos/XpAE1Cfijzw0WjGLjJa9nN5i9eGjJF2P.jpg",
+    "isMaintenanceEnabled": false,
+    "organizationKey": "grt",
+    "enabledPublicFeatureFlags": [
+        "multimodal",
+        "riderEmailAuthentication"
+    ]
+}
+[0m
+[0m$ [0mfor k in dallas winnipeg hsr; do curl -s "https://api.sparelabs.com/v1/public/organizations/key/$k" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['organizationKey'], d.get('enabledPublicFeatureFlags'))"; sleep 1.3; done
+dallas []
+winnipeg ['callForVerificationCode', 'riderPhonePin', 'riderEmailAuthentication', 'riderLoginless']
+hsr ['callForVerificationCode', 'riderEmailAuthentication']
+[0m
+[0m$ [0mcurl -s "https://forms.sparelabs.com/" | grep -oE 'src="[^"]+"' | head; echo "---"; sleep 1.3; curl -s "https://forms.sparelabs.com/forms?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=x&formKey=y" -o /tmp/opencode/forms.html -w "%{http_code} %{size_download}B\n"
+src="/static/js/main.8a2a39cb.js"
+---
+200 537B
+[0m
+[0m$ [0mfor k in mobility on-demand wheelchair paratransit ride-request accessibility general scheduling custom trip-request; do r=$(curl -s -o /tmp/opencode/e.txt -w "%{http_code} %{size_download}B" "https://api.sparelabs.com/v1/public/engage/form?caseTypeKey=$k&formKey=test&organizationId=d736519f-f384-4771-a2d2-4f95e884d790"); msg=$(head -c 80 /tmp/opencode/e.txt); echo "$k -> $r | $msg"; sleep 1.3; done
+mobility -> 404 123B | {"name":"NotFoundError","message":"Form was not found","metadata":{"correlationI
+on-demand -> 404 123B | {"name":"NotFoundError","message":"Form was not found","metadata":{"correlationI
+wheelchair -> 404 123B | {"name":"NotFoundError","message":"Form was not found","metadata":{"correlationI
+paratransit -> 404 123B | {"name":"NotFoundError","message":"Form was not found","metadata":{"correlationI
+ride-request -> 404 123B | {"name":"NotFoundError","message":"Form was not found","metadata":{"correlationI
+accessibility -> 404 123B | {"name":"NotFoundError","message":"Form was not found","metadata":{"correlationI
+general -> 404 123B | {"name":"NotFoundError","message":"Form was not found","metadata":{"correlationI
+scheduling -> 404 123B | {"name":"NotFoundError","message":"Form was not found","metadata":{"correlationI
+custom -> 404 123B | {"name":"NotFoundError","message":"Form was not found","metadata":{"correlationI
+trip-request -> 404 123B | {"name":"NotFoundError","message":"Form was not found","metadata":{"correlationI
+[0m
+All probes complete. Producing the cycle output.
+
+**STEP 1 — DELTA (what's new since last cycle)**
+- LIVE RE-CONFIRMED (this session): `/v1/global/regions` Bearer-x bypass → 200 + 725B, sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` (byte-identical baseline); longcat "PATCHED" definitively FALSE POSITIVE.
+- LIVE RE-CONFIRMED: `/v1/global/organizations` zero-header fail-open → 200 + 11B `{"data":[]}`; `/v1/public/organizations/key/spare` → 200 + 351B.
+- NEW NEGATIVE: `/v1/public/engage/form` on the OpenAPI-validating replica is a **tuple resolver, NOT a caseTypeKey oracle** — 11 candidate keys (`mobility`, `on-demand`, `wheelchair`, `paratransit`, `ride-request`, `accessibility`, `general`, `scheduling`, `custom`, `trip-request`) all → identical 123B 404 "Form was not found"; discriminates only on the full (organizationId, caseTypeKey, formKey) triple. Guessing is a dead end.
+- NEW CONFIG DISCLOSURE (LOW): org-key bodies leak per-org `enabledPublicFeatureFlags` — spare {callForVerificationCode, multimodal, riderEmailAuthentication, riderPhonePin, riderLoginless}, grt {multimodal, riderEmailAuthentication}, dallas {} (zero flags), winnipeg {callForVerificationCode, riderPhonePin, riderEmailAuthentication, riderLoginless}, hsr {callForVerificationCode, riderEmailAuthentication}. No flag hints at external-case-creation; cross-org flag deltas are recon-only.
+- NO_CHANGE: forms bundle `main.8a2a39cb.js` (patched), forms SPA catch-all 537B, routing dead.
+
+**STEP 2 — PRIORITIZE**
+| # | Surface | atk | biz | tech | gate | cloud | fresh | score |
+|---|---------|----|----|----|----|----|----|----|
+| 1 | `/v1/global/regions` (scheme-only bypass) | 9 | 7 | 8 | 10 | 8 | 8 | 8.4 |
+| 2 | `/v1/global/organizations` (fail-open GET) | 8 | 8 | 7 | 10 | 8 | 7 | 8.2 |
+| 3 | `/v1/identity/workos/auth` (SSO oracle) | 7 | 8 | 7 | 9 | 7 | 6 | 7.6 |
+| 4 | `/v1/public/engage/cases`+`caseForms` (write-IDOR) | 7 | 9 | 7 | 7 | 7 | 7 | 7.3 |
+| 5 | `/v1/public/organizations/key/{key}` (org-key oracle) | 6 | 6 | 6 | 9 | 6 | 6 | 6.5 |
+| 6 | `/v1/public/terms` (config disclosure) | 6 | 5 | 5 | 9 | 6 | 5 | 6.1 |
+
+**STEP 3 — HYPOTHESES (ranked)**
+1. `[97]` AUTH `/v1/global/regions` scheme-only bypass — CONFIRMED STABLE, now 90h+; header-presence-only gate, never token-validated; only read (POST→401).
+2. `[96]` AUTH `/v1/global/organizations` GET fail-open — CONFIRMED STABLE; route-specific, read-only (write methods 401).
+3. `[90]` IDOR `/v1/identity/workos/auth` SSO-config oracle — CONFIRMED; 8 tenants, fleet parity.
+4. `[68]` IDOR unauth cross-tenant Engage write-IDOR via `/v1/public/engage/cases`+`caseForms` POST — auth gate ABSENT (400→handler reach→403 feature-flag gate); **still AUTH_HELPED-blocked** on valid caseTypeKey+defaultFormKey (form endpoint = tuple resolver, confirmed this cycle).
+5. `[60]` IDOR org-key oracle `/v1/public/organizations/key/{key}` — CONFIRMED; live set closed at 5, prod-only.
+6. `[55]` MISCONFIG `/v1/public/terms` per-tenant config chain — CONFIRMED; spare→junk, winnipeg→real URL.
+
+**STEP 4 — SELF-CRITIQUE (1 strongest counterpoint per live hyp)**
+- H1: "Regions is public bootstrap config, so a header requirement may be the only real bug; severity is capped at C:L until a non-public registry is returned." → still reportable as A05 auth-gate defect; value proven by 725B infra topology.
+- H2: empty hardcoded payload caps impact; fail-open only matters if a valid-token call returns data → unknown without AUTH_HELPED.
+- H3: config-oracle only; no PII/credentials — LOW-MEDIUM ceiling, roster closed at 8.
+- H4: my 11-key sweep returned uniform 404 → without a real formKey, even the "empty POST → 400" path cannot reach a write; feature-flag gate (403) also independently blocks spare; only a non-spare org with external-case enabled would be vulnerable — unproven.
+- H5: same 5 orgs, no new keys; oracle self-limiting by closure.
+
+**STEP 5 — NEXT ACTION**
+1. `PROBE (PASSIVE, ≤1rps)` — weekly stability set only: GET `/v1/global/regions` (Bearer x, verify sha256), GET `/v1/global/organizations` (verify 11B), GET `/v1/public/organizations/key/winnipeg` (verify 288B+flags). No new passive surface expected.
+2. `BLOCKED` Engage write-IDOR proof requires AUTH_HELPED token: enumerate test-org authorized caseTypes → capture `caseTypeKey`+`defaultFormKey` → `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>` (resolve formId) → `POST /v1/public/engage/caseForms` (+ `/cases`) targeting `d736519f-f384-4771-a2d2-4f95e884d790`; then delete test data. Until then the tuple-resolver finding means brute force is futile — do not burn more guesses.
+3. `FIX` reposcan pipeline: scope.yml `github_orgs: sparelabs` but runner clones gladiaio (empty `reposcan-raw/sparelabs`) → code-surface scans return 0 files; correct clone target before next scan.
+4. Hold position on terms flag-delta (cross-org feature-flag diff) — recon-only, no report.
+
+**STEP 6 — LEARNING (knowledge-base update)**
+- `ACCEPTED AUTH @ /v1/global/regions`: STILL LIVE 90h+, sha256 `fb9800ac…c3fe` byte-stable; longcat PATCHED claim (2026-08-11) re-falsified — only tested no-auth 400 path, never Bearer-x.
+- `REJECTED MISCONFIG @ /v1/public/engage/form`: NOT an oracle for caseTypeKey/formKey individually — 404 "Form was not found" uniform across 11 candidate keys; discriminates only on full triple → tuple resolver; formKey must be obtained via AUTH_HELPED, not enumeration.
+- `ACCEPTED IDOR @ /v1/public/organizations/key/{key}`: adds per-org `enabledPublicFeatureFlags` disclosure (recon-only, LOW).
+- `CONFIRMED` forms bundle/main.8a2a39cb.js still patched; routing still dead; engage write-IDOR remains the top untested hypothesis.
+
+**STEP 7 — RISK SCORES (unchanged verdicts)**
+- api.sparelabs.com: **72** — 3 stable confirmed auth/config defects + CORS amplification + oracle set; severity capped by read-only/data-light payloads until AUTH_HELPED.
+- platform.sparelabs.com: **48** — CSP/MFE infra leak (informational), no API surface.
+- forms.sparelabs.com: **15** — bundle patched, SPA catch-all only.
+- routing.sparelabs.com: **5** — envoy 404 dead, no delta.
+- web (spare.com/sparelabs.com): **10** — static Cloudflare, HSTS 31536000, 301 apex.
+
+**OPEN — decision needed** — Nothing this cycle unblocks the top hypothesis. Recommend the operator provide a program test token (AUTH_HELPED) for the Engage write-IDOR verification, or the pipeline stays in passive re-verification mode. Reposcan clone-target fix is the only infrastructure action with expected new information value.
