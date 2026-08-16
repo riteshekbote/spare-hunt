@@ -9838,3 +9838,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 | envoy 404/0B on ALL probed paths (/, /v1/, /api/, /routing/, /router, /v2/, /graphql, /map, /directions/, /openapi.json, /swagger.json, /docs, /health, /status); newly responsive but STABLE dead since 2026-08-07, NO_DELTA, no surface
 [RISK] forms.sparelabs.com: 15 | SPA 200 with strict HTML CSP + x-frame DENY (envoy+Google CDN); JS bundle main.8a2a39cb.js PATCHED (zero infra refs); 3 Google Maps keys all referrer-restricted; no real API behind SPA catch-all (8/8 API paths SPA catch-all); infra leak RESOLVED, recon-only
 [RISK] web (spare.com/sparelabs.com): 15 | spare.com HTTP 200 static Webflow (Cloudflare, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com (newly live); www.spare.com OOS excluded; minimal static-only surface, no dynamic logic
+## 2026-08-16 03:33:59 UTC [web] (model laguna)
