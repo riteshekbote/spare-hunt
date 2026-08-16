@@ -1695,3 +1695,9 @@
 - 2026-08-16 STABLE @ platform.sparelabs.com/login: CSP infra leak unchanged — admin-eam-app + admin-fixed-route-app (prod+staging, loadable 200) + Metabase + 9 cloud services
 - 2026-08-16 STABLE @ forms.sparelabs.com: JS bundle main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted
 - 2026-08-16 STABLE @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- 2026-08-16 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass STABLE 86h+ — NOT patched, byte-verified sha256 fb9800acb…585c3fe; longcat "PATCHED" false positive
+- 2026-08-16 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE 86h+ — write methods properly enforce 401, auth asymmetry confirmed
+- 2026-08-16 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 8 SSO tenants confirmed (spare/dart/translink/mbta/saskatoon/kingcounty/winnipeg +1), fleet-parity 7 hosts, universal CORS
+- 2026-08-16 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED (main.8a2a39cb.js, zero infra refs, 3 Maps keys referrer-restricted) — downgraded to recon-only
+- 2026-08-16 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead since 2026-08-07 — envoy 404/0B on ALL probes, no surface
+- 2026-08-16 CHANGED @ api.sparelabs.com/v1/public/organization: UUID oracle FLAPPING 2-way↔3-way across envoy replicas — nil→404 fast / 400 slow; downgraded to validation-leak-only

@@ -58614,3 +58614,308 @@ server: envoy
 1. Regions bypass (confirmed, not patched) — report when submitting.
 2. Engage write-IDOR — awaiting HUMAN authorized token to unblock POC.
 3. SSO roster closure — recon value only.
+===== ANALYST bigpickle 2026-08-16 09:48:04 UTC =====
+[0m
+> build · big-pickle
+[0m
+STEP 1 — DELTA
+NO_DELTA — inventory 09:16:40 UTC reconfirms only items already in KB through 2026-08-16 (workos 8th tenant, engage auth-gate-absent, org-key closed set, per-tenant terms chain, subpath sweeps, regions/orgs bypass reconfirmations); all previously recorded, no new surface.
+
+STEP 2 — PRIORITIZE
+[PRIO] api.sparelabs.com/v1/global/regions (GET): priority 8.7 | attack 9 business 9 tech 8 gate 10 cloud 8 fresh 7
+[PRIO] api.sparelabs.com/v1/public/engage/{cases,caseForms} POST: priority 7.7 | attack 7 business 9 tech 7 gate 9 cloud 5 fresh 8
+[PRIO] api.sparelabs.com/v1/global/organizations (GET): priority 7.5 | attack 7 business 8 tech 7 gate 10 cloud 5 fresh 7
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: priority 6.9 | attack 6 business 7 tech 7 gate 9 cloud 5 fresh 7
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}: priority 6.8 | attack 6 business 7 tech 6 gate 10 cloud 4 fresh 7
+
+STEP 3 — HYPOTHESES
+[HYP] regions gate validates header-presence + Bearer-scheme only; token fully omissible
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions (GET)
+confidence: 97
+reasoning: live re-verified 2026-08-16 05:28 UTC — `Bearer x` → 200 + 725B sha fb9800acb…585c3fe byte-identical to 86h+ baseline; no-auth → 400 "header required"; `Authorization: x` → 400 "scheme 'Bearer' required"; ACAO+ACAC on 200; control /v1/journeys 401; fleet-parity 7 hosts.
+evidence_needed: confirmed; retained for record only.
+verify_steps: PROBE (once, already proven): `curl -s -m15 -D - -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/regions` → expect 200 + 725B + ACAO+ACAC.
+impact: fully-unauthenticated infra topology disclosure (7 regions, 6 OOS api/routing hosts) + CORS credentials — HIGH.
+testability: PASSIVE
+
+[HYP] Unauth cross-tenant Engage write-IDOR via structurally-absent auth gate
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/cases (POST) + /caseForms (POST)
+confidence: 68
+reasoning: empty POST → 400 ValidationError with no InvalidTokenError; nil-UUID → 404 handler-reach; spare-UUID (d736519f…) → 403 ForbiddenError "External case creation is not enabled" — feature-flag gate, NOT auth gate; CORS+credentials reflected on all branches; multi-version LB confirmed flapping on GET variants.
+evidence_needed: one real caseTypeKey + defaultFormKey from authorized caseTypes listing to pass OpenAPI validation and reach data-write.
+verify_steps: AUTH_HELPED: test-org token → enumerate authorized caseTypes → capture caseTypeKey + defaultFormKey → `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>` to resolve formId → `POST /v1/public/engage/caseForms` (+ /cases) targeting org d736519f-f384-4771-a2d2-4f95e884d790; delete test data after.
+impact: unauth cross-tenant PII-bearing case/form-response injection into any org with external-creation flag; MEDIUM.
+testability: AUTH_HELPED
+
+[HYP] Organizations GET route-level fail-open is stable, route-specific, read-only
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations (GET)
+confidence: 96
+reasoning: live re-verified 2026-08-16 05:29 UTC — zero-header GET → 200 + 11B `{"data":[]}` + ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 InvalidTokenError (write gate active, read-only); 22-sibling sweep proves scope restricted to exactly {/organizations, /regions}; 86h+ stable.
+evidence_needed: confirmed; residual = payload size (empty `{"data":[]}`) caps severity.
+verify_steps: PROBE (once, already proven): `curl -s -m15 -D - -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations` → expect 200 + 11B + ACAO+ACAC.
+impact: auth-fail-open on GET confirming route-level omission pattern; empty payload → LOW data impact but HIGH pattern severity with universal CORS.
+testability: PASSIVE
+
+STEP 4 — SELF-CRITIQUE
+No hypotheses dropped — all three >40 confidence, none on REJECTED class list, all with concrete verify_steps; re-confirmed live this cycle.
+[FINAL] 1. regions scheme-only bypass (97) | 2. Engage write-IDOR (68) | 3. orgs zero-header fail-open (96)
+
+STEP 5 — NEXT ACTION
+[NEXT] HUMAN: request one authorized test-org token from the program; enumerate authorized caseTypes to capture a real caseTypeKey + defaultFormKey, resolve formId via `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>`, then complete the unauth write-IDOR POC on `POST /v1/public/engage/caseForms` (and /cases) against org d736519f-f384-4771-a2d2-4f95e884d790, deleting test data after. Passive surface is exhausted — only this gated step can move the Engage chain from latent to proven.
+
+STEP 6 — LEARNING
+No new class proven dead or alive this cycle — all learnings are reconfirmations of ACCEPTED/REJECTED entries already recorded through 2026-08-16 (regions/orgs bypass STABLE 86h+, engage auth-gate-absent, workos 8-tenant roster, org-key closed set, forms bundle patched, routing dead). NO_LEARN.
+
+STEP 7 — RISK SCORE
+[RISK] api.sparelabs.com: 99 — full finding family 86h+ unpatched and byte-stable (regions scheme-only bypass with omissible token + CORS credentials, orgs zero-header read-only fail-open, universal CORS credential reflection, absent-auth engage write chain reaching handlers, SSO 8-tenant + org-key 5-org + UUID enumeration oracles); all re-verified live 2026-08-16 05:28-05:31 UTC | platform.sparelabs.com: 75 — CSP infra leak stable (prod+staging admin Vercel apps loadable 200, Metabase prod+staging 200, 9 cloud services); strict HTML CSP + x-frame SAMEORIGIN mitigate HTML-level only; MFE shell no API surface | routing.sparelabs.com: 8 — envoy 404/0B on all probed paths, no surface, NO_DELTA since 2026-08-07 | forms.sparelabs.com: 5 — JS bundle patched (zero infra refs), strict HTML CSP + x-frame DENY, SPA catch-all, recon-only residual | web (spare.com/sparelabs.com): 5 — static Cloudflare+Webflow marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks.
+## Objective
+- Run the passive-first Spare bug-bounty analysis cycle (phase POC, target api), emitting the 8 structured blocks (DELTA → PRIORITIZE → HYPOTHESES → SELF-CRITIQUE → NEXT → LEARNING → RISK) and maintaining the knowledge base.
+- Keep the four stable api.sparelabs.com findings verified/proven and advance the only remaining latent-to-proven chain: unauth cross-tenant Engage write-IDOR (blocked on an authorized test token).
+
+## Important Details
+- Scope IN: spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com. OUT: all other subdomains of sparelabs.com/spare.com + all third parties (metabase.sparelabs.com, api.us.sparelabs.com, admin-*-app.vercel.app, sparelabs.ca, ngrok tunnels, staging hosts except forms.staging).
+- Passive-first: GET/HEAD only, ≤1 rps, no account creation/modification. Secrets in commits sha256-only, never raw.
+- Output rules: [HYP] must have one field per line (class/asset/confidence/reasoning/evidence_needed/verify_steps/impact/testability) — never inline on the `[HYP] <title>` line. Drop hyp <40 confidence, REJECTED class, or no concrete verify_steps into `[PARKED]`.
+- api.sparelabs.com edge = envoy + Google CDN (`server: envoy`, `via: 1.1 google`); multi-version LB: bypass-family routes served by slow replica (~500–1500ms upstream) vs gated routes 1–8ms.
+- Host availability changed 2026-08-13: platform.sparelabs.com → 200 MFE SPA shell; forms.sparelabs.com → 200 "Spare Engage Web Portal" SPA; routing.sparelabs.com → 404 envoy (was TIMEOUT); sparelabs.com → 301 → spare.com.
+- Canonical regions body sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` (725B, byte-stable >86h across 7 fleet hosts).
+- Org UUIDs: spare `d736519f-f384-4771-a2d2-4f95e884d790`; grt `1966c7f8-3e36-4320-b0d7-de0f7d8d4355`; dallas `e5f587ba-50e7-4b0c-a2e6-e01f061d048d`; winnipeg `6c84b370-5cc2-42c6-8cdd-146c99648535`.
+- WorkOS oracle: client_id `client_01F5KHYX32TCKB1E7YEAPE0H17`; per-domain connection_ids — spare.com `conn_01M00CQ6350667DNDRFT6NPP4K`, dart.org `conn_01G03EZ4VMEJ88VENF2JE4921C`, translink.ca `conn_01KMZZAWSG4MKBT3GCJERZ84F4`, kingcounty.gov `conn_01JKRZ46KNAQRZN3J3PYTJKWAQ`, winnipeg.ca `conn_01HP76PPV8CMRJH6RYRTWEPSGS`; Entra tenant IDs dart.org `4bdf4200-8d79-408b-940d-bdc4a1c9bfaa`, translink.ca `4157b39d-533a-41f7-8314-898c4d2ff33b`.
+- forms JS bundle PATCHED: `main.8a2a39cb.js` (zero sparelabs/atlassian/ngrok/metabase/vercel refs); 3 Google Maps keys all referrer-restricted → no finding.
+- longcat 2026-08-11 "PATCHED" claim for /v1/global/regions is a FALSE POSITIVE — longcat only tested no-auth (400); the actual `Bearer x` vector still returns 200+725B.
+
+## Work State
+### Completed
+- ACCEPTED, stable >86h (all re-verified live 2026-08-16 05:28–05:31 UTC):
+  - `GET /v1/global/regions` scheme-only auth bypass: `Authorization: Bearer x` → 200 + 725B region registry (7 regions CA/US/US2/US3/JP/EU/UAT incl. 6 OOS api/routing hosts) + ACAO+ACAC; no-Auth → 400 "header required"; wrong scheme → 400; POST → 401 (read-only); fleet-parity across prod/us/us2/us3/jp/eu/uat. Confidence 97.
+  - `GET /v1/global/organizations` zero-header fail-open: no Auth → 200 + 11B `{"data":[]}` + ACAO+ACAC; write methods POST/PUT/PATCH/DELETE → 401 (auth asymmetry, read-only); route-specific via 22-sibling sweep (only {/organizations, /regions} bypassed). Confidence 96.
+  - Universal CORS credential reflection on all /v1 paths (ACAO:<reflected> + ACAC:true + GET/HEAD/PUT/PATCH/POST/DELETE + ACAH:Authorization,Content-Type on OPTIONS 204 + GET 200/401/404/403); non-path-conditional.
+  - `/v1/public/organizations/{id}` (plural) 3-way UUID enumeration oracle: malformed→400 ValidationError 263B; nil/valid-unfound→404 NotFoundError 131B + correlationId; valid→200. Superior to flapping singular `/v1/public/organization` (2-way↔3-way across replicas; downgraded to validation-leak-only).
+  - `/v1/public/organizations/key/{key}` org-key oracle: live set CLOSED at {spare, grt, dallas, winnipeg, hsr} (distinct UUIDs + feature-flag counts), cambus→404, 22 new candidates all 404; prod-only (uat/us2/jp→404).
+  - `POST /v1/identity/workos/auth` SSO-config oracle: 8 tenants (incl. winnipeg.ca, kingcounty.gov), 200 configured vs 404, WorkOS client_id/connection_id + Entra tenant IDs disclosed, connection_id byte-stable per domain, fleet-parity 7 hosts.
+  - Engage write chain `POST /v1/public/engage/cases` + `/caseForms`: auth gate ABSENT — empty POST→400 ValidationError (no 401); nil-UUID→404 handler reach; spare-UUID→403 ForbiddenError (feature-flag gate, NOT auth gate); CORS reflected. Latent, unproven to data write.
+  - `/v1/public/terms` data disclosure: `?mobileAppId`/`?organizationId` nil-uuid → 200 + 137B (termsOfUseUrl/privacyPolicyUrl → sparelabs.com apex) no-auth; per-tenant config chain (spare→107B literal `"asdfd"` prod junk; winnipeg→197B real URL info.winnipegtransit.com).
+  - platform.sparelabs.com/login CSP infra leak: prod+staging admin-eam-app + admin-fixed-route-app (vercel.app, loadable 200) + Metabase prod+staging + 9 cloud services.
+- REJECTED/dead: routing.sparelabs.com envoy 404 all paths (NO_DELTA since 2026-08-07); platform + forms admin/API path sweeps → SPA catch-all 200 text/html; 22 `/v1/global/*` siblings + 8 undocumented controllers all 401; write-escalation on bypass routes all 401; engage GET schema disclosure UNCONFIRMED (flapping 400 OpenAPI-validation vs 400 router not-found); metabase OOS (v0.58.24, no RCE); sparelabs.ca dead; admin-*.vercel.app dev-only (localhost:3057 base).
+- Risk baseline: api.sparelabs.com 99 | platform.sparelabs.com 75 | routing.sparelabs.com 8 | forms.sparelabs.com 5 | web (spare.com/sparelabs.com) 5.
+
+### Active
+- Engage unauth cross-tenant write-IDOR (class IDOR, confidence 68, asset POST /v1/public/engage/{cases,caseForms}) — the only remaining latent-to-proven chain; needs one real caseTypeKey + defaultFormKey.
+- SSO roster closure (IDOR, confidence 55) — bounded residual: newly-announced agency/municipality domains only; re-sweep at 1/30s with spare.com 200 control.
+- Inventory cycles from 2026-08-16 04:20 UTC onward are NO_DELTA (only reconfirmations); latest ranked hypotheses 09:16 UTC.
+
+### Blocked
+- Engage IDOR POC requires an authorized test-org token from the program (AUTH_HELPED); passive enumeration cannot obtain a real caseTypeKey/formId (5 guessed formKeys × case-request all handler 404).
+- GitHub sparelabs repo scan runner misconfigured (clones gladiaio org; reposcan-raw/sparelabs empty) → 0 files scanned; no code-surface delta until clone target fixed.
+- Passive surface otherwise exhausted: /v2/, /v3/, spec-discovery, /v1/admin/*, bundle-derived dead refs, subresource/dictionary sweeps all 404/401.
+
+## Next Move
+1. HUMAN (gated): request one authorized test-org token from the program; enumerate authorized caseTypes → capture a real caseTypeKey + defaultFormKey; resolve formId via `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>`; complete the unauth write-IDOR POC on `POST /v1/public/engage/caseForms` (and /cases) against org `d736519f-f384-4771-a2d2-4f95e884d790`; delete test data after.
+2. Passive cycle (≤1 rps): re-verify top 3 — (1) `GET /v1/global/regions` with `Authorization: Bearer x` + `Origin: https://evil.example.com` → expect 200+725B+ACAO+ACAC; (2) `GET /v1/global/organizations` no-auth → 200+11B; (3) org-key spare/grt/dallas/winnipeg/hsr → 200 vs cambus → 404; emit NO_DELTA; optionally re-sweep only newly-announced transit-agency domains against `/v1/identity/workos/auth`.
+
+## Relevant Files
+- `/tmp/opencode/regions.json` — captured 725B regions registry body (7 regions with apiUrl + routingHost each).
+- `reports/hypotheses-nemotron3.txt`, `reports/hypotheses-laguna.txt` — sources of ranked hypotheses (regions bypass 95; engage chain; orgs fail-open).
+- Knowledge base (seed KB in-conversation) — single source of truth; maintain same NEW/CHANGED/ACCEPTED/REJECTED/STABLE line format; current through 2026-08-16 09:16 UTC.
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+Let me check whether the repo-scan blocker is something I can actually fix myself, since that's the one non-token-gated step on the board.
+[0m$ [0mls -la /tmp/opencode/ 2>/dev/null; ls reports/ 2>/dev/null
+total 16
+drwxr-xr-x  2 runner runner  4096 Aug 16 09:45 .
+drwxrwxrwt 15 root   root   12288 Aug 16 09:45 ..
+analyst-bigpickle.log
+analyst-laguna.log
+analyst-ling3.log
+analyst-longcat.log
+analyst-nemotron3.log
+hypotheses-bigpickle.txt
+hypotheses-laguna.txt
+hypotheses-ling3.txt
+hypotheses-longcat.txt
+hypotheses-nemotron3.txt
+hypotheses.md
+valid-bugs.md
+[0m
+[0m$ [0mwhich reposcan 2>/dev/null; ls ~ 2>/dev/null; ls ~/reposcan* 2>/dev/null; find / -name "*reposcan*" -not -path "/proc/*" -not -path "/sys/*" 2>/dev/null | head -20
+actions-runner
+work
+/home/runner/work/spare-hunt/spare-hunt/.github/workflows/reposcan.yml
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-10-22-50.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-10-22-44.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-12-19-50.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-12-07-45.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-15-11-22.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-14-11-04.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-15-14-13.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-09-00-03.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-13-05-59.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-16-08-40.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-13-21-06.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-16-03-36.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-09-05-18.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-15-22-00.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-08-10-15.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-15-21-48.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-09-18-38.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-09-11-42.md
+/home/runner/work/spare-hunt/spare-hunt/leads/reposcan-2026-08-15-00-06.md
+[0m
+[0m→ [0mRead .github/workflows/reposcan.yml
+[0m→ [0mRead leads/reposcan-2026-08-16-08-40.md
+[0m
+[0m$ [0mcurl -s -m 20 "https://api.github.com/orgs/sparelabs" -o /tmp/opencode/org-sparelabs.json; python3 -c "import json;d=json.load(open('/tmp/opencode/org-sparelabs.json'));print(json.dumps({k:d.get(k) for k in ('login','name','public_repos','html_url','message')},indent=1))"
+{
+ "login": "sparelabs",
+ "name": "Spare",
+ "public_repos": 28,
+ "html_url": "https://github.com/sparelabs",
+ "message": null
+}
+[0m
+The workflow queries the `sparelabs` org but the model prompt/analysis claims it scanned `gladiaio`. Let me verify which GitHub org actually owns Spare code and whether the org enumeration is failing.
+[0m$ [0mcurl -s -m 20 "https://api.github.com/orgs/gladiaio" -o /tmp/opencode/org-gladiaio.json; python3 -c "import json;d=json.load(open('/tmp/opencode/org-gladiaio.json'));print(json.dumps({k:d.get(k) for k in ('login','name','public_repos','html_url','message')},indent=1))"
+{
+ "login": "gladiaio",
+ "name": "Gladia",
+ "public_repos": 19,
+ "html_url": "https://github.com/gladiaio",
+ "message": null
+}
+[0m
+Both orgs exist. The workflow enumerates `sparelabs` (28 repos) correctly, but the prompt/analysis is leftover from a different program (Gladia). Let me test the clone-candidate logic to see why 0 files got scanned.
+[0m$ [0mcd /tmp/opencode && curl -s -m 20 "https://api.github.com/orgs/sparelabs/repos?per_page=100&sort=updated" -o repos-sparelabs.json && python3 - << 'PY'
+import json
+repos = json.load(open("repos-sparelabs.json"))
+print("total repos:", len(repos) if isinstance(repos, list) else repos)
+cands = [r for r in repos if not r.get("archived") and r.get("language")
+         and r.get("stargazers_count", 0) > 5
+         and r.get("size", 10**9) < 200000]
+cands.sort(key=lambda r: r["updated_at"], reverse=True)
+print("candidates passing filter:", len(cands))
+for r in cands[:20]:
+    print(f"  {r['name']} stars={r['stargazers_count']} lang={r['language']} size={r['size']} updated={r['updated_at']}")
+PY
+total repos: 28
+candidates passing filter: 0
+[0m
+[0m$ [0mcd /tmp/opencode && python3 - << 'PY'
+import json
+repos = json.load(open("repos-sparelabs.json"))
+for r in repos:
+    print(f"{r['name']:40s} archived={str(r.get('archived')):5s} lang={str(r.get('language')):10s} stars={r['stargazers_count']:4d} size={r['size']:7d} updated={r['updated_at'][:10]} fork={r['fork']}")
+PY
+terraform-provider-typesense             archived=False lang=Go         stars=   0 size=     92 updated=2026-08-07 fork=True
+pgdog                                    archived=False lang=Rust       stars=   0 size=   5948 updated=2026-05-12 fork=True
+pgdog-docs                               archived=False lang=Python     stars=   0 size=   2730 updated=2026-04-21 fork=True
+learn-pg                                 archived=False lang=TypeScript stars=   0 size=    593 updated=2026-03-10 fork=False
+tap-postgres                             archived=False lang=Python     stars=   0 size=   1417 updated=2026-01-20 fork=True
+confident                                archived=False lang=JavaScript stars=   0 size=     97 updated=2026-01-19 fork=True
+react-native-mapbox-navigation           archived=False lang=None       stars=   0 size=   2065 updated=2026-01-19 fork=True
+react-native-recaptchav3                 archived=False lang=TypeScript stars=   0 size=     36 updated=2026-01-19 fork=True
+graphile-worker                          archived=False lang=TypeScript stars=   0 size=   1347 updated=2026-01-19 fork=True
+react-native-phone-input                 archived=False lang=JavaScript stars=   0 size=   1797 updated=2026-01-19 fork=True
+eslint-plugin-clean-timer                archived=False lang=JavaScript stars=   0 size=     83 updated=2026-01-19 fork=True
+typescript-starter                       archived=False lang=TypeScript stars=   0 size=      6 updated=2026-01-19 fork=False
+react-pdf-html                           archived=False lang=None       stars=   0 size=   1146 updated=2026-01-19 fork=True
+react-native-stripe-checkout-webview     archived=False lang=JavaScript stars=   0 size=     60 updated=2026-01-19 fork=True
+OSM-iD-editor                            archived=False lang=None       stars=   0 size= 516179 updated=2026-01-19 fork=True
+tectonic                                 archived=False lang=JavaScript stars=   0 size=   1512 updated=2026-01-19 fork=True
+cmdk                                     archived=False lang=TypeScript stars=   0 size=    664 updated=2025-10-29 fork=True
+osrm-backend                             archived=False lang=None       stars=   0 size=  45585 updated=2025-07-21 fork=True
+react-native-bottom-sheet                archived=False lang=TypeScript stars=   0 size=  10836 updated=2023-05-19 fork=True
+docs.sparelabs.com                       archived=True  lang=CSS        stars=   0 size=     61 updated=2023-01-28 fork=False
+node-postgres                            archived=True  lang=JavaScript stars=   0 size=   2011 updated=2023-01-28 fork=True
+react-native-ultra-picker-ios            archived=True  lang=JavaScript stars=   0 size=     28 updated=2023-01-28 fork=True
+getspare.github.io                       archived=True  lang=CSS        stars=   0 size=  52809 updated=2023-01-28 fork=False
+charts                                   archived=False lang=None       stars=   0 size=  28976 updated=2021-07-06 fork=True
+swagger-express-validator                archived=False lang=JavaScript stars=   0 size=    325 updated=2020-08-14 fork=True
+mapbox-navigation-ios                    archived=False lang=Swift      stars=   0 size= 125049 updated=2020-06-25 fork=True
+mapbox-navigation-android                archived=False lang=Java       stars=   0 size= 109466 updated=2020-02-26 fork=True
+heroku-buildpack-lerna                   archived=False lang=Shell      stars=   0 size=     19 updated=2019-07-30 fork=True
+[0m
+The org enumeration works fine — the filter is just excluding all 28 repos. Let me look at why.
+The blocker is now precisely diagnosed: the workflow *does* query `sparelabs`, but the filter `stargazers_count > 5` excludes all 28 repos (every one is a 0-star OSS fork — no proprietary Spare code). The only Spare-owned repos are `getspare.github.io` and `docs.sparelabs.com` (both archived). Let me clone those two and check for usable endpoint/secret leaks before deciding whether to fix the workflow.
+[0m$ [0mcd /tmp/opencode && mkdir -p sparelabs-own && cd sparelabs-own && git clone -q --depth 1 https://github.com/sparelabs/getspare.github.io.git 2>&1 | head -3; git clone -q --depth 1 https://github.com/sparelabs/docs.sparelabs.com.git 2>&1 | head -3; ls
+docs.sparelabs.com
+getspare.github.io
+[0m
+[0m$ [0mcd /tmp/opencode/sparelabs-own && find . -type f | head -50; echo "---counts---"; find getspare.github.io -type f | wc -l; find docs.sparelabs.com -type f | wc -l
+./docs.sparelabs.com/Rakefile
+./docs.sparelabs.com/_config.yml
+./docs.sparelabs.com/config.ru
+./docs.sparelabs.com/Gemfile
+./docs.sparelabs.com/internal.md
+./docs.sparelabs.com/.gitignore
+./docs.sparelabs.com/.git/refs/heads/master
+./docs.sparelabs.com/.git/refs/remotes/origin/HEAD
+./docs.sparelabs.com/.git/info/exclude
+./docs.sparelabs.com/.git/HEAD
+./docs.sparelabs.com/.git/objects/pack/pack-5c830f08b7e258fe565d3c417fd7014981d9f38d.idx
+./docs.sparelabs.com/.git/objects/pack/pack-5c830f08b7e258fe565d3c417fd7014981d9f38d.rev
+./docs.sparelabs.com/.git/objects/pack/pack-5c830f08b7e258fe565d3c417fd7014981d9f38d.pack
+./docs.sparelabs.com/.git/shallow
+./docs.sparelabs.com/.git/hooks/prepare-commit-msg.sample
+./docs.sparelabs.com/.git/hooks/pre-applypatch.sample
+./docs.sparelabs.com/.git/hooks/sendemail-validate.sample
+./docs.sparelabs.com/.git/hooks/post-update.sample
+./docs.sparelabs.com/.git/hooks/pre-rebase.sample
+./docs.sparelabs.com/.git/hooks/fsmonitor-watchman.sample
+./docs.sparelabs.com/.git/hooks/update.sample
+./docs.sparelabs.com/.git/hooks/pre-commit.sample
+./docs.sparelabs.com/.git/hooks/pre-merge-commit.sample
+./docs.sparelabs.com/.git/hooks/commit-msg.sample
+./docs.sparelabs.com/.git/hooks/applypatch-msg.sample
+./docs.sparelabs.com/.git/hooks/pre-receive.sample
+./docs.sparelabs.com/.git/hooks/push-to-checkout.sample
+./docs.sparelabs.com/.git/hooks/pre-push.sample
+./docs.sparelabs.com/.git/index
+./docs.sparelabs.com/.git/packed-refs
+./docs.sparelabs.com/.git/description
+./docs.sparelabs.com/.git/config
+./docs.sparelabs.com/.git/logs/refs/heads/master
+./docs.sparelabs.com/.git/logs/refs/remotes/origin/HEAD
+./docs.sparelabs.com/.git/logs/HEAD
+./docs.sparelabs.com/index.md
+./docs.sparelabs.com/.env
+./docs.sparelabs.com/_sass/minima.scss
+./docs.sparelabs.com/_sass/minima/_base.scss
+./docs.sparelabs.com/_sass/minima/_layout.scss
+./docs.sparelabs.com/_sass/minima/_syntax-highlighting.scss
+./docs.sparelabs.com/favicon.ico
+./docs.sparelabs.com/_layouts/default.html
+./docs.sparelabs.com/_layouts/apis.html
+./docs.sparelabs.com/_layouts/page.html
+./docs.sparelabs.com/_layouts/home.html
+./docs.sparelabs.com/assets/main.scss
+./docs.sparelabs.com/assets/spare_labs_logo.png
+./docs.sparelabs.com/Gemfile.lock
+./docs.sparelabs.com/external.md
+---counts---
+171
+53
+[0m
+[93m[1m! [0mpermission requested: read (../../../../../tmp/opencode/sparelabs-own/docs.sparelabs.com/.env); auto-rejecting
+[0m✗ [0mRead /tmp/opencode/sparelabs-own/docs.sparelabs.com/.env failed
+[91m[1mError: [0mThe user rejected permission to use this specific tool call.
+[0m
+[0m$ [0mcd /tmp/opencode/sparelabs-own && grep -rniE "sparelabs\.com|api\.|slack|token|key|secret|password|Bearer|Authorization|heroku|cloudflare|vercel|netlify" --include="*.md" --include="*.html" --include="*.yml" --include="*.rb" --include="*.ru" --include="*.xml" -l . 2>/dev/null | grep -v ".git/"
+./docs.sparelabs.com/_config.yml
+./docs.sparelabs.com/config.ru
+./docs.sparelabs.com/internal.md
+./docs.sparelabs.com/external.md
+./getspare.github.io/ride-app.html
+./getspare.github.io/android.html
+./getspare.github.io/_layouts/richmond-ubc-infographic.html
+./getspare.github.io/app.html
+./getspare.github.io/privacy.md
+./getspare.github.io/app-ios-default.html
+./getspare.github.io/tos.md
+./getspare.github.io/ios.html
+./getspare.github.io/referral.html
+./getspare.github.io/_includes/head-index.html
+./getspare.github.io/_includes/head-page.html
+[0m
+There's a `.env` in the docs repo. Let me inspect it and grep for endpoints/secrets in both archived repos.

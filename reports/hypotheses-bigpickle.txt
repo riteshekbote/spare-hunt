@@ -1,1 +1,36 @@
-## 2026-08-16 09:15:35 UTC [api] (model bigpickle)
+## 2026-08-16 09:47:55 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/global/regions (GET): priority 8.7 | attack 9 business 9 tech 8 gate 10 cloud 8 fresh 7
+[PRIO] api.sparelabs.com/v1/public/engage/{cases,caseForms} POST: priority 7.7 | attack 7 business 9 tech 7 gate 9 cloud 5 fresh 8
+[PRIO] api.sparelabs.com/v1/global/organizations (GET): priority 7.5 | attack 7 business 8 tech 7 gate 10 cloud 5 fresh 7
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: priority 6.9 | attack 6 business 7 tech 7 gate 9 cloud 5 fresh 7
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}: priority 6.8 | attack 6 business 7 tech 6 gate 10 cloud 4 fresh 7
+[HYP] regions gate validates header-presence + Bearer-scheme only; token fully omissible
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions (GET)
+confidence: 97
+reasoning: live re-verified 2026-08-16 05:28 UTC — `Bearer x` → 200 + 725B sha fb9800acb…585c3fe byte-identical to 86h+ baseline; no-auth → 400 "header required"; `Authorization: x` → 400 "scheme 'Bearer' required"; ACAO+ACAC on 200; control /v1/journeys 401; fleet-parity 7 hosts.
+evidence_needed: confirmed; retained for record only.
+verify_steps: PROBE (once, already proven): `curl -s -m15 -D - -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/regions` → expect 200 + 725B + ACAO+ACAC.
+impact: fully-unauthenticated infra topology disclosure (7 regions, 6 OOS api/routing hosts) + CORS credentials — HIGH.
+testability: PASSIVE
+[HYP] Unauth cross-tenant Engage write-IDOR via structurally-absent auth gate
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/cases (POST) + /caseForms (POST)
+confidence: 68
+reasoning: empty POST → 400 ValidationError with no InvalidTokenError; nil-UUID → 404 handler-reach; spare-UUID (d736519f…) → 403 ForbiddenError "External case creation is not enabled" — feature-flag gate, NOT auth gate; CORS+credentials reflected on all branches; multi-version LB confirmed flapping on GET variants.
+evidence_needed: one real caseTypeKey + defaultFormKey from authorized caseTypes listing to pass OpenAPI validation and reach data-write.
+verify_steps: AUTH_HELPED: test-org token → enumerate authorized caseTypes → capture caseTypeKey + defaultFormKey → `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>` to resolve formId → `POST /v1/public/engage/caseForms` (+ /cases) targeting org d736519f-f384-4771-a2d2-4f95e884d790; delete test data after.
+impact: unauth cross-tenant PII-bearing case/form-response injection into any org with external-creation flag; MEDIUM.
+testability: AUTH_HELPED
+[HYP] Organizations GET route-level fail-open is stable, route-specific, read-only
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations (GET)
+confidence: 96
+reasoning: live re-verified 2026-08-16 05:29 UTC — zero-header GET → 200 + 11B `{"data":[]}` + ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 InvalidTokenError (write gate active, read-only); 22-sibling sweep proves scope restricted to exactly {/organizations, /regions}; 86h+ stable.
+evidence_needed: confirmed; residual = payload size (empty `{"data":[]}`) caps severity.
+verify_steps: PROBE (once, already proven): `curl -s -m15 -D - -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations` → expect 200 + 11B + ACAO+ACAC.
+impact: auth-fail-open on GET confirming route-level omission pattern; empty payload → LOW data impact but HIGH pattern severity with universal CORS.
+testability: PASSIVE
+[FINAL] 1. regions scheme-only bypass (97) | 2. Engage write-IDOR (68) | 3. orgs zero-header fail-open (96)
+[NEXT] HUMAN: request one authorized test-org token from the program; enumerate authorized caseTypes to capture a real caseTypeKey + defaultFormKey, resolve formId via `GET /v1/public/engage/form?caseTypeKey=<k>&formKey=<dk>&organizationId=<test-org-uuid>`, then complete the unauth write-IDOR POC on `POST /v1/public/engage/caseForms` (and /cases) against org d736519f-f384-4771-a2d2-4f95e884d790, deleting test data after. Passive surface is exhausted — only this gated step can move the Engage chain from latent to proven.
+[RISK] api.sparelabs.com: 99 — full finding family 86h+ unpatched and byte-stable (regions scheme-only bypass with omissible token + CORS credentials, orgs zero-header read-only fail-open, universal CORS credential reflection, absent-auth engage write chain reaching handlers, SSO 8-tenant + org-key 5-org + UUID enumeration oracles); all re-verified live 2026-08-16 05:28-05:31 UTC | platform.sparelabs.com: 75 — CSP infra leak stable (prod+staging admin Vercel apps loadable 200, Metabase prod+staging 200, 9 cloud services); strict HTML CSP + x-frame SAMEORIGIN mitigate HTML-level only; MFE shell no API surface | routing.sparelabs.com: 8 — envoy 404/0B on all probed paths, no surface, NO_DELTA since 2026-08-07 | forms.sparelabs.com: 5 — JS bundle patched (zero infra refs), strict HTML CSP + x-frame DENY, SPA catch-all, recon-only residual | web (spare.com/sparelabs.com): 5 — static Cloudflare+Webflow marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks.
