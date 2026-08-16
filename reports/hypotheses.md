@@ -6940,3 +6940,19 @@
 - LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) FALSE POSITIVE — only tested no-auth path 400, never tested Bearer
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organiz
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B since 2026-08-07
+
+## RANKED HYPOTHESES 2026-08-16 22:34:51 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on /v1/global/regions with write-method CORS chain convergence (from reports/hypotheses-laguna.txt)
+- [62] api.sparelabs.com/v1/identity/workos/auth: OAuth parameter injection via SSO-config oracle redirectUri/state reflection (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -m15 -D - -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-He
+- NEXT(hypotheses-bigpickle.txt): PROBE: curl -s -m15 -D - -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","redirectUri":"https://evil
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed live — OPTIONS 204 returns ACAO:reflected + ACAC:true + allow
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥10 — oakville.ca + cota.com confirmed live; fleet-parity across 7 hosts
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (NOT 401); nil-UUID→404 NotF
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass STABLE 86h+ — longcat "PATCHED" false positive confirmed; byte-stable sha256 verified; f
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirectUri/state param reflection hypothesis UNTESTED — NEXT action; SSO oracle already confirmed 10
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — handler reached without 401; cross-route org-UUID oracle validat
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07, NO_DELTA
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED

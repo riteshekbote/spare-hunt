@@ -2022,3 +2022,10 @@
 - NEW forms.sparelabs.com: NOW live (was TIMEOUT→200 Engage SPA); JS bundle main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs
 - NEW routing.sparelabs.com: NOW live (was TIMEOUT→envoy 404); STABLE dead, envoy 404/0B on ALL paths since 2026-08-07
 - NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS static-only
+
+## 2026-08-16 22:34:51 UTC
+- NEW api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed live — OPTIONS 204 returns ACAO:reflected + ACAC:true + allow-methods:GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authoriza
+- NEW api.sparelabs.com/v1/public/organizations/{id}/*: 6-subpath sweep exhausted (/, status, branding, logo, config, tenants) → all 400 ValidationError "not found"; plural namespace fully mapped to {id} le
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥10 tenants — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) + cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC) confirmed live; fleet-parity
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: auth gate ABSENT confirmed live — handler reached without auth (400 ValidationError, 404 NotFoundError, 403 ForbiddenError); multi-versi
+- CHANGED api.s
