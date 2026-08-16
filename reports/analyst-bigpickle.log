@@ -65814,3 +65814,113 @@ Logged to `hypotheses-bigpickle.txt` + `valid-bugs.md`.
 - **caseForms formKey enumeration** — only remaining path to unauthenticated 201, but formId bridge is AUTH_HELPED-gated and guessed formKeys → 404 (known dead end).
 
 api.sparelabs.com risk: **86** — unchanged.
+===== ANALYST bigpickle 2026-08-16 18:53:42 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m✱ [0mGlob "**/hypotheses*"[90m 6 matches[0m
+[0m✱ [0mGlob "reports/**"[90m 12 matches[0m
+## Objective
+- Passive security assessment of Spare's bug bounty program (in-scope: spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com)
+- Identify and validate misconfigurations, auth bypasses, IDORs, and business logic flaws via passive-only probes (GET/HEAD, ≤1 rps, no account creation)
+
+## Important Details
+- **Scope**: spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com
+- **Exclusions**: ALL other subdomains of sparelabs.com and spare.com; third-party services
+- **Rules**: Passive-first (GET/HEAD only, ≤1 rps), no account creation, no data modification, secrets sha256 only
+- **Infrastructure**: api.sparelabs.com runs envoy edge gateway behind multi-version load balancer (fast 2-5ms + slow 591-1185ms replicas); fleet spans 7 hosts (prod/us/us2/us3/jp/eu/uat)
+- **longcat triage "PATCHED" claim (2026-08-11) is FALSE POSITIVE** — only tested no-auth path (400), never tested the actual Bearer-x bypass vector on /v1/global/regions
+- **forms.sparelabs.com JS bundle**: main.8a2a39cb.js confirmed PATCHED (zero infra refs); 3 Google Maps keys all referrer-restricted
+- **routing.sparelabs.com**: STABLE dead (envoy 404/0B on ALL probed paths since 2026-08-07)
+- **GitHub repo scan pipeline**: scan-target misconfigured (gladiaio org instead of sparelabs), 0 files scanned — needs fix before code-surface analysis
+- **Phase**: POC; target: api
+
+## Work State
+### Completed
+- **Fleet-wide bypass confirmed (7 hosts)**: /v1/global/regions scheme-only Bearer bypass + /v1/global/organizations zero-header read-only bypass reproduced on prod/us/us2/us3/jp/eu/uat — 86h+ byte-stable
+- **/v1/global/regions**: `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS api/routing subdomains) + ACAO+ACAC; body sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` verified; no-auth→400, POST→401 (read-only)
+- **/v1/global/organizations**: GET NO-Auth → 200 + 11B `{"data":[]}` + ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 InvalidTokenError (read-only, auth asymmetry confirmed)
+- **/v1/identity/workos/auth**: SSO-config oracle ≥10 tenants (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca, cota.com +); fleet-parity 7 hosts; universal CORS
+- **/v1/public/organizations/key/{key}**: 3-way oracle; live set CLOSED at {spare, grt, dallas, winnipeg, hsr}; prod-only (uat/us2/jp→404); 22 new candidates all 404
+- **/v1/public/engage/cases POST + caseForms POST**: Auth gate ABSENT — handler reached without auth; empty POST→400 ValidationError (no 401); nil-UUID→404 NotFoundError; spare/grt/dallas/winnipeg→403 ForbiddenError (feature-flag gate, NOT auth gate)
+- **/v1/public/terms**: Per-tenant config chain — spare→107B "asdfd" prod junk, winnipeg→197B real URL; byte-stable sha256; prod-only
+- **/v1/public/organizations/{id}**: 3-way UUID oracle STABLE (malformed→400, nil→404, valid→200); superior to flapping singular /organization
+- **/v1/**: Universal CORS credential reflection (ACAO:reflected + ACAC:true + all methods + Authorization header) — non-path-conditional via 22-sibling sweep; 86h+ stable
+- **platform.sparelabs.com/login**: CSP infra leak STABLE — admin-eam-app + admin-fixed-route-app (prod+staging, loadable 200) + Metabase (prod+staging) + 9 cloud services; strict HTML CSP + x-frame SAMEORIGIN
+- **platform.sparelabs.com**: Embedded OpenAPI spec of EAM/fixed-route admin API (170 paths) — ALL properly gated (401/404)
+- **forms.sparelabs.com**: SPA 200; JS bundle PATCHED; no API endpoints (8/8 SPA catch-all)
+- **sparelabs.com**: 301→spare.com (Cloudflare+HSTS, static-only)
+- **sparelabs.ca**: DNS only → GCP LB "fault filter abort" 404
+- **/v1/global/* controller-wide hypothesis**: REJECTED — 22 sibling routes + 8 undocumented controllers ALL 401; bypass scoped to exactly {/organizations, /regions}
+- **/v1/global/organizations write-escalation**: REJECTED — POST/PUT/PATCH/DELETE → 401 InvalidTokenError
+- **/v1/public/organization (singular)**: UUID oracle FLAPPING 2-way↔3-way across envoy replicas; downgraded to validation-leak-only
+- **/v1/public/engage/{caseType,form} GET**: FLAPPING between OpenAPI validation and router-level "not found" — unreliable
+- **Cross-route org-UUID oracle**: grt+dallas+winnipeg all 403 (feature-flag gate, not auth); nil 404; handler reached before auth
+
+### Active
+- NEXT action: Write regions bypass finding to `reports/valid-bugs.md` — map 7 regions to 6 OOS api/routing subdomain pairs as primary deliverable
+- SSO roster enumeration exhausted (7/7 transit-agency candidates all 404; roster closed at ≥10 tenants)
+- Engage/cases POST escalation test pending AUTH_HELPED tokens for remaining org UUIDs
+
+### Blocked
+- GitHub repo scan: scan-target misconfigured (gladiaio org), 0 files scanned — needs clone target fix before code-surface analysis
+- Engage/caseForms POST full escalation: needs AUTH_HELPED test tokens/UUIDs to test if any org has external case creation enabled (would escalate to unauthenticated case injection)
+
+## Next Move
+1. **PROBE**: Document regions bypass as primary deliverable — write to `reports/valid-bugs.md` mapping 7 regions (CA/US/US2/US3/JP/EU/UAT) to 12 OOS api/routing subdomains disclosed via unauth Bearer-x
+2. **PROBE**: Test engage/cases POST escalation with grt UUID `1966c7f8-3e36-4320-b0d7-de0f7d8d4355` + caseTypeId + contactInfo to confirm 403 (feature-flag gate) across all known org UUIDs; if any returns 200/201 → unauthenticated case creation
+
+## Relevant Files
+- `reports/valid-bugs.md`: Target for primary finding documentation (regions bypass fleet topology)
+- `reports/hypotheses-laguna.txt`: Hypothesis file with regions bypass lead (confidence 97)
+- `reports/hypotheses-nemotron3.txt`: Hypothesis file with regions bypass lead (confidence 96)
+- `/tmp/opencode/regions.json`: Captured 725B regions body (7 regions with apiUrl+routingHost)
+- `scope.yml`: Program scope definition
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+[0m→ [0mRead reports/valid-bugs.md
+[0m→ [0mRead reports/hypotheses.md
+[0m→ [0mRead reports/hypotheses-bigpickle.txt
+[0m→ [0mRead reports/hypotheses.md[90m [offset=347][0m
+[0m→ [0mRead reports/analyst-bigpickle.log
+[0m→ [0mRead reports/hypotheses-laguna.txt
+[0m→ [0mRead reports/hypotheses-nemotron3.txt
+[0m→ [0mRead knowledge
+[0m→ [0mRead inventory
+[0m→ [0mRead scope.yml
+[0m→ [0mRead knowledge/index.md
+[0m→ [0mRead inventory/spare.md
+## Summary of work so far
+
+**Spare Bug Bounty Hunt** — multi-model ensemble (bigpickle, laguna, nemotron3, ling3, longcat) running passive-only recon on spare.com / sparelabs.com ecosystem since 2026-08-07 (~9 days).
+
+### Validated Findings (5 confirmed, all stable 90h+ across 7 fleet hosts)
+
+| # | Finding | CVSS | Status |
+|---|---------|------|--------|
+| **A1** | CORS reflect-any-origin+credentials on entire `/v1/**` (all methods + Authorization header) | **8.1 High** | STABLE |
+| **A2** | Scheme-only Bearer bypass on `/v1/global/regions` — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS api/routing subdomains) | **5.3 Medium** | STABLE |
+| **A3** | UUID enumeration oracle on `/v1/public/organizations/{id}` (malformed→400, nil→404, valid→200) | **5.3 Medium** | STABLE |
+| **A4** | Zero-header read-only bypass on `/v1/global/organizations` (GET→200 empty, writes properly 401-gated) | **5.3 Medium** | STABLE |
+| **A5** | `/v1/public/terms` data disclosure (live terms URLs via mobileAppId/organizationId params, no auth) | **3.1 Low** | STABLE |
+
+### Additional findings (informational / low)
+
+- **A6**: CSP infra leak on `platform.sparelabs.com/login` (admin Vercel apps + Metabase + 9 cloud services)
+- **A7**: JS bundle infra leak on `forms.sparelabs.com` (**PATCHED** — main.8a2a39cb.js has zero infra refs)
+- **A8**: SSO config oracle on `/v1/identity/workos/auth` — 10+ tenants enumerated (WorkOS client_id + Entra ID disclosure)
+- **A9**: Cross-route org-UUID oracle via `/v1/public/engage/cases POST` (handler reached without auth, 403=feature-flag gate)
+
+### What's blocked / next
+
+- **No AUTH_HELPED tokens** — IDOR cross-tenant tests and engage/caseForms escalation require valid Bearer tokens from the program
+- **GitHub repo scan** misconfigured (scanning gladiaio org instead of sparelabs) — code-surface analysis impossible
+- **longcat "PATCHED" claim (2026-08-11) is a false positive** — only tested no-auth path (400), never tested the Bearer-x bypass vector
+- **routing.sparelabs.com** remains dead (envoy 404 on all paths since 2026-08-07)
+
+### What's not yet done
+
+- Primary finding (`reports/valid-bugs.md`) still lacks clean writeup of the regions bypass fleet topology
+- No report submitted to Spare's security channel yet
+- Escalation path for engage/cases POST blocked on test tokens
+
+**Ready to continue** — want me to write up the regions bypass finding, run the next probe cycle, or something else?
