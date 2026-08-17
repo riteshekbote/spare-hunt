@@ -2277,3 +2277,20 @@
 - CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants — saskatoon.ca + mbta.com + oakville.ca + cota.com + kingcounty.gov + winnipeg.ca confirmed live; fleet-parity across 7 ho
 - NEW api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizeUrl response body (OAuth parameter injection vector CONFIRMED); redirect_uri param silently dropped (not a re
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: Auth gate ABSENT re-confirmed live — handler reached without 401 on empty POST (400) and nil-UUID (404); valid org UUIDs (spare/grt/dall
+
+## 2026-08-17 10:30:13 UTC
+- NEW api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass now ONLY on FAST LB replicas (~0.11-0.14s) — 8/8 probes 200+725B; SLOW replicas return 401; previously stable across all replicas
+- NEW api.sparelabs.com/v1/global/organizations: Zero-header read-only bypass now ONLY on SLOW LB replicas (~0.55-1.04s) — 8/8 probes 200+11B; FAST replicas return 401; previously stable across all replicas
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants — saskatoon.ca + mbta.com + oakville.ca + cota.com newly confirmed; fleet-parity across 7 hosts
+- NEW /v1/identity/workos/auth POST redirect_uri/state reflection hypothesis UNTESTED — potential OAuth parameter injection vector via SSO oracle
+- NEW platform.sparelabs.com: NOW live (was TIMEOUT) — MFE SPA shell 200; CSP `/login` infra leak STABLE (admin Vercel apps dev-only, Metabase prod+staging, 9 cloud services)
+- NEW forms.sparelabs.com: NOW live (was TIMEOUT) — Engage portal SPA 200; strict HTML CSP (`connect-src https://*.sparelabs.com`); all API paths return SPA catch-all
+- NEW routing.sparelabs.com: NOW live (was TIMEOUT) — envoy 404 on ALL paths; STABLE dead, NO_DELTA since 2026-08-07
+- NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT) — Cloudflare+HSTS, static-only
+- CHANGED api.sparelabs.com/v1/global/regions: Multi-version LB replica split confirmed as mechanism behind 96h intermittent flapping — NOT a patch, bypasses are replica-version-dependent
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted (infra leak ELIMINATED)
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizationUrl response body; redirect_uri NOT reflected (silently dropped) — OATH injection vector confirmed as sta
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: Auth gate ABSENT re-confirmed live — handler reached without auth (400 ValidationError, 404 NotFoundError, 403 ForbiddenError); multi-ve
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400, ~299B) and router-level "not found" (400, ~189B) — multi-version envoy LB confirmed, downgraded to UNC
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping 2-way↔3-way across envoy replicas — downgraded to validation-leak-only
+- CHANGED api.sparelabs.com/v1/global/organizations: zero-header bypass now replica-dependent — slow replicas (664ms) return 200+11B; fast replicas return 401; same multi-version LB split mechanism

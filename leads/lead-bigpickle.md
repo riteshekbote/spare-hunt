@@ -10385,3 +10385,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — Envoy 404 on ALL probed paths since 2026-08-07; NO_DELTA
 [RISK] forms.sparelabs.com: 25 — Engage portal SPA live; JS bundle PATCHED (zero infra leaks); 3 Google Maps keys referrer-restricted; all API paths return SPA catch-all; no real API endpoints behind host
 [RISK] web (spare.com/sparelabs.com): 15 — spare.com apex: Cloudflare+Webflow static marketing (CSP frame-ancestors 'self', HSTS); sparelabs.com: 301→spare.com; no internal infra leaks; minimal static-only surface
+## 2026-08-17 10:29:02 UTC [api] (model bigpickle)
