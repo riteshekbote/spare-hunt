@@ -2446,3 +2446,16 @@
 - NEW forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; downgraded from ACCEPTED MISCONFIG 
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle fully degraded 3-way↔2-way flapping across envoy replicas — downgraded to validation-leak-only, NOT oracle class; plural /organizations
 - CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — multi-version envoy LB confirmed; downgraded to UNC
+
+## 2026-08-17 17:00:50 UTC
+- NEW api.sparelabs.com/v1/global/regions: Multi-version LB replica split CONFIRMED as mechanism behind 96h flapping — NOT a patch; fast replicas (4-17ms) deterministically return 200+725B+Bearer bypass, sl
+- NEW api.sparelabs.com/v1/global/organizations: zero-header bypass now DETERMINISTIC — 8/8 slow replicas (550-1040ms) return 200+11B+ACAO+ACAC, fast replicas return 401 — same LB split mechanism
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca, kingcounty.gov newly confirmed); state parameter reflected un
+- NEW api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — handler reached without 401 (400 ValidationError, 404 NotFoundError, 403 ForbiddenError); feature-flag gate per-org; cr
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; downgraded from ACCEPTED MISCONFIG 
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle fully degraded 3-way↔2-way flapping across envoy replicas — downgraded to validation-leak-only, NOT oracle class; plural /organizations
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — multi-version envoy LB confirmed; downgraded to UNCONFIRMED
+- NEW platform.sparelabs.com: NOW live (was TIMEOUT) — MFE SPA shell 200; CSP /login infra leak STABLE (admin Vercel apps dev-only, Metabase prod+staging, 9 cloud services)
+- NEW forms.sparelabs.com: NOW live (was TIMEOUT) — Engage portal SPA 200; strict HTML CSP + x-frame DENY; all API paths return SPA catch-all
+- NEW routing.sparelabs.com: NOW live (was TIMEOUT) — envoy 404/0B on ALL probed paths; STABLE dead, NO_DELTA since 2026-08-07
+- NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT) — Cloudflare+HSTS, static-only, no new surface

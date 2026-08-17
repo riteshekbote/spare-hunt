@@ -2638,3 +2638,6 @@ https://api.us.sparelabs.com/v1/global/regions -> HTTP 400
 https://api.us.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
 https://api.uat.sparelabs.com/v1/public/engage/cases -> HTTP 400
+
+## 2026-08-17 17:00:50 UTC
+https://api.sparelabs.com/v1/global/regions -> HTTP 400

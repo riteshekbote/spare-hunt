@@ -7675,3 +7675,6 @@
 - LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) is FALSE POSITIVE — longcat only tested no-auth path (400), never 
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel references; 3 Google Map
+
+## RANKED HYPOTHESES 2026-08-17 17:00:50 UTC
+- [95] api.sparelabs.com/v1/global/regions: Deterministic scheme-only Bearer bypass on global regions leaks fleet-wide infra topology with write-method CORS chain (from reports/hypotheses-nemotron3.txt)
