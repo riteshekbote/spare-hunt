@@ -1871,3 +1871,6 @@
 - 2026-08-17 ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizeUrl response body; redirect_uri NOT reflected (silently dropped); state reflection confirmed as primary OATH injection vector
 - 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: multi-version LB replica split CONFIRMED — fast replicas (4ms) 200+725B+Bypass; slow replicas 401; mechanism behind 96h flapping, NOT a patch; longcat "PATCHED" false positive stands
 - 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header bypass now replica-dependent — slow replicas (664ms) 200+11B; fast replicas 401; same multi-version LB split mechanism
+- 2026-08-17 ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizeUrl; redirect_uri NOT reflected (silently dropped by Spare handler); state reflection confirmed as primary injection vector
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: multi-version LB replica split confirmed — fast replicas (4ms) 200+725B+Bypass; slow replicas 401; mechanism behind 96h flapping, NOT a patch
+- 2026-08-17 REJECTED (redirect_uri injection): redirect_uri parameter silently dropped by Spare's handler — NOT reflected in authorizationUrl; injection must target WorkOS URL boundary via state param

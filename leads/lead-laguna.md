@@ -11913,3 +11913,4 @@ impact: Anonymous reach to Engage case-creation handler pipeline without authent
 testability: PASSIVE
 [FINAL] Ranked:
 [NEXT] PROBE: `curl -s -m15 -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type" https://api.sparelabs.com/v1/global/regions | grep -iE "access-control-allow(methods|origin|credentials|headers)"` — confirm write-method CORS chain convergence (DELETE/PUT/PATCH/POST advertised with ACAO+ACAC) on the scheme-only bypass route itself, closing the read→write escalation gap on the fleet-infrastructure disclosure
+## 2026-08-17 05:50:48 UTC [web] (model laguna)
