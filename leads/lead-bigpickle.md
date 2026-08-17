@@ -11103,3 +11103,50 @@ testability: AUTH_HELPED
 [RISK] routing.sparelabs.com: 5 — Envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_DELTA
 [RISK] forms.sparelabs.com: 25 — Engage portal SPA live; JS bundle PATCHED (main.8a2a39cb.js, zero infra leaks, 3 Maps keys referrer-restricted); all API paths return SPA catch-all; no active attack surface
 [RISK] web (spare.com/sparelabs.com): 15 — spare.com apex: Cloudflare+Webflow static marketing (CSP frame-ancestors 'self', HSTS 31536000); sparelabs.com: 301→spare.com; no internal infra leaks in HTML/JS
+## 2026-08-17 21:40:49 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/organizations/{orgId}/riders (sub-resource sweep): 7.8
+[PRIO] api.sparelabs.com/v1/global/regions: 8.1 (re-confirm, STABLE)
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: 7.5 (re-confirm, STABLE)
+[HYP] /v1/public/organizations/{orgId}/riders endpoint existence (IDOR family extension)
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{orgId}/riders
+confidence: 45
+reasoning: /v1/public/organizations/{id} returns org details with enabledPublicFeatureFlags including "riderLoginless" (exclusive to spare+winnipeg). Platform bundle leaked /v1/riders routes (401 gated). If a /public/riders sub-route exists under the public namespace, it could expose rider PII without auth.
+evidence_needed: HTTP response from /v1/public/organizations/{valid-uuid}/riders — 200 vs 404
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders — check if sub-resource is routed
+impact: If live: unauthenticated rider PII (phone, email, payment tokens). Severity HIGH if data-bearing, LOW if 404.
+testability: PASSIVE
+[HYP] /v1/global/regions write-method CORS chain enables token theft on auth-gated routes (CORS escalation)
+class: MISCONFIG
+asset: api.sparelabs.com/v1/global/regions
+confidence: 85
+reasoning: OPTIONS 204 on /v1/global/regions returns ACAO:reflected + ACAC:true + allow-methods:PUT,PATCH,POST,DELETE. Bearer-x bypass is read-only (POST→401), but the CORS preflight advertises full write methods to any origin. Combined with ACAC:true, any malicious page can steal the response including 725B of OOS infra topology, and the CORS chain itself signals to browser that cross-origin writes are permitted (handler enforces auth, but CORS says otherwise).
+evidence_needed: Already confirmed in KB — no new evidence needed.
+verify_steps: PASSIVE: Already documented — OPTIONS preflight on /v1/global/regions returns write methods + CORS credentials.
+impact: Browser-enforced CORS misconfiguration enabling cross-origin reads of region topology + perceived write surface. Severity MEDIUM.
+testability: PASSIVE
+[HYP] /v1/public/organizations/{orgId} sub-resource sweep for riders/vehicles/trips
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/*
+confidence: 40
+reasoning: Platform bundle OpenAPI spec includes /v1/riders/{id}, /v1/vehicles/{id}, /v1/trips/{id}, /v1/sessions/{id} — all gated 401 on the private namespace. If any of these have /public/ counterparts under /v1/public/organizations/{id}/, they could be data-bearing without auth. Pattern: /v1/public/organizations/key/{key} and /v1/public/organizations/{id} both exist without auth.
+evidence_needed: HTTP responses from each sub-path — 200 vs 404 vs 401
+verify_steps: PASSIVE: GET each of these at ≤1 rps:
+impact: If live: unauthenticated PII (rider/vehicle/trip data). Severity HIGH if data-bearing.
+testability: PASSIVE
+[FINAL]
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders — check if public sub-resource is routed (200 data-bearing vs 404 vs 401). Then sweep /vehicles, /trips, /sessions at ≤1 rps each.
+[LEARN] REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+[LEARN] REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" (2026-08-11) is false positive — only tested no-auth path 400, missed Bearer-x vector
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC — fast replicas 8/8 bypass; slow replicas 401; multi-version LB confirmed
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC — slow replicas 8/8 bypass, read-only; same LB split
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster ≥11 tenants; state reflection confirmed; redirect_uri dead
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs; per-tenant feature-flag differential
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403)
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs; 3 Maps keys referrer-restricted
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+[RISK] api.sparelabs.com: 93 — DETERMINISTIC auth bypasses + FULL CORS + SSO oracle + state reflection + FULL org details via key oracle + universal CORS + multi-version LB dual-surface
+[RISK] platform.sparelabs.com: 65 — CSP infra leak on /login; MFE SPA shell; no real API surface behind host
+[RISK] routing.sparelabs.com: 5 — Envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead
+[RISK] forms.sparelabs.com: 25 — JS bundle PATCHED; 3 Maps keys referrer-restricted; SPA catch-all; no active attack surface
+[RISK] web (spare.com/sparelabs.com): 15 — Static marketing; CSP frame-ancestors 'self'; no internal leaks
