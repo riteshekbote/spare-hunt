@@ -7078,3 +7078,20 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header bypass STABLE on slow replicas (664ms, 200+11B); 401 on fast replicas — same replica-spli
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: nil-UUID → 404 NotFoundError (handler reached, NO 401); spare-UUID → 403 ForbiddenError (feat
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri parameter NOT reflected in authorizeUrl (only state is) — redirect-target injection
+
+## RANKED HYPOTHESES 2026-08-17 03:32:55 UTC
+- [97] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on global regions returns fleet infrastructure topology with CORS write-method chain (from reports/hypotheses-laguna.txt)
+- [95] api.sparelabs.com/v1/global/regions: Fleet-wide infrastructure topology disclosure via scheme-only Bearer bypass on global regions with write-method CORS convergence and multi-version LB replica split (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" (confirm 200+725B+ACAO+ACAC on fast re
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"1966c7f8-3e36-4320-b0d7-de0f7d8d43
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizeUrl response body (OAuth parameter injection vector C
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" false positive, multi-version LB replica split co
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without auth; cross-route org-UUID oracle validated on 3+
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId, ~299B
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped to exactly {/orga
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError — both bypas
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy LB replicas (nil→404 fast, 400 slow); do
+- LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) is FALSE POSITIVE — longcat only tested no-auth path (400), never 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED

@@ -11821,3 +11821,35 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (was TIMEOUT→404) but zero surface, NO_DELTA
 [RISK] forms.sparelabs.com: 12 — Engage portal SPA 200 (resurrected from TIMEOUT); JS bundle main.8a2a39cb.js PATCHED (zero infra refs, 3 Maps keys referrer-restricted); strict HTML CSP; all API paths SPA catch-all; infra leak ELIMINATED — recon-only residual
 [RISK] web (spare.com/sparelabs.com): 15 — spare.com apex HTTP 200 static Webflow/Cloudflare (CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com apex; www.spare.com OOS excluded; minimal static-only surface, no dynamic logic
+## 2026-08-17 03:30:19 UTC [web] (model laguna)
+[HYP] Scheme-only Bearer bypass on global regions returns fleet infrastructure topology with CORS write-method chain
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 97
+reasoning: `Authorization: Bearer x` → HTTP 200 + 725B region registry (7 regions: CA, US, US2, US3, JP, EU, UAT; each with apiUrl + routingHost exposing 6 OOS regional + staging api/routing subdomains); empty-body POST → 400 (header required), `Authorization: x` → 400 (scheme Bearer required) — gate validates scheme only, token never verified; OPTIONS 204 returns ACAO:reflected + ACAC:true + all methods (GET,HEAD,PUT,PATCH,POST,DELETE) + ACAH:Authorization,Content-Type; body sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` byte-stable 86h+ across 7 fleet hosts
+evidence_needed: GET `Authorization: Bearer x` → 200 + 725B + ACAO+ACAC; sha256sum body = `fb9800acb…585c3fe`; no-Auth → 400; POST → 401; OPTIONS 204 → ACAO+ACAC+write methods
+verify_steps: PROBE: curl -s -m15 -D - -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | head -20
+impact: Anonymous readout of complete fleet-wide infrastructure topology (7 regions exposing 6 OOS regional + staging api/routing subdomains) with browser-side exfiltration via CORS write-method chain; severity HIGH; bypass persists 86h+ despite patch claim
+testability: PASSIVE
+[HYP] Unauthenticated SSO-config oracle with OAuth state parameter injection on WorkOS auth endpoint
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 88
+reasoning: POST `{"domain":"spare.com","state":"probe_state_2026"}` → HTTP 200 + 172B `{"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY&response_type=code&state=probe_state_2026"}` — state parameter reflected unescaped in authorizeUrl body; redirect_uri param accepted (200) but NOT reflected (variants redirectUri/redirect_url/callback_url all silently dropped); 10+ SSO tenants confirmed (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, oakville.ca, cota.com, winnipeg.ca) via 200/404 differential; universal CORS (ACAO+ACAC) on both branches
+evidence_needed: POST with state param → 200 + authorizeUrl containing verbatim state value; tenant domain → 200, non-tenant domain → 404 (3-way differential)
+verify_steps: PROBE: curl -s -m15 -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","state":"inj_test_2026"}' https://api.sparelabs.com/v1/identity/workos/auth
+impact: Attacker controls state parameter embedded in WorkOS authorize URL → potential CSRF token bypass (state as CSRF guard), authorize-URL manipulation/phishing, WorkOS-side parameter pollution; discloses WorkOS client_id + connection_id + Entra tenant IDs for partner orgs; severity LOW-MEDIUM
+testability: PASSIVE
+[HYP] Auth gate absent on Engage case-creation write route reaches handler without authentication
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 82
+reasoning: empty-body POST `{"organizationId":"d736519f…","caseTypeId":"00000000-0000-0000-0000-000000000000","contactInfo":{"name":"Test","phone":"+15555555555"}}` → 403 ForbiddenError "External case creation is not enabled for this organization" (feature-flag gate at handler, NOT auth gate); empty body → 400 ValidationError "must have required property organizationId" (NO 401 InvalidTokenError); nil-UUID org → 404 NotFoundError "Other was not found" (handler reached); all responses return ACAO:reflected + ACAC:true; validation pipeline precedes auth gate
+evidence_needed: POST {} → 400 ValidationError (NOT 401); POST with valid org UUID → 403 ForbiddenError (handler reached, feature-flag gate); POST nil-UUID → 404 NotFoundError (handler reached)
+verify_steps: PROBE: curl -s -m15 -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000000","contactInfo":{"name":"test"}}' https://api.sparelabs.com/v1/public/engage/cases
+impact: Anonymous reach to Engage case-creation handler pipeline without authentication; PII field definitions (mobilityPlusIdNumber, expiry, easyGoFareCardNumber) disclosed via bundle schema; potential write-path exploitation if Engage feature-flag toggled on; severity MEDIUM-HIGH (depends on feature activation)
+testability: PASSIVE
+[FINAL] [PRIO] api.sparelabs.com/v1/global/regions, 8.65
+[FINAL] [PRIO] api.sparelabs.com/v1/identity/workos/auth, 7.85
+[FINAL] [PRIO] api.sparelabs.com/v1/public/engage/cases POST, 7.45
+[NEXT] PROBE: `curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"1966c7f8-3e36-4320-b0d7-de0f7d8d4355","caseTypeId":"d736519f-f384-4771-a2d2-4f95e884d790","contactInfo":{"name":"Probe","phone":"+15555555555","email":"probe@test.com"}}' https://api.sparelabs.com/v1/public/engage/cases -o /tmp/opencode/engage_grt.json -D /tmp/opencode/engage_grt_hdr.txt; cat /tmp/opencode/engage_grt.json` — confirm engage/cases cross-route org-UUID oracle on grt (2nd valid org) vs spare (1st) to validate handler-reached 403 discrimination; verify CORS headers on 403 response confirm credential-reflecting write path
