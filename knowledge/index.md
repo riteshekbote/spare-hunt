@@ -2000,3 +2000,10 @@
 - 2026-08-17 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js confirmed PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted
 - 2026-08-17 REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead, NO_DELTA
 - 2026-08-17 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — multi-version LB confirmed, unreliable
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC scheme-only Bearer bypass — fast replicas 8/8 → 200+725B; slow replicas → 401; multi-version LB replica-split confirmed (not a patch)
+- 2026-08-17 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle expanded to ≥11 tenants (winnipeg.ca, kingcounty.gov, oakville.ca, cota.com newly confirmed); state param reflected unescaped; redirect_uri dead
+- 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed full-chain live — empty POST→400 (no 401), nil-UUID→404 NotFoundError (handler reached), valid org→403 ForbiddenError (feature-flag gate NOT auth gate); CORS reflected on all responses
+- 2026-08-17 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED (final state)
+- 2026-08-17 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404 on 2026-08-13) but zero surface, NO_DELTA
+- 2026-08-17 ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — HTML dropped 5555B→5327B (minor rotation 2026-08-17 16:03 UTC) but admin-eam-app + admin-fixed-route-app (prod+staging) + Metabase + 9 cloud services still in CSP
+- 2026-08-17 REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET only
