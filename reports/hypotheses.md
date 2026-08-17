@@ -7854,3 +7854,38 @@
 - LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organiz
 - LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" (2026-08-11) is false positive — only tested no-auth path 400, missed Bearer-x vector
+
+## RANKED HYPOTHESES 2026-08-17 20:47:36 UTC
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on /v1/global/regions leaks fleet-wide infrastructure topology with write-method CORS chain (from reports/hypotheses-laguna.txt)
+- [95] api.sparelabs.com/v1/global/regions: Deterministic scheme-only Bearer bypass on global regions leaks fleet-wide infra topology with write-method CORS chain (from reports/hypotheses-nemotron3.txt)
+- [95] api.sparelabs.com/v1/global/regions: /v1/global/regions scheme-only Bearer bypass with infra topology disclosure (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" — confirm 200+725B + ACAO:https://evil
+- NEXT(hypotheses-bigpickle.txt): PROBE: For each of the 5 known org UUIDs (spare: d736519f-f384-4771-a2d2-4f95e884d790, grt: 1966c7f8-3e36-4320-b0d7-de0f7d8d4355, dallas: e5f587ba-50e7-4b0c-a2e
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Multi-version LB replica split CONFIRMED deterministic — 8/8 fast replicas bypass, not probabilistic; longc
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Zero-header bypass now DETERMINISTIC — 8/8 slow replicas bypass, read-only; same LB split mechanism a
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (winnipeg.ca, kingcounty.gov, oakville.ca, cota.com newly confirme
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs, 3-way oracle, prod
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — handler reached without 401 (400 ValidationError, 404 NotFo
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07, NO_DELTA
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas — downgraded to validation-leak-only; plur
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10 probed paths return SPA catch-all 200 text/html — no real API surface behind MFE shel
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — mult
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC scheme-only Bearer bypass — fast replicas 8/8 → 200+725B; slow replicas → 401; multi-version 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC zero-header bypass — slow replicas 8/8 → 200+11B; fast replicas → 401; read-only; same 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STABLE ≥11 tenants; state reflection confirmed; redirect_uri dead
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true + all methods + ACAH:Authorization o
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — admin Vercel apps (prod+staging, loadable 200) + Metabase + 9 cloud services
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only injection confirmed (URL-encoded
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organiz
+- LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" (2026-08-11) is false positive — only tested no-auth path 400, missed Bearer-x vector
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW — full org details (id, name, logoUrl GCS path, isMaintenanceEnabled, organization
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: STABLE — scheme-only Bearer bypass, sha256 fb9800acb…585c3fe byte-stable
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: STABLE — 403 across all 5 orgs; auth gate absent; feature-flag disabled
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: STABLE — zero-header bypass still returns {"data":[]}
+- LEARN: CORRECTED: HSR UUID = 83303a6b-fb96-4ff3-8f58-d6069a043fbb (KB had partial 8cf76a6e-...)
+- LEARN: NEW INTEL: Per-tenant feature flags: spare=[5], winnipeg=[4], hsr=[2], grt=[2], dallas=[0]; "multimodal" exclusive to spare+grt; "riderPhonePin" exclusive to sp

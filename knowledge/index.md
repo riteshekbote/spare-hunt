@@ -2011,3 +2011,17 @@
 - 2026-08-17 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true + all methods + ACAH:Authorization on OPTIONS 204 + GET 200/401/403/404
 - 2026-08-17 REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only injection confirmed (URL-encoded passthrough)
 - 2026-08-17 REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" (2026-08-11) is false positive — only tested no-auth path 400, missed Bearer-x vector
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Multi-version LB replica split CONFIRMED deterministic — 8/8 fast replicas bypass, not probabilistic; longcat "PATCHED" (2026-08-11) is false positive (only tested no-auth path 400)
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Zero-header bypass now DETERMINISTIC — 8/8 slow replicas bypass, read-only; same LB split mechanism as /regions
+- 2026-08-17 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (winnipeg.ca, kingcounty.gov, oakville.ca, cota.com newly confirmed); state param reflected unescaped; fleet-parity 7 hosts
+- 2026-08-17 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} (5 orgs, 3-way oracle, prod-only, feature-flag differential stable)
+- 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — handler reached without 401 (400 ValidationError, 404 NotFoundError, 403 ForbiddenError feature-flag gate); CORS reflected
+- 2026-08-17 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07, NO_DELTA
+- 2026-08-17 CHANGED @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 3-way↔2-way across envoy replicas — downgraded to validation-leak-only; plural /organizations/{id} retains stable 3-way
+- 2026-08-17 REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10 probed paths return SPA catch-all 200 text/html — no real API surface behind MFE shell; CSP infra leak via /login is only finding
+- 2026-08-17 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/organizations/key/{key}: NEW — full org details (id, name, logoUrl GCS path, isMaintenanceEnabled, organizationKey, enabledPublicFeatureFlags) returned without auth for all 5 known keys; previously only 3-way oracle behavior tracked
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: STABLE — scheme-only Bearer bypass, sha256 fb9800acb…585c3fe byte-stable
+- 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: STABLE — 403 across all 5 orgs; auth gate absent; feature-flag disabled
+- 2026-08-17 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/organizations: STABLE — zero-header bypass still returns {"data":[]}
+- 2026-08-17 CORRECTED: HSR UUID = 83303a6b-fb96-4ff3-8f58-d6069a043fbb (KB had partial 8cf76a6e-...)
+- 2026-08-17 NEW INTEL: Per-tenant feature flags: spare=[5], winnipeg=[4], hsr=[2], grt=[2], dallas=[0]; "multimodal" exclusive to spare+grt; "riderPhonePin" exclusive to spare+winnipeg; "riderLoginless" exclusive to spare+winnipeg
