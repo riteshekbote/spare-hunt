@@ -1900,3 +1900,13 @@
 - 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header bypass NOW DETERMINISTIC — 8/8 200+11B; same routing factor as regions
 - 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth: state reflection confirmed, redirect_uri dead; SSO roster ≥11 tenants; fleet-parity 7 hosts
 - 2026-08-17 REJECTED AUTH @ api.sparelabs.com routing: X-Forwarded-For does NOT affect routing; bypass is deterministic, not probabilistic
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive; byte-stable 86h+ across 7 fleet hosts
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — POST/PUT/PATCH/DELETE → 401 (read-only confirmed); auth asymmetry at handler level
+- 2026-08-17 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STABLE — 9 tenants confirmed, state reflection URL-encoded-only (param injection dead)
+- 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — handler reached without 401 (400/404/403 all handler-level); feature-flag gate not auth gate
+- 2026-08-17 ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — admin Vercel apps (prod+staging, loadable 200) + Metabase + 9 cloud services in CSP directives
+- 2026-08-17 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted
+- 2026-08-17 REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; no surface
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC — 8/8 fast replicas bypass, not probabilistic; multi-version LB confirmed
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC — 8/8 slow replicas bypass, read-only; same LB split mechanism
+- 2026-08-17 REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped by handler; state-only injection confirmed

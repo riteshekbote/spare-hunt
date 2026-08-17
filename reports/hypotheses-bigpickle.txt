@@ -1,79 +1,34 @@
-## 2026-08-17 11:50:59 UTC [api] (model bigpickle)
-[PRIO] api.sparelabs.com/v1/identity/workos/auth: 7.9 (attack:8, business:8, tech:9, gate:10, cloud:5, fresh:6) — SSO oracle ≥11 tenants, state reflection confirmed, redirect_uri dead, Entra IDs in relayState
-[PRIO] api.sparelabs.com/v1/global/regions: 7.6 (attack:9, business:7, tech:8, gate:8, cloud:7, fresh:5) — scheme-only Bypass on fast replicas, body sha256 verified, longcat false positive, fleet-parity 7 hosts
-[PRIO] api.sparelabs.com/v1/global/organizations: 6.6 (attack:7, business:6, tech:7, gate:10, cloud:5, fresh:5) — zero-header bypass on slow replicas, read-only, auth asymmetry confirmed
+## 2026-08-17 11:56:47 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/global/regions: 8.2 (attack:9, business:7, tech:9, gate:9, cloud:7, fresh:6) — DETERMINISTIC scheme-only Bearer bypass on fast replicas, infra topology disclosure, body sha256 verified, fleet-parity 7 hosts, longcat false positive
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: 7.9 (attack:8, business:8, tech:9, gate:10, cloud:5, fresh:6) — SSO oracle ≥11 tenants, state reflection confirmed, Entra IDs in relayState, redirect_uri dead
+[PRIO] api.sparelabs.com/v1/global/organizations: 7.1 (attack:7, business:6, tech:8, gate:9, cloud:5, fresh:6) — DETERMINISTIC zero-header read-only bypass on slow replicas, auth asymmetry confirmed, empty payload
 [HYP] WorkOS SSO state-reflection XSS via authorizationUrl body injection
 class: XSS
 asset: api.sparelabs.com/v1/identity/workos/auth
 confidence: 35
-reasoning: State param is reflected unescaped into the authorizationUrl response body. If an attacker crafts a state containing <script> or event handler, and the consuming browser/client renders the authorizationUrl body as HTML (e.g., in an email client or a naive redirect handler), XSS fires. However, the response Content-Type is application/json, so browser-rendering XSS requires a content-type sniffing or a client that ignores Content-Type.
-evidence_needed: Response Content-Type header on the POST; whether any Spare client renders the authorizationUrl body as HTML
-verify_steps: PASSIVE: curl -s -m15 -D- -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com","state":"<img/src/onerror=alert(1)>"}' https://api.sparelabs.com/v1/identity/workos/auth | head -20 (check Content-Type, confirm state reflected)
-impact: If any client renders response as HTML: stored XSS on Spare domain via SSO flow. Severity HIGH if exploitable. If JSON-only: severity INFO (reflection confirmed, no execution vector).
-testability: PASSIVE
-[HYP] /v1/global/regions replica-routing factor enumeration via timing fingerprint
-class: AUTH
-asset: api.sparelabs.com/v1/global/regions
-confidence: 92
-reasoning: Fast replicas (4ms upstream) return 200+725B with Bearer-x bypass; slow replicas (664ms+) return 401; multi-version LB confirmed as mechanism. If the routing factor (source IP, session affinity, headers) can be identified, the bypass can be made consistent rather than probabilistic.
-evidence_needed: Whether adding specific headers (X-Forwarded-For, X-Request-ID, Cookie) shifts replica assignment; whether consistent source IP routes consistently
-verify_steps: PASSIVE: 16 sequential probes with varying X-Forwarded-For headers to check if replica assignment shifts; compare upstream times and HTTP codes
-impact: If routing factor identified: reliable bypass on every request (currently probabilistic ~50%). Severity HIGH if deterministic.
+reasoning: State param is reflected unescaped into the authorizationUrl response body. Response Content-Type is application/json, so browser-rendering XSS requires content-type sniffing or a client that ignores Content-Type. No confirmed Spare client renders this body as HTML.
+evidence_needed: Response Content-Type header; whether any Spare client renders the authorizationUrl body as HTML
+verify_steps: PASSIVE: `curl -s -m15 -D- -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com","state":"<img/src/onerror=alert(1)>"}' https://api.sparelabs.com/v1/identity/workos/auth | head -20`
+impact: If any client renders as HTML: stored XSS on Spare domain via SSO flow. Severity HIGH if exploitable. If JSON-only: severity INFO (reflection confirmed, no execution vector).
 testability: PASSIVE
 [HYP] /v1/public/engage/cases POST org-feature-flag brute-force via cross-route oracle
 class: BUSLOGIC
 asset: api.sparelabs.com/v1/public/engage/cases POST
 confidence: 55
-reasoning: Auth gate is structurally absent — handler reached without 401. Feature-flag gate returns 403 "External case creation is not enabled" for known orgs (spare/grt/dallas/winnipeg). If any other org UUID has the feature enabled, a case can be submitted without auth. The /v1/global/organizations zero-header bypass returns empty data now but could populate; the org-key oracle provides 5 confirmed UUIDs; we need to find additional valid org UUIDs beyond the 5 known.
-evidence_needed: A valid org UUID where externalCaseCreation feature flag is enabled; confirmed via 403 (org exists, feature disabled) vs 200 (feature enabled, case submitted)
+reasoning: Auth gate is structurally absent — handler reached without 401. Feature-flag gate returns 403 for known orgs (spare/grt/dallas/winnipeg). If any other org UUID has the feature enabled, a case can be submitted without auth. Org-key oracle provides 5 confirmed UUIDs; need to find additional valid org UUIDs.
+evidence_needed: A valid org UUID where externalCaseCreation feature flag is enabled; 403 (org exists, feature disabled) vs 200 (feature enabled, case submitted)
 verify_steps: PASSIVE: For each of the 5 known org UUIDs, POST with minimal valid caseTypeId + contactInfo to check if any returns something other than 403; probe /v1/global/organizations with pagination params to check if data populates
 impact: If feature enabled on any org: unauthenticated case submission (PII creation, potential abuse). Severity MEDIUM-HIGH.
 testability: PASSIVE
-[PARKED] WorkOS state-reflection XSS: confidence 35 < 40; response is application/json; no confirmed client renders as HTML; injection vector theoretical only without AUTH_HELPED client-side analysis.
 [FINAL]
-[NEXT] PROBE: For i in 1..8; do curl -s -m15 -w "\nreplica:%{http_code} time:%{time_total}\n" -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -H "X-Forwarded-For: 10.$((i%256)).$((i*7%256)).1" https://api.sparelabs.com/v1/global/regions 2>/dev/null | grep -E 'replica:|time:' ; sleep 2; done — test whether X-Forwarded-For header shifts replica assignment (fast=200 vs slow=401) across 8 probes with varied IPs
-[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: replica-split STABLE — fast replicas 200+725B+Bypass, slow replicas 401; longcat "PATCHED" false positive; multi-version LB confirmed as mechanism
-[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header bypass replica-split STABLE — slow replicas 664ms+ 200+11B; fast replicas 401; read-only confirmed
-[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: state reflection confirmed, redirect_uri dead; SSO roster ≥11 tenants; fleet-parity 7 hosts
+[NEXT] PROBE: `curl -s -m15 -w "\nHTTP:%{http_code} TIME:%{time_total}\n" -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"caseTypeId":"00000000-0000-0000-0000-000000000000","organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","contactInfo":{"firstName":"test"}}' https://api.sparelabs.com/v1/public/engage/cases` — test spare UUID with valid caseTypeId to confirm handler reaches feature-flag gate (expect 403) or potentially 200 (feature enabled)
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC — 8/8 fast replicas bypass, not probabilistic; multi-version LB confirmed
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC — 8/8 slow replicas bypass, read-only; same LB split mechanism
+[LEARN] REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped by handler; state-only injection confirmed
 [LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs)
 [LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs; recon-only
-[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B since 2026-08-07
-[RISK] api.sparelabs.com: 89 — Multiple stable auth bypasses (scheme-only Bearer on /regions fast replicas, zero-header on /organizations slow replicas) with full CORS credential reflection; fleet-wide infra topology disclosure (7 regions, 12 OOS subdomains); SSO tenant enumeration via WorkOS (≥11 tenants, Entra IDs); state reflection OATH vector; unauthenticated write-path handler reach on /engage/cases; universal CORS on all /v1 endpoints; multi-version LB splits traffic creating intermittent flapping surface
-[RISK] platform.sparelabs.com: 65 — CSP infra leak on /login exposes admin Vercel apps (dev-only), Metabase instances (prod+staging, by-design), 9 cloud services; MFE SPA shell with no real API surface
+[RISK] api.sparelabs.com: 92 — DETERMINISTIC auth bypasses (scheme-only Bearer on /regions fast replicas, zero-header on /organizations slow replicas) with FULL CORS credential reflection; fleet-wide infra topology disclosure (7 regions, 12 OOS subdomains); SSO tenant enumeration ≥11 tenants with Entra IDs; state reflection OATH vector; unauthenticated write-path handler reach on /engage/cases; universal CORS on all /v1; multi-version LB creating deterministic dual-surface
+[RISK] platform.sparelabs.com: 65 — CSP infra leak on /login exposes admin Vercel apps (dev-only), Metabase (prod+staging, by-design), 9 cloud services; MFE SPA shell with no real API surface
 [RISK] routing.sparelabs.com: 5 — Envoy 404 on ALL probed paths since 2026-08-07; NO_DELTA
-[RISK] forms.sparelabs.com: 25 — Engage portal SPA live; JS bundle PATCHED (zero infra leaks); 3 Google Maps keys referrer-restricted; all API paths return SPA catch-all
-[RISK] web (spare.com/sparelabs.com): 15 — spare.com apex: Cloudflare+Webflow static marketing (CSP frame-ancestors 'self', HSTS); sparelabs.com: 301→spare.com; no internal infra leaks
-[PRIO] api.sparelabs.com/v1/identity/workos/auth: 7.9 (attack:8, business:8, tech:9, gate:10, cloud:5, fresh:6) — SSO oracle ≥11 tenants, state reflection confirmed, redirect_uri dead, Entra IDs in relayState
-[PRIO] api.sparelabs.com/v1/global/regions: 8.1 (attack:9, business:7, tech:9, gate:9, cloud:7, fresh:6) — scheme-only Bypass on fast replicas, body sha256 verified, longcat false positive, fleet-parity 7 hosts, NOW DETERMINISTIC
-[PRIO] api.sparelabs.com/v1/global/organizations: 7.1 (attack:7, business:6, tech:8, gate:9, cloud:5, fresh:6) — zero-header bypass on slow replicas, read-only, auth asymmetry confirmed, NOW DETERMINISTIC
-[HYP] WorkOS SSO state-reflection XSS via authorizationUrl body injection
-class: XSS
-asset: api.sparelabs.com/v1/identity/workos/auth
-confidence: 35
-reasoning: State param is reflected unescaped into the authorizationUrl response body. If an attacker crafts a state containing <script> or event handler, and the consuming browser/client renders the authorizationUrl body as HTML (e.g., in an email client or a naive redirect handler), XSS fires. However, the response Content-Type is application/json, so browser-rendering XSS requires a content-type sniffing or a client that ignores Content-Type.
-evidence_needed: Response Content-Type header on the POST; whether any Spare client renders the authorizationUrl body as HTML
-verify_steps: PASSIVE: curl -s -m15 -D- -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com","state":"<img/src/onerror=alert(1)>"}' https://api.sparelabs.com/v1/identity/workos/auth | head -20 (check Content-Type, confirm state reflected)
-impact: If any client renders response as HTML: stored XSS on Spare domain via SSO flow. Severity HIGH if exploitable. If JSON-only: severity INFO (reflection confirmed, no execution vector).
-testability: PASSIVE
-[HYP] /v1/public/engage/cases POST org-feature-flag brute-force via cross-route oracle
-class: BUSLOGIC
-asset: api.sparelabs.com/v1/public/engage/cases POST
-confidence: 55
-reasoning: Auth gate is structurally absent — handler reached without 401. Feature-flag gate returns 403 "External case creation is not enabled" for known orgs (spare/grt/dallas/winnipeg). If any other org UUID has the feature enabled, a case can be submitted without auth. The /v1/global/organizations zero-header bypass returns empty data now but could populate; the org-key oracle provides 5 confirmed UUIDs; we need to find additional valid org UUIDs beyond the 5 known.
-evidence_needed: A valid org UUID where externalCaseCreation feature flag is enabled; confirmed via 403 (org exists, feature disabled) vs 200 (feature enabled, case submitted)
-verify_steps: PASSIVE: For each of the 5 known org UUIDs, POST with minimal valid caseTypeId + contactInfo to check if any returns something other than 403; probe /v1/global/organizations with pagination params to check if data populates
-impact: If feature enabled on any org: unauthenticated case submission (PII creation, potential abuse). Severity MEDIUM-HIGH.
-testability: PASSIVE
-[PARKED] WorkOS state-reflection XSS: confidence 35 < 40; response is application/json; no confirmed client renders as HTML; injection vector theoretical only without AUTH_HELPED client-side analysis.
-[FINAL]
-[NEXT] PROBE: For each of the 5 known org UUIDs (spare, grt, dallas, winnipeg, hsr), POST with minimal valid caseTypeId + contactInfo to check if any returns something other than 403 (i.e., 200 = feature enabled); this verifies the engage/cases brute-force hypothesis
-[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: replica-split NOW DETERMINISTIC — 8/8 200+725B+Bypass; X-Forwarded-For and other headers do NOT shift routing; likely route-based or source-IP-based routing
-[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header bypass NOW DETERMINISTIC — 8/8 200+11B; same routing factor as regions
-[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth: state reflection confirmed, redirect_uri dead; SSO roster ≥11 tenants; fleet-parity 7 hosts
-[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs)
-[LEARN] REJECTED AUTH @ api.sparelabs.com routing: X-Forwarded-For does NOT affect routing; bypass is deterministic, not probabilistic
-[RISK] api.sparelabs.com: 92 — Multiple stable auth bypasses (scheme-only Bearer on /regions, zero-header on /organizations) with FULL CORS credential reflection; DETERMINISTIC bypass (not probabilistic); fleet-wide infra topology disclosure (7 regions, 12 OOS subdomains); SSO tenant enumeration via WorkOS (≥11 tenants, Entra IDs); state reflection OATH vector; unauthenticated write-path handler reach on /engage/cases; universal CORS on all /v1 endpoints; multi-version LB splits traffic creating deterministic surface
-[RISK] platform.sparelabs.com: 65 — CSP infra leak on /login exposes admin Vercel apps (dev-only), Metabase instances (prod+staging, by-design), 9 cloud services; MFE SPA shell with no real API surface
-[RISK] routing.sparelabs.com: 5 — Envoy 404 on ALL probed paths since 2026-08-07; NO_DELTA
-[RISK] forms.sparelabs.com: 25 — Engage portal SPA live; JS bundle PATCHED (zero infra leaks); 3 Google Maps keys referrer-restricted; all API paths return SPA catch-all
-[RISK] web (spare.com/sparelabs.com): 15 — spare.com apex: Cloudflare+Webflow static marketing (CSP frame-ancestors 'self', HSTS); sparelabs.com: 301→spare.com; no internal infra leaks
+[RISK] forms.sparelabs.com: 25 — Engage portal SPA live; JS bundle PATCHED (zero infra leaks); 3 Google Maps keys referrer-restricted; all API paths SPA catch-all
+[RISK] web (spare.com/sparelabs.com): 15 — spare.com: Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS; sparelabs.com: 301→spare.com; no internal infra leaks

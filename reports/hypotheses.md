@@ -7362,3 +7362,34 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth: state reflection confirmed, redirect_uri dead; SSO roster ≥11 tenants; fleet-parity 7 hosts
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs
 - LEARN: REJECTED AUTH @ api.sparelabs.com routing: X-Forwarded-For does NOT affect routing; bypass is deterministic, not probabilistic
+
+## RANKED HYPOTHESES 2026-08-17 11:58:57 UTC
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass on global regions leaks fleet-wide infrastructure topology + write-method CORS chain (from reports/hypotheses-laguna.txt)
+- [95] api.sparelabs.com/v1/global/regions: Fleet-wide infrastructure topology disclosure via scheme-only Bearer bypass on global regions with multi-version LB replica split (from reports/hypotheses-nemotron3.txt)
+- [35] api.sparelabs.com/v1/identity/workos/auth: WorkOS SSO state-reflection XSS via authorizationUrl body injection (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" (confirm 200+725B+ACAO+ACAC on fast re
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -m15 -D- -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | sha256sum` — confirm b
+- NEXT(hypotheses-bigpickle.txt): PROBE: `curl -s -m15 -w "\nHTTP:%{http_code} TIME:%{time_total}\n" -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"caseT
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" false positive, multi-version LB replica split co
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header bypass now replica-dependent — slow replicas (664ms) 200+11B; fast replicas 401; same mul
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizeUrl response body; redirect_uri NOT reflected (silent
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without auth; cross-route org-UUID oracle validated on 3+ 
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED (final state)
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId, ~299B
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped to exactly {/orga
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError — both bypas
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy LB replicas (nil→404 fast, 400 slow); do
+- LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) is FALSE POSITIVE — longcat only tested no-auth path (400), never 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive; byte-stable 86h+ acr
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — POST/PUT/PATCH/DELETE → 401 (read-only confirmed); auth asymmet
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STABLE — 9 tenants confirmed, state reflection URL-encoded-only (param injection dead)
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — handler reached without 401 (400/404/403 all handler-level); fea
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — admin Vercel apps (prod+staging, loadable 200) + Metabase + 9 cloud services in CSP d
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all refer
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; no surface
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC — 8/8 fast replicas bypass, not probabilistic; multi-version LB confirmed
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC — 8/8 slow replicas bypass, read-only; same LB split mechanism
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped by handler; state-only injection confirmed
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs; recon-only
