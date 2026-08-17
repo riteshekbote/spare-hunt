@@ -1915,3 +1915,12 @@
 - 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — handler reached without 401 (400 ValidationError, 404 NotFoundError, 403 ForbiddenError all handler-level); feature-flag gate not auth gate; validation precedes auth in pipeline
 - 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (GET only); auth asymmetry at handler level; zero-header bypass on slow LB replicas, 401 on fast
 - 2026-08-17 REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped by handler; state-only injection confirmed (URL-encoded passthrough, param injection dead)
+- 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401 (400/404/403 all handler-level); feature-flag gate not auth gate; validation precedes auth in pipeline
+- 2026-08-17 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STABLE — ≥11 tenants, state reflection confirmed, redirect_uri dead
+- 2026-08-17 REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- 2026-08-17 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only
+- 2026-08-17 REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" claim FALSE POSITIVE — only tested no-auth path 400, missed Bearer-x 200+725B
+- 2026-08-17 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STABLE — ≥11 tenants, state reflection confirmed, redirect_uri dead
+- 2026-08-17 REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- 2026-08-17 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only
+- 2026-08-17 REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" claim FALSE POSITIVE — only tested no-auth path 400, missed Bearer-x 200+725B

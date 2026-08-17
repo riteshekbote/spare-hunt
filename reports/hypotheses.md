@@ -7402,3 +7402,39 @@
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — handler reached without 401 (400 ValidationError, 404 NotFoundEr
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (G
 - LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped by handler; state-only injection confirmed (
+
+## RANKED HYPOTHESES 2026-08-17 13:34:07 UTC
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass on global regions with deterministic replica split leaks fleet-wide infra topology + write-method CORS chain (from reports/hypotheses-nemotron3.txt)
+- [35] api.sparelabs.com/v1/identity/workos/auth: WorkOS SSO state-reflection XSS via authorizationUrl body injection (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" (confirm 200+725B+ACAO+ACAC on fast re
+- NEXT(hypotheses-bigpickle.txt): PROBE: For each of the 5 known org UUIDs (spare d736519f-f384-4771-a2d2-4f95e884d790, grt 1966c7f8-3e36-4320-b0d7-de0f7d8d4355, dallas e5f587ba-50e7-4b0c-a2e6-e
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC — 8/8 fast replicas bypass, not probabilistic; multi-version LB confirmed
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC — 8/8 slow replicas bypass, read-only; same LB split mechanism
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped by handler; state-only injection confirmed
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizeUrl response body; redirect_uri NOT reflected (silent
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401 (400/404/403 all handler-level); feature-flag 
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED (final state)
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400 required caseTypeKey/organizationId, ~299B
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped to exactly {/orga
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError — both bypas
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy LB replicas (nil→404 fast, 400 slow); do
+- LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) is FALSE POSITIVE — longcat only tested no-auth path (400), never 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC — 8/8 fast replicas bypass, not probabilistic; multi-version LB confirmed
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC — 8/8 slow replicas bypass, read-only; same LB split mechanism
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STABLE — ≥11 tenants, state reflection confirmed, redirect_uri dead
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs; 3 Maps keys referrer-restricted
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only
+- LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" claim FALSE POSITIVE — only tested no-auth path 400, missed Bearer-x 200+725B
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC — 8/8 fast replicas bypass, not probabilistic; multi-version LB confirmed
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC — 8/8 slow replicas bypass, read-only; same LB split mechanism
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STABLE — ≥11 tenants, state reflection confirmed, redirect_uri dead
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs; 3 Maps keys referrer-restricted
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only
+- LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" claim FALSE POSITIVE — only tested no-auth path 400, missed Bearer-x 200+725B
