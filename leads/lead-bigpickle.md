@@ -11240,3 +11240,46 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 25 — JS bundle PATCHED; 3 Maps keys referrer-restricted; SPA catch-all; no active attack surface
 [RISK] web (spare.com/sparelabs.com): 15 — Static marketing; CSP frame-ancestors 'self'; no internal leaks
 ## 2026-08-17 23:13:58 UTC [api] (model bigpickle)
+## 2026-08-17 23:27:21 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: 8.1 (8|9|9|9|3|8)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}: 7.9 (8|8|7|10|4|7)
+[PRIO] api.sparelabs.com/v1/global/regions: 7.8 (7|6|8|7|7|5)
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST: 7.5 (7|7|8|8|3|7)
+[HYP] /v1/identity/workos/auth state parameter injection enables OAuth session fixation on WorkOS SSO flow
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 62
+reasoning: State parameter is reflected unescaped in the WorkOS authorizeUrl response body. 11+ tenants confirmed. If the state value can be crafted to include a valid WorkOS callback session token (e.g. from a prior legitimate SSO flow), the attacker could fixate the victim's session. The state is URL-encoded passthrough in WorkOS — but the relayState JWT (already leaked) contains redirect_uri, environment_id, and from:"api" fields. If the attacker can supply a pre-authed relayState, the SSO callback would bind to attacker's account. However, without AUTH_HELPED tokens to test the actual callback flow, this remains speculative.
+evidence_needed: State parameter reflection in authorizeUrl body (confirmed in KB 2026-08-17); full callback chain behavior with valid state injection (AUTH_HELPED required)
+verify_steps: AUTH_HELPED: 1) Obtain valid WorkOS session token from browser login. 2) POST {"domain":"spare.com","state":"<attacker-controlled>"} and verify state is reflected in authorizeUrl. 3) Navigate to the authorizeUrl and observe whether the state persists through the IdP redirect and WorkOS callback. 4) Check if callback binds to attacker's account session.
+impact: If exploitable: OAuth session fixation — attacker fixates victim's SSO session to attacker-controlled account. Severity HIGH. If state is just a passthrough: state reflection is informational only. Severity LOW.
+testability: AUTH_HELPED
+[HYP] /v1/public/organizations/{orgId}/riders returns unauthenticated rider PII
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{orgId}/riders
+confidence: 45
+reasoning: Platform bundle OpenAPI confirms /v1/riders/{id} exists (401 gated on private namespace). /v1/public/organizations/{id} and /v1/public/organizations/key/{key} both return full org details unauthenticated. If /public/riders sub-resource exists under the public org tree, it bypasses the private 401 gate. The "riderLoginless" feature flag (exclusive to spare+winnipeg) suggests rider auth paths are active. However, KB entry from 2026-08-11 already shows /v1/public/riders/{id} returning 404 0B for both malformed and nil-uuid — route does not exist.
+evidence_needed: HTTP response from GET /v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders at ≤1 rps. If 404, sweep /vehicles, /trips, /sessions.
+impact: If live: unauthenticated rider PII. Severity HIGH if data-bearing, LOW if 404.
+testability: PASSIVE
+[HYP] /v1/global/regions write-method CORS chain on auth-gated slow replicas enables token theft
+class: MISCONFIG
+asset: api.sparelabs.com/v1/global/regions
+confidence: 78
+reasoning: OPTIONS 204 on /v1/global/regions returns ACAO:reflected + ACAC:true + allow-methods:PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type. This is confirmed on fast replicas (bypass route). On slow replicas that return 401, the CORS preflight still advertises full write methods + credentials to any origin. Combined with ACAC:true, any malicious page served from the victim's browser can issue authenticated cross-origin requests with the victim's Authorization header to this endpoint (though writes are gated 401 at handler level). The perceived write surface (OPTIONS advertises DELETE/PATCH) vs actual gate (handler 401) is a CORS misconfiguration. Already documented 86h+ stable.
+evidence_needed: Already confirmed in KB — no new evidence needed.
+verify_steps: PASSIVE: Already documented.
+impact: Browser-enforced CORS misconfiguration enabling cross-origin reads of region topology. Perceived write surface misleading but not exploitable. Severity LOW-MEDIUM.
+testability: PASSIVE
+[PARKED] /v1/public/organizations/{orgId}/riders: confidence 45 (below 40 threshold barely, but the primary evidence from KB 2026-08-11 shows /v1/public/riders/{id} returned 404 0B — route does not exist. The sub-resource pattern (/orgs/{id}/riders) is different from /riders/{id} but the private namespace route is confirmed dead. Dropping to PARKED pending passive probe result.
+[FINAL]
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders -H "Origin: https://evil.example.com" at ≤1 rps. Check HTTP status + CORS headers. If non-404, sweep /vehicles, /trips, /sessions under same org.
+[LEARN] REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/riders/{id}: KB 2026-08-11 confirmed 404 0B — route does not exist, no surface.
+[LEARN] ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state reflection confirmed but param injection limited — state is URL-encoded passthrough in WorkOS flow; AUTH_HELPED needed for full callback chain analysis.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: write-method CORS chain convergence STABLE — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC; handler enforces 401 on writes; browser perceives write surface.
+[RISK] api.sparelabs.com: 94 — DETERMINISTIC auth bypasses (regions fast-replica + orgs slow-replica) + FULL CORS credential reflection + SSO-config oracle 11+ tenants + state reflection + FULL org details via key oracle + engage write chain auth-absent + multi-version LB dual-surface + 86h+ unpatched
+[RISK] platform.sparelabs.com: 65 — CSP infra leak on /login (admin Vercel apps prod+staging loadable 200, Metabase prod+staging, 9 cloud services); MFE SPA shell; no real API surface behind host
+[RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead
+[RISK] forms.sparelabs.com: 25 — JS bundle PATCHED (main.8a2a39cb.js, zero infra refs); 3 Maps keys referrer-restricted; SPA catch-all; no active attack surface
+[RISK] web (spare.com/sparelabs.com): 15 — Static marketing (Cloudflare+Webflow); CSP frame-ancestors 'self'; no internal leaks

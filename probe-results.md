@@ -2745,3 +2745,9 @@ https://api.sparelabs.com/v1/global/regions -> HTTP 400
 https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
 https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.uat.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+
+## 2026-08-17 23:27:33 UTC
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders -> HTTP 400

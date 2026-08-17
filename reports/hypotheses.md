@@ -8089,3 +8089,19 @@
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07, NO_DELTA
 - LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET 
 - LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" (2026-08-11) is false positive — only tested no-auth path 400, missed Bearer-x bypass
+
+## RANKED HYPOTHESES 2026-08-17 23:27:32 UTC
+- [98] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on /v1/global/regions leaks fleet-wide region topology with deterministic multi-version LB replica split (from reports/hypotheses-laguna.txt)
+- [62] api.sparelabs.com/v1/identity/workos/auth: /v1/identity/workos/auth state parameter injection enables OAuth session fixation on WorkOS SSO flow (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" — confirm 200 + 725B + ACAO:https://ev
+- NEXT(hypotheses-bigpickle.txt): PROBE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders -H "Origin: https://evil.example.com" at ≤1 rps. Check 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-config oracle — 11+ tenants confirmed fleet-parity across 7 hosts; state param re
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle STABLE — 5 live orgs (spare/grt/dallas/winnipeg/hsr → 200, cam
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle DEGRADED 3-way↔2-way flapping across envoy LB replicas (nil→404 fast / 400
+- LEARN: REJECTED MISCONFIG @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (was TIMEOUT→404 on 2026-08-13) bu
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Multi-version LB replica split CONFIRMED deterministic — 8/8 fast replicas bypass (4-17ms → 200+725B), 8/8 
+- LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" (2026-08-11) is FALSE POSITIVE — only tested no-auth path (400), never tested Bearer-
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/riders/{id}: KB 2026-08-11 confirmed 404 0B — route does not exist, no surface.
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state reflection confirmed but param injection limited — state is URL-encoded passthrough in WorkOS f
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: write-method CORS chain convergence STABLE — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC; h

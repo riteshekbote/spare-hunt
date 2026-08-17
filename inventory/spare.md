@@ -2606,3 +2606,15 @@
 - CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — multi-version envoy LB confirmed; downgraded to UNCONFIRMED/unrel
 - CHANGED api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on the scheme-only bypass route
 - CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs (22 candidates exhausted); per-tenant feature-flag differential persists
+
+## 2026-08-17 23:27:32 UTC
+- NEW api.sparelabs.com/v1/identity/workos/auth: Unauthenticated SSO-config oracle — POST `{"domain":"spare.com"}` → 200 + 172B disclosing WorkOS client_id + connection_id + Entra tenant IDs in authorizeUrl
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 3-way org enumeration oracle — 5 live orgs (spare/grt/dallas/winnipeg/hsr → 200 distinct bodies with UUID+feature_flags+logoUrl, cambus→404); prod-
+- NEW api.sparelabs.com/v1/public/engage/cases POST: Auth gate ABSENT — handler reached without 401 (400 ValidationError, 404 NotFoundError nil-UUID, 403 ForbiddenError spare UUID → feature-flag gate NOT au
+- NEW sparelabs.com: NOW responds 301→spare.com apex (was TIMEOUT); Cloudflare+HSTS, static-only, no new surface
+- NEW routing.sparelabs.com: NOW responds (was TIMEOUT→envoy 404); STABLE dead, NO_DELTA since 2026-08-07
+- CHANGED api.sparelabs.com/v1/global/regions: Multi-version LB replica split CONFIRMED deterministic — 8/8 fast replicas (4-17ms) bypass, 8/8 slow replicas → 401; longcat "PATCHED" (2026-08-11) is FALSE POSITI
+- CHANGED api.sparelabs.com/v1/global/organizations: Zero-header bypass now DETERMINISTIC — 8/8 slow replicas (550-1040ms) → 200+11B+ACAO+ACAC; fast replicas → 401; same LB split; write methods POST/PUT/PATCH/D
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle DEGRADED 3-way↔2-way flapping across envoy replicas (nil→404 fast, 400 slow); downgraded to validation-leak-only; plural /organizations
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted (infra leak ELIMINATED)
+- CHANGED platform.sparelabs.com/login: CSP infra leak STABLE — HTML size minor rotation 5555B→5327B but admin Vercel apps + Metabase + 9 cloud services still disclosed

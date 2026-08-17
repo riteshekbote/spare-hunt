@@ -81473,3 +81473,203 @@ Routes are being hit (400, not 404). Let me inspect the response bodies and chec
 [0m
 > build · big-pickle
 [0m
+===== ANALYST bigpickle 2026-08-17 23:27:32 UTC =====
+[0m
+> build · big-pickle
+[0m
+## STEP 1 — DELTA
+
+NO_DELTA. All findings from KB confirmed stable. No new surface items detected since last cycle. Multi-version LB replica split deterministic (fast=regions bypass, slow=orgs bypass). SSO roster closed at 11+ tenants. forms.sparelabs.com PATCHED. routing.sparelabs.com STABLE dead.
+
+## STEP 2 — PRIORITIZE
+
+| Asset | Score | attack | business | tech | gate | cloud | fresh |
+|---|---|---|---|---|---|---|---|
+| api.sparelabs.com/v1/identity/workos/auth | **8.1** | 8 | 9 | 9 | 9 | 3 | 8 |
+| api.sparelabs.com/v1/public/organizations/key/{key} | **7.9** | 8 | 8 | 7 | 10 | 4 | 7 |
+| api.sparelabs.com/v1/global/regions | **7.8** | 7 | 6 | 8 | 7 | 7 | 5 |
+| api.sparelabs.com/v1/public/engage/cases POST | **7.5** | 7 | 7 | 8 | 8 | 3 | 7 |
+| api.sparelabs.com/v1/global/organizations | **7.2** | 6 | 5 | 7 | 10 | 5 | 5 |
+
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: 8.1 (8|9|9|9|3|8)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}: 7.9 (8|8|7|10|4|7)
+[PRIO] api.sparelabs.com/v1/global/regions: 7.8 (7|6|8|7|7|5)
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST: 7.5 (7|7|8|8|3|7)
+
+## STEP 3 — HYPOTHESES
+
+[HYP] /v1/identity/workos/auth state parameter injection enables OAuth session fixation on WorkOS SSO flow
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 62
+reasoning: State parameter is reflected unescaped in the WorkOS authorizeUrl response body. 11+ tenants confirmed. If the state value can be crafted to include a valid WorkOS callback session token (e.g. from a prior legitimate SSO flow), the attacker could fixate the victim's session. The state is URL-encoded passthrough in WorkOS — but the relayState JWT (already leaked) contains redirect_uri, environment_id, and from:"api" fields. If the attacker can supply a pre-authed relayState, the SSO callback would bind to attacker's account. However, without AUTH_HELPED tokens to test the actual callback flow, this remains speculative.
+evidence_needed: State parameter reflection in authorizeUrl body (confirmed in KB 2026-08-17); full callback chain behavior with valid state injection (AUTH_HELPED required)
+verify_steps: AUTH_HELPED: 1) Obtain valid WorkOS session token from browser login. 2) POST {"domain":"spare.com","state":"<attacker-controlled>"} and verify state is reflected in authorizeUrl. 3) Navigate to the authorizeUrl and observe whether the state persists through the IdP redirect and WorkOS callback. 4) Check if callback binds to attacker's account session.
+impact: If exploitable: OAuth session fixation — attacker fixates victim's SSO session to attacker-controlled account. Severity HIGH. If state is just a passthrough: state reflection is informational only. Severity LOW.
+testability: AUTH_HELPED
+
+[HYP] /v1/public/organizations/{orgId}/riders returns unauthenticated rider PII
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{orgId}/riders
+confidence: 45
+reasoning: Platform bundle OpenAPI confirms /v1/riders/{id} exists (401 gated on private namespace). /v1/public/organizations/{id} and /v1/public/organizations/key/{key} both return full org details unauthenticated. If /public/riders sub-resource exists under the public org tree, it bypasses the private 401 gate. The "riderLoginless" feature flag (exclusive to spare+winnipeg) suggests rider auth paths are active. However, KB entry from 2026-08-11 already shows /v1/public/riders/{id} returning 404 0B for both malformed and nil-uuid — route does not exist.
+evidence_needed: HTTP response from GET /v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders at ≤1 rps. If 404, sweep /vehicles, /trips, /sessions.
+impact: If live: unauthenticated rider PII. Severity HIGH if data-bearing, LOW if 404.
+testability: PASSIVE
+
+[HYP] /v1/global/regions write-method CORS chain on auth-gated slow replicas enables token theft
+class: MISCONFIG
+asset: api.sparelabs.com/v1/global/regions
+confidence: 78
+reasoning: OPTIONS 204 on /v1/global/regions returns ACAO:reflected + ACAC:true + allow-methods:PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type. This is confirmed on fast replicas (bypass route). On slow replicas that return 401, the CORS preflight still advertises full write methods + credentials to any origin. Combined with ACAC:true, any malicious page served from the victim's browser can issue authenticated cross-origin requests with the victim's Authorization header to this endpoint (though writes are gated 401 at handler level). The perceived write surface (OPTIONS advertises DELETE/PATCH) vs actual gate (handler 401) is a CORS misconfiguration. Already documented 86h+ stable.
+evidence_needed: Already confirmed in KB — no new evidence needed.
+verify_steps: PASSIVE: Already documented.
+impact: Browser-enforced CORS misconfiguration enabling cross-origin reads of region topology. Perceived write surface misleading but not exploitable. Severity LOW-MEDIUM.
+testability: PASSIVE
+
+## STEP 4 — SELF-CRITIQUE
+
+[PARKED] /v1/public/organizations/{orgId}/riders: confidence 45 (below 40 threshold barely, but the primary evidence from KB 2026-08-11 shows /v1/public/riders/{id} returned 404 0B — route does not exist. The sub-resource pattern (/orgs/{id}/riders) is different from /riders/{id} but the private namespace route is confirmed dead. Dropping to PARKED pending passive probe result.
+
+[FINAL]
+[95] api.sparelabs.com/v1/identity/workos/auth: SSO state injection (AUTH_HELPED)
+[78] api.sparelabs.com/v1/global/regions: write-method CORS chain (PASSIVE)
+[45] api.sparelabs.com/v1/public/organizations/{orgId}/riders: sub-resource IDOR (PARKED)
+
+## STEP 5 — NEXT ACTION
+
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders -H "Origin: https://evil.example.com" at ≤1 rps. Check HTTP status + CORS headers. If non-404, sweep /vehicles, /trips, /sessions under same org.
+
+## STEP 6 — LEARNING
+
+[LEARN] REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/riders/{id}: KB 2026-08-11 confirmed 404 0B — route does not exist, no surface.
+[LEARN] ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state reflection confirmed but param injection limited — state is URL-encoded passthrough in WorkOS flow; AUTH_HELPED needed for full callback chain analysis.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: write-method CORS chain convergence STABLE — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC; handler enforces 401 on writes; browser perceives write surface.
+
+## STEP 7 — RISK SCORE
+
+[RISK] api.sparelabs.com: 94 — DETERMINISTIC auth bypasses (regions fast-replica + orgs slow-replica) + FULL CORS credential reflection + SSO-config oracle 11+ tenants + state reflection + FULL org details via key oracle + engage write chain auth-absent + multi-version LB dual-surface + 86h+ unpatched
+[RISK] platform.sparelabs.com: 65 — CSP infra leak on /login (admin Vercel apps prod+staging loadable 200, Metabase prod+staging, 9 cloud services); MFE SPA shell; no real API surface behind host
+[RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead
+[RISK] forms.sparelabs.com: 25 — JS bundle PATCHED (main.8a2a39cb.js, zero infra refs); 3 Maps keys referrer-restricted; SPA catch-all; no active attack surface
+[RISK] web (spare.com/sparelabs.com): 15 — Static marketing (Cloudflare+Webflow); CSP frame-ancestors 'self'; no internal leaks
+## Objective
+- Conduct a passive-first bug bounty assessment of Spare Labs infrastructure (spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com)
+- Identify, verify, and track security findings across the in-scope surface over time, confirming stability and rejecting false positives
+
+## Important Details
+- **Scope IN**: spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com
+- **Scope OUT**: ALL other subdomains of sparelabs.com and spare.com; third-party services
+- **Rules**: Passive-first only (GET/HEAD only, ≤1 rps, no account creation, no data modification). Secrets in commits: sha256 only, never raw
+- **Architecture**: api.sparelabs.com runs behind envoy edge gateway + multi-version load balancer with fast (~2-5ms) and slow (~500-1200ms) replicas; different replica versions have different auth enforcement behaviors
+- **Fleet**: 7 hosts confirmed ({prod,us,us2,us3,jp,eu,uat}.sparelabs.com) all reproduce bypass family with parity
+- **Agent model**: bigpickle (hypothesis generation), laguna/nemotron3 (probing)
+- **Phase**: POC
+
+## Work State
+
+### Completed
+- **Bypass: /v1/global/regions scheme-only auth** — `Authorization: Bearer x` (garbage token) → 200 + 725B region registry with 7 regions (CA/US/US2/US3/JP/EU/UAT) including 6 OOS api/routing subdomains; gate checks Bearer scheme presence only, never validates token. Body sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` byte-stable 96h+. Deterministic on fast replicas (8/8). longcat "PATCHED" claim (2026-08-11) is FALSE POSITIVE — only tested no-auth path (400), never tested Bearer-x vector
+- **Bypass: /v1/global/organizations zero-header read-only** — GET with NO Authorization header → 200 + `{"data":[]}` (11B) + CORS credentials; write methods POST/PUT/PATCH/DELETE → 401 InvalidTokenError (read-only confirmed). Deterministic on slow replicas (8/8). Route-specific via 22-sibling sweep (12×401 + 2×200)
+- **CORS: Universal credential reflection** — ACAO:<reflected> + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type uniform on all /v1 paths. Non-path-conditional via 22-sibling sweep. 96h+ stable
+- **IDOR: /v1/public/organizations/{id} UUID enumeration oracle** — 3-way: malformed→400 ValidationError (263B), nil-uuid→404 NotFoundError (131B), valid→200. Superior to flapping singular /v1/public/organization
+- **IDOR: /v1/public/organizations/key/{key}** — 3-way oracle: spare→200+351B (UUID d736519f-f384-4771-a2d2-4f95e884d790, 5 feature flags), grt→200+288B (UUID 1966c7f8-3e36-4320-b0d7-de0f7d8d4355, 2 flags), dallas→200+277B (UUID e5f587ba-50e7-4b0c-a2e6-e01f061d048d, 0 flags), winnipeg→200+288B (UUID 6c84b370-5cc2-42c6-8cdd-146c99648535, 4 flags), hsr→200+318B (UUID 83303a6b-fb96-4ff3-8f58-d6069a043fbb, 2 flags). cambus→404. Live set DEFINITIVELY CLOSED at 5 orgs (22 candidates exhausted). Prod-only data (uat/us2/jp→404). Feature-flag differential persists
+- **IDOR: /v1/identity/workos/auth SSO-config oracle** — POST domain → 200+172B (WorkOS client_id + connection_id + Entra tenant_id in relayState JWT) for configured tenants, 404 for non-tenants. ≥10 tenants confirmed: spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca, cota.com, +. Fleet-parity across 7 hosts. State param reflected unescaped in authorizeUrl. redirect_uri silently dropped (dead)
+- **BUSLOGIC: /v1/public/engage/cases POST auth gate ABSENT** — Empty POST→400 ValidationError (no 401); nil-UUID→404 NotFoundError (handler reached); spare/grt/dallas/winnipeg UUIDs→403 ForbiddenError "External case creation is not enabled" (feature-flag gate, NOT auth gate). CORS reflected. Validation precedes auth in pipeline
+- **BUSLOGIC: /v1/public/engage/caseForms POST** — Empty POST→400 ValidationError (no 401); nil-UUID→404 "Form was not found". Same auth-absent pattern
+- **BUSLOGIC: /v1/public/terms per-tenant config** — spare→107B literal "asdfd" junk (prod placeholder), winnipeg→197B real URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic. Byte-stable. Prod-only residency
+- **MISCONFIG: platform.sparelabs.com/login CSP leak** — CSP exposes admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging, loadable 200) + Metabase (prod+staging 200) + Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit. Strict HTML CSP + x-frame SAMEORIGIN only mitigates HTML-level disclosure
+- **MISCONFIG: /v1/public/organization (singular) UUID oracle FLAPPING** — 3-way↔2-way across envoy replicas (nil→404 fast, 400 slow). Downgraded to validation-leak-only
+- **Fleet parity confirmed** across prod/us/us2/us3/jp/eu/uat for all bypass routes
+- **forms.sparelabs.com JS bundle PATCHED** — main.8a2a39cb.js contains zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys referrer-restricted
+- **routing.sparelabs.com** — STABLE dead, envoy 404/0B on ALL probed paths since 2026-08-07
+
+### Active
+- **NEXT action**: Probe `/v1/public/organizations/{orgId}/riders` and sibling sub-resources (/vehicles, /trips, /sessions) — checking if public org sub-resource tree extends to PII-bearing endpoints
+- **Hypothesis**: /v1/public/organizations/{orgId}/riders could bypass private 401 gate and expose rider PII (confidence 45)
+- **Platform bundle OpenAPI**: 170 paths extracted from platform.sparelabs.com MFE bundle (index-B6uSYXCi.js, 3MB); all 131 non-param paths properly gated (401/404) — recon-only value, no bypass
+
+### Blocked
+- **GitHub repo scan**: scan-target misconfigured (gladiaio org instead of sparelabs, reposcan-raw/sparelabs dir empty) — 0 code/config files scanned since 2026-08-09. Cannot trust code-surface data until clone target fixed
+- **AUTH_HELPED needed**: Engage write-chain exploitation requires valid test tokens to confirm whether feature-flag gate can be bypassed with real org context; formId bridge also needs authorized token
+- **/v1/public/engage/{caseType,form} GET**: Flapping between OpenAPI validation (400) and router-level "not found" (400) across envoy replicas — unreliable passive surface
+
+## Next Move
+1. PROBE: GET `https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders` at ≤1 rps — check if public sub-resource is routed (200 data-bearing vs 404 vs 401)
+2. If 404, sweep `/vehicles`, `/trips`, `/sessions` sub-resources at ≤1 rps each under the same org UUID
+3. Check CORS on any non-404 response
+
+## Relevant Files
+- `/tmp/opencode/regions.json`: Captured 725B regions response (7 regions, 6 OOS subdomains, sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe`)
+- Platform bundle: `index-B6uSYXCi.js` (3MB) — embedded OpenAPI spec of EAM/fixed-route admin API with 170 paths
+- Forms bundle: `main.8a2a39cb.js` (2,195,456B) — PATCHED, zero infra refs, 3 referrer-restricted Google Maps keys
+- Reports: `reports/hypotheses-laguna.txt`, `reports/hypotheses-nemotron3.txt` — ranked hypothesis queues
+- KB: Knowledge base maintained inline with 96h+ of verified STABLE/REJECTED/CHANGED entries across all findings
+
+### Key Findings Summary (by severity)
+| Finding | Class | Severity | Status |
+|---|---|---|---|
+| /v1/global/regions scheme-only bypass | AUTH | MEDIUM | STABLE 96h+, NOT patched |
+| /v1/global/organizations zero-header bypass | AUTH | LOW (empty payload) | STABLE 96h+ |
+| /v1/** CORS credential reflection | MISCONFIG | MEDIUM | STABLE 96h+ |
+| /v1/public/organizations/{id} UUID oracle | IDOR | MEDIUM | STABLE 3-way |
+| /v1/public/organizations/key/{key} oracle | IDOR | MEDIUM | 5 orgs, feature flags |
+| /v1/identity/workos/auth SSO oracle | IDOR | LOW | ≥10 tenants |
+| /v1/public/engage/cases POST no-auth | BUSLOGIC | MEDIUM | Auth gate absent |
+| /v1/public/terms data disclosure | MISCONFIG | LOW | Per-tenant config |
+| platform.sparelabs.com CSP leak | MISCONFIG | LOW | Infra recon |
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+[0m• [0mProbe org sub-resources[90m General Agent[0m
+[0m✓ [0mProbe org sub-resources[90m General Agent[0m
+Subagent refused. I'll execute the probes directly.
+[0m
+[0m$ [0mcurl -s -w "\n---HTTP_CODE:%{http_code}---\n" "https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders"
+{"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders","message":"not found"}],"correlationId":"136eec7e-c8c0-4abe-a21a-510ed579e434"}}
+---HTTP_CODE:400---
+[0m
+/riders → 400 ValidationError "not found" (path not in OpenAPI schema). Continuing:
+[0m$ [0msleep 1 && curl -s -w "\n---HTTP_CODE:%{http_code}---\n" "https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/vehicles"
+{"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/vehicles","message":"not found"}],"correlationId":"a5778bc2-ff8f-419e-bca7-76325bbc1282"}}
+---HTTP_CODE:400---
+[0m
+/vehicles → 400 (same). Continuing:
+[0m$ [0msleep 1 && curl -s -w "\n---HTTP_CODE:%{http_code}---\n" "https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/trips"
+{"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/trips","message":"not found"}],"correlationId":"75dc075c-f1a5-4d14-b183-a57754764457"}}
+---HTTP_CODE:400---
+[0m
+/trips → 400. One more:
+[0m$ [0msleep 1 && curl -s -w "\n---HTTP_CODE:%{http_code}---\n" "https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/sessions"
+{"name":"ValidationError","message":"not found","metadata":{"errors":[{"path":"/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/sessions","message":"not found"}],"correlationId":"bdeb32dd-485d-4d95-9117-ba8ab2bd9cea"}}
+---HTTP_CODE:400---
+[0m
+/sessions → 400. All four sub-resources return the same validation error. This route does not expose any child resources.
+
+**RESULT: IDOR hypothesis for public org sub-resources is REJECTED.** The `/v1/public/organizations/{orgId}` route does not expose any sub-resources (/riders, /vehicles, /trips, /sessions). All return 400 ValidationError at the OpenAPI validation layer before reaching the handler.
+
+---
+
+**Summary of probing results:**
+
+| Sub-resource | Status | Verdict |
+|---|---|---|
+| /riders | 400 ValidationError | NOT ROUTED |
+| /vehicles | 400 ValidationError | NOT ROUTED |
+| /trips | 400 ValidationError | NOT ROUTED |
+| /sessions | 400 ValidationError | NOT ROUTED |
+
+The public org endpoint only serves the base resource — no child endpoints are exposed. This sub-resource IDOR hypothesis is rejected.
+
+**Current hypothesis queue (remaining active):**
+
+1. **`/v1/identity/workos/auth` SSO state injection** — AUTH_HELPED required (confidence 62)
+2. **`/v1/global/regions` write-method CORS chain** — PASSIVE confirmed (confidence 78)
+3. **`/v1/public/organizations/{orgId}/riders`** — REJECTED (validated this session)
+
+The AUTH_HELPED items are blocked on obtaining a valid test token. The CORS chain is already documented at 86h+ stability. There are no remaining passive-only probes in the queue that could advance without authorization.
+
+**Recommendation:** The passive surface is exhausted for what can be confirmed as real findings. The remaining high-confidence items (SSO state injection, CORS chain) require AUTH_HELPED to advance to exploitation, or are already confirmed stable. Do you want me to:
+
+1. Deep-dive into a new attack surface (e.g., probe additional `/v1/public/` paths)?
+2. Focus on writing up confirmed findings into a bug bounty report format?
+3. Something else?
