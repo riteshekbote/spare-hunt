@@ -2376,3 +2376,12 @@
 - CHANGED api.sparelabs.com/v1/identity/workos/auth: state parameter reflection confirmed; redirect_uri NOT reflected — OATH injection vector confirmed as state-only
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: Auth gate ABSENT re-confirmed live — handler reached without auth (400 ValidationError, 404 NotFoundError, 403 ForbiddenError); multi-ve
 - CHANGED api.sparelabs.com/v1/global/organizations: zero-header bypass now replica-dependent — slow replicas (664ms) return 200+11B; fast replicas return 401; same multi-version LB split mechanism
+
+## 2026-08-17 14:05:32 UTC
+- NEW api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass now deterministic — 8/8 fast replicas (0.11-0.14s) return 200+725B; slow replicas return 401; replica-split mechanism confirmed
+- NEW api.sparelabs.com/v1/global/organizations: Zero-header read-only bypass now deterministic — 8/8 slow replicas (0.55-1.04s) return 200+11B; fast replicas return 401; same LB split mechanism
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com newly confirmed); fleet-parity across 7 hosts
+- NEW api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizeUrl response body (OAuth parameter injection vector); redirect_uri silently dropped
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted (infra leak ELIMINATED)
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400, ~299B) and router-level "not found" (400, ~189B) — multi-version envoy LB confirmed, downgraded to UNC
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle flapping 2-way↔3-way across envoy replicas — downgraded to validation-leak-only

@@ -1924,3 +1924,8 @@
 - 2026-08-17 REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
 - 2026-08-17 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only
 - 2026-08-17 REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" claim FALSE POSITIVE — only tested no-auth path 400, missed Bearer-x 200+725B
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC scheme-only Bearer bypass — fast replicas 8/8 → 200+725B; slow replicas → 401; multi-version LB replica-split confirmed as mechanism behind 96h flapping, NOT a patch
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC zero-header read-only bypass — slow replicas 8/8 → 200+11B; fast replicas → 401; same LB split mechanism
+- 2026-08-17 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STABLE ≥11 tenants; state reflection confirmed; redirect_uri dead
+- 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs); cross-route oracle validated on 4 orgs
+- 2026-08-17 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organizations/{id} superior
