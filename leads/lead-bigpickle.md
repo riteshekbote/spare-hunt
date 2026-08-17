@@ -11239,3 +11239,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — Envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead
 [RISK] forms.sparelabs.com: 25 — JS bundle PATCHED; 3 Maps keys referrer-restricted; SPA catch-all; no active attack surface
 [RISK] web (spare.com/sparelabs.com): 15 — Static marketing; CSP frame-ancestors 'self'; no internal leaks
+## 2026-08-17 23:13:58 UTC [api] (model bigpickle)
