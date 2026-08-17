@@ -2618,3 +2618,10 @@
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle DEGRADED 3-way↔2-way flapping across envoy replicas (nil→404 fast, 400 slow); downgraded to validation-leak-only; plural /organizations
 - CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted (infra leak ELIMINATED)
 - CHANGED platform.sparelabs.com/login: CSP infra leak STABLE — HTML size minor rotation 5555B→5327B but admin Vercel apps + Metabase + 9 cloud services still disclosed
+
+## 2026-08-17 23:56:23 UTC
+- NEW platform.sparelabs.com: MFE SPA shell now responding 200 (was TIMEOUT)
+- NEW forms.sparelabs.com: Engage portal SPA now responding 200 (was TIMEOUT)
+- NEW routing.sparelabs.com: now responding envoy 404 on all paths (was TIMEOUT)
+- NEW sparelabs.com: now 301→spare.com apex (was TIMEOUT)
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com newly confirmed)
