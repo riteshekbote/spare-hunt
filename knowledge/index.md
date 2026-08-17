@@ -1993,3 +1993,10 @@
 - 2026-08-17 REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes + 8 undocumented controllers ALL 401 (zero-auth + Bearer-x) — bypass family DEFINITIVELY scoped to exactly {/organizations, /regions}; route-specific, not controller-wide
 - 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate ABSENT confirmed live — handler reached without 401 (400 ValidationError, 404 NotFoundError, 403 ForbiddenError feature-flag gate); validation precedes auth in request pipeline; CORS reflected
 - 2026-08-17 REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" claim (2026-08-11) is FALSE POSITIVE — only tested no-auth path (400), never tested Bearer-x vector; bypass remains 86h+ stable (sha256 verified)
+- 2026-08-17 STABLE @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass + write-method CORS chain confirmed deterministic across 8/8 fast replicas (4-17ms, 200+725B); longcat "PATCHED" false positive
+- 2026-08-17 STABLE @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass confirmed on 8/8 slow replicas (550-1040ms, 200+11B); write methods properly enforce 401 InvalidTokenError
+- 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401 (400 ValidationError, 404 NotFoundError, 403 ForbiddenError feature-flag gate)
+- 2026-08-17 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle ≥11 tenants stable; state parameter reflected unescaped; fleet-parity confirmed
+- 2026-08-17 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js confirmed PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted
+- 2026-08-17 REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead, NO_DELTA
+- 2026-08-17 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — multi-version LB confirmed, unreliable
