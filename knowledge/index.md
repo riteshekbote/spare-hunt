@@ -1890,3 +1890,9 @@
 - 2026-08-17 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizeUrl response body — primary OATH injection vector; redirect_uri param silently dropped (not a vector) — redirect-uri injection via state embedding is dead (WorkOS treats as state passthrough)
 - 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401 on empty POST (400 ValidationError), nil-UUID (404 NotFoundError), valid org UUIDs (403 ForbiddenError feature-flag gate NOT auth gate); cross-route org-UUID oracle validated independently on 4 orgs (spare/grt/dallas/winnipeg → 403)
 - 2026-08-17 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥11 tenants — saskatoon.ca, mbta.com, oakville.ca, cota.com, kingcounty.gov, winnipeg.ca confirmed; fleet-parity across 7 hosts; transit-agency dictionary + marketing partner list both exhausted (0 new from 23 candidates)
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: replica-split STABLE — fast replicas 200+725B+Bypass, slow replicas 401; longcat "PATCHED" false positive; multi-version LB confirmed as mechanism
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header bypass replica-split STABLE — slow replicas 664ms+ 200+11B; fast replicas 401; read-only confirmed
+- 2026-08-17 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: state reflection confirmed, redirect_uri dead; SSO roster ≥11 tenants; fleet-parity 7 hosts
+- 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs)
+- 2026-08-17 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs; recon-only
+- 2026-08-17 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B since 2026-08-07
