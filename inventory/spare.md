@@ -2545,3 +2545,5 @@
 - NEW api.sparelabs.com/v1/public/organizations/key/{key}: live set confirmed closed at {spare,grt,dallas,winnipeg,hsr} (5 orgs, 3-way oracle, prod-only, feature-flag differential)
 - NEW api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT re-confirmed live — handler reached (400 ValidationError, 404 NotFoundError, 403 ForbiddenError feature-flag gate); CORS reflected
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle fully degraded 3-way↔2-way flapping across envoy replicas — downgraded to validation-leak-only; plural /organizations/{id} superior
+
+## 2026-08-17 21:19:00 UTC
