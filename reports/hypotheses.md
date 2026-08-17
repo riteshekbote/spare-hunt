@@ -7393,3 +7393,12 @@
 - LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped by handler; state-only injection confirmed
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs; recon-only
+
+## RANKED HYPOTHESES 2026-08-17 12:45:56 UTC
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only auth bypass on global regions leaks fleet-wide infrastructure topology + write-method CORS chain (from reports/hypotheses-laguna.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: `curl -s -m15 -D- -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | tee /tmp/opencode/regi
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — longcat "PATCHED" (2026-08-11) is FALSE POSITIVE (only tested no-au
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — handler reached without 401 (400 ValidationError, 404 NotFoundEr
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY (G
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped by handler; state-only injection confirmed (
