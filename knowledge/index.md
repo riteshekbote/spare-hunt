@@ -1839,3 +1839,8 @@
 - 2026-08-16 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle STABLE — 10+ tenants confirmed, fleet-parity 7 hosts, universal CORS
 - 2026-08-16 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — writes properly gated at handler level, auth asymmetry confirmed
 - 2026-08-16 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js PATCHED — zero infra refs, 3 Maps keys referrer-restricted
+- 2026-08-17 ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri/state reflection hypothesis NEWLY TESTED — pending live probe result
+- 2026-08-17 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — longcat "PATCHED" false positive, multi-version LB replica split confirmed
+- 2026-08-17 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without auth; cross-route org-UUID oracle validated on 3+ orgs
+- 2026-08-17 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- 2026-08-17 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs

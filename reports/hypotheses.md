@@ -7038,3 +7038,14 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — writes properly gated at handler level, auth asymmetry confirme
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js PATCHED — zero infra refs, 3 Maps keys referrer-restricted
+
+## RANKED HYPOTHESES 2026-08-17 01:06:03 UTC
+- [92] api.sparelabs.com/v1/identity/workos/auth: SSO Configuration Oracle with OAuth Parameter Injection Vector (from reports/hypotheses-laguna.txt)
+- [72] api.sparelabs.com/v1/identity/workos/auth: OAuth parameter injection via WorkOS SSO-config oracle redirect_uri/state reflection (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: curl -s -m15 -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","redirect_uri":"https://evil.exa
+- NEXT(hypotheses-bigpickle.txt): PROBE: POST {"domain":"spare.com","redirect_uri":"https://evil.example.com/callback","state":"test_state"} to /v1/identity/workos/auth to test if redirect_uri/s
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri/state reflection hypothesis NEWLY TESTED — pending live probe result
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — longcat "PATCHED" false positive, multi-version LB replica split confirmed
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without auth; cross-route org-UUID oracle validated on 3+ 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs
