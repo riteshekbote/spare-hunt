@@ -13006,3 +13006,11 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — Envoy gateway; 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404 on 2026-08-13) but zero surface, NO_DELTA
 [RISK] forms.sparelabs.com: 25 — Engage portal SPA live (was TIMEOUT→200); JS bundle PATCHED (main.8a2a39cb.js, zero sparelabs/atlassian/ngrok/metabase/vercel refs); 3 Google Maps keys all referrer-restricted; strict HTML CSP + x-frame DENY; all API paths return SPA catch-all 200 text/html; no real API endpoints behind host; recon-only
 [RISK] web (spare.com/sparelabs.com): 15 — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks in HTML/JS); sparelabs.com 301→spare.com apex; www.spare.com OOS excluded; sparelabs.com now responsive 301→spare.com (was TIMEOUT); minimal static-only surface, no dynamic logic, no new surface since 2026-08-07
+## 2026-08-17 20:11:09 UTC [web] (model laguna)
+[HYP] /v1/global/regions scheme-only Bearer bypass with fleet topology disclosure + write-method CORS chain
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: `Bearer x` → 200 + 725B region registry (7 regions incl. 6 OOS api/routing subdomains); body sha256 `fb9800acb…585c3fe` byte-stable 86h+ across 7 fleet hosts; no-auth → 400 "header required"; wrong-scheme → 400; POST → 401 (read-only); OPTIONS 204 advertises write methods + ACAO+ACAC; longcat "PATCHED" (2026-08-11) is false positive (only tested no-auth 400 path).
+evidence_needed: 200+725B with Bearer-x + ACAO:evil + ACAC:true; 400 no-auth; 400 wrong-scheme; POST→401; OPTIONS 204+write methods; sha256 matches
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" ; GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil
