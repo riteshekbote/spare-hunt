@@ -11960,3 +11960,4 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 48 | Engage portal SPA live with strict HTML CSP + x-frame DENY; JS bundle main.8a2a39cb.js PATCHED (zero infra refs); 3 Google Maps keys all referrer-restricted; all 8 API paths return SPA catch-all — minimal residual surface beyond recon value
 [RISK] routing.sparelabs.com: 12 | Newly responsive (TIMEOUT→envoy 404) but STABLE dead — envoy 404/0B on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; no surface, NO_DELTA since 2026-08-07
 [RISK] web (spare.com/sparelabs.com): 18 | spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface, no dynamic logic or data exposure
+## 2026-08-17 07:32:08 UTC [web] (model laguna)
