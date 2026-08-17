@@ -13172,3 +13172,4 @@ testability: PASSIVE
 [FINAL] routing.sparelabs.com STABLE dead — envoy 404/0B on all paths, NO_DELTA since 2026-08-07; negative finding. Confidence 95.
 [NEXT] PROBE: GET https://platform.sparelabs.com/login -H "Origin: https://evil.example.com" — confirm CSP header still enumerates `admin-eam-app.vercel.app`+`admin-fixed-route-app.vercel.app` (prod+staging) + `metabase.sparelabs.com` + 9 cloud services (Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit); inspect for any new directive rotation (HTML dropped 5555B→5327B per KB 2026-08-17).
 ## 2026-08-17 22:08:22 UTC [web] (model laguna)
+## 2026-08-17 22:35:46 UTC [web] (model laguna)
