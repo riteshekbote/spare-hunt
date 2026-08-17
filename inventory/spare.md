@@ -2485,3 +2485,5 @@
 - CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted (infra leak ELIMINATED, downgraded f
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle fully degraded 3-way↔2-way flapping across envoy replicas — downgraded to validation-leak-only, NOT oracle class; plural /organizations
 - CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET: Flapping between OpenAPI validation (400) and router-level "not found" (400) — multi-version envoy LB confirmed; downgraded to UNCONFIRMED
+
+## 2026-08-17 18:54:37 UTC
