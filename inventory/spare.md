@@ -2435,3 +2435,5 @@
 - CHANGED api.sparelabs.com/v1/identity/workos/auth: state parameter reflection confirmed; redirect_uri NOT reflected — OATH injection vector confirmed as state-only
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST + caseForms POST: Auth gate ABSENT re-confirmed live — handler reached without auth (400 ValidationError, 404 NotFoundError, 403 ForbiddenError); multi-ve
 - CHANGED api.sparelabs.com/v1/global/organizations: zero-header bypass now replica-dependent — slow replicas (664ms) return 200+11B; fast replicas return 401; same multi-version LB split mechanism
+
+## 2026-08-17 16:03:50 UTC

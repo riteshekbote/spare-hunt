@@ -2613,3 +2613,17 @@ https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.uat.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
 https://api.uat.sparelabs.com/v1/public/engage/cases -> HTTP 400
+
+## 2026-08-17 16:03:54 UTC
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.uat.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.uat.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000 -> 200 len=137 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/global/regions` -> HTTP 400
+https://api.sparelabs.com/v1/global/organizations` -> HTTP 400
+https://api.sparelabs.com/v1/public/terms?organizationId=0606efa8-59e1-4d08-9e1e-3b5e6a1f6e00 -> 200 len=137 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/journeys` -> HTTP 401
+https://platform.sparelabs.com/login -> 200 len=5327 type=text/html; charset=UTF-8
+https://api.sparelabs.com/v1/public/$p -> HTTP 404
