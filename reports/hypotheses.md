@@ -9311,3 +9311,46 @@
 - LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: staging forms site serves IDENTICAL bundle (`main.60865478.js`) as prod; both contain same infra refs; forms.sparelabs
 - LEARN: ACCEPTED MISCONFIG @ all Vercel admin apps: `admin-eam-app.vercel.app`, `admin-fixed-route-app.vercel.app`, `admin-eam-app-staging.vercel.app`, `admin-fixed-rou
 - LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state parameter URL-encoded in authorizationUrl body (`%3Cimg+src%3Dx+onerror%3Dalert(1)%3E`); Cloudf
+
+## RANKED HYPOTHESES 2026-08-18 20:07:23 UTC
+- [96] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass exposes fleet topology with write-method CORS chain (from reports/hypotheses-laguna.txt)
+- [85] api.staging.sparelabs.com/v1/global/organizations/{uuid}: Staging org metadata enrichment via zero-header bypass (from reports/hypotheses-nemotron3.txt)
+- [68] api.sparelabs.com/v1/identity/workos/auth: WorkOS state parameter XSS via HTML reflection in authorizationUrl (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d7
+- NEXT(hypotheses-bigpickle.txt): PROBE: GET https://api.staging.sparelabs.com/v1/global/settings → check if staging has auth-free config route (different code version may have additional omissi
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — validation precedes auth in pipeline; handler-level responses
+- LEARN: ACCEPTED IDOR @ api.staging.sparelabs.com/v1/global/organizations/{uuid}: richer metadata response than prod via zero-header bypass (staging host OOS but findin
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state parameter reflected unescaped in authorizeUrl; redirect_uri silently dropped (not a vector); ≥1
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.63fe135c.js CONFIRMED REGRESSION — infra refs (atlassian/ngrok/metabase) REACTIVATED; prior PATCHED cla
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak
+- LEARN: ACCEPTED AUTH @ api.us.sparelabs.com: scheme-only bypass (Bearer x) + zero-header bypass both work; fleet-wide parity confirmed but data oracles CA-specific onl
+- LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com/v1/identity/workos/auth: Returns 401 for all domains — NO SSO oracle on staging; different auth gate
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 86h+ — non-path-conditional via 22-sibling sweep
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive but zero surface
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: bypass NOT patched — live probe 2026-08-18 15:00 UTC confirms 200+725B+ACAO+ACAC with Bearer x; longcat "PA
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: complete zero-header read-only bypass STABLE 86h+ — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/D
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs {spare,grt,dallas,winnipeg,hsr}; 22 candidates exhau
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 9th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); state reflected unescaped; fl
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — empty POST → 400 ValidationError (no 401), handler reached (nil-
+- LEARN: REJECTED MISCONFIG @ api.us.sparelabs.com oracles: UUID oracle + org-key oracle + SSO oracle are CA-specific — US host returns 404/401; data exposure is NOT uni
+- LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com/v1/identity/workos/auth: Returns 401 for all domains — NO SSO oracle on staging; staging has different auth gate
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.63fe135c.js is REGRESSION — ngrok + Atlassian + Metabase refs re-activated; prior patch claim was false
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level-not-found (400) — multi-
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle UPDATED to `main.60865478.js` — now IDENTICAL to staging bundle; contains ngrok (`api-spare.ngrok.io`), Atlassi
+- LEARN: ACCEPTED MISCONFIG @ api.staging.sparelabs.com/v1/global/regions: returns flat array with `apiUrl`+`routingHost` fields (2 regions CA/US); no-auth returns valid
+- LEARN: ACCEPTED IDOR @ api.staging.sparelabs.com/v1/identity/workos/auth: only 2 SSO connections (spare.com + default); default connection `conn_01JMNA3T2KMAKYEZB19RAT
+- LEARN: ACCEPTED BUSLOGIC @ api.staging.sparelabs.com/v1/public/engage/cases POST: nil org → 404 "Other was not found"; valid Spare org → 403 "External case creation is
+- LEARN: ACCEPTED MISCONFIG @ api.staging.sparelabs.com/v1/public/terms: returns same real URLs for ALL mobileAppId/organizationId — no per-tenant filtering; prod has pe
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: staging forms site serves IDENTICAL bundle (`main.60865478.js`) as prod; both contain same infra refs; forms.sparelabs
+- LEARN: ACCEPTED MISCONFIG @ all Vercel admin apps: `admin-eam-app.vercel.app`, `admin-fixed-route-app.vercel.app`, `admin-eam-app-staging.vercel.app`, `admin-fixed-rou
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: state parameter URL-encoded in authorizationUrl body (`%3Cimg+src%3Dx+onerror%3Dalert(1)%3E`); Cloudf
+- LEARN: ACCEPTED AUTH @ api.staging.sparelabs.com: different code version confirmed — regions=400 (no bypass), workos=401 (no oracle), terms=real URLs for all mobileApp
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca confir
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — validation precedes auth in pipeline; handler-level responses
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle regression main.60865478.js contains ngrok/Atlassian/localhost refs; prod bundle main.63fe135c.js no longer ser
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: prior "PATCHED" claims on main.8a2a39cb.js were false positives — current bundle is main.60865478.js with ac
+- LEARN: ACCEPTED MISCONFIG @ api.spare.ngrok.io: ngrok tunnel registered (DNS resolves to ngrok IPs) but backend inactive (empty response). Dormant vulnerability - if d
+- LEARN: ACCEPTED AUTH @ api.staging.sparelabs.com: regions bypass ABSENT (400), WorkOS auth ABSENT (401), zero-auth bypass ONLY on /v1/global/organizations. Staging is 
+- LEARN: ACCEPTED IDOR @ api.staging.sparelabs.com/v1/public/organizations/key/spare: only spare org exists (grt/winnipeg/dallas → 404). Feature flags: 2 (staging) vs 5 
+- LEARN: ACCEPTED MISCONFIG @ api.staging.sparelabs.com: CORS accepts evil origin with data response (same reflection pattern as prod).
