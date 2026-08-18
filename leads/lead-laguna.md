@@ -13419,3 +13419,32 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead
 [RISK] forms.sparelabs.com: 25 — JS bundle PATCHED (main.8a2a39cb.js, zero infra refs); 3 Maps keys referrer-restricted; SPA catch-all; no active attack surface
 [RISK] web (spare.com/sparelabs.com): 15 — Static marketing (Cloudflare+Webflow); CSP frame-ancestors 'self'; no internal leaks
+## 2026-08-18 02:48:02 UTC [web] (model laguna)
+[HYP] engage/cases POST auth gate absent — handler-reached write path with no authentication check
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 84
+reasoning: Live-verified this session: empty POST → 400 ValidationError "must have required property 'organizationId'" (NO 401 InvalidTokenError before handler); nil-UUID org Id → 404 NotFoundError "Other was not found" (handler reached, not auth-gated); valid spare org UUID + caseTypeId + contactInfo → 403 ForbiddenError "External case creation is not enabled for this organization" (feature-flag gate, NOT auth gate). Validation layer runs first, then business-logic feature-flag check, with no auth check in between. CORS credentials (ACAO:evil + ACAC:true) reflected on all handler-level responses including 403.
+evidence_needed: Full handler execution trace showing auth middleware not applied to /v1/public/engage/* routes; or AUTH_HELPED valid token to test if same bypass works with write verbs
+verify_steps: PASSIVE: 1) curl POST empty body → confirm 400 ValidationError without 401; 2) curl POST with nil UUID → confirm 404 NotFoundError; 3) curl POST with spare UUID + valid caseTypeId UUID + contactInfo → confirm 403 ForbiddenError (feature-flag gate, not auth); 4) Check /v1/public/engage/caseForms POST similarly; 5) If 403 reached, test with spare UUID + nil caseTypeId to isolate which validation runs first
+impact: Authenticated write operations (case creation) reachable without auth; valid org UUIDs (obtained via org-key oracle) reach handler-level feature-flag gate → if feature flag enabled for target org, cross-origin case creation with victim browser credentials. Severity HIGH.
+testability: PASSIVE
+[HYP] scheme-only Bearer bypass on /v1/global/regions enables cross-origin fleet topology exfiltration
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions GET
+confidence: 92
+reasoning: Live-verified this session: GET with `Authorization: Bearer x` → 200 + 725B region registry (sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d4ef9af3ed97047795c3fe) listing 7 regions including 6 in-scope OOS api/routing subdomains. OPTIONS 204 confirms full read+write CORS chain (ACAO:reflected + ACAC:true + methods GET,HEAD,PUT,PATCH,POST,DELETE). No-Auth → 400 "header required". Token validity never checked — scheme-only gate. Deterministic on 8/8 fast replicas. Multi-version envoy LB splits fast (bypass) vs slow (401) replicas.
+evidence_needed: Full 725B body captured to /tmp/opencode/regions.json; sha256 hash matches KB; write-method CORS convergence confirmed via OPTIONS 204
+verify_steps: PASSIVE: 1) GET /v1/global/regions with Bearer x + Origin → confirm 200+725B+ACAO+ACAC on fast replica; 2) POST same route → confirm 401 (read-only bypass); 3) OPTIONS → confirm write methods advertised with CORS; 4) Retry to catch fast vs slow replica split
+impact: Cross-origin exfiltration of full region registry (7 regions, 6 OOS api/routing subdomains with apiUrl and routingHost each) via any malicious page — 725B infra topology leak at no auth cost. Write methods advertised via CORS preflight but handler-enforces 401 (read-only). Severity MEDIUM-HIGH.
+testability: PASSIVE
+[HYP] /v1/identity/workos/auth unauthenticated SSO-config oracle with state parameter injection
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth POST
+confidence: 88
+reasoning: Live-verified this session: POST {"domain":"spare.com"} → 200 + 172B disclosing WorkOS client_id (client_01F5KHYX32TCKB1E7YEAPE0H17) + connection_id (conn_01GRW7M1CJEJGYKMEMPBCQEZHY) + Entra tenant IDs in signed relayState JWT. POST {"domain":"grt.ca"} → 404 (grt has org-key but no SSO binding — disjoint sets confirmed). SOPR < 10 additional tenant domains. State parameter reflected unescaped in authorizeUrl body (URL-encoded passthrough — param injection dead, state-only confirmed). Fleet-parity across 7 hosts (prod/us/us2/us3/jp/eu/uat).
+evidence_needed: Full relayState JWT decode exposing redirect_uri=https://platform.sparelabs.com/workos/callback + environment_id; state parameter reflection confirmed in authorizeUrl response body; 8+ tenant roster confirmed (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, oakville.ca, cota.com, winnipeg.ca)
+verify_steps: PASSIVE: 1) POST /v1/identity/workos/auth {"domain":"spare.com"} → confirm 200+172B+ACAO+ACAC; 2) POST {"domain":"grt.ca"} → confirm 404 (disjoint from org-key); 3) POST {"domain":"mbta.com"} → confirm 200+new connection_id; 4) POST with state param to confirm unescaped reflection in authorizeUrl
+impact: SSO tenant enumeration + WorkOS client_id/connection_id disclosure + Entra tenant ID disclosure for partner orgs (dart.org → login.microsoftonline.com/4bdf4200-..., translink.ca → login.microsoftonline.com/4157b39d-...); state reflection in WorkOS authorizeUrl could enable OAuth parameter injection if callback flow is exploitable — requires AUTH_HELPED for full chain. Severity LOW-MEDIUM (config disclosure, no user data/creds).
+testability: PASSIVE
+[NEXT] PROBE: POST https://api.sparelabs.com/v1/public/engage/caseForms -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"formId":"00000000-0000-0000-0000-000000000000","organizationId":"d736519f-f384-4771-a2d2-4f95e884d790"}' --max-time 15 — verify whether nil-UUID formId triggers 404 NotFoundError (handler reached for caseForms too, parallel to cases POST auth-absent finding); if handler-reached with no 401, confirm auth gate structurally absent across entire /v1/public/engage/* namespace

@@ -11373,3 +11373,27 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 25 — JS bundle PATCHED (main.8a2a39cb.js, zero infra refs); 3 Maps keys referrer-restricted; SPA catch-all; no active attack surface
 [RISK] web (spare.com/sparelabs.com): 15 — Static marketing (Cloudflare+Webflow); CSP frame-ancestors 'self'; no internal leaks
 ## 2026-08-18 01:48:05 UTC [api] (model bigpickle)
+## 2026-08-18 02:45:36 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/organizations/{orgId}/riders: 6.6 (8|7|6|9|4|7|3)
+[HYP] Public org sub-resource /riders exposes unauthenticated rider PII
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{orgId}/riders
+confidence: 42
+reasoning: KB 2026-08-11 confirms /v1/public/riders/{id} returned 404 (route DNE). But plural /public/organizations/{id} has proven superior discrimination to singular /organization. Sub-resource routing under the plural tree is completely untested. "riderLoginless" feature flag (spare+winnipeg only) confirms rider auth paths exist in platform bundle OpenAPI (401 gated on private namespace). If /public/orgs/{id}/riders is routed, it bypasses the private 401 gate entirely.
+evidence_needed: HTTP response from GET /v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders -H "Origin: https://evil.example.com" at ≤1 rps. Check HTTP status + CORS + response body. If 404, sweep /vehicles, /trips, /sessions, /drivers under same org.
+impact: If 200 + data: unauthenticated rider PII exposure (names, phones, trip history). Severity HIGH. If 404: dead-end.
+testability: PASSIVE
+[PARKED] /v1/global/regions CORS chain: STABLE 86h+; no new evidence needed; no incremental value.
+[PARKED] /v1/identity/workos/auth state injection: AUTH_HELPED gate; redirect_uri dead; state-only confirmed. Re-probing adds no value without tokens.
+[FINAL]
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders -H "Origin: https://evil.example.com" at ≤1 rps. Check HTTP status + CORS headers. If non-404, sweep /vehicles, /trips, /sessions under same org.
+[LEARN] REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs
+[LEARN] REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+[RISK] api.sparelabs.com: 94 — DETERMINISTIC auth bypasses (regions fast-replica + orgs slow-replica) + FULL CORS credential reflection + SSO-config oracle 11+ tenants + state reflection + FULL org details via key oracle + engage write chain auth-absent + multi-version LB dual-surface + 86h+ unpatched
+[RISK] platform.sparelabs.com: 65 — CSP infra leak on /login (admin Vercel apps prod+staging loadable 200, Metabase prod+staging, 9 cloud services); MFE SPA shell; no real API surface behind host
+[RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead
+[RISK] forms.sparelabs.com: 25 — JS bundle PATCHED (main.8a2a39cb.js, zero infra refs); 3 Maps keys referrer-restricted; SPA catch-all; no active attack surface
+[RISK] web (spare.com/sparelabs.com): 15 — Static marketing (Cloudflare+Webflow); CSP frame-ancestors 'self'; no internal leaks
