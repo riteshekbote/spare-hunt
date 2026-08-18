@@ -3091,3 +3091,15 @@ https://api.staging.sparelabs.com/v1/global/config -> HTTP 401
 https://api.staging.sparelabs.com/v1/global/features -> HTTP 401
 https://api.staging.sparelabs.com/v1/global/countries -> HTTP 401
 https://api.staging.sparelabs.com/v1/public/engage/cases -> HTTP 400
+
+## 2026-08-18 20:40:35 UTC
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.staging.sparelabs.com/v1/global/organizations/{known-uuid -> HTTP 400
+https://api.staging.sparelabs.com/v1/public/organizations/key/spare -> 200 len=288 type=application/json; charset=utf-8
+https://api.staging.sparelabs.com/v1/global/settings -> HTTP 401
+https://api.staging.sparelabs.com/v1/global/config -> HTTP 401
+https://api.staging.sparelabs.com/v1/global/features -> HTTP 401
+https://api.staging.sparelabs.com/v1/global/countries -> HTTP 401
+https://api-spare.ngrok.io -> HTTP 404
+https://api-spare.ngrok.io/v1/global/organizations -> HTTP 404
