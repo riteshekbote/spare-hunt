@@ -3103,3 +3103,14 @@ https://api.staging.sparelabs.com/v1/global/features -> HTTP 401
 https://api.staging.sparelabs.com/v1/global/countries -> HTTP 401
 https://api-spare.ngrok.io -> HTTP 404
 https://api-spare.ngrok.io/v1/global/organizations -> HTTP 404
+
+## 2026-08-18 21:02:12 UTC
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.staging.sparelabs.com/v1/global/settings -> HTTP 401
+https://api.staging.sparelabs.com/v1/global/config -> HTTP 401
+https://api.staging.sparelabs.com/v1/global/features -> HTTP 401
+https://api.staging.sparelabs.com/v1/global/countries -> HTTP 401
+https://api-spare.ngrok.io -> HTTP 404
+https://api-spare.ngrok.io/v1/global/organizations -> HTTP 404

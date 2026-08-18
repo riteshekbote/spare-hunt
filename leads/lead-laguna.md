@@ -14349,3 +14349,4 @@ testability: PASSIVE
 [FINAL] api.sparelabs.com/v1/public/engage/cases POST — auth-gate-absent, handler reached without 401, feature-flag gate not auth gate — 90
 [FINAL] api.sparelabs.com/v1/identity/workos/auth POST — SSO tenant enumeration (11+) + state reflection + WorkOS/client_id disclosure — 88
 ## 2026-08-18 20:36:19 UTC [web] (model laguna)
+## 2026-08-18 20:59:01 UTC [web] (model laguna)

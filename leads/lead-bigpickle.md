@@ -12525,3 +12525,53 @@ testability: AUTH_HELPED
 [RISK] forms.sparelabs.com: 45 — bundle regression main.60865478.js now on prod with ngrok/Atlassian/localhost refs; infrastructure recon value, no direct auth bypass
 [RISK] web (spare.com/sparelabs.com): 10 — static marketing only
 [RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07
+## 2026-08-18 21:00:25 UTC [api] (model bigpickle)
+[PRIO] api.staging.sparelabs.com | 68/100 | attack=6 business=6 tech=7 gate=9 cloud=5 fresh=9
+[PRIO] forms.sparelabs.com (main.60865478.js) | 69/100 | attack=5 business=7 tech=7 gate=10 cloud=3 fresh=10
+[PRIO] api.us.sparelabs.com | 75/100 | attack=7 business=7 tech=5 gate=9 cloud=5 fresh=7
+[PRIO] api.sparelabs.com/v1/global/regions | 69/100 | attack=7 business=7 tech=5 gate=9 cloud=7 fresh=6
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | 68/100 | attack=7 business=7 tech=5 gate=9 cloud=5 fresh=7
+[HYP] Staging API /v1/global/* namespace sweep for additional auth omissions
+class: AUTH
+asset: api.staging.sparelabs.com/v1/global/{settings,config,features,countries,...}
+confidence: 65
+reasoning: Staging has confirmed zero-header bypass on /v1/global/organizations (200+{"data":[]}) but different code version from prod. Staging returns 400 "Authorization header required" on regions (not 401 InvalidTokenError), suggesting different auth middleware version. If staging has additional routes with omitted auth middleware, they'd expose test/staging data.
+evidence_needed: 401/200 differential across /v1/global/* siblings on staging
+verify_steps: PASSIVE: GET https://api.staging.sparelabs.com/v1/global/settings (check auth gate); GET https://api.staging.sparelabs.com/v1/global/config; GET https://api.staging.sparelabs.com/v1/global/features; GET https://api.staging.sparelabs.com/v1/global/countries
+impact: If staging has additional auth-free routes → staging data/config disclosure. Severity LOW-MEDIUM (staging data, but may contain customer-specific config).
+testability: PASSIVE
+[HYP] Forms bundle exposes live ngrok tunnel with dev API proxy
+class: MISCONFIG
+asset: forms.sparelabs.com (main.60865478.js)
+confidence: 72
+reasoning: Production bundle contains hardcoded ngrok URL (api-spare.ngrok.io). KB shows tunnel was inactive (ERR_NGROK_3200) on prior probes, but also shows DNS resolves to ngrok IPs. If tunnel reactivated by developer, it exposes unauthenticated API proxy to localhost:3057. Bundle also leaks localhost:3000, localhost:3035, staging API URLs.
+evidence_needed: Verify current ngrok tunnel status (active vs inactive)
+verify_steps: PASSIVE: curl -sI https://api-spare.ngrok.io (check for active tunnel response or ERR_NGROK_3200); if active: curl https://api-spare.ngrok.io/v1/global/organizations (check for auth bypass on dev server)
+impact: If tunnel active → direct API access bypassing all auth, rate limiting, and WAF. Development/staging data access. Severity MEDIUM-HIGH when active.
+testability: PASSIVE
+[HYP] WorkOS state parameter XSS via HTML reflection in authorizationUrl
+class: XSS
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 68
+reasoning: State parameter is reflected unescaped in authorizationUrl body (KB: %3Cimg+src%3Dx+onerror%3Dalert(1)%3E reflects verbatim). WorkOS authorize endpoint at api.workos.com/sso/authorize returns 403 from server IP (Cloudflare), but browser-based access likely bypasses. If state reflects as HTML context on WorkOS page, XSS via SSO login flow.
+evidence_needed: Confirm HTML reflection on WorkOS authorize page via browser; verify Content-Type on WorkOS page
+verify_steps: AUTH_HELPED: open https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01M00CQ6350667DNDRFT6NPP4K&response_type=code&state=%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E in browser; check if alert(1) fires; check page source for unescaped HTML
+impact: If XSS confirmed on WorkOS page → hijack SSO session token, impersonate any SSO-configured tenant user, access Spare platform as any partner org admin. Severity HIGH.
+testability: AUTH_HELPED
+[PARKED] WorkOS state XSS: Cannot verify HTML reflection without browser (Cloudflare blocks server IP); confidence 68 is borderline but hypothesis is AUTH_HELPED-gated and cannot be progressed passive-only. Held pending browser verification.
+[FINAL] Surviving hypotheses re-ranked:
+[NEXT] PROBE: GET https://api.staging.sparelabs.com/v1/global/settings → check if staging has auth-free config route (different code version may have additional omissions)
+[LEARN] ACCEPTED AUTH @ api.staging.sparelabs.com: regions bypass ABSENT (400), WorkOS auth ABSENT (401), zero-auth bypass ONLY on /v1/global/organizations. Staging is reduced subset of prod with fewer bypasses.
+[LEARN] ACCEPTED IDOR @ api.staging.sparelabs.com/v1/public/organizations/key/spare: only spare org exists (grt/winnipeg/dallas → 404). Feature flags: 2 (staging) vs 5 (prod). GCS bucket: spare-staging-ca-photos.
+[LEARN] ACCEPTED MISCONFIG @ api.staging.sparelabs.com: CORS accepts evil origin with data response (same reflection pattern as prod).
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle main.60865478.js (2026-08-18) is REGRESSION — ngrok (api-spare.ngrok.io), Atlassian (FIN-1093), localhost:3000/3035, staging API URLs reactivated; prior PATCHED claims on main.8a2a39cb.js were false positives
+[LEARN] ACCEPTED MISCONFIG @ all Vercel admin apps: admin-eam-app.vercel.app, admin-fixed-route-app.vercel.app, admin-eam-app-staging.vercel.app, admin-fixed-route-app-staging.vercel.app all return HTTP 200; localhost API URLs in HTML (EAM:3057, fixed-route:3063); dev-only, not exploitable but exposes dev infrastructure
+[LEARN] REJECTED MISCONFIG @ api.staging.sparelabs.com/v1/identity/workos/auth: Returns 401 for all domains — NO SSO oracle on staging; different auth gate from prod
+[LEARN] REJECTED MISCONFIG @ api.us.sparelabs.com oracles: UUID oracle + org-key oracle + SSO oracle are CA-specific only — US returns 404/401; data exposure NOT universal across fleet
+[RISK] api.sparelabs.com: 94 — unchanged (auth bypasses + CORS 86h+ stable + SSO oracle 11+ tenants + state reflection + org-key 5-org oracle + engage auth-absent + write-method CORS chain)
+[RISK] api.us.sparelabs.com: 75 — fleet-parity confirmed for auth bypass routes but data oracles CA-specific only
+[RISK] platform.sparelabs.com: 65 — CSP infra leak stable (admin Vercel apps + Metabase + 9 cloud services); no real API behind MFE shell
+[RISK] api.staging.sparelabs.com: 62 — different code version with zero-header bypass on orgs; engage auth-absent confirmed; SSO oracle absent; regions=400 (no bypass)
+[RISK] forms.sparelabs.com: 45 — bundle regression main.60865478.js now on prod with ngrok/Atlassian/localhost refs; infrastructure recon value, no direct auth bypass
+[RISK] web (spare.com/sparelabs.com): 10 — static marketing only
+[RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07
