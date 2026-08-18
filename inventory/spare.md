@@ -3167,3 +3167,32 @@
 - NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle confirmed (404 "Form was not found" vs 200 discriminator); auth gate ABSENT, handler reached
 - CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (winnipeg.ca, oakville.ca, cota.com newly confirmed; fleet-parity across 7 hosts)
 - CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set closed at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 candidates exhausted; feature-flag differential stable
+
+## 2026-08-18 21:56:25 UTC
+- NEW forms.sparelabs.com JS bundle: main.60865478.js — IDENTICAL to staging bundle; contains ngrok (`api-spare.ngrok.io`), Atlassian (`FIN-1093`), localhost:3000, localhost:3035, staging API URLs; prod bun
+- NEW api.staging.sparelabs.com: different code version confirmed — regions=400 (no bypass), workos=401 (no oracle), terms=real URLs for ALL mobileAppId (no per-tenant filtering); zero-header bypass works O
+- NEW api.us.sparelabs.com: fleet-wide auth bypass parity confirmed (scheme-only Bearer + zero-header on /v1/global/regions and /organizations) BUT data oracles (UUID, org-key, SSO) are CA-specific only — U
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca newly confirmed); state parameter reflected unescaped; fleet-p
+- NEW api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on scheme-only bypass route; multi-version LB replica-s
+- NEW api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed via full-payload test — 403 ForbiddenError with valid org UUID; nil-caseTypeId → 403 proves feature-flag gate precedes caseTyp
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: validation passes without auth (404 "Form was not found"); CORS write+auth-route chain confirmed; same pattern as cases POST
+- CHANGED forms.sparelabs.com bundle: main.8a2a39cb.js → main.63fe135c.js → main.60865478.js REGRESSION — infra leak reactivated and spread from staging to production
+- CHANGED platform.sparelabs.com + forms.sparelabs.com + routing.sparelabs.com + sparelabs.com: all transitioned from TIMEOUT (2026-08-07 seed) → responsive (2026-08-13+)
+- NEW api.staging.sparelabs.com/v1/global/regions: flat array, 2 regions (CA/US only); no-auth returns "Authorization header required" (differs from prod's InvalidTokenError); different code version
+- NEW api.staging.sparelabs.com/v1/identity/workos/auth: only 2 SSO connections (spare.com + default); staging client_id differs from prod; NO oracle on staging
+- NEW api.staging.sparelabs.com/v1/public/organizations/key/spare: staging has only "spare" org (2 feature flags vs 5 on prod); GCS bucket spare-staging-ca-photos referenced in logoUrl
+- NEW api.us.sparelabs.com: fleet-wide bypass parity confirmed (scheme-only Bearer + zero-header) BUT data oracles (UUID, org-key, SSO) return 404/401 — CA-specific data residency
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle confirmed (404 "Form was not found" vs 200 discriminator); auth gate ABSENT, handler reached
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (winnipeg.ca, oakville.ca, cota.com newly confirmed; fleet-parity across 7 hosts)
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set closed at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 candidates exhausted; feature-flag differential stable
+- NEW forms.sparelabs.com JS bundle regression: `main.60865478.js` now served in production (identical to staging bundle) — re-activates ngrok `api-spare.ngrok.io`, Atlassian `FIN-1093`, localhost:3000/3035
+- NEW api.staging.sparelabs.com is a reduced-but-parallel code version: regions=400 (no Bearer bypass, different error string "Authorization header required" vs prod's InvalidTokenError), workos/auth=401 (n
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: full org details (id, name, logoUrl GCS path, organizationKey, enabledPublicFeatureFlags) returned without auth for all 5 known keys — not just 3-w
+- NEW api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed via full-payload test — valid org UUID + caseTypeId + contactInfo → 403 ForbiddenError "External case creation is not enabled"
+- NEW api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B literal "asdfd" prod junk, winnipeg→197B real external URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic; by
+- NEW forms.sparelabs.com CA→US data routing: Production_CA bundle points to api.us.sparelabs.com — Canadian transit data egress to US endpoint (PIPEDA implications)
+- CHANGED api.us.sparelabs.com: fleet-wide bypass parity confirmed (scheme-only Bearer x + zero-header on /v1/global/regions and /organizations both work) BUT data oracles (UUID/org-key/SSO) are CA-specific onl
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded 8→11+ tenants (oakville.ca conn_01HTN1GCQYJY8X5TNBK0HPE42W, cota.com conn_01KCKYHA0YPZ8N52Q4DVT96SAC, winnipeg.ca conn_01HP76PPV8CMRJH6RY
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle remains FLAPPING 2-way↔3-way across envoy LB replicas (nil→404 on fast, 400 on slow) — downgraded to validation-leak-only; plural /orga
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle confirmed (404 "Form was not found" 131B + correlationId vs 200 discriminator); auth gate ABSENT, handler reached without 40
+- NEW all 4 admin-*.vercel.app hosts (admin-eam-app, admin-fixed-route-app + staging) return 200 — dev-only web-component preview shells with localhost API URLs (EAM:3057, fixed-route:3063); script-src CSP 
