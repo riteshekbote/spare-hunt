@@ -2824,3 +2824,32 @@
 - CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs (22 candidates exhausted); per-tenant feature-flag differential persists
 - CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js → main.63fe135c.js REGRESSION — infra leak reactivated (ngrok, Atlassian, Metabase refs); prior "PATCHED" claims were FALSE POSITIVES
 - CHANGED platform.sparelabs.com + forms.sparelabs.com + routing.sparelabs.com + sparelabs.com: all transitioned from TIMEOUT (2026-08-07 seed) → responsive (2026-08-13+)
+
+## 2026-08-18 11:10:39 UTC
+- NEW forms.sparelabs.com: Production JS bundle rotated to main.63fe135c.js — REGRESSION with hardcoded ngrok dev URL (api-spare.ngrok.io), Atlassian JIRA ref (sparelabs.atlassian.net/browse/FIN-1093), Meta
+- NEW api.staging.sparelabs.com + api.staging.us.sparelabs.com: Staging API hosts LIVE with CORS reflection + /v1/global/organizations zero-header bypass (same as prod); BUT /v1/global/regions returns 400 (
+- NEW spare-staging-ca-photos GCS bucket: EXISTS (403 listing disabled); staging orgs have reduced feature flags; forms staging hosts serve same bundle as production
+- NEW forms.sparelabs.com bundle: Production_CA AND Production_US both point to api.us.sparelabs.com — CA data residency concern (PIPEDA implications)
+- NEW api.staging.sparelabs.com/terms: Returns real spare.com URLs for ALL mobileAppId values — no per-tenant filtering (staging→prod data divergence)
+- NEW api.staging.sparelabs.com/organizations/{uuid}: Returns richer response than prod — includes logoUrl (GCS staging bucket), isMaintenanceEnabled, name, organizationKey, enabledPublicFeatureFlags
+- NEW api.us.sparelabs.com: scheme-only bypass (Bearer x) + zero-header bypass both work; fleet-wide parity confirmed 2026-08-18; BUT UUID oracle, org-key oracle, SSO oracle are CA-specific — US host return
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca newly confirmed); state parameter reflected unescaped in autho
+- CHANGED api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on scheme-only bypass route; multi-version LB replica-s
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — empty POST→400 ValidationError (no 401); nil-UUID→404 NotFoundError (handler reached); valid org UUIDs→403 ForbiddenErr
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs (22 candidates exhausted); per-tenant feature-flag differential persists
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js → main.63fe135c.js REGRESSION — infra leak reactivated (ngrok, Atlassian, Metabase refs); prior "PATCHED" claims were FALSE POSITIVES
+- CHANGED platform.sparelabs.com + forms.sparelabs.com + routing.sparelabs.com + sparelabs.com: all transitioned from TIMEOUT (2026-08-07 seed) → responsive (2026-08-13+)
+- CHANGED api.sparelabs.com/v1/global/regions: Multi-version LB replica split now DETERMINISTIC — 8/8 fast replicas bypass, slow replicas return 401. Previously described as flapping. Mechanism confirmed as det
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded 8→11+ tenants (oakville.ca, cota.com newly confirmed). State param reflection confirmed URL-encoded passthrough, redirect_uri injection d
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: Empty-POST → 400 ValidationError (NOT 401), confirming auth gate structurally absent — validation precedes auth in pipeline. Nil-UUID → 404 NotFoundError
+- CHANGED api.sparelabs.com/v1/global/organizations: Write methods (POST/PUT/PATCH/DELETE) confirmed to properly enforce 401 InvalidTokenError — bypass is READ-ONLY GET only. Auth asymmetry at handler level con
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js → main.63fe135c.js REGRESSION — infra leak reactivated (ngrok api-spare.ngrok.io, Atlassian sparelabs.atlassian.net/browse/FIN-1093, Metabase client cla
+- CHANGED api.us.sparelabs.com: scheme-only Bearer bypass + zero-header bypass both work (fleet-wide parity). BUT UUID oracle, org-key oracle, SSO oracle are CA-specific — US host returns 404/401 for those; dat
+- NEW api.staging.sparelabs.com + api.staging.us.sparelabs.com: Staging API hosts now LIVE with CORS reflection + /v1/global/organizations zero-header bypass (same as prod). BUT /v1/global/regions returns 4
+- NEW spare-staging-ca-photos GCS bucket: EXISTS (403 listing disabled). Staging orgs have reduced feature flags. Staging org response richer than prod (includes logoUrl GCS staging bucket, isMaintenanceEna
+- NEW api.staging.sparelabs.com/terms: Returns real spare.com URLs for ALL mobileAppId values — no per-tenant filtering (staging→prod data divergence).
+- NEW api.staging.sparelabs.com/identity/workos/auth: Returns 401 for all domains — NO SSO oracle on staging. Staging has different auth gate.
+- NEW forms.sparelabs.com bundle: Production_CA AND Production_US both route to api.us.sparelabs.com — CA data residency concern (PIPEDA implications).
+- NEW forms.sparelabs.com bundle: 8 Google Maps API keys exposed (all referrer-restricted — geocode returns REQUEST_DENIED). Feature flags list exposed. App version 1.0.5096.
+- NEW api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on scheme-only bypass route. Browser percieves write su
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: Cross-route org-UUID oracle validated on 5th org (winnipeg 6c84b370-5cc2-42c6-8cdd-146c99648535) via engage/cases POST → 403 ForbiddenError. Org-ke

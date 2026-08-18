@@ -11862,3 +11862,54 @@ testability: AUTH_HELPED
 [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true uniform across all /v1 paths
 [LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com bundle: main.63fe135c.js regression — ngrok + Atlassian + Metabase refs reactivated; prior PATCHED claims were false positives
 [LEARN] ACCEPTED BUSLOGIC @ forms.sparelabs.com: CA→US data routing confirmed — Production_CA points to api.us.sparelabs.com (PIPEDA implications)
+## 2026-08-18 11:10:27 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST | 82/100 | attack=8 business=9 tech=7 gate=9 cloud=5 fresh=7
+[PRIO] api.sparelabs.com/v1/identity/workos/auth | 79/100 | attack=7 business=8 tech=9 gate=9 cloud=4 fresh=7
+[PRIO] api.sparelabs.com/v1/global/regions | 77/100 | attack=7 business=7 tech=5 gate=9 cloud=7 fresh=6
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | 73/100 | attack=7 business=7 tech=5 gate=9 cloud=5 fresh=7
+[HYP] Engage cases POST full-payload auth-gate bypass → case record creation or PII-confirmed handler reach
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 74
+reasoning: Auth gate is structurally absent (validation precedes auth in pipeline). Empty POST returns 400, nil-UUID returns 404, valid org UUIDs return 403 ForbiddenError — all handler-level, no 401. Full valid payload with contactInfo + caseTypeId + org UUID should reach the write handler. 403 for known orgs means feature-flag gate is the final barrier, not auth.
+evidence_needed: Full POST payload (caseTypeId + organizationId UUID + contactInfo object + any required fields) reaching 403 ForbiddenError or 200 success without any Authorization header
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/public/engage/cases with body `{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000001","contactInfo":{"email":"test@test.com","name":"Test"}}` — no Authorization header, Origin: https://evil.example.com. Then repeat with spare UUID to confirm feature-flag 403 gate, then with grt UUID.
+impact: Unauthenticated case/PII submission to any tenant; real case creation if feature-flag enabled; cross-tenant PII routing. Severity HIGH if 200 achievable.
+testability: PASSIVE
+[HYP] WorkOS state parameter XSS/OAuth injection chain via SSO login flow
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 68
+reasoning: State parameter reflected unescaped in authorizeUrl response body. redirect_uri is silently dropped by Spare handler (not a vector). WorkOS treats state as opaque passthrough. Full chain requires: (1) attacker crafts state with XSS payload, (2) victim authenticates via SSO, (3) WorkOS callback includes attacker's state in response body — but browser Same-Origin Policy prevents reading cross-origin response unless XSS executes in WorkOS domain itself. State reflection is confirmed but exploitation boundary is WorkOS, not Spare.
+evidence_needed: Confirmed state value reflected verbatim in WorkOS SSO authorize page HTML (not just URL-encoded)
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/identity/workos/auth with {"domain":"spare.com","state":"<script>alert(1)</script>"} — check if authorizeUrl body contains unescaped HTML or if WorkOS HTML-encodes the state param. Already partially confirmed state is reflected in response body.
+impact: If XSS executes in WorkOS context: session hijack, SSO token theft, account takeover. If HTML-encoded by WorkOS: no impact. Severity MEDIUM if XSS, LOW if encoding applied.
+testability: PASSIVE
+[HYP] Engage caseForms POST — complete form submission handler reachable without auth
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/caseForms POST
+confidence: 65
+reasoning: Same auth-gate-absent pattern as /cases. Empty POST returns 400, nil-UUID returns 404 "Form was not found" (handler reached). No 401 InvalidTokenError. Form schema potentially leakable from GET endpoint (flapping between 200+schema and 400 on multi-version LB). Form submission without auth could create arbitrary form records.
+evidence_needed: Full POST payload with formId + form data reaching handler-level response (400/403/200) without any Authorization header
+verify_steps: AUTH_HELPED: Need form UUID from GET /v1/public/engage/{caseType,form} (requires hitting the 200 replica); then POST to caseForms with full payload
+impact: Unauthenticated form record creation across any tenant. Severity HIGH if form data persisted.
+testability: AUTH_HELPED
+[FINAL]
+[NEXT] PROBE: POST https://api.sparelabs.com/v1/public/engage/cases with body `{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000001","contactInfo":{"email":"test@test.com","name":"Test"}}` + Origin: https://evil.example.com — no Authorization header. Expected: 403 ForbiddenError or 400 validation (not 401). If 403, repeat with nil-UUID caseTypeId to test validation depth. Then POST with grt UUID `1966c7f8-3e36-4320-b0d7-de0f7d8d4355` to confirm cross-tenant handler reach.
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — validation precedes auth in pipeline; handler-level responses (400/403/404) confirmed across 4 org UUIDs (spare/grt/dallas/winnipeg)
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster stable at 11+ tenants; state parameter reflected unescaped; redirect_uri dead; fleet-parity across 7 hosts
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: deterministic scheme-only Bearer bypass NOT patched — fast replicas 8/8 bypass; multi-version LB replica-split confirmed as mechanism
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true uniform across all /v1 paths
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com bundle: main.63fe135c.js regression — ngrok + Atlassian + Metabase refs reactivated; prior PATCHED claims were false positives
+[LEARN] ACCEPTED BUSLOGIC @ forms.sparelabs.com: CA→US data routing confirmed — Production_CA points to api.us.sparelabs.com (PIPEDA implications)
+[RISK] api.sparelabs.com: 94 — unchanged core surface (auth bypasses + CORS + SSO oracle + state reflection + org-key oracle + engage auth-absent)
+[RISK] api.us.sparelabs.com: 75 — NEW HOST reachable from in-scope forms; CORS + likely same bypass as api.sparelabs.com
+[RISK] api.staging.sparelabs.com: 55 — confirmed live but reduced surface (no regions bypass, no workos oracle)
+[RISK] api.staging.us.sparelabs.com: 40 — confirmed live, empty org set
+[RISK] forms.sparelabs.com: 38 — bundle regression with internal refs; CA→US routing
+[RISK] forms.us.sparelabs.com: 35 — mirrors forms.sparelabs.com
+[RISK] forms.staging.sparelabs.com: 30 — same bundle as production
+[RISK] forms.staging.us.sparelabs.com: 30 — same bundle
+[RISK] platform.sparelabs.com: 65 — unchanged CSP infra leak
+[RISK] routing.sparelabs.com: 5 — dead, envoy 404 all paths
+[RISK] web (spare.com/sparelabs.com): 10 — static marketing only
