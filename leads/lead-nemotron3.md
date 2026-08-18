@@ -20017,3 +20017,97 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 reason — Envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_DELTA
 [RISK] forms.sparelabs.com: 45 reason — Engage portal SPA live; JS bundle REGRESSION (main.63fe135c.js reactivated ngrok/atlassian/metabase refs); 3 Google Maps keys referrer-restricted; all API paths return SPA catch-all; no real API endpoints behind host; CA→US data routing confirmed (PIPEDA implications)
 [RISK] web (spare.com/sparelabs.com): 15 reason — spare.com apex: Cloudflare+Webflow static marketing (CSP frame-ancestors 'self', HSTS); sparelabs.com: 301→spare.com; no internal infra leaks in HTML/JS; minimal static-only surface
+## 2026-08-18 15:55:35 UTC [platform] (model nemotron3)
+[NEW] api.staging.sparelabs.com/v1/global/organizations/{uuid}: richer metadata response than prod (logoUrl GCS staging, isMaintenanceEnabled, enabledPublicFeatureFlags)
+[NEW] api.staging.sparelabs.com/v1/public/terms: returns real spare.com URLs for ALL mobileAppId — no per-tenant filtering (staging→prod divergence)
+[NEW] api.us.sparelabs.com: fleet-wide auth bypass parity confirmed (scheme-only Bearer + zero-header) BUT data oracles (UUID, org-key, SSO) are CA-specific only — US returns 404/401
+[NEW] forms.sparelabs.com JS bundle: main.63fe135c.js REGRESSION — ngrok dev URL (api-spare.ngrok.io), Atlassian JIRA ref (FIN-1093), Metabase client class reactivated; prior PATCHED claims false positives
+[NEW] spare-staging-ca-photos GCS bucket: EXISTS (403 listing disabled); staging orgs reduced feature flags
+[CHANGED] api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca newly confirmed); state param reflected unescaped; fleet-parity 7 hosts
+[CHANGED] api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on scheme-only bypass route; multi-version LB replica-split deterministic (8/8 fast replicas bypass)
+[CHANGED] api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed via full-payload test — 403 ForbiddenError with valid org UUID; nil-caseTypeId → 403 proves feature-flag gate precedes caseTypeId validation; pipeline order: org UUID → feature-flag → caseTypeId validation
+[CHANGED] api.sparelabs.com/v1/public/engage/caseForms POST: validation passes without auth (404 "Form was not found"); CORS write+auth-route chain confirmed; same pattern as cases POST
+[CHANGED] forms.sparelabs.com bundle: main.8a2a39cb.js → main.63fe135c.js REGRESSION — infra leak reactivated
+[CHANGED] platform.sparelabs.com + forms.sparelabs.com + routing.sparelabs.com + sparelabs.com: all transitioned from TIMEOUT (2026-08-07 seed) → responsive (2026-08-13+)
+[PRIO] api.staging.sparelabs.com/v1/global/organizations/{uuid}
+[PRIO] api.staging.sparelabs.com/v1/public/terms
+[PRIO] api.us.sparelabs.com/v1/global/regions
+[HYP] Staging org metadata enrichment via zero-header bypass
+class: IDOR
+asset: api.staging.sparelabs.com/v1/global/organizations/{uuid}
+confidence: 85
+reasoning: Staging org endpoint returns richer metadata than prod (logoUrl GCS staging bucket, isMaintenanceEnabled, enabledPublicFeatureFlags) and zero-header bypass works on staging /v1/global/organizations (200 + {"data":[]} + CORS). Prod spare org UUID d736519f-f384-4771-a2d2-4f95e884d790 may exist on staging with enriched data.
+evidence_needed: GET staging org endpoint with prod spare UUID returns 200 with enriched metadata fields not present in prod response
+verify_steps: GET https://api.staging.sparelabs.com/v1/global/organizations -H "Origin: https://evil.example.com" (confirm zero-header bypass + CORS); GET https://api.staging.sparelabs.com/v1/global/organizations/d736519f-f384-4771-a2d2-4f95e884d790 -H "Origin: https://evil.example.com" (check enriched metadata)
+impact: Disclosure of staging-specific org metadata (GCS bucket paths, maintenance flags, feature flags) without auth; potential info leakage for staging environment reconnaissance
+testability: PASSIVE
+[HYP] Staging terms endpoint lacks per-tenant filtering
+class: IDOR
+asset: api.staging.sparelabs.com/v1/public/terms
+confidence: 80
+reasoning: Staging terms returns real spare.com URLs for ALL mobileAppId values (no per-tenant filtering) vs prod which returns junk for spare org. Zero-header bypass works on staging /v1/global/organizations, suggesting similar auth posture on /public/terms. Different error path ("IntegrationError" vs prod's data) confirms different code version.
+evidence_needed: GET staging terms with nil mobileAppId returns 200 with real spare.com URLs (termsOfUseUrl, privacyPolicyUrl) without auth + CORS
+verify_steps: GET https://api.staging.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000 -H "Origin: https://evil.example.com" (confirm 200 + real URLs + CORS no-auth)
+impact: Disclosure of real terms URLs without auth on staging; confirms staging has weaker per-tenant isolation than prod; information disclosure
+testability: PASSIVE
+[HYP] US API fleet-wide auth bypass with CA-specific data exposure
+class: AUTH
+asset: api.us.sparelabs.com/v1/global/regions
+confidence: 88
+reasoning: US host confirms scheme-only Bearer bypass (200 + 725B region registry + CORS) and zero-header bypass on /v1/global/organizations with fleet-wide parity across 7 hosts. However UUID oracle, org-key oracle, SSO oracle are CA-specific — US returns 404/401. Auth bypass mechanism is universal but data exposure is region-scoped.
+evidence_needed: GET US regions with Bearer x returns 200 + 725B + CORS (fleet parity); GET US orgs zero-header returns 200 + 11B + CORS; GET US UUID oracle returns 404 (CA-specific data)
+verify_steps: GET https://api.us.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" (confirm 200 + 725B + CORS); GET https://api.us.sparelabs.com/v1/global/organizations -H "Origin: https://evil.example.com" (confirm 200 + 11B + CORS); GET https://api.us.sparelabs.com/v1/public/organizations/key/spare -H "Origin: https://evil.example.com" (confirm 404 CA-specific)
+impact: Auth bypass on US fleet host exposes infra topology (7 regions, 12 OOS subdomains) universally; data oracles (tenant enumeration, SSO config) remain CA-scoped limiting blast radius
+testability: PASSIVE
+[PARKED] Forms JS bundle regression exposes infra refs: confidence 90 but class MISCONFIG is recon-only (ngrok offline, Maps keys referrer-restricted, Atlassian likely private); no direct exploit path; verify_steps only passive download
+[PARKED] api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level not-found (400) — multi-version LB confirmed, unreliable passive surface; confidence 65 but not stable
+[PARKED] api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak-only; plural /organizations/{id} is superior oracle; confidence 55
+[FINAL] 1. Staging org metadata enrichment via zero-header bypass (confidence 85, class IDOR, asset api.staging.sparelabs.com/v1/global/organizations/{uuid})
+[FINAL] 2. Staging terms endpoint lacks per-tenant filtering (confidence 80, class IDOR, asset api.staging.sparelabs.com/v1/public/terms)
+[FINAL] 3. US API fleet-wide auth bypass with CA-specific data exposure (confidence 88, class AUTH, asset api.us.sparelabs.com/v1/global/regions)
+[NEXT] PROBE: GET https://api.staging.sparelabs.com/v1/global/organizations -H "Origin: https://evil.example.com" → confirm 200 + CORS + zero-header bypass; then GET https://api.staging.sparelabs.com/v1/global/organizations/d736519f-f384-4771-a2d2-4f95e884d790 -H "Origin: https://evil.example.com" → check if prod spare UUID exists on staging and returns enriched metadata (logoUrl, isMaintenanceEnabled, enabledPublicFeatureFlags)
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: deterministic scheme-only Bearer bypass NOT patched — fast replicas 8/8 bypass; multi-version LB replica-split confirmed
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — validation precedes auth in pipeline; handler-level responses (400/403/404) confirmed across 4 org UUIDs
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster stable at 11+ tenants; state parameter reflected unescaped; redirect_uri dead; fleet-parity across 7 hosts
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true uniform across all /v1 paths
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com bundle: main.63fe135c.js regression — ngrok + Atlassian + Metabase refs reactivated; prior PATCHED claims were false positives
+[LEARN] ACCEPTED BUSLOGIC @ forms.sparelabs.com: CA→US data routing confirmed — Production_CA points to api.us.sparelabs.com (PIPEDA implications)
+[LEARN] ACCEPTED AUTH @ api.us.sparelabs.com: scheme-only bypass (Bearer x) + zero-header bypass both work; fleet-wide parity confirmed 2026-08-18
+[LEARN] CHANGED AUTH @ api.us.sparelabs.com: UUID oracle, org-key oracle, SSO oracle are CA-specific — US host returns 404/401; data exposure is NOT universal
+[LEARN] ACCEPTED MISCONFIG @ api.us.sparelabs.com: terms endpoint returns generic URLs (same as CA); engage cases auth gate absent (same as CA)
+[LEARN] ACCEPTED BUSLOGIC @ api.staging.sparelabs.com: different code version confirmed — regions=400, workos=401, terms=real URLs for all mobileAppId
+[LEARN] NEW INFO @ forms.sparelabs.com: Production bundle main.63fe135c.js contains hardcoded ngrok dev URL (api-spare.ngrok.io, offline), Atlassian JIRA ref (sparelabs.atlassian.net/browse/FIN-1093), Metabase client class (proxied via API). Previous PATCHED bundle (main.8a2a39cb.js) replaced — regression.
+[LEARN] NEW INFO @ staging API: api.staging.sparelabs.com and api.staging.us.sparelabs.com are live with CORS reflection + /v1/global/organizations bypass (same as prod). BUT regions=400 (different code version, no bypass on regions). Staging terms uses different error path ("IntegrationError" vs prod's junk data).
+[LEARN] NEW INFO @ staging infra: spare-staging-ca-photos GCS bucket exists (403 listing disabled). Staging orgs have reduced feature flags. Forms staging hosts serve same bundle as production.
+[LEARN] NEW LEAD @ staging API: Different code version on staging suggests regions bypass is a production-only regression. Staging may have a newer codebase. Worth monitoring for divergence.
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.63fe135c.js CONFIRMED REGRESSION — infra refs (atlassian/ngrok/metabase) REACTIVATED; prior "PATCHED" claims were false positives
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 86h+ — non-path-conditional via 22-sibling sweep; confirmed across all bypass routes
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (oakville.ca, cota.com, winnipeg.ca newly confirmed); connection_id byte-stable per domain; fleet-parity across 7 hosts
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak-only
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — validation precedes auth in pipeline; handler-level responses (400/403/404) confirmed across 4 org UUIDs (spare/grt/dallas/winnipeg)
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster stable at 11+ tenants; state parameter reflected unescaped; redirect_uri dead; fleet-parity across 7 hosts
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: deterministic scheme-only Bearer bypass NOT patched — fast replicas 8/8 bypass; multi-version LB replica-split confirmed
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true uniform across all /v1 paths
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com bundle: main.63fe135c.js regression — ngrok + Atlassian + Metabase refs reactivated; prior PATCHED claims were false positives
+[LEARN] ACCEPTED BUSLOGIC @ forms.sparelabs.com: CA→US data routing confirmed — Production_CA points to api.us.sparelabs.com (PIPEDA implications)
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Multi-version LB replica split now DETERMINISTIC — 8/8 fast replicas bypass, slow replicas 401; source-IP/route-based routing confirmed
+[LEARN] REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri param injection DEAD — parameter silently dropped by handler; state-only reflection is URL-encoded passthrough
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — validation precedes auth in pipeline; 400 ValidationError on empty POST confirms auth gate is post-validation
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: write methods (POST/PUT/PATCH/DELETE) properly enforce 401 InvalidTokenError — bypass is READ-ONLY GET only
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.63fe135c.js CONFIRMED REGRESSION — infra refs (atlassian/ngrok/metabase) REACTIVATED; prior "PATCHED" claims were false positives
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 86h+ — non-path-conditional via 22-sibling sweep; confirmed across all bypass routes
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (oakville.ca, cota.com, winnipeg.ca newly confirmed); connection_id byte-stable per domain; fleet-parity across 7 hosts
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak-only
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — validation precedes auth in pipeline; handler-level responses (400/403/404) confirmed across 4 org UUIDs
+[LEARN] REJECTED MISCONFIG @ api.us.sparelabs.com oracles: UUID oracle + org-key oracle + SSO oracle are CA-specific — US host returns 404/401; data exposure is NOT universal
+[LEARN] REJECTED MISCONFIG @ api.staging.sparelabs.com/v1/identity/workos/auth: Returns 401 for all domains — NO SSO oracle on staging; staging has different auth gate
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.63fe135c.js is REGRESSION — ngrok + Atlassian + Metabase refs re-activated; prior patch claim was false
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level not-found (400) — multi-version LB confirmed, unreliable
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak-only
+[RISK] api.sparelabs.com: 92 reason — Multiple stable auth bypasses (scheme-only Bearer on /regions, zero-header on /organizations) with full CORS credential reflection across all /v1; fleet-wide infra topology disclosure (7 regions, 12 OOS subdomains); SSO tenant enumeration via WorkOS (≥11 tenants, Entra IDs); unauthenticated write-path handler reach on /engage/cases; universal CORS on all endpoints; bypasses stable 86h+ but now multi-version LB splits traffic (fast replicas bypass, slow replicas 401)
+[RISK] platform.sparelabs.com: 65 reason — CSP infra leak on /login exposes admin Vercel apps (dev-only), Metabase instances (prod+staging, by-design unauth config), 9 cloud services; MFE SPA shell with no real API surface; strict HTML CSP + x-frame mitigates HTML-level but not infra-level disclosure
+[RISK] routing.sparelabs.com: 5 reason — Envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_DELTA
+[RISK] forms.sparelabs.com: 45 reason — Engage portal SPA live; JS bundle REGRESSION (main.63fe135c.js reactivated ngrok/atlassian/metabase refs); 3 Google Maps keys referrer-restricted; all API paths return SPA catch-all; no real API endpoints behind host; CA→US data routing confirmed (PIPEDA implications)
+[RISK] web (spare.com/sparelabs.com): 15 reason — spare.com apex: Cloudflare+Webflow static marketing (CSP frame-ancestors 'self', HSTS); sparelabs.com: 301→spare.com; no internal infra leaks in HTML/JS; minimal static-only surface
