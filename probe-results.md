@@ -3154,3 +3154,11 @@ https://api.sparelabs.com/v1/journeys -> HTTP 401
 https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
 https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
 https://api.sparelabs.com/v1/public/organizations/key/cambus -> HTTP 404
+
+## 2026-08-18 23:41:48 UTC
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/journeys -> HTTP 401
+https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
+https://api.staging.sparelabs.com/v1/global/settings -> HTTP 401
