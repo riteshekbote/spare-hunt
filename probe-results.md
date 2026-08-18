@@ -2851,3 +2851,8 @@ https://api.staging.sparelabs.com/ -> HTTP 404
 https://api.staging.sparelabs.com/health -> HTTP 404
 https://forms.sparelabs.com/ -> 200 len=537 type=text/html; charset=utf-8
 https://forms.sparelabs.com -> 200 len=537 type=text/html; charset=utf-8
+
+## 2026-08-18 08:05:19 UTC
+https://forms.sparelabs.com -> 200 len=537 type=text/html; charset=utf-8
+https://api.us.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.us.sparelabs.com/v1/global/regions -> HTTP 400

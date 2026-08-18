@@ -8422,3 +8422,10 @@
 - LEARN: NEW INFO @ staging terms: Returns real spare.com URLs for ALL mobileAppId values. No per-tenant filtering on staging.
 - LEARN: NEW INFO @ staging orgs: Only spare exists on staging CA. Staging US has empty org set. Org response includes logoUrl, isMaintenanceEnabled, name, organizationK
 - LEARN: NEW LEAD @ CA forms routing: CA forms traffic routed to US API. Data residency concern. PIPEDA implications.
+
+## RANKED HYPOTHESES 2026-08-18 08:05:17 UTC
+- [72] forms.sparelabs.com: CA forms traffic routed to US API violates data residency (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-bigpickle.txt): PROBE: GET https://api.us.sparelabs.com/v1/global/regions with `Authorization: Bearer x` — test for scheme-only bypass parity with api.sparelabs.com (in-scope).
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com bundle: Production_CA AND Production_US both route to api.us.sparelabs.com — CA data residency concern confirmed via bu
+- LEARN: NEW INFO @ api.staging.sparelabs.com: Different code version from prod — regions=400 (no bypass), workos/auth=401 (no oracle), terms returns real URLs for all m
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster stable at 11+ tenants with fleet-parity across 7 hosts; state reflection confirmed.

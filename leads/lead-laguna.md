@@ -13758,3 +13758,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead; newly responsive (TIMEOUT→404 on 2026-08-13) but zero surface; NO_DELTA. Severity NONE.
 [RISK] forms.sparelabs.com: 30 — Infra leak REACTIVATED: main.8a2a39cb.js confirmed shipping sparelabs.atlassian.net + api-spare.ngrok.io + staging hosts (KB "PATCHED" claims at 2026-08-14/15 10:55/11:54 UTC are FALSE POSITIVES); SPA catch-all (8/8 API paths return index.html, no endpoints); 3 Google Maps keys all referrer-restricted (geocode→REQUEST_DENIED). Downgraded from recon-only back to ACTIVE recon infraction. Severity LOW.
 [RISK] web (spare.com/sparelabs.com): 15 — Static marketing (Cloudflare+Webflow); sparelabs.com 301→spare.com apex; spare.com apex HTTP 200 with CSP frame-ancestors 'self', HSTS 31536000; no internal infra leaks in HTML/JS; minimal static-only surface. Severity INFO.
+## 2026-08-18 08:03:06 UTC [web] (model laguna)

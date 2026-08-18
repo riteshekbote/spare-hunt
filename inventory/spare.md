@@ -2759,3 +2759,5 @@
 - NEW forms.sparelabs.com bundle: App version 1.0.5096. Dev fallback URL api-spare.ngrok.io (inactive, 404).
 - NEW api.staging.sparelabs.com/terms: Returns real spare.com URLs for ALL mobileAppId values — no per-tenant differentiation. Staging doesn't filter by org.
 - NEW api.staging.sparelabs.com/organizations/{uuid}: Returns richer response than prod — includes logoUrl (GCS staging bucket), isMaintenanceEnabled, name, organizationKey, enabledPublicFeatureFlags.
+
+## 2026-08-18 08:05:17 UTC
