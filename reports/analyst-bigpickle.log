@@ -83674,3 +83674,80 @@ HTTP 400 | SIZE 229 | TIME 0.173247s
 [93m[1m! [0mpermission requested: external_directory (/tmp/*); auto-rejecting
 [0m✗ [0mcat /tmp/riders.json | jq . failed
 [91m[1mError: [0mThe user rejected permission to use this specific tool call.
+===== ANALYST bigpickle 2026-08-18 04:13:51 UTC =====
+[0m
+> build · big-pickle
+[0m
+[PRIO] api.sparelabs.com/v1/public/organizations/{orgId}/riders: 6.6 (8|7|6|9|4|7|3)
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST (cross-route oracle): 7.2 (9|8|5|10|6|8)
+[PRIO] api.sparelabs.com/v1/public/organizations/{orgId}/ sub-resource sweep: 5.9 (7|7|5|9|5|6)
+## Objective
+- Conduct passive security reconnaissance and vulnerability assessment of Spare (spare.com, sparelabs.com) within authorized bug bounty scope
+- Identify and validate auth bypasses, IDORs, CORS misconfigurations, and information disclosure vulnerabilities across in-scope assets
+
+## Important Details
+- **Scope (IN):** spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com
+- **Scope (OUT):** ALL other subdomains of sparelabs.com and spare.com; third-party services
+- **Rules:** Passive-first only (GET/HEAD, ≤1 rps, no account creation, no data modification); sha256 for secrets only
+- **Phase:** POC mode; target is api.sparelabs.com
+- **Key architectural finding:** api.sparelabs.com runs behind multi-version envoy LB (via: 1.1 google) with at least 2 distinct backend replicas (fast ~2-5ms and slow ~500-1200ms) serving different code versions — this is the root cause of flapping behavior across many endpoints
+- **Fleet topology:** 7 hosts {prod,us,us2,us3,jp,eu,uat}.sparelabs.com all reproduce bypass family; routing.* hosts inert envoy 404
+
+## Work State
+### Completed
+- **Stable findings (86h+ unpatched as of 2026-08-18):**
+  - `api.sparelabs.com/v1/global/regions`: Scheme-only Bearer bypass — `Bearer x` → 200 + 725B region registry (7 regions, 6 OOS subdomains) + ACAO+ACAC; deterministic on fast replicas; longcat "PATCHED" (2026-08-11) is false positive
+  - `api.sparelabs.com/v1/global/organizations`: Zero-header read-only bypass — GET no-auth → 200 + 11B `{"data":[]}` + ACAO+ACAC; deterministic on slow replicas; writes POST/PUT/PATCH/DELETE → 401 InvalidTokenError (read-only)
+  - `api.sparelabs.com/v1/**`: Universal CORS credential reflection — ACAO:reflected + ACAC:true + all methods + Authorization header; non-path-conditional via 22-sibling sweep
+  - `api.sparelabs.com/v1/public/organizations/key/{key}`: 3-way org enumeration oracle — live set CLOSED at {spare,grt,dallas,winnipeg,hsr}; prod-only data (uat/us2/jp→404); per-tenant feature-flag differential
+  - `api.sparelabs.com/v1/public/organizations/{id}`: 3-way UUID enumeration oracle (malformed→400, nil→404, valid→200); superior to flapping singular `/organization`
+  - `api.sparelabs.com/v1/identity/workos/auth`: Unauthenticated SSO-config oracle — ≥11 tenants confirmed; fleet-parity 7 hosts; state param reflected unescaped; redirect_uri dead
+  - `api.sparelabs.com/v1/public/terms`: Per-tenant config disclosure — spare→107B "asdfd" junk, winnipeg→197B real URL; byte-stable; prod-only
+  - `api.sparelabs.com/v1/public/engage/cases POST`: Auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs); cross-route org-UUID oracle validated on 4 orgs
+  - `platform.sparelabs.com/login`: CSP infra leak — admin-eam-app + admin-fixed-route-app (prod+staging, loadable 200) + Metabase + 9 cloud services
+- **Rejected/dead surfaces:** routing.sparelabs.com (envoy 404 since 2026-08-07), forms.sparelabs.com JS bundle (PATCHED main.8a2a39cb.js, zero infra refs), admin paths on platform/forms (SPA catch-all), `/v1/global/*` controller-wide hypothesis (route-specific only), singular `/public/organization` (flapping 2-way↔3-way), engage GET schema disclosure (flapping, unreliable), write escalation on bypass routes (all → 401)
+- **Fleet parity confirmed:** All bypass findings reproduce across 7 fleet hosts; org data is prod-only (uat/us2/jp return 404 for orgs)
+- **Platform bundle OpenAPI:** 170 paths extracted from index-B6uSYXCi.js, all 131 non-param paths properly gated (401/404)
+
+### Active
+- **Primary lead:** Probe `/v1/public/organizations/{orgId}/riders` sub-resource tree — completely untested; if routed on public namespace, bypasses private 401 gate
+- **Secondary lead:** Post per-org validation chain as cross-route 403/404 oracle (confidence 58)
+- **Tertiary lead:** Sub-resource sweep under `/v1/public/organizations/{orgId}/*` — /zones, /settings, /configuration, /fareCards, /subscriptions untested
+- **GitHub repo scan pipeline broken:** scan-target misconfigured (gladiaio org instead of sparelabs), 0 files scanned persistently
+
+### Blocked
+- AUTH_HELPED test tokens/UUIDs needed for: workos auth state injection callback chain, engage caseForms formId bridge, auth2 email-reset flow
+- GitHub repo scan: reposcan-raw/sparelabs dir empty; fix clone target before trusting next scan
+- `api-spare.ngrok.io`: inactive (ERR_NGROK_3200)
+- `sparelabs.ca`: DNS only dev.sparelabs.ca → GCP LB "fault filter abort" 404
+
+## Next Move
+1. **PROBE:** GET `https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders` —H `"Origin: https://evil.example.com"` at ≤1 rps; check HTTP status + CORS + response body length; if non-404, immediately sweep `/vehicles`, `/trips`, `/sessions`, `/drivers` under same org UUID
+2. **If /riders 404:** Sweep `/zones`, `/settings`, `/configuration`, `/fareCards`, `/subscriptions` under same org UUID
+
+## Relevant Files
+- `/tmp/opencode/regions.json`: Captured 725B regions registry body (7 regions, 6 OOS subdomains, byte-stable sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe)
+- `reports/hypotheses-laguna.txt`: Hypothesis file for regions bypass lead
+- `reports/hypotheses-nemotron3.txt`: Hypothesis file for regions bypass (duplicate)
+- `reports/hypotheses-bigpickle.txt`: Hypothesis file for org sub-resource sweep lead
+- `reposcan-raw/sparelabs/`: Empty directory (GitHub scan misconfigured, targeting gladiaio org)
+- Platform bundle: `index-B6uSYXCi.js` (3MB, platform.sparelabs.com) — contains embedded OpenAPI spec with 170 paths
+- Forms bundle: `main.8a2a39cb.js` (forms.sparelabs.com) — PATCHED, zero infra refs, 3 referrer-restricted Google Maps keys
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+[0m$ [0mcurl -s -o /tmp/riders_resp.json -w '%{http_code}\n%{size_download}\n%{time_total}' 'https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders' -H 'Origin: https://evil.example.com' -H 'Accept: application/json' -H 'User-Agent: Mozilla/5.0' --max-time 15
+400
+229
+0.216408
+[0m
+Proceeding with the top-priority lead: probing `/riders` under the public org namespace.
+[0m$ [0mcurl -s -o /dev/null -w '%{http_code}' 'https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders' -H 'Origin: https://evil.example.com' --max-time 15
+400
+[0m
+[93m[1m! [0mpermission requested: external_directory (/tmp/*); auto-rejecting
+[0m✗ [0mcat /tmp/riders_resp.json failed
+[91m[1mError: [0mThe user rejected permission to use this specific tool call.
+400, not 404 or 401. The route exists. Let me see the body and also try with a valid Spare org key to confirm the difference.
+[0m
+[0m$ [0mcurl -s -D /tmp/riders_headers.txt 'https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders' -H 'Origin: https://evil.example.com' -H 'Accept: application/json' -H 'User-Agent: Mozilla/5.0' --max-time 15 -o /tmp/riders_body.json -w '%{http_code} %{size_download}'
+400 229
+[0m

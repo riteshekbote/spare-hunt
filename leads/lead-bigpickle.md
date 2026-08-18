@@ -11439,3 +11439,7 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead
 [RISK] forms.sparelabs.com: 25 — JS bundle PATCHED (main.8a2a39cb.js, zero infra refs); 3 Maps keys referrer-restricted; SPA catch-all; no active attack surface
 [RISK] web (spare.com/sparelabs.com): 15 — Static marketing (Cloudflare+Webflow); CSP frame-ancestors 'self'; no internal leaks
+## 2026-08-18 04:11:49 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/organizations/{orgId}/riders: 6.6 (8|7|6|9|4|7|3)
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST (cross-route oracle): 7.2 (9|8|5|10|6|8)
+[PRIO] api.sparelabs.com/v1/public/organizations/{orgId}/ sub-resource sweep: 5.9 (7|7|5|9|5|6)
