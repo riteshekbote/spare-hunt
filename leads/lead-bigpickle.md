@@ -11821,3 +11821,4 @@ testability: PASSIVE
 [LEARN] CHANGED AUTH @ api.us.sparelabs.com: UUID oracle, org-key oracle, SSO oracle are CA-specific — US host returns 404/401; data exposure is NOT universal
 [LEARN] ACCEPTED MISCONFIG @ api.us.sparelabs.com: terms endpoint returns generic URLs (same as CA); engage cases auth gate absent (same as CA)
 ## 2026-08-18 09:36:46 UTC [api] (model bigpickle)
+## 2026-08-18 09:55:23 UTC [api] (model bigpickle)
