@@ -12321,3 +12321,4 @@ testability: PASSIVE
 [RISK] platform.sparelabs.com: 65 — unchanged CSP infra leak
 [RISK] routing.sparelabs.com: 5 — dead, envoy 404 all paths
 [RISK] web (spare.com/sparelabs.com): 10 — static marketing only
+## 2026-08-18 19:25:56 UTC [api] (model bigpickle)
