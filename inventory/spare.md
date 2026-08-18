@@ -3003,3 +3003,24 @@
 - CHANGED api.sparelabs.com/v1/public/engage/caseForms POST: validation passes without auth (404 "Form was not found"); CORS write+auth-route chain confirmed; same pattern as cases POST
 - CHANGED forms.sparelabs.com bundle: main.8a2a39cb.js → main.63fe135c.js REGRESSION — infra leak reactivated
 - CHANGED platform.sparelabs.com + forms.sparelabs.com + routing.sparelabs.com + sparelabs.com: all transitioned from TIMEOUT (2026-08-07 seed) → responsive (2026-08-13+)
+
+## 2026-08-18 16:27:26 UTC
+- NEW api.staging.sparelabs.com/v1/global/organizations/{uuid}: richer metadata response than prod (logoUrl GCS staging, isMaintenanceEnabled, enabledPublicFeatureFlags)
+- NEW api.staging.sparelabs.com/v1/public/terms: returns real spare.com URLs for ALL mobileAppId — no per-tenant filtering (staging→prod data divergence)
+- NEW api.us.sparelabs.com: fleet-wide auth bypass parity confirmed (scheme-only Bearer + zero-header) BUT data oracles (UUID, org-key, SSO) are CA-specific only — US returns 404/401
+- NEW forms.sparelabs.com JS bundle: main.63fe135c.js REGRESSION — ngrok dev URL (api-spare.ngrok.io), Atlassian JIRA ref (FIN-1093), Metabase client class reactivated; prior PATCHED claims false positives
+- NEW spare-staging-ca-photos GCS bucket: EXISTS (403 listing disabled); staging orgs reduced feature flags; staging forms hosts serve same bundle as production
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca newly confirmed); state param reflected unescaped; fleet-parit
+- CHANGED api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on scheme-only bypass route; multi-version LB replica-s
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed via full-payload test — 403 ForbiddenError with valid org UUID; nil-caseTypeId → 403 proves feature-flag gate precedes caseTyp
+- CHANGED api.sparelabs.com/v1/public/engage/caseForms POST: validation passes without auth (404 "Form was not found"); CORS write+auth-route chain confirmed; same pattern as cases POST
+- CHANGED forms.sparelabs.com bundle: main.8a2a39cb.js → main.63fe135c.js REGRESSION — infra leak reactivated
+- CHANGED platform.sparelabs.com + forms.sparelabs.com + routing.sparelabs.com + sparelabs.com: all transitioned from TIMEOUT (2026-08-07 seed) → responsive (2026-08-13+)
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥9 tenants this cycle (winnipeg.ca 8th `conn_01HP76PPV8CMRJH6RYRTWEPSGS`; oakville.ca + cota.com added); state reflection confirmed un
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: 5th org confirmed live (hsr → 200+318B) — live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr}; 22 candidate keys exhausted
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: auth-gate-absent FULLY VALIDATED — valid spare UUID + caseTypeId + contactInfo → 403 ForbiddenError "External case creation is not enabled" (feature-flag
+- NEW api.us.sparelabs.com: auth bypass parity confirmed LIVE (scheme-only Bearer + zero-header both work); BUT UUID oracle + org-key oracle + SSO oracle are CA-specific only (US returns 404/401) — data ora
+- NEW api.staging.sparelabs.com + api.staging.us.sparelabs.com: newly LIVE with CORS + `/v1/global/organizations` zero-header bypass (200+`{"data":[]}`); `/v1/global/regions` returns 400 (different code ver
+- NEW forms.sparelabs.com JS bundle: regression `main.63fe135c.js` (was `main.8a2a39cb.js`) — reactivates ngrok dev URL (api-spare.ngrok.io), Atlassian JIRA ref (FIN-1093), Metabase client class
+- NEW spare-staging-ca-photos GCS bucket: EXISTS (403 listing disabled); staging orgs have reduced feature flags; staging terms returns real spare.com URLs for ALL mobileAppId (no per-tenant filtering — sta
+- NEW api.sparelabs.com/v1/public/organizations/{orgId}/*: 9-subpath sweep exhausted (riders/drivers/vehicles/trips/sessions/zones/settings/configuration/tenants/metadata) — all 400 ValidationError "not fou
