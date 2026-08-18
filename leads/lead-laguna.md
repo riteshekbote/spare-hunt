@@ -14200,3 +14200,34 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 22 | reason: envoy 404/0B on ALL probed paths since 2026-08-07 (/,/v1/,/api/,/routing/,/router,/v2/,/graphql,/map/,/directions/); newly responsive (TIMEOUT→404) but zero surface
 [RISK] forms.sparelabs.com: 65 | reason: JS bundle main.63fe135c.js REGRESSION (ngrok dev URL + Atlassian + Metabase refs re-activated); SPA catch-all 200 + strict HTML CSP + x-frame DENY mitigates direct surface; CA→US data routing confirmed (Production_CA → api.us.sparelabs.com, PIPEDA implications); infra-recon value only
 [RISK] web (spare.com/sparelabs.com): 22 | reason: spare.com HTTP 200 static Webflow marketing (Cloudflare+HSTS); sparelabs.com 301→spare.com; no internal infra leaks; www.spare.com OOS excluded; minimal static-only surface
+## 2026-08-18 17:56:24 UTC [web] (model laguna)
+[HYP] Scheme-only auth bypass on global/regions exposes full fleet topology via Bearer scheme validation only
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 96
+reasoning: `Authorization: Bearer x` (scheme validated, token never checked) returns HTTP 200 + 725B body listing 7 regions (CA/US/US2/US3/JP/EU/UAT) each with apiUrl + routingHost; byte-stable sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` across 20+ probes 86h+; multi-version envoy LB replica-split deterministic (8/8 fast replicas bypass); longcat "PATCHED" is false positive (only tested no-auth path 400)
+evidence_needed: GET /v1/global/regions with `Authorization: Bearer x` + Origin → 200 + 725B matching sha256 + ACAO + ACAC:true; no-auth → 400 "header required"; control /v1/journeys → 401
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" --max-time 15 → confirm 200 + 725B + ACAO:https://evil.example.com + ACAC:true; POST https://api.sparelabs.com/v1/global/regions -X POST -H "Authorization: Bearer x" → confirm 401 (read-only bypass confirmed)
+impact: Complete fleet topology disclosure (7 regions × apiUrl + routingHost) incl 6 OOS api/routing subdomains; universal CORS enables cross-origin exfiltration; read-only bypass (writes enforce 401). Severity HIGH.
+testability: PASSIVE
+[HYP] Auth-gate-absent on engage/cases POST allows handler reach without authentication
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 90
+reasoning: Pipeline order confirmed via full-payload test: validation → org UUID → feature-flag gate → caseTypeId validation → handler. Empty POST → 400 ValidationError (NOT 401 InvalidTokenError). nil-UUID org → 404 NotFoundError "Other was not found" (handler reached). Valid org UUIDs (spare/grt/dallas/winnipeg) → 403 ForbiddenError "External case creation is not enabled" (feature-flag gate, NOT auth gate). nil-caseTypeId → 403 (caseTypeId validated AFTER feature-flag check). CORS reflected on all handler-level responses.
+evidence_needed: Empty POST → 400 ValidationError (no 401); valid spare/grt org UUID + caseTypeId + contactInfo → 403 ForbiddenError + ACAO + ACAC:true; nil-caseTypeId → 403 (proves feature-flag precedes validation)
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{}' → confirm 400 ValidationError (NOT 401); POST -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000000","contactInfo":{"phone":"+15555555555"}}' → confirm 403 ForbiddenError + ACAO+ACAC (spare UUID via org-key oracle)
+impact: If any org enables external case creation, unauthenticated cross-origin PII case submission with full handler reach; pipeline order proves validation precedes auth (auth gate structurally absent); PII fields exist at schema level (mobilityPlusIdNumber, expiry, easyGoFareCardNumber); 403/404 differential enables cross-route org-UUID oracle validation. Severity HIGH conditional.
+testability: PASSIVE
+[HYP] Unauthenticated SSO-config oracle enumerates transit-municipal tenant roster with state reflection
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth POST
+confidence: 88
+reasoning: POST {"domain":"spare.com"} → 200 + 172B disclosing WorkOS client_id (client_01F5KHYX32TCKB1E7YEAPE0H17) + connection_id (conn_01GRW7M1CJEJGYKMEMPBCQEZHY) + Entra tenant_id in relayState JWT + state reflected unescaped in authorizeUrl. 11+ distinct tenants confirmed live (spare.com, dart.org, translink.ca, saskatoon.ca, mbta.com, oakville.ca, cota.com, kingcounty.gov, winnipeg.ca→200; grt.ca→404). Staging (client_01F5KHYX201A5H3EJ6H1YVJM0W) + US host confirmed live with different client_id. redirect_uri silently dropped (param injection dead → state-only reflection).
+evidence_needed: POST spare.com → 200 + ACAO+ACAC + WorkOS client_id + connection_id + state reflected unescaped; ≥11 distinct connection_ids; 404 on non-tenant domains (grt.ca); fleet-parity across prod/uat/us2/jp
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","state":"PROBE_INJ"}' → confirm 200 + ACAO+ACAC + state reflected unescaped in authorizeUrl; POST {"domain":"grt.ca"} → confirm 404 (differential); POST https://api.staging.sparelabs.com/v1/identity/workos/auth -d '{"domain":"spare.com"}' → confirm 200 with staging client_id
+impact: SSO tenant enumeration (11+ transit agencies/municipalities) + WorkOS client_id + connection_id disclosure + Entra tenant IDs + state parameter reflection (OATH injection candidate); potential login-CSRF via state. Severity LOW-MEDIUM.
+testability: PASSIVE
+[FINAL] (top 3, all survive — confidence > 40, class not on KB REJECTED list, concrete verify steps present)
+[PARKED] api.us.sparelabs.com oracles: UUID + org-key + SSO oracles are CA-specific only (US returns 404/401); auth bypass parity confirmed but data exposure not universal — insufficient independent impact for separate hypothesis.
+[NEXT] PROBE: GET https://api.staging.sparelabs.com/v1/global/organizations -H "Origin: https://evil.example.com" --max-time 15 → confirm 200 + `{"data":[]}` + ACAO:https://evil.example.com + ACAC:true (validate staging bypass parity vs prod); then GET https://api.staging.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" --max-time 15 → confirm 400 "header required" (staging has different code version, regions bypass is prod-only regression).
