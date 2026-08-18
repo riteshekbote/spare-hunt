@@ -2724,3 +2724,38 @@
 - NEW NO_DELTA — all surface items stable; no new hosts, endpoints, or findings since last session
 
 ## 2026-08-18 06:46:31 UTC
+
+## 2026-08-18 07:32:46 UTC
+- NEW forms.sparelabs.com: Production JS bundle rotated to main.63fe135c.js — REGRESSION: contains hardcoded ngrok dev URL (api-spare.ngrok.io, offline), Atlassian JIRA ref (sparelabs.atlassian.net/browse/F
+- NEW api.staging.sparelabs.com + api.staging.us.sparelabs.com: Staging API hosts LIVE with CORS reflection + /v1/global/organizations bypass (same as prod); regions=400 (different code version, no bypass);
+- NEW spare-staging-ca-photos GCS bucket: EXISTS (403 listing disabled); staging orgs have reduced feature flags
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com newly confirmed)
+- CHANGED api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on scheme-only bypass route
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs (22 candidates exhausted); per-tenant feature-flag differential persists
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle fully degraded 3-way↔2-way flapping across envoy replicas — downgraded to validation-leak-only
+- CHANGED api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — downgraded to UNCONFIRMED
+- CHANGED forms.sparelabs.com JS bundle: main.8a2a39cb.js → main.63fe135c.js REGRESSION (infra leak reactivated)
+- NEW forms.sparelabs.com: JS bundle main.8a2a39cb.js now returns to production (was main.b0a0c190.js); patch status REVERTED — infra refs (atlassian/ngrok/staging) REACTIVATED per KB re-probe 2026-08-15 10
+- NEW api.staging.sparelabs.com + api.staging.us.sparelabs.com: now live (was TIMEOUT→200); staging /v1/global/organizations zero-header bypass reproduces (200+11B), but regions=400 (different code version,
+- CHANGED platform.sparelabs.com + forms.sparelabs.com + routing.sparelabs.com + sparelabs.com: all domains transitioned from TIMEOUT (2026-08-07 seed) → responsive (2026-08-13+).
+- CHANGED api.sparelabs.com/v1/identity/workos/auth SSO roster: expanded from 8 → 11+ tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca newly confirmed).
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle DEGRAGED 3-way↔2-way flapping across envoy LB replicas — nil-uuid→404 fast / 400 slow; downgraded to validation-leak-only.
+- NEW forms.sparelabs.com: Production bundle rotated to main.63fe135c.js — hardcoded ngrok dev URL (api-spare.ngrok.io), Atlassian JIRA ref (FIN-1093), Metabase client class re-introduced. Previous PATCHED 
+- NEW api.staging.sparelabs.com + api.staging.us.sparelabs.com: Now live with CORS reflection + /v1/global/organizations bypass (same as prod). Different code version: regions=400 (no bypass), terms uses "I
+- NEW forms.staging.{us.,}sparelabs.com: Live, serving same bundle as production (main.63fe135c.js with infra refs).
+- NEW spare-staging-ca-photos GCS bucket exists (403 listing disabled).
+- CHANGED forms.sparelabs.com risk score UP 25→35 — new bundle regression re-introduced infra refs (ngrok, Atlassian, Metabase).
+- CHANGED api.staging.sparelabs.com: NEW HOST — CORS + auth bypass (orgs), regions=400 (diverged from prod).
+- NEW Staging terms: Returns same real URLs for ALL mobileAppId (nil UUID, spare, grt) — no per-tenant filtering. Prod differentiates by org.
+- NEW Staging orgs: Only spare exists on staging CA. Staging US has empty org set. Spare key → 404 on staging US.
+- NEW Staging org response shape: Includes `logoUrl` (GCS staging bucket), `isMaintenanceEnabled`, `name`, `enabledPublicFeatureFlags` (["callForVerificationCode","multimodal"]) — richer than prod's org key
+- NEW Staging workos/auth: Always 401 regardless of domain — no oracle on staging.
+- CHANGED Staging API: Score DOWN. Only 1 org, no regions bypass, no workos oracle, simplified terms. Lower attack surface than prod.
+- CHANGED Forms bundle regression: Confirmed on both forms.sparelabs.com and forms.staging.sparelabs.com.
+- NEW forms.sparelabs.com bundle: Production_CA AND Production_US both point to api.us.sparelabs.com — CA forms route ALL traffic to US API. Data residency concern.
+- NEW forms.sparelabs.com bundle: 8 Google Maps API keys exposed (CA/US/EU/JP production, CA/US staging, testing + Map ID). Referrer-restricted.
+- NEW forms.sparelabs.com bundle: Feature flags list exposed: MetabaseReports, ConditionalEligibility, Radio, PushToTalk, DataReconciliation, SpareAiPlatform, SpareEnterprise, etc.
+- NEW forms.sparelabs.com bundle: Metabase client class exists (metabase/staticEmbed POST endpoint). Endpoint returns 404 on both APIs.
+- NEW forms.sparelabs.com bundle: App version 1.0.5096. Dev fallback URL api-spare.ngrok.io (inactive, 404).
+- NEW api.staging.sparelabs.com/terms: Returns real spare.com URLs for ALL mobileAppId values — no per-tenant differentiation. Staging doesn't filter by org.
+- NEW api.staging.sparelabs.com/organizations/{uuid}: Returns richer response than prod — includes logoUrl (GCS staging bucket), isMaintenanceEnabled, name, organizationKey, enabledPublicFeatureFlags.

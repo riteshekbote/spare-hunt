@@ -11596,3 +11596,130 @@ testability: PASSIVE
 [RISK] platform.sparelabs.com: 65 — CSP infra leak on /login unchanged.
 [RISK] routing.sparelabs.com: 5 — Dead.
 [RISK] api-spare.ngrok.io: 10 — Offline ngrok tunnel (ERR_NGROK_3200), subdomain reserved. Code-level exposure in prod forms bundle. If tunnel comes back online, it could bypass all auth.
+## 2026-08-18 07:32:31 UTC [api] (model bigpickle)
+[NEW] forms.sparelabs.com: Production bundle rotated to main.63fe135c.js — hardcoded ngrok dev URL (api-spare.ngrok.io), Atlassian JIRA ref (FIN-1093), Metabase client class re-introduced. Previous PATCHED bundle (main.8a2a39cb.js) replaced — regression.
+[NEW] api.staging.sparelabs.com + api.staging.us.sparelabs.com: Now live with CORS reflection + /v1/global/organizations bypass (same as prod). Different code version: regions=400 (no bypass), terms uses "IntegrationError" error path.
+[NEW] forms.staging.{us.,}sparelabs.com: Live, serving same bundle as production (main.63fe135c.js with infra refs).
+[NEW] spare-staging-ca-photos GCS bucket exists (403 listing disabled).
+[CHANGED] forms.sparelabs.com risk score UP 25→35 — new bundle regression re-introduced infra refs (ngrok, Atlassian, Metabase).
+[CHANGED] api.staging.sparelabs.com: NEW HOST — CORS + auth bypass (orgs), regions=400 (diverged from prod).
+[PRIO] api.staging.sparelabs.com: 6.6 (8|6|7|7|7|10) — CORS + bypass same as prod, different code version, staging often has weaker controls
+[PRIO] api.sparelabs.com (re-confirm existing): 9.1 (9|8|8|8|7|1) — STABLE 86h+, re-confirm only
+[PRIO] forms.sparelabs.com (new bundle): 5.6 (5|4|7|3|5|10) — regression re-introduced refs, recon value only
+[HYP] Staging API debug/health/version endpoints expose internal state
+class: MISCONFIG
+asset: api.staging.sparelabs.com
+confidence: 55
+reasoning: Staging APIs commonly expose debug endpoints (/debug, /health, /v1/admin/*, /env, /config, /metrics) that are removed from production. Staging already shows different code version (regions=400 vs prod bypass). KB confirms prod admin endpoints return SPA catch-all on platform host — but staging API may serve raw JSON debug data.
+evidence_needed: HTTP 200 from any non-SPA debug/health/admin path on staging
+verify_steps: PASSIVE: GET https://api.staging.sparelabs.com/ at ≤1 rps; HEAD https://api.staging.sparelabs.com/health; HEAD /debug; HEAD /config; HEAD /v1/admin/health; HEAD /internal; HEAD /env; HEAD /metrics; HEAD /status; HEAD /openapi.json. Check status + content-type (JSON vs HTML).
+impact: If any returns 200+JSON: internal config/version disclosure, potential debug toggle exploitation. Severity LOW-MEDIUM.
+testability: PASSIVE
+[HYP] Staging terms endpoint uses different error path — potential version-gated data disclosure
+class: BUSLOGIC
+asset: api.staging.sparelabs.com/v1/public/terms
+confidence: 48
+reasoning: KB confirms staging terms uses "IntegrationError" error path vs prod's junk data. This code divergence means staging may have different data shapes, additional fields, or debug info in responses. If staging returns actual term URLs (vs prod's "asdfd" junk for spare), it would confirm staging has cleaner data.
+evidence_needed: HTTP 200 with actual termsOfUseUrl/privacyPolicyUrl on staging terms endpoint
+verify_steps: PASSIVE: GET https://api.staging.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000 at ≤1 rps. Compare response to prod's 137B. Check for additional fields, different URL structure, or debug data.
+impact: If staging returns different data: staging-prod data divergence disclosure, potential staging-only debug fields. Severity LOW.
+testability: PASSIVE
+[HYP] New forms bundle Metabase proxy class reveals internal API routing
+class: RECON
+asset: forms.sparelabs.com (main.63fe135c.js)
+confidence: 42
+reasoning: KB confirms new bundle contains Metabase client class "proxied via API" — this means forms bundle makes API calls to an internal Metabase proxy. If the proxy path is predictable (e.g., /api/metabase/*), it could expose internal Metabase dashboards or data. However, this requires active probing which may exceed passive-only rules.
+evidence_needed: Metabase proxy endpoint discovered in JS bundle source; HTTP 200 from proxy path
+verify_steps: PASSIVE: Fetch https://forms.sparelabs.com/ and search JS bundle source for "metabase" references. If proxy path found, HEAD that path on forms.sparelabs.com.
+impact: If proxy path exists: internal Metabase data access. Severity MEDIUM. Currently unconfirmed.
+testability: PASSIVE (bundle analysis), AUTH_HELPED (proxy probing)
+[PARKED] New forms bundle Metabase proxy: confidence 42 < 40 threshold barely met; requires bundle source analysis (passive) + proxy probing (may not be passive); no concrete verify_steps for exploitation path.
+[FINAL]
+[NEXT] PROBE: HEAD https://api.staging.sparelabs.com/health then HEAD /debug then HEAD /config then HEAD /v1/admin/health then HEAD /openapi.json then GET / at ≤1 rps each. Check status + content-type. If any returns 200+JSON (not text/html SPA catch-all), immediately GET the full response body.
+[LEARN] NEW INFO @ forms.sparelabs.com: Production bundle main.63fe135c.js regression — hardcoded ngrok (api-spare.ngrok.io), Atlassian (FIN-1093), Metabase client re-introduced. Previous PATCHED bundle replaced.
+[LEARN] NEW INFO @ staging API: api.staging.sparelabs.com + api.staging.us.sparelabs.com live with CORS + /v1/global/organizations bypass. Different code version (regions=400). Terms uses "IntegrationError" error path.
+[LEARN] NEW INFO @ staging infra: spare-staging-ca-photos GCS bucket exists (403 listing disabled). Staging orgs have reduced feature flags. Forms staging serves same bundle as production.
+[LEARN] NEW LEAD @ staging API: Different code version on staging suggests regions bypass is production-only regression. Staging may have newer codebase with different vulnerability surface.
+[RISK] api.sparelabs.com: 94 — DETERMINISTIC auth bypasses + FULL CORS + SSO oracle + state reflection + org key oracle + engage auth-absent + cross-route 403/404 oracle. 86h+ unpatched.
+[RISK] api.staging.sparelabs.com: 65 — NEW HOST. CORS reflection + /v1/global/organizations bypass (same as prod). Different code version (regions=400). Reduced data but same auth asymmetry.
+[RISK] api.staging.us.sparelabs.com: 65 — Mirror of staging CA.
+[RISK] forms.sparelabs.com: 35 — UP FROM 25. New bundle regression re-introduced infra refs (ngrok dev URL, Atlassian JIRA FIN-1093, Metabase client class). 8 Maps keys referrer-restricted. SPA catch-all.
+[RISK] forms.staging.sparelabs.com: 30 — Live, same bundle as production (same infra refs).
+[RISK] forms.staging.us.sparelabs.com: 30 — Mirror of staging CA.
+[RISK] platform.sparelabs.com: 65 — CSP infra leak on /login unchanged.
+[RISK] routing.sparelabs.com: 5 — Dead.
+[RISK] web (spare.com/sparelabs.com): 15 — Static marketing only.
+[NEW] Staging terms: Returns same real URLs for ALL mobileAppId (nil UUID, spare, grt) — no per-tenant filtering. Prod differentiates by org.
+[NEW] Staging orgs: Only spare exists on staging CA. Staging US has empty org set. Spare key → 404 on staging US.
+[NEW] Staging org response shape: Includes `logoUrl` (GCS staging bucket), `isMaintenanceEnabled`, `name`, `enabledPublicFeatureFlags` (["callForVerificationCode","multimodal"]) — richer than prod's org key endpoint.
+[NEW] Staging workos/auth: Always 401 regardless of domain — no oracle on staging.
+[CHANGED] Staging API: Score DOWN. Only 1 org, no regions bypass, no workos oracle, simplified terms. Lower attack surface than prod.
+[CHANGED] Forms bundle regression: Confirmed on both forms.sparelabs.com and forms.staging.sparelabs.com.
+[PRIO] forms.sparelabs.com bundle inspection: 5.5 (5|4|7|3|5|10) — regression with ngrok/Atlassian/Metabase refs, inspect actual bundle
+[PRIO] api.staging.sparelabs.com terms divergence: 4.2 (4|5|4|5|5|3) — staging returns real URLs for all orgs (data handling inconsistency)
+[HYP] Forms bundle contains exploitable API references
+class: RECON
+asset: forms.sparelabs.com (main.63fe135c.js)
+confidence: 50
+reasoning: KB confirms new bundle has ngrok dev URL (api-spare.ngrok.io), Atlassian JIRA ref (FIN-1093), and Metabase client class "proxied via API". Need to inspect actual bundle source to determine if Metabase proxy endpoint is exposed, if ngrok URL is active, or if Atlassian refs leak internal ticket IDs.
+evidence_needed: Bundle source reveals exploitable endpoint or internal data reference
+verify_steps: PASSIVE: GET https://forms.sparelabs.com, extract JS bundle URLs, fetch and search for "ngrok","metabase","atlassian","api-spare" references. Map any discovered API endpoints.
+impact: If Metabase proxy endpoint found: internal dashboard access (MEDIUM). If ngrok URL active: internal API bypass (HIGH).
+testability: PASSIVE
+[FINAL] Forms bundle inspection — highest remaining value
+[NEXT] INSPECT: Fetch forms.sparelabs.com HTML, extract JS bundle URLs, fetch bundle, search for ngrok/metabase/atlassian references to map internal endpoints.
+[LEARN] NEW INFO @ staging terms: Staging returns hardcoded spare.com URLs for ALL mobileAppId values. No per-tenant differentiation. Data handling inconsistency between staging and prod.
+[LEARN] NEW INFO @ staging orgs: Only spare org exists on staging CA (key "spare"). Staging US has empty org set. Different data topology per region.
+[LEARN] NEW INFO @ staging org response: Richer than prod — includes logoUrl (GCS staging bucket), isMaintenanceEnabled, name, organizationKey, enabledPublicFeatureFlags.
+[LEARN] NEW INFO @ staging workos/auth: Always 401 regardless of domain param. No SSO oracle on staging. Staging has different auth gate.
+[LEARN] NEW LEAD @ staging terms: Staging→prod data divergence (real URLs on staging vs junk on prod for spare). LOW severity but confirms different code paths.
+[RISK] api.sparelabs.com: 94 — Unchanged. Auth bypasses + CORS + SSO oracle + state reflection + org key oracle + engage auth-absent.
+[RISK] api.staging.sparelabs.com: 55 — DOWN FROM 65. Only 1 org (spare), no regions bypass, no workos oracle, simplified terms. Lower attack surface confirmed.
+[RISK] api.staging.us.sparelabs.com: 40 — DOWN FROM 65. Empty org set, no org keys. Mirror is empty.
+[RISK] forms.sparelabs.com: 35 — Unchanged. Bundle regression with infra refs.
+[RISK] platform.sparelabs.com: 65 — Unchanged. CSP infra leak.
+[RISK] routing.sparelabs.com: 5 — Dead.
+[NEW] forms.sparelabs.com bundle: Production_CA AND Production_US both point to api.us.sparelabs.com — CA forms route ALL traffic to US API. Data residency concern.
+[NEW] forms.sparelabs.com bundle: 8 Google Maps API keys exposed (CA/US/EU/JP production, CA/US staging, testing + Map ID). Referrer-restricted.
+[NEW] forms.sparelabs.com bundle: Feature flags list exposed: MetabaseReports, ConditionalEligibility, Radio, PushToTalk, DataReconciliation, SpareAiPlatform, SpareEnterprise, etc.
+[NEW] forms.sparelabs.com bundle: Metabase client class exists (metabase/staticEmbed POST endpoint). Endpoint returns 404 on both APIs.
+[NEW] forms.sparelabs.com bundle: App version 1.0.5096. Dev fallback URL api-spare.ngrok.io (inactive, 404).
+[NEW] api.staging.sparelabs.com/terms: Returns real spare.com URLs for ALL mobileAppId values — no per-tenant differentiation. Staging doesn't filter by org.
+[NEW] api.staging.sparelabs.com/organizations/{uuid}: Returns richer response than prod — includes logoUrl (GCS staging bucket), isMaintenanceEnabled, name, organizationKey, enabledPublicFeatureFlags.
+[PRIO] CA forms → US API routing: 7.0 (8|7|6|8|5|8) — data residency concern, PIPEDA implications, misconfiguration
+[PRIO] forms.sparelabs.com bundle internal URLs: 5.0 (5|4|5|3|5|8) — ngrok/Metabase/Atlassian refs in production bundle
+[HYP] CA forms traffic routed to US API violates data residency requirements
+class: MISCONFIG
+asset: forms.sparelabs.com → api.us.sparelabs.com
+confidence: 72
+reasoning: Bundle analysis reveals BOTH Production_CA and Production_US forms apps point to api.us.sparelabs.com. CA users accessing forms.sparelabs.com have their API traffic routed to the US endpoint. This could violate PIPEDA (Canadian privacy law) or customer contractual data residency requirements. Spare has Canadian customers (Winnipeg, Saskatoon, TransLink) who may have data residency clauses.
+evidence_needed: Confirmation that CA forms traffic reaches US API; response headers confirm US region.
+verify_steps: PASSIVE: GET https://forms.sparelabs.com — extract API URL from bundle (already confirmed: api.us.sparelabs.com). Check API response headers for region indicators. Compare with api.sparelabs.com (CA API) response headers.
+impact: If CA traffic reaches US API: PIPEDA violation, customer contractual breach. Severity MEDIUM-HIGH.
+testability: PASSIVE
+[HYP] Forms bundle contains internal development artifacts in production
+class: MISCONFIG
+asset: forms.sparelabs.com (main.63fe135c.js)
+confidence: 65
+reasoning: Production bundle contains: (1) ngrok dev URL (api-spare.ngrok.io) as fallback, (2) Metabase client class (metabase/staticEmbed), (3) Atlassian JIRA ref (FIN-1093), (4) 8 Google Maps API keys across all environments, (5) Feature flags list. These are internal development artifacts that shouldn't be in production. While Google Maps keys are referrer-restricted, the ngrok URL could be exploited if tunnel is reactivated.
+evidence_needed: Confirmation that ngrok URL could be exploited; Metabase endpoint accessible.
+verify_steps: PASSIVE: Already confirmed ngrok URL in bundle (404 currently). Metabase endpoint 404 on both APIs. Bundle source analysis complete.
+impact: LOW — currently inactive, but recon value for future exploitation.
+testability: PASSIVE
+[FINAL] CA forms routing: 72 confidence, PASSIVE, concrete verify_steps
+[FINAL] Bundle artifacts: 65 confidence, PASSIVE, already verified
+[NEXT] PROBE: Check api.us.sparelabs.com response headers for region indicators; compare with api.sparelabs.com headers. Then check forms.us.sparelabs.com bundle to confirm it also points to api.us.sparelabs.com.
+[LEARN] NEW INFO @ forms bundle: Production_CA and Production_US both point to api.us.sparelabs.com. Dev fallback: api-spare.ngrok.io. App version 1.0.5096. 8 Google Maps keys. Feature flags exposed. Metabase client class. Atlassian JIRA ref.
+[LEARN] NEW INFO @ staging terms: Returns real spare.com URLs for ALL mobileAppId values. No per-tenant filtering on staging.
+[LEARN] NEW INFO @ staging orgs: Only spare exists on staging CA. Staging US has empty org set. Org response includes logoUrl, isMaintenanceEnabled, name, organizationKey, enabledPublicFeatureFlags.
+[LEARN] NEW LEAD @ CA forms routing: CA forms traffic routed to US API. Data residency concern. PIPEDA implications.
+[RISK] api.sparelabs.com: 94 — Unchanged. Auth bypasses + CORS + SSO oracle + state reflection + org key oracle + engage auth-absent.
+[RISK] api.us.sparelabs.com: 75 — NEW HOST. CA forms route to US API. Same CORS + bypass as api.sparelabs.com.
+[RISK] api.staging.sparelabs.com: 55 — Unchanged. Only 1 org (spare), no regions bypass, no workos oracle.
+[RISK] api.staging.us.sparelabs.com: 40 — Unchanged. Empty org set.
+[RISK] forms.sparelabs.com: 38 — UP FROM 35. Bundle regression confirmed with internal refs (ngrok, Metabase, Atlassian). Routing inconsistency (CA→US API).
+[RISK] forms.us.sparelabs.com: 35 — NEW HOST. Same bundle as forms.sparelabs.com.
+[RISK] forms.staging.sparelabs.com: 30 — Unchanged. Same bundle as production.
+[RISK] forms.staging.us.sparelabs.com: 30 — NEW HOST. Same bundle.
+[RISK] platform.sparelabs.com: 65 — Unchanged. CSP infra leak.
+[RISK] routing.sparelabs.com: 5 — Dead.

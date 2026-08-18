@@ -8369,3 +8369,56 @@
 - LEARN: NEW INFO @ staging API: api.staging.sparelabs.com and api.staging.us.sparelabs.com are live with CORS reflection + /v1/global/organizations bypass (same as prod
 - LEARN: NEW INFO @ staging infra: spare-staging-ca-photos GCS bucket exists (403 listing disabled). Staging orgs have reduced feature flags. Forms staging hosts serve s
 - LEARN: NEW LEAD @ staging API: Different code version on staging suggests regions bypass is a production-only regression. Staging may have a newer codebase. Worth moni
+
+## RANKED HYPOTHESES 2026-08-18 07:32:46 UTC
+- [95] api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass on /global/regions leaks full fleet topology with write-method CORS chain (from reports/hypotheses-laguna.txt)
+- [95] api.sparelabs.com/v1/global/regions: Deterministic scheme-only Bearer bypass on global regions leaks fleet topology with write-method CORS chain (from reports/hypotheses-nemotron3.txt)
+- [55] api.staging.sparelabs.com: Staging API debug/health/version endpoints expose internal state (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" (confirm 200+725B+ACAO+ACAC on fast re
+- NEXT(hypotheses-laguna.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -H "Accept: application/json" --max-ti
+- NEXT(hypotheses-bigpickle.txt): PROBE: HEAD https://api.staging.sparelabs.com/health then HEAD /debug then HEAD /config then HEAD /v1/admin/health then HEAD /openapi.json then GET / at ≤1 rps 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC — 8/8 fast replicas bypass, not probabilistic; multi-version LB confirmed
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC — 8/8 slow replicas bypass, read-only; same LB split mechanism
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (winnipeg.ca, kingcounty.gov, oakville.ca, cota.com newly confirme
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true + all methods + ACAH:Authorization o
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — admin Vercel apps (prod+staging, loadable 200) + Metabase + 9 cloud services
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only injection confirmed (URL-encoded
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organiz
+- LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" (2026-08-11) is false positive — only tested no-auth path 400, missed Bearer-x vector
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel references; 3 Google Map
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: cross-route org-UUID oracle validated on 4 orgs (spare/grt/dallas/winnipeg→403, nil→404) — ha
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) and cota.com (conn
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — both bypass routes are R
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B literal "asdfd" prod junk, winnipeg→197B real external UR
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: cross-route org-UUID oracle validated on 4 orgs (spare/grt/dallas/winnipeg→403, nil→404) — ha
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC replica-split confirmed — 8/8 fast replicas bypass; longcat "PATCHED" false positive
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only injection confirmed (URL-encoded
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED BUSLOGIC @ /v1/public/organizations/{orgId}/*: riders/drivers/vehicles/trips/sessions/zones/settings/configuration ALL return 400 ValidationError "not 
+- LEARN: NEW INFO @ forms.sparelabs.com: Production bundle main.63fe135c.js contains hardcoded ngrok dev URL (api-spare.ngrok.io, offline), Atlassian JIRA ref (sparelabs
+- LEARN: NEW INFO @ staging API: api.staging.sparelabs.com and api.staging.us.sparelabs.com are live with CORS reflection + /v1/global/organizations bypass (same as prod
+- LEARN: NEW INFO @ staging infra: spare-staging-ca-photos GCS bucket exists (403 listing disabled). Staging orgs have reduced feature flags. Forms staging hosts serve s
+- LEARN: NEW LEAD @ staging API: Different code version on staging suggests regions bypass is a production-only regression. Staging may have a newer codebase. Worth moni
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed live — handler reached without 401 (400 ValidationError / 404 NotF
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js patch status REVERTED — infra refs (atlassian/ngrok/staging) REACTIVATED per KB 2026-08-15 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404 on 2026-08-13) but zero surface, NO_
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes + 8 undocumented controllers ALL 401 (zero-auth + Bearer-x) — bypass family DEFINITIVELY s
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — both bypass routes are R
+- LEARN: CHANGED @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded 8→11+ tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca newly confirm
+- LEARN: NEW INFO @ forms.sparelabs.com: Production bundle main.63fe135c.js regression — hardcoded ngrok (api-spare.ngrok.io), Atlassian (FIN-1093), Metabase client re-i
+- LEARN: NEW INFO @ staging API: api.staging.sparelabs.com + api.staging.us.sparelabs.com live with CORS + /v1/global/organizations bypass. Different code version (regio
+- LEARN: NEW INFO @ staging infra: spare-staging-ca-photos GCS bucket exists (403 listing disabled). Staging orgs have reduced feature flags. Forms staging serves same b
+- LEARN: NEW LEAD @ staging API: Different code version on staging suggests regions bypass is production-only regression. Staging may have newer codebase with different 
+- LEARN: NEW INFO @ staging terms: Staging returns hardcoded spare.com URLs for ALL mobileAppId values. No per-tenant differentiation. Data handling inconsistency betwee
+- LEARN: NEW INFO @ staging orgs: Only spare org exists on staging CA (key "spare"). Staging US has empty org set. Different data topology per region.
+- LEARN: NEW INFO @ staging org response: Richer than prod — includes logoUrl (GCS staging bucket), isMaintenanceEnabled, name, organizationKey, enabledPublicFeatureFlag
+- LEARN: NEW INFO @ staging workos/auth: Always 401 regardless of domain param. No SSO oracle on staging. Staging has different auth gate.
+- LEARN: NEW LEAD @ staging terms: Staging→prod data divergence (real URLs on staging vs junk on prod for spare). LOW severity but confirms different code paths.
+- LEARN: NEW INFO @ forms bundle: Production_CA and Production_US both point to api.us.sparelabs.com. Dev fallback: api-spare.ngrok.io. App version 1.0.5096. 8 Google Ma
+- LEARN: NEW INFO @ staging terms: Returns real spare.com URLs for ALL mobileAppId values. No per-tenant filtering on staging.
+- LEARN: NEW INFO @ staging orgs: Only spare exists on staging CA. Staging US has empty org set. Org response includes logoUrl, isMaintenanceEnabled, name, organizationK
+- LEARN: NEW LEAD @ CA forms routing: CA forms traffic routed to US API. Data residency concern. PIPEDA implications.
