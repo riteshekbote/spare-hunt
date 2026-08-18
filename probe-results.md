@@ -2953,3 +2953,16 @@ https://forms.sparelabs.com/main.63fe135c.js -> 200 len=537 type=text/html; char
 https://api-spare.ngrok.io -> HTTP 404
 https://sparelabs.atlassian.net/browse/FIN-1093 -> 200 len=? type=text/html
 https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+
+## 2026-08-18 14:24:54 UTC
+https://api.staging.sparelabs.com/v1/global/organizations/d736519f-f384-4771-a2d2-4f95e884d790 -> 200 len=388 type=application/json; charset=utf-8
+https://api.staging.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://forms.sparelabs.com/main.63fe135c.js -> 200 len=537 type=text/html; charset=utf-8
+https://api-spare.ngrok.io -> HTTP 404
+https://sparelabs.atlassian.net/browse/FIN-1093 -> 200 len=? type=text/html
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.us.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
+https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+https://api.us.sparelabs.com/v1/public/organizations/key/spare -> HTTP 404
