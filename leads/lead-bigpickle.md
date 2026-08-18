@@ -12575,3 +12575,34 @@ testability: AUTH_HELPED
 [RISK] forms.sparelabs.com: 45 — bundle regression main.60865478.js now on prod with ngrok/Atlassian/localhost refs; infrastructure recon value, no direct auth bypass
 [RISK] web (spare.com/sparelabs.com): 10 — static marketing only
 [RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07
+## 2026-08-18 21:33:30 UTC [api] (model bigpickle)
+[PRIO] forms.sparelabs.com (main.60865478.js) | 69/100 | attack=5 business=7 tech=7 gate=10 cloud=3 fresh=10
+[PRIO] api.sparelabs.com/v1/global/regions | 69/100 | attack=7 business=7 tech=5 gate=9 cloud=7 fresh=6
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST | 70/100 | attack=8 business=7 tech=6 gate=9 cloud=4 fresh=7
+[HYP] Staging deployment pipeline leaks production bundle with ngrok tunnel endpoint
+class: MISCONFIG
+asset: forms.sparelabs.com (main.60865478.js)
+confidence: 74
+reasoning: Production bundle regressed to staging bundle containing api-spare.ngrok.io, Atlassian JIRA ref FIN-1093, localhost:3000/3035. KB shows tunnel was previously inactive (ERR_NGROK_3200) but DNS resolves. If a developer reactivates the tunnel, the dev API server bypasses all auth/WAF. The pipeline issue itself proves staging→prod promotion without security gates.
+evidence_needed: Current ngrok tunnel active/inactive status; bundle hash verification
+verify_steps: PASSIVE: curl -sI --max-time 5 https://api-spare.ngrok.io (check ERR_NGROK_3200 vs active response)
+impact: If tunnel active → full dev API access bypassing auth, rate-limiting, WAF. Dev/staging data exposure. Severity MEDIUM-HIGH when active, LOW when dormant.
+testability: PASSIVE
+[HYP] Engage case creation reaches handler without auth across all known orgs
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 85
+reasoning: Empty POST returns 400 ValidationError (not 401 InvalidTokenError). Valid org UUIDs (spare/grt/dallas/winnipeg) return 403 ForbiddenError "External case creation is not enabled" — feature-flag gate, not auth gate. Handler is reached before auth in the pipeline. CORS ACAO+ACAC confirmed on all branches. 4 org UUIDs independently validated.
+evidence_needed: Confirm handler execution with full valid payload (contactInfo + caseTypeId) on a 5th org
+verify_steps: PASSIVE: OPTIONS preflight already confirmed write methods advertised; no additional passive probe needed
+impact: Unauthenticated attacker can reach case-creation handler for any org; if any org enables the feature flag → unauthenticated case creation. Severity MEDIUM (blocked by feature-flag but structurally absent auth gate).
+testability: PASSIVE
+[NEXT] PROBE: curl -sI --max-time 5 https://api-spare.ngrok.io → verify current ngrok tunnel status (active/inactive); if active: GET https://api-spare.ngrok.io/v1/global/organizations
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle regression main.60865478.js IDENTICAL to staging — prod now serves staging code with ngrok/Atlassian/localhost refs; staging→prod pipeline has no security gate
+[LEARN] REJECTED (OOS) @ api.staging.sparelabs.com: different code version confirmed but host OOS per scope exclusions — staging intel useful for prod context only
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive confirmed 2026-08-18 15:00 UTC; only tested no-auth path, never Bearer-x vector
+[RISK] api.sparelabs.com: 94 — unchanged (auth bypasses + CORS 86h+ stable + SSO oracle 11+ tenants + engage auth-absent)
+[RISK] platform.sparelabs.com: 65 — CSP infra leak stable (admin Vercel apps + Metabase + 9 cloud services)
+[RISK] forms.sparelabs.com: 48 — bundle regression main.60865478.js serves staging code with ngrok refs; pipeline issue proven
+[RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07
+[RISK] web (spare.com/sparelabs.com): 10 — static marketing only
