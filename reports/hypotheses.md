@@ -8541,3 +8541,24 @@
 - LEARN: ACCEPTED AUTH @ api.us.sparelabs.com: scheme-only bypass (Bearer x) + zero-header bypass both work; fleet-wide parity confirmed 2026-08-18
 - LEARN: CHANGED AUTH @ api.us.sparelabs.com: UUID oracle, org-key oracle, SSO oracle are CA-specific — US host returns 404/401; data exposure is NOT universal
 - LEARN: ACCEPTED MISCONFIG @ api.us.sparelabs.com: terms endpoint returns generic URLs (same as CA); engage cases auth gate absent (same as CA)
+
+## RANKED HYPOTHESES 2026-08-18 10:31:33 UTC
+- [85] api.staging.sparelabs.com/organizations/{uuid}: Staging API org endpoint exposes richer tenant metadata than production (from reports/hypotheses-nemotron3.txt)
+- [74] api.sparelabs.com/v1/public/engage/cases: Engage cases POST full-payload auth-gate bypass → case record creation or PII-confirmed handler reach (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET https://forms.sparelabs.com/main.63fe135c.js (download and analyze bundle for ngrok/atlassian/metabase/maps/featureFlags references; confirm regressi
+- NEXT(hypotheses-bigpickle.txt): PROBE: POST https://api.sparelabs.com/v1/public/engage/cases with body `{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-000
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com bundle: Production_CA AND Production_US both route to api.us.sparelabs.com — CA data residency concern
+- LEARN: ACCEPTED AUTH @ api.us.sparelabs.com: scheme-only bypass (Bearer x) + zero-header bypass both work; fleet-wide parity confirmed 2026-08-18
+- LEARN: CHANGED AUTH @ api.us.sparelabs.com: UUID oracle, org-key oracle, SSO oracle are CA-specific — US host returns 404/401; data exposure is NOT universal
+- LEARN: ACCEPTED MISCONFIG @ api.us.sparelabs.com: terms endpoint returns generic URLs (same as CA); engage cases auth gate absent (same as CA)
+- LEARN: ACCEPTED BUSLOGIC @ api.staging.sparelabs.com: different code version confirmed — regions=400, workos=401, terms=real URLs for all mobileAppId
+- LEARN: NEW INFO @ forms.sparelabs.com: Production bundle main.63fe135c.js contains hardcoded ngrok dev URL (api-spare.ngrok.io, offline), Atlassian JIRA ref (sparelabs
+- LEARN: NEW INFO @ staging API: api.staging.sparelabs.com and api.staging.us.sparelabs.com are live with CORS reflection + /v1/global/organizations bypass (same as prod
+- LEARN: NEW INFO @ staging infra: spare-staging-ca-photos GCS bucket exists (403 listing disabled). Staging orgs have reduced feature flags. Forms staging hosts serve s
+- LEARN: NEW LEAD @ staging API: Different code version on staging suggests regions bypass is a production-only regression. Staging may have a newer codebase. Worth moni
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — validation precedes auth in pipeline; handler-level responses
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster stable at 11+ tenants; state parameter reflected unescaped; redirect_uri dead; fleet-parit
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: deterministic scheme-only Bearer bypass NOT patched — fast replicas 8/8 bypass; multi-version LB replica-sp
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true uniform across all /v1 paths
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com bundle: main.63fe135c.js regression — ngrok + Atlassian + Metabase refs reactivated; prior PATCHED claims were false po
+- LEARN: ACCEPTED BUSLOGIC @ forms.sparelabs.com: CA→US data routing confirmed — Production_CA points to api.us.sparelabs.com (PIPEDA implications)
