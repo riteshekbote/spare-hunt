@@ -2080,3 +2080,14 @@
 - 2026-08-18 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted (infra leak ELIMINATED, downgraded to recon-only)
 - 2026-08-18 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404 on 2026-08-13) but zero surface, NO_DELTA
 - 2026-08-18 REJECTED AUTH @ api.sparelabs.com/v1/global/organizations (write path): POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET only; auth asymmetry at handler level
+- 2026-08-18 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organizations/{id} superior
+- 2026-08-18 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass STABLE 86h+ — deterministic fast-replica bypass across 7 fleet hosts, sha256 verified
+- 2026-08-18 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — handler reached without 401 on empty POST (400) + nil-UUID (404) + valid org UUID (403 feature-flag gate), CORS reflected
+- 2026-08-18 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 11+ SSO tenants confirmed fleet-parity, state reflection in authorizeUrl, redirect_uri dead (silently dropped)
+- 2026-08-18 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs, 3 Maps keys referrer-restricted, infra leak ELIMINATED
+- 2026-08-18 REJECTED BUSLOGIC @ routing.sparelabs.com: envoy 404/0B on ALL paths since 2026-08-07, no surface
+- 2026-08-18 REJECTED AUTH (write-escalation): POST/PUT/PATCH/DELETE → 401 on both /global/{organizations,regions} — bypasses are read-only GET
+- 2026-08-18 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: cross-route org-UUID oracle validated on 4 orgs (spare/grt/dallas/winnipeg→403, nil→404) — handler reached before auth; 403/404 differential reliable.
+- 2026-08-18 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC replica-split confirmed — 8/8 fast replicas bypass; longcat "PATCHED" false positive.
+- 2026-08-18 REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed.
+- 2026-08-18 REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only.

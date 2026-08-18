@@ -1,4 +1,34 @@
-## 2026-08-18 04:11:49 UTC [api] (model bigpickle)
-[PRIO] api.sparelabs.com/v1/public/organizations/{orgId}/riders: 6.6 (8|7|6|9|4|7|3)
+## 2026-08-18 04:54:28 UTC [api] (model bigpickle)
 [PRIO] api.sparelabs.com/v1/public/engage/cases POST (cross-route oracle): 7.2 (9|8|5|10|6|8)
+[PRIO] api.sparelabs.com/v1/public/organizations/{orgId}/riders: 6.6 (8|7|6|9|4|7|3)
 [PRIO] api.sparelabs.com/v1/public/organizations/{orgId}/ sub-resource sweep: 5.9 (7|7|5|9|5|6)
+[HYP] Public engage/cases POST cross-route org-UUID oracle
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 58
+reasoning: Auth gate ABSENT (KB 86h+ stable). Known orgs (spare/grt/dallas/winnipeg) return 403; nil-UUID returns 404. 403/404 differential is reliable org-UUID discriminator independent of /v1/public/organizations/{id}.
+evidence_needed: POST with random organizationId → 404 (unknown) vs known org UUID → 403
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Content-Type: application/json" -d '{"organizationId":"<nil-uuid>","caseTypeId":"<valid-uuid>"}' at ≤1 rps. Sweep 3 random UUIDs.
+impact: Unauthenticated org-UUID enumeration via 403/404 differential. Severity LOW-MEDIUM (confirms org existence, no PII).
+testability: PASSIVE
+[HYP] Public org sub-resource /riders exposes rider PII
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{orgId}/riders
+confidence: 42
+reasoning: KB confirms /v1/public/riders/{id} returned 404 (route DNE). But plural /public/organizations/{id}/ sub-tree is well-routed and under-tested. "riderLoginless" feature flag exists on spare+winnipeg. Sub-resource routing under public org namespace could bypass private 401 gate.
+evidence_needed: HTTP response from GET /v1/public/organizations/{orgId}/riders
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders -H "Origin: https://evil.example.com" at ≤1 rps. Check status + body length. If non-404, sweep /vehicles, /trips, /sessions, /drivers.
+impact: If 200: unauthenticated rider PII exposure (names, phones, trip history). Severity HIGH. If 404: dead-end.
+testability: PASSIVE
+[PARKED] Public org sub-resource /riders (confidence 42): below 40 threshold; speculative routing guess; park until first probe confirms route exists.
+[FINAL]
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders -H "Origin: https://evil.example.com" at ≤1 rps. Check HTTP status + CORS headers + response body length. If non-404, immediately sweep /vehicles, /trips, /sessions, /drivers under same org UUID.
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: cross-route org-UUID oracle validated on 4 orgs (spare/grt/dallas/winnipeg→403, nil→404) — handler reached before auth; 403/404 differential reliable.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC replica-split confirmed — 8/8 fast replicas bypass; longcat "PATCHED" false positive.
+[LEARN] REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed.
+[LEARN] REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only.
+[RISK] api.sparelabs.com: 94 — DETERMINISTIC auth bypasses (regions fast-replica + orgs slow-replica) + FULL CORS credential reflection + SSO-config oracle 11+ tenants + state reflection + FULL org details via key oracle + engage write chain auth-absent + cross-route 403/404 oracle + multi-version LB dual-surface + 86h+ unpatched
+[RISK] platform.sparelabs.com: 65 — CSP infra leak on /login (admin Vercel apps prod+staging loadable 200, Metabase prod+staging, 9 cloud services); MFE SPA shell; no real API surface behind host
+[RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead
+[RISK] forms.sparelabs.com: 25 — JS bundle PATCHED (main.8a2a39cb.js, zero infra refs); 3 Maps keys referrer-restricted; SPA catch-all; no active attack surface
+[RISK] web (spare.com/sparelabs.com): 15 — Static marketing (Cloudflare+Webflow); CSP frame-ancestors 'self'; no internal leaks
