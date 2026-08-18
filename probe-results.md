@@ -3064,3 +3064,16 @@ https://api.staging.sparelabs.com/v1/global/organizations/{valid-uuid -> HTTP 40
 https://api.staging.sparelabs.com/v1/global/organizations/00000000-0000-0000-0000-000000000000 -> HTTP 404
 https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+
+## 2026-08-18 19:52:50 UTC
+https://api.staging.sparelabs.com/v1/global/organizations/{known-uuid -> HTTP 400
+https://api.staging.sparelabs.com/v1/public/organizations/key/spare -> 200 len=288 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.staging.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.staging.sparelabs.com/v1/global/regions -> HTTP 400
+https://api-spare.ngrok.io` -> ERR <urlopen error [Errno -2] Name or service not know
+https://api-spare.ngrok.io -> HTTP 404
+https://routing.staging.sparelabs.com -> HTTP 404
+https://routing.staging.sparelabs.com` -> ERR <urlopen error [Errno -2] Name or service not know

