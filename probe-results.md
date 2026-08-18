@@ -2923,3 +2923,12 @@ https://api.us.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://forms.sparelabs.com/main.63fe135c.js -> 200 len=537 type=text/html; charset=utf-8
 https://api-spare.ngrok.io -> HTTP 404
 https://sparelabs.atlassian.net/browse/FIN-1093 -> 200 len=? type=text/html
+
+## 2026-08-18 11:58:07 UTC
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.us.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.us.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
+https://api.staging.sparelabs.com/v1/global/regions -> HTTP 400

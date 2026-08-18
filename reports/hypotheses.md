@@ -8635,3 +8635,15 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true uniform across all /v1 paths
 - LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com bundle: main.63fe135c.js regression — ngrok + Atlassian + Metabase refs reactivated; prior PATCHED claims were false po
 - LEARN: ACCEPTED BUSLOGIC @ forms.sparelabs.com: CA→US data routing confirmed — Production_CA points to api.us.sparelabs.com (PIPEDA implications)
+
+## RANKED HYPOTHESES 2026-08-18 11:58:05 UTC
+- [95] api.sparelabs.com/v1/global/regions: Deterministic scheme-only auth bypass on regions endpoint with fleet-wide topology disclosure (from reports/hypotheses-laguna.txt)
+- [74] api.sparelabs.com/v1/public/engage/cases: Engage cases POST full-payload auth-gate bypass → case record creation or PII-confirmed handler reach (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" --max-time 15 — confirm 200 + 725B + A
+- NEXT(hypotheses-bigpickle.txt): PROBE: POST https://api.sparelabs.com/v1/public/engage/cases with body `{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-000
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — validation precedes auth in pipeline; handler-level responses
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster stable at 11+ tenants; state parameter reflected unescaped; redirect_uri dead; fleet-parit
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: deterministic scheme-only Bearer bypass NOT patched — fast replicas 8/8 bypass; multi-version LB replica-sp
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true uniform across all /v1 paths
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com bundle: main.63fe135c.js regression — ngrok + Atlassian + Metabase refs reactivated; prior PATCHED claims were false po
+- LEARN: ACCEPTED BUSLOGIC @ forms.sparelabs.com: CA→US data routing confirmed — Production_CA points to api.us.sparelabs.com (PIPEDA implications)
