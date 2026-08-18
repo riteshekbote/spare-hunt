@@ -13932,3 +13932,4 @@ impact: If any org has external case creation feature-flagged enabled, unauthent
 testability: PASSIVE
 [FINAL] (rank order)
 [NEXT] PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" --max-time 15 — confirm 200 + 725B + ACAO:https://evil.example.com + ACAC:true + body sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` (re-confirm deterministic fast-replica bypass still live, NOT patched). Simultaneously: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"6c84b370-5cc2-42c6-8cdd-146c99648535","caseTypeId":"00000000-0000-0000-0000-000000000000","contactInfo":{"phone":"+15555555555"}}' → verify winnipeg org UUID (from org-key oracle) → 403 ForbiddenError + ACAO+ACAC (cross-route oracle 5th-org validation).
+## 2026-08-18 13:28:34 UTC [web] (model laguna)
