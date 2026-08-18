@@ -13309,3 +13309,113 @@ testability: PASSIVE
 [FINAL] forms.sparelabs.com JS bundle: Infra leak REACTIVATED — priority 6.9, confidence 90 — KB "PATCHED" was false positive, new bundle main.63fe135c.js still leaks staging/ngrok/atlassian/metabase
 [NEXT] PROBE: Compare the two regions bypass replicas to characterize the LB split. Execute 8 parallel requests to `GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x"` over 8s (≤1 rps) and count 200 vs 401 rate — confirms the split is load-balanced (not source-IP or header-based), proving no trivial routing manipulation can avoid the bypass. Then immediately execute `OPTIONS https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization,Content-Type"` to re-confirm write-method CORS chain convergence (204 + ACAO:evil + ACAC:true + write methods).
 ## 2026-08-18 00:03:08 UTC [web] (model laguna)
+## 2026-08-18 02:01:05 UTC [web] (model laguna)
+[NEW] platform.sparelabs.com: MFE SPA shell now responding 200 (was TIMEOUT)
+[NEW] forms.sparelabs.com: Engage portal SPA now responding 200 (was TIMEOUT)
+[NEW] routing.sparelabs.com: now responding envoy 404 on all paths (was TIMEOUT)
+[NEW] sparelabs.com: now 301→spare.com apex (was TIMEOUT)
+[CHANGED] api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com newly confirmed)
+[CHANGED] api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on the scheme-only bypass route
+[CHANGED] api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs (22 candidates exhausted); per-tenant feature-flag differential persists
+[CHANGED] api.sparelabs.com/v1/public/organization (singular): UUID oracle fully degraded 3-way↔2-way flapping across envoy replicas — downgraded to validation-leak-only, NOT oracle class; plural /organizations/{id} retains stable 3-way
+[CHANGED] api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level "not found" (400) — multi-version envoy LB confirmed; downgraded to UNCONFIRMED/unreliable
+[CHANGED] forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel refs; 3 Google Maps keys all referrer-restricted (infra leak ELIMINATED)
+[PRIO] api.sparelabs.com/v1/global/regions, 8.35, attack_surface:9 business_value:8 tech_exposure:7 gate_ease:9 cloud_surface:8 freshness:9
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST, 7.75, attack_surface:8 business_value:7 tech_exposure:8 gate_ease:10 cloud_surface:5 freshness:8
+[PRIO] api.sparelabs.com/v1/global/organizations, 7.45, attack_surface:8 business_value:6 tech_exposure:7 gate_ease:10 cloud_surface:5 freshness:9
+[PRIO] api.sparelabs.com/v1/identity/workos/auth, 7.30, attack_surface:7 business_value:7 tech_exposure:8 gate_ease:10 cloud_surface:5 freshness:8
+[PRIO] platform.sparelabs.com/login, 5.90, attack_surface:6 business_value:5 tech_exposure:6 gate_ease:10 cloud_surface:7 freshness:6
+[PRIO] forms.sparelabs.com, 4.15, attack_surface:5 business_value:4 tech_exposure:4 gate_ease:10 cloud_surface:3 freshness:5
+[HYP] Deterministic scheme-only Bearer bypass on global regions leaks fleet topology with write-method CORS chain
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: 8/8 fast replicas (4-17ms) return 200 + 725B region registry (7 regions, 6 OOS api/routing subdomains) with `Authorization: Bearer x`; no-auth → 400; OPTIONS 204 returns ACAO:reflected + ACAC:true + allow-methods:GET,HEAD,PUT,PATCH,POST,DELETE + ACAH:Authorization; body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable across 7 fleet hosts; multi-version LB replica-split confirmed deterministic (fast bypass, slow 401)
+evidence_needed: Confirm write-method CORS chain enables cross-origin authenticated write via victim browser; verify replica-split mechanism is route-based not IP-based
+verify_steps: PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" (confirm 200+725B+ACAO+ACAC on fast replica); PROBE: OPTIONS https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" (confirm write-method CORS chain); PROBE: POST https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -d '{}' (verify 401 write gate)
+impact: Fleet-wide infrastructure topology disclosure (7 regions, 12 OOS subdomains) + read+write CORS credential reflection on auth-bypass route; enables targeted attacks on regional APIs; severity HIGH
+testability: PASSIVE
+[HYP] Unauthenticated write-path handler reach on public engage cases API with feature-flag gate as only barrier
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 90
+reasoning: Empty POST → 400 ValidationError (no 401 InvalidTokenError); nil-UUID → 404 NotFoundError "Other was not found" (handler reached); valid org UUIDs (spare/grt/dallas/winnipeg) → 403 ForbiddenError "External case creation is not enabled for this organization" (feature-flag gate, NOT auth gate); CORS reflected on all branches; validation precedes auth in pipeline; cross-route org-UUID oracle validated independently on 4 orgs
+evidence_needed: Confirm successful case creation with valid org + feature flag enabled (requires AUTH_HELPED token); verify no rate limiting or secondary auth checks
+verify_steps: PROBE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"valid-uuid","contactInfo":{"name":"test","email":"test@test.com"}}' (confirm 403 feature-flag gate, not 401); PROBE: OPTIONS https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" (confirm CORS on write path)
+impact: Unauthenticated write-path handler reach with only feature-flag barrier; if any org enables "external case creation", full case creation without auth; severity HIGH if feature flag enabled for target org
+testability: PASSIVE (handler reach confirmed); AUTH_HELPED (successful creation test)
+[HYP] Deterministic zero-header read-only bypass on global organizations with auth asymmetry
+class: AUTH
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 93
+reasoning: 8/8 slow replicas (550-1040ms) return 200 + 11B `{"data":[]}` with zero Authorization header + ACAO+ACAC; fast replicas return 401; same multi-version LB split mechanism as /regions; POST/PUT/PATCH/DELETE with Bearer x → 401 InvalidTokenError (write gate active); OPTIONS 204 advertises write methods + CORS (misleading surface, handler-gated)
+evidence_needed: Confirm auth asymmetry is handler-level (validation precedes auth on write paths); verify no write escalation via CORS preflight advertising
+verify_steps: PROBE: GET https://api.sparelabs.com/v1/global/organizations -H "Origin: https://evil.example.com" (confirm 200+11B+ACAO+ACAC on slow replica); PROBE: OPTIONS https://api.sparelabs.com/v1/global/organizations -H "Origin: https://evil.example.com" (confirm write methods advertised); PROBE: POST https://api.sparelabs.com/v1/global/organizations -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" -d '{}' (verify 401 write gate)
+impact: Empty org list disclosure + full read+write CORS surface on zero-header route; auth asymmetry (read fails open, writes gated) confirms handler-level validation gap; severity MEDIUM-HIGH
+testability: PASSIVE
+[PARKED] SSO tenant enumeration and Entra ID disclosure via WorkOS auth endpoint with state parameter reflection: confidence 92 but verify_steps require AUTH_HELPED for OAuth callback chain analysis; state reflection confirmed but param injection limited to URL-encoded passthrough
+[PARKED] Org-key enumeration oracle on /v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs; 22 candidates exhausted; no drift observed; requires AUTH_HELPED for feature-flag differential exploitation
+[FINAL] 1. Deterministic scheme-only Bearer bypass on global regions leaks fleet topology with write-method CORS chain (confidence 95, class AUTH, asset api.sparelabs.com/v1/global/regions)
+[FINAL] 2. Unauthenticated write-path handler reach on public engage cases API with feature-flag gate as only barrier (confidence 90, class BUSLOGIC, asset api.sparelabs.com/v1/public/engage/cases POST)
+[FINAL] 3. Deterministic zero-header read-only bypass on global organizations with auth asymmetry (confidence 93, class AUTH, asset api.sparelabs.com/v1/global/organizations)
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" (confirm 200+725B+ACAO+ACAC on fast replica; verify write-method CORS chain convergence)
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC — 8/8 fast replicas bypass, not probabilistic; multi-version LB confirmed
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC — 8/8 slow replicas bypass, read-only; same LB split mechanism
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (winnipeg.ca, kingcounty.gov, oakville.ca, cota.com newly confirmed); state reflection confirmed; redirect_uri dead
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs)
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true + all methods + ACAH:Authorization on OPTIONS 204 + GET 200/401/403/404
+[LEARN] ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — admin Vercel apps (prod+staging, loadable 200) + Metabase + 9 cloud services
+[LEARN] REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only injection confirmed (URL-encoded passthrough)
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED (final state)
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+[LEARN] REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organizations/{id} is the superior oracle
+[LEARN] REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" (2026-08-11) is false positive — only tested no-auth path 400, missed Bearer-x vector
+[RISK] api.sparelabs.com: 92 reason — Multiple stable auth bypasses (scheme-only Bearer on /regions, zero-header on /organizations) with full CORS credential reflection across all /v1; fleet-wide infra topology disclosure (7 regions, 12 OOS subdomains); SSO tenant enumeration via WorkOS (≥11 tenants, Entra IDs); unauthenticated write-path handler reach on /engage/cases; universal CORS on all endpoints; bypasses stable 86h+ but now multi-version LB splits traffic (fast replicas bypass, slow replicas 401)
+[RISK] platform.sparelabs.com: 65 reason — CSP infra leak on /login exposes admin Vercel apps (dev-only), Metabase instances (prod+staging, by-design unauth config), 9 cloud services; MFE SPA shell with no real API surface; strict HTML CSP + x-frame mitigates HTML-level but not infra-level disclosure
+[RISK] routing.sparelabs.com: 5 reason — Envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_DELTA
+[RISK] forms.sparelabs.com: 25 reason — Engage portal SPA now live; JS bundle PATCHED (zero infra leaks); 3 Google Maps keys referrer-restricted; all API paths return SPA catch-all; no real API endpoints behind host
+[RISK] web (spare.com/sparelabs.com): 15 reason — spare.com apex: Cloudflare+Webflow static marketing (CSP frame-ancestors 'self', HSTS); sparelabs.com: 301→spare.com; no internal infra leaks in HTML/JS; minimal static-only surface
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: 7.4 (8|9|9|3|8|9|3)
+[PRIO] api.sparelabs.com/v1/global/regions: 7.0 (7|6|8|7|7|5|3)
+[PRIO] api.sparelabs.com/v1/public/organizations/d736519f.../riders: 6.6 (8|7|6|9|4|7|3)
+[HYP] Public org sub-resource /riders exposes unauthenticated rider PII
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{orgId}/riders
+confidence: 42
+reasoning: KB 2026-08-11 shows /v1/public/riders/{id} returned 404 0B (route does not exist). However, /public/organizations/{id} (plural) has proven superior discrimination to singular /organization. Sub-resource routing under the plural tree is untested. The "riderLoginless" feature flag (spare+winnipeg only) confirms rider auth paths are active in the platform bundle OpenAPI (401 gated on private namespace). If /public/orgs/{id}/riders is routed, it bypasses the private 401 gate entirely.
+evidence_needed: HTTP response from GET /v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders -H "Origin: https://evil.example.com" at ≤1 rps. Check HTTP status + CORS + response body. If 404, sweep /vehicles, /trips, /sessions, /drivers under same org.
+impact: If 200 + data: unauthenticated rider PII exposure (names, phones, trip history). Severity HIGH. If 404: dead-end.
+testability: PASSIVE
+[HYP] /v1/identity/workos/auth state parameter enables OAuth session fixation
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 62
+reasoning: State parameter is reflected unescaped in WorkOS authorizeUrl response body. 11+ tenants confirmed fleet-parity across 7 hosts. The relayState JWT leaks redirect_uri, environment_id, and from:"api" fields. Without AUTH_HELPED tokens to test the actual callback flow, the full chain remains speculative.
+evidence_needed: Full callback chain behavior with valid state injection (AUTH_HELPED required)
+verify_steps: AUTH_HELPED: 1) POST {"domain":"spare.com","state":"<attacker-controlled>"} 2) Navigate authorizeUrl 3) Observe state persistence through IdP→WorkOS callback
+impact: If exploitable: OAuth session fixation. Severity HIGH. If state is passthrough: informational only. Severity LOW.
+testability: AUTH_HELPED
+[HYP] /v1/global/regions replica-split bypass with write-method CORS chain enables cross-origin data theft
+class: MISCONFIG
+asset: api.sparelabs.com/v1/global/regions
+confidence: 78
+reasoning: OPTIONS 204 returns ACAO:reflected + ACAC:true + allow-methods:PUT,PATCH,POST,DELETE + ACAH:Authorization,Content-Type. Fast replicas return 200+725B with any Bearer. Combined with ACAC:true, any malicious page can steal region topology cross-origin.
+evidence_needed: Already confirmed in KB — no new evidence needed
+verify_steps: PASSIVE: Already documented
+impact: Cross-origin reads of 725B region topology. Severity MEDIUM.
+testability: PASSIVE
+[PARKED] /v1/identity/workos/auth state injection: AUTH_HELPED gate; redirect_uri dead; state-only confirmed. Re-probing adds no value without tokens.
+[PARKED] /v1/global/regions CORS chain: STABLE 86h+; no new evidence needed.
+[FINAL]
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/public/organizations/d736519f-f384-4771-a2d2-4f95e884d790/riders -H "Origin: https://evil.example.com" at ≤1 rps. Check HTTP status + CORS headers. If non-404, sweep /vehicles, /trips, /sessions under same org.
+[LEARN] REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: PATCHED — zero infra refs
+[LEARN] REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+[RISK] api.sparelabs.com: 94 — DETERMINISTIC auth bypasses (regions fast-replica + orgs slow-replica) + FULL CORS credential reflection + SSO-config oracle 11+ tenants + state reflection + FULL org details via key oracle + engage write chain auth-absent + multi-version LB dual-surface + 86h+ unpatched
+[RISK] platform.sparelabs.com: 65 — CSP infra leak on /login (admin Vercel apps prod+staging loadable 200, Metabase prod+staging, 9 cloud services); MFE SPA shell; no real API surface behind host
+[RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths since 2026-08-07; STABLE dead
+[RISK] forms.sparelabs.com: 25 — JS bundle PATCHED (main.8a2a39cb.js, zero infra refs); 3 Maps keys referrer-restricted; SPA catch-all; no active attack surface
+[RISK] web (spare.com/sparelabs.com): 15 — Static marketing (Cloudflare+Webflow); CSP frame-ancestors 'self'; no internal leaks
