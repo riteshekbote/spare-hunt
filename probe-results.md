@@ -2856,3 +2856,15 @@ https://forms.sparelabs.com -> 200 len=537 type=text/html; charset=utf-8
 https://forms.sparelabs.com -> 200 len=537 type=text/html; charset=utf-8
 https://api.us.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
 https://api.us.sparelabs.com/v1/global/regions -> HTTP 400
+
+## 2026-08-18 08:55:29 UTC
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.staging.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.staging.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.staging.sparelabs.com/v1/public/terms?mobileAppId=00000000-0000-0000-0000-000000000000 -> 200 len=137 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.uat.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.us.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.us.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8

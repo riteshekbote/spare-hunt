@@ -8429,3 +8429,43 @@
 - LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com bundle: Production_CA AND Production_US both route to api.us.sparelabs.com — CA data residency concern confirmed via bu
 - LEARN: NEW INFO @ api.staging.sparelabs.com: Different code version from prod — regions=400 (no bypass), workos/auth=401 (no oracle), terms returns real URLs for all m
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster stable at 11+ tenants with fleet-parity across 7 hosts; state reflection confirmed.
+
+## RANKED HYPOTHESES 2026-08-18 08:55:26 UTC
+- [95] api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass on /v1/global/regions leaks full fleet topology (from reports/hypotheses-laguna.txt)
+- [95] api.sparelabs.com/v1/global/regions: Deterministic scheme-only Bearer bypass on global regions leaks fleet topology with write-method CORS chain (from reports/hypotheses-nemotron3.txt)
+- [78] api.us.sparelabs.com/v1/global/{regions,organizations}: api.us.sparelabs.com fleet-wide bypass parity (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" (confirm 200+725B+ACAO+ACAC on fast re
+- NEXT(hypotheses-laguna.txt): PROBE: GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -H "Authorization: Bearer x" --max-time 15 — confirm 200 + 725B + A
+- NEXT(hypotheses-bigpickle.txt): PROBE: GET https://api.us.sparelabs.com/v1/global/regions with `Authorization: Bearer x` + `Origin: https://evil.example.com` — test for scheme-only bypass pari
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC — 8/8 fast replicas bypass, not probabilistic; multi-version LB confirmed
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: DETERMINISTIC — 8/8 slow replicas bypass, read-only; same LB split mechanism
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (winnipeg.ca, kingcounty.gov, oakville.ca, cota.com newly confirme
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 86h+ — ACAO:reflected + ACAC:true + all methods + ACAH:Authorization o
+- LEARN: ACCEPTED MISCONFIG @ platform.sparelabs.com/login: CSP infra leak STABLE — admin Vercel apps (prod+staging, loadable 200) + Metabase + 9 cloud services
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only injection confirmed (URL-encoded
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero infra refs; 3 Maps keys referrer-restricted; infra leak ELIMINATED
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organiz
+- LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" (2026-08-11) is false positive — only tested no-auth path 400, missed Bearer-x vector
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js CONFIRMED PATCHED — zero sparelabs/atlassian/ngrok/metabase/vercel references; 3 Google Map
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: cross-route org-UUID oracle validated on 4 orgs (spare/grt/dallas/winnipeg→403, nil→404) — ha
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants — oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W) and cota.com (conn
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — both bypass routes are R
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B literal "asdfd" prod junk, winnipeg→197B real external UR
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: cross-route org-UUID oracle validated on 4 orgs (spare/grt/dallas/winnipeg→403, nil→404) — ha
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: DETERMINISTIC replica-split confirmed — 8/8 fast replicas bypass; longcat "PATCHED" false positive
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only injection confirmed (URL-encoded
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED BUSLOGIC @ /v1/public/organizations/{orgId}/*: riders/drivers/vehicles/trips/sessions/zones/settings/configuration ALL return 400 ValidationError "not 
+- LEARN: NEW INFO @ forms.sparelabs.com: Production bundle main.63fe135c.js contains hardcoded ngrok dev URL (api-spare.ngrok.io, offline), Atlassian JIRA ref (sparelabs
+- LEARN: NEW INFO @ staging API: api.staging.sparelabs.com and api.staging.us.sparelabs.com are live with CORS reflection + /v1/global/organizations bypass (same as prod
+- LEARN: NEW INFO @ staging infra: spare-staging-ca-photos GCS bucket exists (403 listing disabled). Staging orgs have reduced feature flags. Forms staging hosts serve s
+- LEARN: NEW LEAD @ staging API: Different code version on staging suggests regions bypass is a production-only regression. Staging may have a newer codebase. Worth moni
+- LEARN: ACCEPTED AUTH @ api.us.sparelabs.com: hypothesis pending live probe — forms bundle routes CA traffic here, fleet-parity expected
+- LEARN: ACCEPTED BUSLOGIC @ api.staging.sparelabs.com: different code version confirmed — regions=400, workos=401, terms=real URLs for all mobileAppId
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com bundle: Production_CA AND Production_US both route to api.us.sparelabs.com — CA data residency concern
+- LEARN: ACCEPTED AUTH @ api.us.sparelabs.com: scheme-only bypass (Bearer x) + zero-header bypass both work; fleet-wide parity confirmed 2026-08-18
+- LEARN: CHANGED AUTH @ api.us.sparelabs.com: UUID oracle, org-key oracle, SSO oracle are CA-specific — US host returns 404/401; data exposure is NOT universal
+- LEARN: ACCEPTED MISCONFIG @ api.us.sparelabs.com: terms endpoint returns generic URLs (same as CA); engage cases auth gate absent (same as CA)
