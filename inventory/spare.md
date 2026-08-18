@@ -3024,3 +3024,15 @@
 - NEW forms.sparelabs.com JS bundle: regression `main.63fe135c.js` (was `main.8a2a39cb.js`) — reactivates ngrok dev URL (api-spare.ngrok.io), Atlassian JIRA ref (FIN-1093), Metabase client class
 - NEW spare-staging-ca-photos GCS bucket: EXISTS (403 listing disabled); staging orgs have reduced feature flags; staging terms returns real spare.com URLs for ALL mobileAppId (no per-tenant filtering — sta
 - NEW api.sparelabs.com/v1/public/organizations/{orgId}/*: 9-subpath sweep exhausted (riders/drivers/vehicles/trips/sessions/zones/settings/configuration/tenants/metadata) — all 400 ValidationError "not fou
+
+## 2026-08-18 17:02:15 UTC
+- NEW api.staging.sparelabs.com/v1/global/organizations/{uuid}: richer metadata response than prod (logoUrl GCS staging, isMaintenanceEnabled, enabledPublicFeatureFlags)
+- NEW api.staging.sparelabs.com/v1/public/terms: returns real spare.com URLs for ALL mobileAppId — no per-tenant filtering (staging→prod divergence)
+- NEW api.us.sparelabs.com: fleet-wide auth bypass parity confirmed (scheme-only Bearer + zero-header) BUT data oracles (UUID, org-key, SSO) are CA-specific only — US returns 404/401
+- NEW forms.sparelabs.com JS bundle: main.63fe135c.js REGRESSION — ngrok dev URL (api-spare.ngrok.io), Atlassian JIRA ref (FIN-1093), Metabase client class reactivated; prior PATCHED claims false positives
+- NEW spare-staging-ca-photos GCS bucket: EXISTS (403 listing disabled); staging orgs reduced feature flags; staging forms hosts serve same bundle as production
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca newly confirmed); state param reflected unescaped; fleet-parit
+- CHANGED api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on scheme-only bypass route; multi-version LB replica-s
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed via full-payload test — 403 ForbiddenError with valid org UUID; nil-caseTypeId → 403 proves feature-flag gate precedes caseTyp
+- CHANGED api.sparelabs.com/v1/public/engage/caseForms POST: validation passes without auth (404 "Form was not found"); CORS write+auth-route chain confirmed; same pattern as cases POST
+- CHANGED forms.sparelabs.com bundle: main.8a2a39cb.js → main.63fe135c.js REGRESSION — infra leak reactivated
