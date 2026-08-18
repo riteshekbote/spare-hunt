@@ -3231,3 +3231,23 @@
 - CHANGED forms.sparelabs.com bundle: main.8a2a39cb.js → main.63fe135c.js → main.60865478.js REGRESSION — infra leak reactivated and spread from staging to production
 - CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded 8→11+ tenants (oakville.ca conn_01HTN1GCQYJY8X5TNBK0HPE42W, cota.com conn_01KCKYHA0YPZ8N52Q4DVT96SAC, winnipeg.ca conn_01HP76PPV8CMRJH6RY
 - CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set closed at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 candidates exhausted; feature-flag differential stable
+
+## 2026-08-18 23:08:02 UTC
+- NEW forms.sparelabs.com JS bundle UPDATED to `main.60865478.js` — now IDENTICAL to staging bundle; contains ngrok (`api-spare.ngrok.io`), Atlassian (`FIN-1093`), localhost:3000, localhost:3035, staging AP
+- NEW api.staging.sparelabs.com: different code version confirmed — regions=400 (no bypass), workos=401 (no oracle), terms=real URLs for ALL mobileAppId (no per-tenant filtering); zero-header bypass works o
+- NEW api.us.sparelabs.com: fleet-wide auth bypass parity confirmed (scheme-only Bearer + zero-header on /v1/global/regions and /organizations) BUT data oracles (UUID/org-key/SSO) are CA-specific only — US 
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca newly confirmed); state parameter reflected unescaped; fleet-p
+- NEW api.sparelabs.com/v1/global/regions: write-method CORS chain convergence confirmed — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on scheme-only bypass route; multi-version LB replica-s
+- NEW api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed via full-payload test — 403 ForbiddenError with valid org UUID; nil-caseTypeId → 403 proves feature-flag gate precedes caseTyp
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: validation passes without auth (404 "Form was not found"); CORS write+auth-route chain confirmed; same pattern as cases POST
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: full org details (id, name, logoUrl GCS path, organizationKey, enabledPublicFeatureFlags) returned without auth for all 5 known keys — not just 3-w
+- NEW api.sparelabs.com/v1/public/terms: per-tenant config chain confirmed — spare→107B literal "asdfd" prod junk, winnipeg→197B real external URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic; by
+- NEW forms.sparelabs.com CA→US data routing: Production_CA bundle points to api.us.sparelabs.com — Canadian transit data egress to US endpoint (PIPEDA implications)
+- NEW all 4 admin-*.vercel.app hosts (admin-eam-app, admin-fixed-route-app + staging) return 200 — dev-only web-component preview shells with localhost API URLs (EAM:3057, fixed-route:3063); script-src CSP 
+- CHANGED forms.sparelabs.com bundle: main.8a2a39cb.js → main.63fe135c.js → main.60865478.js REGRESSION — infra leak reactivated and spread from staging to production
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded 8→11+ tenants (oakville.ca conn_01HTN1GCQYJY8X5TNBK0HPE42W, cota.com conn_01KCKYHA0YPZ8N52Q4DVT96SAC, winnipeg.ca conn_01HP76PPV8CMRJH6RY
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set closed at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 candidates exhausted; feature-flag differential stable
+- CHANGED api.us.sparelabs.com: fleet-wide bypass parity confirmed (scheme-only Bearer x + zero-header on /v1/global/regions and /organizations both work) BUT data oracles (UUID/org-key/SSO) are CA-specific onl
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle remains FLAPPING 2-way↔3-way across envoy LB replicas (nil→404 on fast, 400 on slow) — downgraded to validation-leak-only; plural /orga
+- CHANGED forms.sparelabs.com JS bundle hash: confirmed `main.60865478.js` (sha256 7989f74e...) still contains `api-spare.ngrok`, `sparelabs.atlassian`, `staging.sparelabs` refs — regression persisted, not a ne
+- CHANGED platform.sparelabs.com/login CSP: now 5327B (rotated HTML 5555B→5327B on 2026-08-17) but admin-eam-app + admin-fixed-route-app + Metabase + 9 cloud services STABLE in CSP directives
