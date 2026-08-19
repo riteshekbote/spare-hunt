@@ -3757,3 +3757,26 @@
 - CHANGED api.sparelabs.com/v1/** error envelope: metadata.correlationId (UUID) now explicitly confirmed leaked on every 401/404 response across all /v1/** paths — request-tracking artifact
 - CHANGED api.staging.sparelabs.com: staging enforces auth on /identity/workos/auth (401) while prod returns 200+SSO data — confirms multi-version LB serves older vulnerable code to prod; staging is OOS per sco
 - CHANGED api.staging.sparelabs.com/v1/public/organizations/key/translink: staging-only org (UUID 7e2d0fc8-...) with real terms URLs — not in prod; GCS bucket names leak environment topology (spare-staging-ca-p
+
+## 2026-08-19 17:24:25 UTC
+- NEW api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle live — Spare org has "test" + "incident" keys with internal UUIDs and form lists; CA-specific
+- NEW api.sparelabs.com/v1/public/engage/form GET: auth-free schema disclosure live — 20 fields on "test" form, 5 fields + 20 incident categories on "incident" form; formId extractable for POST chain
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥11 tenants with specific connection IDs (oakville.ca, cota.com, winnipeg.ca newly confirmed); fleet-parity across 7 hosts
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle retained at confidence 85 — nil-UUID→404 "Form was not found", empty→400 ValidationError, valid→200 discriminator; auth gate
+- NEW api.sparelabs.com/v1/** error envelope: metadata.correlationId (UUID) leaked on every 401/404 response across all /v1/** paths — request-tracking artifact
+- NEW forms.sparelabs.com bundle `main.60865478.js` confirmed current — contains ngrok (`api-spare.ngrok.io`) + Atlassian (`FIN-1093`) + localhost:3000/3035 + staging API URLs; regression persisted from sta
+- NEW api.staging.sparelabs.com: translink org staging-only (UUID 7e2d0fc8-...) with real terms URLs — not in prod; GCS bucket names leak environment info (spare-staging-ca-photos vs spare-production-ca-pho
+- NEW api.staging.sparelabs.com/v1/public/organizations/key/spare: staging org key oracle returns 288B with staging-specific data (spare-staging-ca-photos bucket, 2 feature flags vs 5 prod)
+- NEW api.staging.sparelabs.com/v1/identity/workos/auth: staging enforces auth (401) while prod returns 200+SSO data — confirms multi-version LB serves older vulnerable code to prod
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; previously only needed organizationId→403 on older code ver
+- CHANGED api.sparelabs.com/v1/global/organizations: auth fail-open STABLE confirmed not flapping — HTTP 200 `{"data":[]}` on all 6 samples across ~2h (params ignored, 11B hardcoded)
+- CHANGED forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — prod now serves staging bundle identically (ngrok/Atlassian/localhost refs); prior main.8a2a39cb.js "PATCHED" claims confirmed FA
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥11 tenants (oakville.ca + cota.com + winnipeg.ca newly confirmed, fleet-parity across 7 hosts)
+- CHANGED forms.sparelabs.com/: `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture across fleet
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded across replicas — now requires organizationId→caseTypeId(UUID)→contactInfo→403; previously only organizationId→403, confirming 
+- NEW api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle live — Spare org has "test" + "incident" keys with internal UUIDs, CORS reflected, returns auth-free schema
+- NEW api.sparelabs.com/v1/public/engage/form GET: auth-free full schema disclosure — 20 fields on "test" form, 5 fields + 20 incident categories on "incident" form; formId extractable for POST chain
+- NEW api.sparelabs.com/v1/** error envelope: `metadata.correlationId` (UUID) leaked on every 401/404 response across all /v1/** paths — request-tracking artifact
+- CHANGED forms.sparelabs.com JS bundle: rotation to `main.60865478.js` confirmed stable — prod now serves staging-identical bundle containing `api-spare.ngrok.io` + Atlassian `FIN-1093` + `localhost:3000/3035`
+- CHANGED api.staging.sparelabs.com: translink org (UUID `7e2d0fc8-...`) staging-only — not in prod; GCS bucket `spare-staging-ca-photos` vs `spare-production-ca-photos` leaks environment topology; staging is O
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded across replicas — now requires organizationId→caseTypeId(UUID)→contactInfo→403; previously only organizationId→403, confirming 
