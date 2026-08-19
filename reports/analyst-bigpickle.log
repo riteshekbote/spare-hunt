@@ -108901,3 +108901,295 @@ caseTypeName}} ({{count}} case)",triageCaseTypeLine_other:"{{caseTypeName}} ({{c
 **STEP 5 — NEXT ACTION (updated)**
 
 `[NEXT] DONE — no more actionable probes without caseTypeKey discovery (requires admin panel access) or browser verification. Current session exhausted passive probes. Ready for commit, new lead, or external input.`
+===== ANALYST bigpickle 2026-08-19 13:20:37 UTC =====
+[0m
+> build · big-pickle
+[0m
+## STEP 1 — DELTA
+
+```
+[NEW] api.staging.sparelabs.com: translink org (UUID 7e2d0fc8-…) staging-only — not in prod; confirms staging has tenant data prod lacks
+[NEW] api.staging.sparelabs.com: GCS bucket names leak env info (spare-staging-ca-photos vs spare-production-ca-photos)
+[CHANGED] api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; was simpler on older code version
+[CHANGED] forms.sparelabs.com/: x-frame-options: DENY while api/platform show SAMEORIGIN — inconsistent clickjacking posture
+[CHANGED] api.sparelabs.com/v1/** error envelope: metadata.correlationId (UUID) now explicitly tracked as leaked on every 401/404 response
+[NO_DELTA] api.sparelabs.com/v1/global/regions: sha256 fb9800acb…585c3fe byte-identical, bypass NOT patched
+[NO_DELTA] api.sparelabs.com/v1/global/organizations: 200 `{"data":[]}` + ACAO+ACAC, writes 401
+[NO_DELTA] forms.sparelabs.com: bundle main.60865478.js regression persisted (ngrok/Atlassian/staging refs)
+[NO_DELTA] routing.sparelabs.com: STABLE dead, envoy 404/0B since 2026-08-07
+```
+
+## STEP 2 — PRIORITIZE
+
+```
+[PRIO] api.sparelabs.com/v1/global/regions | 89 | a=9 b=7 t=8 g=10 c=4 f=5
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST | 88 | a=9 b=8 t=6 g=10 c=4 f=7
+[PRIO] api.sparelabs.com/v1/identity/workos/auth | 72 | a=7 b=6 t=8 g=10 c=3 f=5
+[PRIO] api.sparelabs.com/v1/global/organizations | 70 | a=7 b=5 t=5 g=10 c=3 f=5
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | 68 | a=6 b=6 t=5 g=10 c=3 f=5
+```
+
+cases POST rises to #2 (was #2 at 87→now 88) because the expanded validation chain confirms deeper handler reach without auth — 403 ForbiddenError means handler executed full pipeline. Freshness bump (f=7) because validation chain expansion is new this session.
+
+## STEP 3 — HYPOTHESES
+
+```
+[HYP] Scheme-only Bearer bypass on /v1/global/regions — 90+ hour unpatched, deterministic replica-split, longcat false positive
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Bearer x → 200+725B region registry + ACAO+ACAC; sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable 90h+; deterministic on 8/8 fast replicas; staging has fix (401) confirming multi-version LB serves older vulnerable code to prod. longcat "PATCHED" (2026-08-11) confirmed FALSE POSITIVE (only tested no-auth path 400).
+evidence_needed: None — STABLE 90h+ across 7 fleet hosts, last verified 2026-08-19 00:49 UTC
+verify_steps: PASSIVE: curl -s -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" | sha256sum — expect fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe
+impact: Region registry disclosure (7 regions, 6 OOS api/routing subdomains incl. staging) + CORS credential reflection enabling cross-origin authenticated read; OPTIONS confirms write methods (PUT/PATCH/POST/DELETE) advertised. Severity MEDIUM.
+testability: PASSIVE
+```
+
+```
+[HYP] Auth gate structurally absent on engage cases POST — validation precedes auth, handler-level feature-flag gate only
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 88
+reasoning: Expanded validation chain confirms handler executes full pipeline without auth: empty POST→400 "must have required property 'organizationId'" (NOT 401 InvalidTokenError); nil-UUID org + invalid caseTypeId→400 ValidationError "caseTypeId must match format uuid" (handler validates caseTypeId AFTER org lookup); valid org UUIDs (spare/grt/dallas/winnipeg/hsr)→403 ForbiddenError "External case creation is not enabled for this organization" (feature-flag gate, NOT auth gate). Pipeline order validated: validation→org-uuid→feature-flag→caseTypeId→handler. CORS reflected on all branches.
+evidence_needed: None — confirmed across 5+ live orgs with distinct handler-level error responses; pipeline order verified by caseTypeId format validation appearing AFTER org-UUID lookup
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{}' — confirm 400 "must have required property" (NOT 401); -d '{"organizationId":"00000000-0000-0000-0000-000000000000","caseTypeId":"not-a-uuid"}' — confirm 400 "caseTypeId must match format uuid"; -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000000"}' — confirm 403 ForbiddenError
+impact: Unauthenticated write path reaching handler — validation + feature-flag gates only, no auth gate in pipeline; if any org enables "External case creation" feature flag, unauthenticated case creation is possible; feature-flag change enables full exploit without code deploy. Severity MEDIUM (gate by feature flag, not auth).
+testability: PASSIVE
+```
+
+```
+[HYP] SSO-config oracle with state parameter reflection and Entra tenant ID disclosure — 11+ tenants fleet-wide
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 85
+reasoning: POST domain param discriminates 200 (configured tenant) vs 404; ≥11 tenants confirmed fleet-parity across 7 hosts; state parameter reflected URL-encoded in authorizeUrl body; WorkOS client_id + connection_id + Entra tenant IDs in relayState JWT disclosed with zero auth; redirect_uri silently dropped (not a vector). Staging enforces auth (401) confirming multi-version divergence. SSO roster and org-key sets overlap via winnipeg.ca (confirmed 2026-08-15).
+evidence_needed: None — stable across 7 hosts, last verified 2026-08-19 10:00 UTC; SSO roster at ≥11 tenants (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca, cota.com, +2)
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com"}' — confirm 200+172B with WorkOS client_id+connection_id; POST with domain=grt.ca — confirm 401/404 differential
+impact: SSO tenant enumeration (≥11 partners) + WorkOS OAuth client_id + Microsoft Entra tenant IDs disclosed without authentication; state reflection is OATH injection candidate (requires AUTH_HELPED browser verification for full XSS chain). Severity MEDIUM.
+testability: PASSIVE
+```
+
+## STEP 4 — SELF-CRITIQUE
+
+All 3 hypotheses survive scrutiny:
+- Regions bypass: 98% confidence, STABLE 90h+, deterministic, byte-verified — no reason to park
+- Cases POST: 88% confidence, expanded validation chain this session confirms deeper handler reach — no reason to park  
+- WorkOS oracle: 85% confidence, 11+ tenants, fleet-parity, cross-session stable — no reason to park
+
+The engagement formKey oracle (previously at 85) is BLOCKED by caseTypeKey unenumerability and now sits at 80 with no path forward without AUTH_HELPED. Not included in final hypotheses.
+
+```
+[FINAL]
+[98] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass — 90h+ unpatched, deterministic replica-split, longcat false positive, byte-stable sha256
+[88] api.sparelabs.com/v1/public/engage/cases POST: Auth gate structurally absent — validation precedes auth in pipeline, handler-level feature-flag gate only, cross-route oracle validated on 5 orgs
+[85] api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle — 11+ tenants fleet-parity, state reflection, Entra tenant ID disclosure, redirect_uri dead
+```
+
+## STEP 5 — NEXT ACTION
+
+```
+[NEXT] PROBE: Advance to caseForms formKey RAG extraction — fetch the platform bundle (index-B6uSYXCi.js or current hash) from platform.sparelabs.com, search for formKey/formId caseTypeKey references in the embedded OpenAPI spec or MFE manifest. If formKeys are embedded in the bundle, test them against POST /v1/public/engage/caseForms to trigger the 200 vs 404 discriminator. This is the only remaining passive vector for the caseForms oracle hypothesis (confidence 80, BLOCKED on caseTypeKey enumeration but formKey may be extractable from bundle).
+```
+
+## STEP 6 — LEARNING
+
+```
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split; longcat "PATCHED" false positive
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — expanded validation chain (403 ForbiddenError with caseTypeId validation) proves handler full-pipeline reach without auth; feature-flag gate not auth gate
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle ≥11 tenants fleet-parity confirmed; staging enforces auth (401) confirming multi-version divergence
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE — superior to flapping singular /organization
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — writes properly gated at handler level
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 86h+ — non-path-conditional
+[LEARN] ACCEPTED BUSLOGIC @ forms.sparelabs.com: CA→US data routing confirmed via Production_CA bundle → api.us.sparelabs.com (PIPEDA implications)
+[LEARN] ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no oracle), terms no per-tenant filter; staging is newer code
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only
+[LEARN] REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+[LEARN] REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+[LEARN] REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed
+```
+
+## STEP 7 — RISK SCORE
+
+```
+[RISK] api.sparelabs.com: 95 — auth bypasses (regions+organizations) deterministic 90h+ unpatched; universal CORS credential reflection; SSO oracle ≥11 tenants; engage auth-absent write path with expanded validation chain; per-tenant terms disclosure; org-key 3-way oracle; multi-version LB confirmed; forms bundle regression
+[RISK] api.us.sparelabs.com: 72 — fleet-parity bypass code (regions+organizations) but data oracles (UUID/org-key/SSO) CA-specific only
+[RISK] platform.sparelabs.com: 65 — CSP infra leak stable (admin Vercel apps loadable 200 + Metabase prod+staging 200 + 9 cloud services); embedded EAM OpenAPI spec (170 paths, all properly gated)
+[RISK] api.staging.sparelabs.com: 60 — different code version (regions=400 no bypass, workos=401 no oracle, terms no per-tenant filter); organizations zero-header bypass still works; staging-specific org data (translink, spare-staging-ca-photos bucket)
+[RISK] forms.sparelabs.com: 50 — bundle main.60865478.js regression with ngrok/Atlassian/staging refs + CA→US data routing (PIPEDA); SPA catch-all; x-frame-options DENY inconsistent with api/platform SAMEORIGIN
+[RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07
+[RISK] web (spare.com/sparelabs.com): 10 — static Webflow marketing only
+```
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+Proceeding with the caseForms formKey RAG extraction probe.
+
+Fetching the platform bundle to search for embedded formKey/formId references.
+[0m% [0mWebFetch https://platform.sparelabs.com
+[0m✗ [0mWebFetch https://platform.sparelabs.com/assets/index-DR4V_WtS.js failed
+[91m[1mError: [0mResponse too large (exceeds 5MB limit)
+[0m% [0mWebFetch https://platform.sparelabs.com/_mfe/eam/manifest.wc.json
+Good — new bundle hash `index-DR4V_WtS.js`. Fetching it and the MFE manifests in parallel.
+[0m% [0mWebFetch https://platform.sparelabs.com/_mfe/fixed-route/manifest.wc.json
+Main bundle too large (>5MB) and the MFE manifests are EAM (fleet management) — no formKey references. The caseForms are in the engage/forms domain, not the platform EAM. Switching to the forms.sparelabs.com bundle which is the engage form builder.
+[0m% [0mWebFetch https://forms.sparelabs.com/assets/main.60865478.js
+[0m% [0mWebFetch https://forms.sparelabs.com
+[0m✗ [0mWebFetch https://forms.sparelabs.com/static/js/main.60865478.js failed
+[91m[1mError: [0mResponse too large (exceeds 5MB limit)
+Bundle is >5MB — fetching via curl and searching for formKey/formId references.
+[0m
+[0m$ [0mcurl -s "https://forms.sparelabs.com/static/js/main.60865478.js" -o /tmp/forms-bundle.js && wc -c /tmp/forms-bundle.js
+7161345 /tmp/forms-bundle.js
+[0m
+7.1MB downloaded. Searching for formKey, formId, and caseTypeKey references.
+[0m$ [0mgrep -oP '.{0,80}formKey.{0,80}' /tmp/forms-bundle.js | head -50
+.id))throw new Error(iPe.errors.noPermission());const i=await r.public.getForm({formKey:null!==(o=null===t||void 0===t?void 0:t.defaultFormKey)&&void 0!==o?o:"",caseTy
+");return{defaultForm:await r.public.getForm({organizationId:t.id,caseTypeKey:e,formKey:null!==(o=null===i||void 0===i?void 0:i.defaultFormKey)&&void 0!==o?o:""})}};cl
+ganizationId"),caseTypeKey:null!==(t=o.get("caseTypeKey"))&&void 0!==t?t:void 0,formKey:null!==(n=o.get("formKey"))&&void 0!==n?n:void 0,caseId:o.get("caseId")||void 0
+l is invalid.")),"";const a=new URLSearchParams({organizationId:r,caseTypeKey:i,formKey:e,caseId:t}),c=null===n||void 0===n?void 0:n[e];return c&&a.set("token",c),"".c
+[n,i]}),(async(e,t)=>{YPe.logError("Failed to mint form-link submission token",{formKey:e,error:t})}));return Object.fromEntries(a.filter((e=>void 0!==e)))}catch(a){re
+rror:n,value:o}=oUe((()=>async function(e){const{organizationId:t,caseTypeKey:n,formKey:o,caseId:r,token:i}=xUe.parse(e),a=FXe.buildWithoutOrganizationContext(),c=awai
+c};const s=jXe.build(),l=await s.public.getForm({organizationId:t,caseTypeKey:n,formKey:o,caseId:r,token:i});return{form:l,organization:c,caseId:r,token:i}}(null!==e&&
+h;return e?e.params:{}}(),n=new URLSearchParams({organizationId:e,caseTypeKey:t,formKey:t}).toString();return(0,Ie.jsx)(KBe,{exact:!0,from:"/forms/:orgId/:caseTypeKey"
+[0m
+Found `public.getForm({formKey:...})` references. Searching for the API endpoint definition and any hardcoded formKey values.
+[0m$ [0mgrep -oP '.{0,120}getForm.{0,120}' /tmp/forms-bundle.js | head -20
+ta[1]:this.metadata[2]}},{key:"possibleLengths",value:function(){if(!this.v1)return this.metadata[this.v2?2:3]}},{key:"_getFormats",value:function(e){return e[this.v1?2:this.v2?3:4]}},{key:"formats",value:function(){var e=this;return(this._getForm
+ats(this.metadata)||this._getFormats(this.getDefaultCountryMetadataForRegion())||[]).map((function(t){return new A3(t,e)}))}},{key:"nationalPrefix",value
+z.Z)(this,"post",this.buildPost()),(0,Oz.Z)(this,"patch",this.buildPatch())}}class Q5{constructor(e){this.agent=e}async getForm(e){return(await this.agent.get(k5.PublicForm,{params:e})).data}async postCaseForm(e){await this.agent.post(k5.PublicCas
+Error;const r=jXe.build();if(!await r.cases.get(e.id))throw new Error(iPe.errors.noPermission());const i=await r.public.getForm({formKey:null!==(o=null===t||void 0===t?void 0:t.defaultFormKey)&&void 0!==o?o:"",caseTypeKey:t.key,organizationId:n.id
+);if(null===i||void 0===i||!i.defaultFormKey)throw new Error("No default form found");return{defaultForm:await r.public.getForm({organizationId:t.id,caseTypeKey:e,formKey:null!==(o=null===i||void 0===i?void 0:i.defaultFormKey)&&void 0!==o?o:""})}}
+.setRegionalHost(c.apiHost),cXe.setOrganizationId(t),!n||!o)return{organization:c};const s=jXe.build(),l=await s.public.getForm({organizationId:t,caseTypeKey:n,formKey:o,caseId:r,token:i});return{form:l,organization:c,caseId:r,token:i}}(null!==e&&
+[0m
+[0m$ [0mgrep -oP '.{0,60}PublicForm.{0,60}' /tmp/forms-bundle.js | head -20
+gage/letters",e.PublicCaseForms="public/engage/caseForms",e.PublicForm="public/engage/form",e.NylasOrganizationGrants="engage/nyla
+his.agent=e}async getForm(e){return(await this.agent.get(k5.PublicForm,{params:e})).data}async postCaseForm(e){await this.agent.po
+XIe,{onUpdateClick:()=>e(VXe.FormInput)})]})},GUe=e=>{let{isPublicForm:t,onUpdateClick:n}=e;return(0,Ie.jsxs)(WPe,{children:[(0,Ie
+sly),[p,u]=(0,Ur.useState)(!1);if(s)return(0,Ie.jsx)(GUe,{isPublicForm:!e6.isAuthRequired(n),onUpdateClick:()=>l(!1)});const d=UPe
+[0m
+Found the endpoints:
+- `PublicForm = "public/engage/form"` (GET)
+- `PublicCaseForms = "public/engage/caseForms"` (POST)
+
+Searching for query parameter construction and any hardcoded formKey values.
+[0m$ [0mgrep -oP '.{0,200}public/engage/form.{0,200}' /tmp/forms-bundle.js | head -10
+e/caseTypes/:id/tags",e.EngageMetrics="engage/metrics",e.FormContents="engage/formContents",e.Forms="engage/forms",e.Letters="engage/letters",e.PublicCaseForms="public/engage/caseForms",e.PublicForm="public/engage/form",e.NylasOrganizationGrants="engage/nylas/organizationGrants",e.NylasAdminGrants="engage/nylas/adminGrants",e.TranslateText="engage/translate/text",e.TranslateTexts="engage/translate/texts",e.Translat
+[0m
+[0m$ [0mgrep -oP '.{0,300}getForm.{0,300}' /tmp/forms-bundle.js | grep -v 'possibleLength\|nationalPrefix\|_getFormat' | head -10
+()),(0,Oz.Z)(this,"delete",this.buildDel())}}class K5 extends _v{constructor(e){super(k5.Letters,e),(0,Oz.Z)(this,"get",this.buildGet()),(0,Oz.Z)(this,"list",this.buildList()),(0,Oz.Z)(this,"post",this.buildPost()),(0,Oz.Z)(this,"patch",this.buildPatch())}}class Q5{constructor(e){this.agent=e}async getForm(e){return(await this.agent.get(k5.PublicForm,{params:e})).data}async postCaseForm(e){await this.agent.post(k5.PublicCaseForms,e)}}class J5{constructor(e){(0,Oz.Z)(this,"agent",void 0),this.agent=e}async translateText(e){return(await this.agent.post(k5.TranslateText,e)).data}async translateTexts(e){
+matDate(1e3*o.createdAt,aIe.timezone)})})]})}),(0,Ie.jsx)(dUe,{children:(0,Ie.jsx)(Aqe,{badgeTheme:fUe[d.stage],children:M})})]})},OUe=async(e,t,n)=>{var o;if(!t||!e||!n)throw new Error;const r=jXe.build();if(!await r.cases.get(e.id))throw new Error(iPe.errors.noPermission());const i=await r.public.getForm({formKey:null!==(o=null===t||void 0===t?void 0:t.defaultFormKey)&&void 0!==o?o:"",caseTypeKey:t.key,organizationId:n.id}),a=(await r.caseForms.list({caseId:e.id,formId:i.id})).data[0];return{form:i,caseForm:null!==a&&void 0!==a?a:void 0}};var hUe,AUe,mUe,gUe,vUe,qUe,yUe;const WUe=Sl.div(hUe||(hUe=t
+=async(e,t,n)=>{var o;const r=jXe.build(),i=null===n||void 0===n?void 0:n.caseTypes.find((t=>t.key===e));if(!i||null===n||void 0===n||!n.rider)throw new Error("Case type not found");if(null===i||void 0===i||!i.defaultFormKey)throw new Error("No default form found");return{defaultForm:await r.public.getForm({organizationId:t.id,caseTypeKey:e,formKey:null!==(o=null===i||void 0===i?void 0:i.defaultFormKey)&&void 0!==o?o:""})}};class xUe{static parse(e){var t,n;const o=new URLSearchParams(e);return{organizationId:this.getSearchParamOrThrow(o,"organizationId"),caseTypeKey:null!==(t=o.get("caseTypeKey"))&&
+=>async function(e){const{organizationId:t,caseTypeKey:n,formKey:o,caseId:r,token:i}=xUe.parse(e),a=FXe.buildWithoutOrganizationContext(),c=await a.global.getOrganization(t);if(cXe.setRegionalHost(c.apiHost),cXe.setOrganizationId(t),!n||!o)return{organization:c};const s=jXe.build(),l=await s.public.getForm({organizationId:t,caseTypeKey:n,formKey:o,caseId:r,token:i});return{form:l,organization:c,caseId:r,token:i}}(null!==e&&void 0!==e?e:"")),[e]);if(t)return(0,Ie.jsx)(EPe,{children:(0,Ie.jsx)(AIe,{})});if(n||!o)return(0,Ie.jsx)(EPe,{children:(0,Ie.jsx)(BPe,{message:(null===n||void 0===n?void 0:n.messa
+[0m
+Found the key API pattern. The `formKey` comes from URL params and is passed to `GET /v1/public/engage/form`. Let me search for hardcoded formKey values and case type definitions.
+[0m$ [0mgrep -oP '.{0,100}defaultFormKey.{0,100}' /tmp/forms-bundle.js | head -20
+mIe,{})});if(!d)throw new Error;return(0,Ie.jsxs)(pUe,{onClick:()=>{if(!u||null===u||void 0===u||!u.defaultFormKey)throw new Error;p(null===b||void 0===b?void 0:b.caseForm,ZXe.ThisSession),s(null===b||void 0===b?vo
+ors.noPermission());const i=await r.public.getForm({formKey:null!==(o=null===t||void 0===t?void 0:t.defaultFormKey)&&void 0!==o?o:"",caseTypeKey:t.key,organizationId:n.id}),a=(await r.caseForms.list({caseId:e.id,fo
+||null===n||void 0===n||!n.rider)throw new Error("Case type not found");if(null===i||void 0===i||!i.defaultFormKey)throw new Error("No default form found");return{defaultForm:await r.public.getForm({organizationId:
+t.id,caseTypeKey:e,formKey:null!==(o=null===i||void 0===i?void 0:i.defaultFormKey)&&void 0!==o?o:""})}};class xUe{static parse(e){var t,n;const o=new URLSearchParams(e);return{organ
+erInterfaceVisibility:!0});return{rider:t,cases:o.data,caseStatuses:i,caseTypes:a.data.filter((e=>e.defaultFormKey))}}),[]);if(i)return(0,Ie.jsx)(AIe,{});if(a||!r)return(0,Ie.jsx)(BPe,{message:(null===a||void 0===a
+[0m
+[0m$ [0mgrep -oP '.{0,150}caseTypes.{0,150}' /tmp/forms-bundle.js | grep -i 'list\|get\|fetch\|endpoint\|url\|api' | head -15
+x;\n  flex-direction: column;\n  gap: 4px;\n"]))),fUe={[g5.Todo]:dye,[g5.InProgress]:uye,[g5.Done]:pye},zUe=e=>{var t,n;let{caseData:o,caseStatuses:r,caseTypes:i}=e;const{onNextStep:a,setCaseId:c,setForm:s,organization:l,setCaseForm:p}=KXe(),u=i.find((e=>e.id===o.caseTypeId)),d=null===(t=r.get(o.caseTypeId))
+{};const o=new URLSearchParams(location.search),r=o.get("organizationId"),i=o.get("caseTypeKey");if(!r||!i)return{};try{const t=jXe.build(),o=await t.caseTypes.getPublic({organizationId:r,caseTypeKey:i}),{successes:a}=await async function(e,t,n){let o=arguments.length>3&&void 0!==arguments[3]?arguments[3]:8;
+||e.push(t.caseTypeId),e)),[]),i=new Map;for(const c of r){const e=await n.caseStatuses.list({caseTypeId:c,limit:50});i.set(c,e.data)}const a=await n.caseTypes.list({status:R5.Active,riderInterfaceVisibility:!0});return{rider:t,cases:o.data,caseStatuses:i,caseTypes:a.data.filter((e=>e.defaultFormKey))}}),[])
+)},alignRight:!0})]}),(0,Ie.jsx)(TUe,{children:null===r||void 0===r?void 0:r.cases.map(((e,t)=>(0,Ie.jsx)(zUe,{caseData:e,caseStatuses:r.caseStatuses,caseTypes:r.caseTypes},t)))})]})]})})},[VXe.FormInput]:JUe,[VXe.Finished]:HUe,[VXe.SpecialistWelcome]:()=>null},kFe=()=>{const{flow:e,flowIndex:t}=KXe(),n=(0,U
+[0m
+[0m$ [0mgrep -oP '.{0,100}getPublic.{0,100}' /tmp/forms-bundle.js | head -10
+place(":id",t.id);await this.agent.delete("".concat(n,"/").concat(e))}))}}class j5 extends _v{async getPublic(e){return(await this.agent.get("public/engage/caseType",{params:e})).data}async duplicate(e,t){retu
+anizationId"),i=o.get("caseTypeKey");if(!r||!i)return{};try{const t=jXe.build(),o=await t.caseTypes.getPublic({organizationId:r,caseTypeKey:i}),{successes:a}=await async function(e,t,n){let o=arguments.length>
+[0m
+Found `public/engage/caseType` endpoint. Testing it now.
+[0m$ [0mcurl -s -w "\n\nHTTP_STATUS: %{http_code}\nCONTENT_TYPE: %{content_type}\nSIZE: %{size_download}" \
+  -H "Origin: https://forms.sparelabs.com" \
+  "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=general_inquiry"
+{"name":"NotFoundError","message":"Other was not found","metadata":{"correlationId":"ad4d6718-594d-4de6-a0f5-c3aaf1c28cf7"}}
+
+HTTP_STATUS: 404
+CONTENT_TYPE: application/json; charset=utf-8
+SIZE: 124
+[0m
+[0m$ [0mcurl -s -w "\n\nHTTP_STATUS: %{http_code}" \
+  -H "Origin: https://forms.sparelabs.com" \
+  "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790"
+{"name":"ValidationError","message":"request/query must have required property 'caseTypeKey'","metadata":{"errors":[{"path":"/query/caseTypeKey","message":"must have required property 'caseTypeKey'","errorCode":"required.openapi.validation"}],"correlationId":"bfa28d23-4333-4f28-b184-fed3d3d7b60f"}}
+
+HTTP_STATUS: 400
+[0m
+[0m$ [0mgrep -oP '.{0,200}/forms/.{0,200}' /tmp/forms-bundle.js | head -20
+{const{orgId:e,caseTypeKey:t}=function(){var e=lDe(FBe).match;return e?e.params:{}}(),n=new URLSearchParams({organizationId:e,caseTypeKey:t,formKey:t}).toString();return(0,Ie.jsx)(KBe,{exact:!0,from:"/forms/:orgId/:caseTypeKey",to:{pathname:"/forms",search:n}})};var IFe;const YFe=Sl.div(IFe||(IFe=t(["\n  display: flex;\n  flex-direction: column;\n  justify-content: space-between;\n"]))),UFe=()=>(0,Ie.jsx
+tom-left",autoClose:5e3,closeButton:!1,hideProgressBar:!0,toastClassName:"custom-toast",bodyClassName:"custom-toast-body"}),(0,Ie.jsxs)(YFe,{children:[(0,Ie.jsxs)(sDe,{children:[(0,Ie.jsx)(nDe,{path:"/forms/:orgId/:caseTypeKey",component:XFe}),(0,Ie.jsx)(nDe,{path:"/forms/:orgId",component:DFe}),(0,Ie.jsx)(nDe,{path:"/forms",component:DFe}),(0,Ie.jsx)(nDe,{component:PFe})]}),(0,Ie.jsx)(qIe,{})]})]});var
+[0m
+Key insight: the app redirects `/forms/:orgId/:caseTypeKey` to `/forms?organizationId=X&caseTypeKey=Y&formKey=Y` — it assumes `formKey === caseTypeKey`. Testing this.
+[0m$ [0mcurl -s -w "\n\nHTTP_STATUS: %{http_code}\nSIZE: %{size_download}" \
+  -H "Origin: https://forms.sparelabs.com" \
+  "https://api.sparelabs.com/v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=general_inquiry&formKey=general_inquiry"
+{"name":"NotFoundError","message":"Form was not found","metadata":{"correlationId":"c5d08161-c8b3-467a-aaa9-e81059f0c5fa"}}
+
+HTTP_STATUS: 404
+SIZE: 123
+[0m
+[0m$ [0mgrep -oP '"[a-z_]+"' /tmp/forms-bundle.js | sort -u | grep -v '^[a-z]\{1,3\}$' | grep -vE '^(null|true|false|undefined|error|data|key|id|name|type|value|message|status|code|index|input|result|options|config|env|node|module|exports|require|import|export|default|class|function|return|const|let|var|if|else|for|while|do|switch|case|break|continue|new|this|typeof|instanceof|void|delete|throw|try|catch|finally|with|debugger|yield|async|await|of|in|from|as|get|set|super|static)$' | head -50
+(no output)
+
+<shell_metadata>
+shell tool terminated command after exceeding timeout 15000 ms. If this command is expected to take longer and is not waiting for interactive input, retry with a larger timeout value in milliseconds.
+</shell_metadata>
+[0m
+[0m$ [0mgrep -oP 'caseTypeKey.{0,60}' /tmp/forms-bundle.js | head -30
+caseTypeKey:t.key,organizationId:n.id}),a=(await r.caseForms.list({case
+caseTypeKey:e,formKey:null!==(o=null===i||void 0===i?void 0:i.defaultFo
+caseTypeKey:null!==(t=o.get("caseTypeKey"))&&void 0!==t?t:void 0,formKe
+caseTypeKey");if(!e||!r||!i||!t)return YPe.handleError(new Error("Unabl
+caseTypeKey:i,formKey:e,caseId:t}),c=null===n||void 0===n?void 0:n[e];r
+caseTypeKey");if(!r||!i)return{};try{const t=jXe.build(),o=await t.case
+caseTypeKey:i}),{successes:a}=await async function(e,t,n){let o=argumen
+caseTypeKey:n,formKey:o,caseId:r,token:i}=xUe.parse(e),a=FXe.buildWitho
+caseTypeKey:n,formKey:o,caseId:r,token:i});return{form:l,organization:c
+caseTypeKey:t}=function(){var e=lDe(FBe).match;return e?e.params:{}}(),
+caseTypeKey:t,formKey:t}).toString();return(0,Ie.jsx)(KBe,{exact:!0,fro
+caseTypeKey",to:{pathname:"/forms",search:n}})};var IFe;const YFe=Sl.di
+caseTypeKey",component:XFe}),(0,Ie.jsx)(nDe,{path:"/forms/:orgId",compo
+[0m
+[0m$ [0mgrep -oP '"[^"]*sparelabs[^"]*"' /tmp/forms-bundle.js | sort -u | head -20
+" !important;\n    border: 0px !important;\n  }\n\n  /* Duplication of styles is needed here to override Reactstrap styling to get our desired disabled state\n    there is a spike ticket for removing Reactstrap which would prevent us needing to do this\n    https://sparelabs.atlassian.net/browse/FIN-1093\n  */\n  &:disabled {\n    box-shadow: none !important;\n    color: "
+" treatments (see\n   * sparelabs-admin/src/components/Calendar/DayCalendar.tsx). Kept as a text\n   * style instead of a fill so it composes cleanly with the selected-day\n   * chip below.\n   */\n  .CalendarDay__today {\n    font-weight: 700;\n    color: ',"
+"https://api.staging.sparelabs.com"
+"https://api.staging.us.sparelabs.com"
+"https://api.us.sparelabs.com"
+"https://forms.sparelabs.com"
+"https://forms.staging.sparelabs.com"
+"https://forms.staging.us.sparelabs.com"
+"https://forms.us.sparelabs.com"
+[0m
+[0m$ [0mgrep -oP '.{0,200}form-link.{0,200}' /tmp/forms-bundle.js | head -10
+}}(n,(async n=>{const r=o.forms.find((e=>e.key===n));if(!r)return;const{token:i}=await t.caseForms.postSubmissionToken({caseId:e,formId:r.id});return[n,i]}),(async(e,t)=>{YPe.logError("Failed to mint form-link submission token",{formKey:e,error:t})}));return Object.fromEntries(a.filter((e=>void 0!==e)))}catch(a){return YPe.logError("Failed to resolve forms for form-link tokens",{error:a}),{}}};var YUe;cons
+[0m
+[0m$ [0mgrep -oP '.{0,300}organizationId.*caseTypeKey.*formKey.{0,100}' /tmp/forms-bundle.js | head -5
+...output truncated...
+
+Full output saved to: /home/runner/.local/share/opencode/tool-output/tool_01a2de49c001wj26Yy3AE5d9ej
+
+(no output)
+[0m
+[0m$ [0mcurl -s -w "\nHTTP_STATUS: %{http_code}\nSIZE: %{size_download}" \
+  -H "Origin: https://forms.sparelabs.com" \
+  "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=service_request"
+{"name":"NotFoundError","message":"Other was not found","metadata":{"correlationId":"10699bf3-db00-4945-a623-2fd9f17a4aa8"}}
+HTTP_STATUS: 404
+SIZE: 124
+[0m
+[93m[1m! [0mpermission requested: external_directory (/tmp/*); auto-rejecting
+[0m✗ [0m# Try common transit/engage caseTypeKey values against the Spare organization
+for key in service_request general_inquiry lost_and_found complaint compliment feedback trip_planner accessibility PARATRANSIT ACCESSIBLE MINORITY规划设计 input_output info_request inquiry question booking reservation complaint lost_item found_item lost_found lost_found_item lost_property lost_property_report found_property transit_feedback bus_feedback stop_feedback route_feedback customer_service rider_feedback driver_feedback vehicle_feedback maintenance_request facility_request safety_concern schedule_feedback fare_feedback app_feedback website_feedback general_feedback general_question general_request service_feedback service_complaint service_question service_inquiry general general_service general_service_request; do
+  result=$(curl -s -w "%{http_code}" -o /tmp/ct_resp.json \
+    -H "Origin: https://forms.sparelabs.com" \
+    "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=$key" 2>/dev/null)
+  if [ "$result" != "404" ]; then
+    echo "HIT [$result] key=$key"
+    cat /tmp/ct_resp.json
+    echo ""
+  fi
+done
+echo "---DONE---" failed
+[91m[1mError: [0mThe user rejected permission to use this specific tool call.
+Let me try a different approach — search for the caseTypeKey values referenced in the form URL patterns and look for known transit keys.

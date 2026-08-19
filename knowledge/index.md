@@ -2427,3 +2427,26 @@
 - 2026-08-19 ACCEPTED NEW @ api.sparelabs.com/v1/public/engage/form GET: auth-free endpoint, takes organizationId+caseTypeKey+formKey as query params, CORS reflected, returns 404 with dummy keys — BLOCKED on caseTypeKey enumeration
 - 2026-08-19 ACCEPTED NEW @ api.sparelabs.com/v1/public/engage/caseType GET: auth-free endpoint, takes organizationId+caseTypeKey (both required), CORS reflected
 - 2026-08-19 REJECTED BUSLOGIC (caseTypeKey oracle): caseTypeKey values are admin-created, no public enumeration endpoint, SPA fetches via authenticated call — hypothesis BLOCKED (not killable, not closable without admin access)
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — live probe 2026-08-19 confirms 200+725B+ACAO+ACAC, sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` byte-identical
+- 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — empty POST→400 ValidationError (NOT 401); valid org UUIDs→403 ForbiddenError (feature-flag gate, NOT auth gate); CORS reflected
+- 2026-08-19 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: `main.60865478.js` confirmed current regression bundle (contains ngrok/Atlassian/localhost refs); prior PATCHED claims on main.8a2a39cb.js were false positives
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split; longcat "PATCHED" (2026-08-11) false positive
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass still NOT patched — live probe 2026-08-19 confirms 200+725B+ACAO+ACAC, sha256 fb9800acb…585c3fe byte-identical, 90h+ stable, deterministic fast-replica split
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE not flapping — 200+11B+ACAO+ACAC on all 6 probes across ~2h, writes properly gated at 401
+- 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — pipeline order validation→org-uuid→feature-flag→handler; validation chain expanded requiring caseTypeId+contactInfo
+- 2026-08-19 ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (oakville.ca + cota.com newly confirmed); fleet-parity across 7 hosts confirmed
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle STABLE — live set closed at {spare,grt,dallas,winnipeg,hsr}, prod-only data, feature-flag differential persists
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle RETAINED at 85 — auth gate ABSENT, handler reached without 401
+- 2026-08-19 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak-only, not oracle class; plural /organizations/{id} superior
+- 2026-08-19 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07; newly responsive but zero surface
+- 2026-08-19 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — contains ngrok/Atlassian/localhost refs; prior "PATCHED" claims on main.8a2a39cb.js confirmed false positives
+- 2026-08-19 REJECTED MISCONFIG @ api.sparelabs.com/v1/global/* (controller-wide): 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped to exactly {/organizations, /regions}
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split; longcat "PATCHED" false positive
+- 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — expanded validation chain (403 ForbiddenError with caseTypeId validation) proves handler full-pipeline reach without auth; feature-flag gate not auth gate
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle ≥11 tenants fleet-parity confirmed; staging enforces auth (401) confirming multi-version divergence
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE — superior to flapping singular /organization
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — writes properly gated at handler level
+- 2026-08-19 ACCEPTED BUSLOGIC @ forms.sparelabs.com: CA→US data routing confirmed via Production_CA bundle → api.us.sparelabs.com (PIPEDA implications)
+- 2026-08-19 ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no oracle), terms no per-tenant filter; staging is newer code
+- 2026-08-19 REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+- 2026-08-19 REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed

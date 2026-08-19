@@ -10396,3 +10396,55 @@
 - LEARN: ACCEPTED NEW @ api.sparelabs.com/v1/public/engage/form GET: auth-free endpoint, takes organizationId+caseTypeKey+formKey as query params, CORS reflected, return
 - LEARN: ACCEPTED NEW @ api.sparelabs.com/v1/public/engage/caseType GET: auth-free endpoint, takes organizationId+caseTypeKey (both required), CORS reflected
 - LEARN: REJECTED BUSLOGIC (caseTypeKey oracle): caseTypeKey values are admin-created, no public enumeration endpoint, SPA fetches via authenticated call — hypothesis BL
+
+## RANKED HYPOTHESES 2026-08-19 13:20:37 UTC
+- [99] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on /v1/global/regions — 90+ hours unpatched, longcat false positive (from reports/hypotheses-laguna.txt)
+- [98] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on /v1/global/regions — 90+ hour unpatched, deterministic replica-split, longcat false positive (from reports/hypotheses-bigpickle.txt)
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on /v1/global/regions with full write-method CORS surface (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/public/engage/caseForms -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId"
+- NEXT(hypotheses-laguna.txt): PROBE: curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","c
+- NEXT(hypotheses-bigpickle.txt): PROBE: Advance to caseForms formKey RAG extraction — fetch the platform bundle (index-B6uSYXCi.js or current hash) from platform.sparelabs.com, search for formK
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle confirmed live — 404 "Form was not found" vs 200 discriminator; 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: complete zero-header read-only bypass STABLE 86h+ — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/D
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — deterministic on 8/8 fast replicas (multi-version LB split); longca
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle REGRESSION PERSISTED — main.60865478.js identical to staging; contains ngrok/Atlassian/localhost refs; prior PA
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 86h+ — non-path-conditional via 22-sibling sweep
+- LEARN: ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no SSO oracle), terms returns same URLs for all mob
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle RETAINED at 80 — route live, auth gate ABSENT, need valid formKeys f
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — 403 feature-flag gate not auth gate, CORS reflected
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B all paths since 2026-08-07
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — live probe 2026-08-19 confirms 200+725B+ACAO+ACAC, sha256 `fb9800ac
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle STABLE — spare→200+351B, dallas→200+237B, notreal→404+131B; feature-flag diffe
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed — empty POST→400 ValidationError (NOT 401); valid org UUIDs→403 Fo
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: SSO roster ≥11 tenants confirmed — cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC) verified live; 3-way di
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: `main.60865478.js` confirmed current regression bundle (contains ngrok/Atlassian/localhost refs); prior PATC
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle rotation main.63fe135c.js→main.60865478.js — prod now serves staging bundle with infra refs; downgrade from ACC
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split; longcat "PATCHE
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — 403 feature-flag gate not auth gate, CORS reflected, vali
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass still NOT patched — live probe 2026-08-19 confirms 200+725B+ACAO+ACAC, sha256 fb9
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE not flapping — 200+11B+ACAO+ACAC on all 6 probes across ~2h, writ
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — pipeline order validation→org-uuid→feature-flag→handler; 
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (oakville.ca + cota.com newly confirmed); fleet-parity across 7 ho
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle STABLE — live set closed at {spare,grt,dallas,winnipeg,hsr}, prod-only data, f
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle RETAINED at 85 — auth gate ABSENT, handler reached without 401
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07; newly responsive but zero surface
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — contains ngrok/Atlassian/localhost refs; prior "PATCHED" claims on m
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/* (controller-wide): 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split; longcat "PATCHED" fals
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — expanded validation chain (403 ForbiddenError with caseTy
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle ≥11 tenants fleet-parity confirmed; staging enforces auth (401) confirming multi-version d
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE — superior to flapping singular /organization
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — writes properly gated at handler level
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 86h+ — non-path-conditional
+- LEARN: ACCEPTED BUSLOGIC @ forms.sparelabs.com: CA→US data routing confirmed via Production_CA bundle → api.us.sparelabs.com (PIPEDA implications)
+- LEARN: ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no oracle), terms no per-tenant filter; staging is 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed
