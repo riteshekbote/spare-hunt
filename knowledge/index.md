@@ -2520,3 +2520,12 @@
 - 2026-08-19 REJECTED: /v1/global/* controller-wide — 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family scoped to exactly {/organizations, /regions}
 - 2026-08-19 REJECTED: write-escalation @ /v1/global/{organizations,regions} — POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
 - 2026-08-19 REJECTED: api.sparelabs.com/v1/public/engage/{caseType,form} GET — flapping between OpenAPI validation (400) and router-level-not-found (400) across envoy replicas, NOT reliable passive surface
+- 2026-08-19 ACCEPTED BUSLOGIC @ /v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — validation BEFORE auth in pipeline; full payload → 403 feature-flag gate, NOT auth gate; CORS reflected; 90h+ stable
+- 2026-08-19 ACCEPTED BUSLOGIC @ /v1/public/engage/caseForms POST: auth gate ABSENT confirmed STABLE — handler reached without 401; cascading validation chain confirmed
+- 2026-08-19 ACCEPTED IDOR @ /v1/public/engage/caseType GET: caseTypeKey enumeration oracle confirmed live — Spare org has "test" + "incident" keys with internal UUIDs and form lists; CORS reflected, auth-free
+- 2026-08-19 ACCEPTED IDOR @ /v1/public/engage/form GET: full schema disclosure confirmed live — 20 fields on "test" form + 5 fields + 20 incident categories on "incident" form; formId extractable for POST chain
+- 2026-08-19 ACCEPTED BUSLOGIC @ /v1/public/organizations/{uuid}: Feature flag disclosure confirmed for all 5 orgs — Spare 5, Winnipeg 4, HSR 3, GRT 2, Dallas 0. No auth required.
+- 2026-08-19 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — prod serves staging-identical bundle with ngrok/Atlassian/localhost refs; prior PATCHED claims false positives
+- 2026-08-19 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak-only; plural /organizations/{id} is superior stable oracle
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — writes properly gated at handler level; auth asymmetry confirmed
+- 2026-08-19 ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no oracle), staging has fixes prod lacks
