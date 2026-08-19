@@ -13078,3 +13078,51 @@ testability: AUTH_HELPED
 [RISK] routing.sparelabs.com: 5 → UNCHANGED — STABLE dead since 2026-08-07
 [RISK] web (spare.com/sparelabs.com): 10 → UNCHANGED — static marketing only
 ## 2026-08-19 07:17:52 UTC [api] (model bigpickle)
+## 2026-08-19 08:14:11 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/engage/caseForms POST | 85/100 | attack=9 business=5 tech=7 gate=10 cloud=3 fresh=6
+[PRIO] api.sparelabs.com/v1/global/{regions,organizations} | 85/100 | attack=9 business=7 tech=7 gate=10 cloud=4 fresh=3
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST | 72/100 | attack=8 business=7 tech=6 gate=9 cloud=4 fresh=5
+[PRIO] api.sparelabs.com/v1/identity/workos/auth | 69/100 | attack=7 business=7 tech=8 gate=8 cloud=3 fresh=4
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | 62/100 | attack=6 business=5 tech=6 gate=8 cloud=3 fresh=4
+[HYP] caseForms POST formKey-existence oracle
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseForms POST
+confidence: 85
+reasoning: POST with valid org UUID + formKey returns 404 "Form was not found" while 200 would indicate valid form (per KB 2026-08-15 discovery). Auth gate ABSENT — handler reached without 401. CORS reflected on all responses. formId bridge requires AUTH_HELPED but formKey-existence oracle is passive.
+evidence_needed: Confirm 200 response for any valid formKey; 404/200 differential proves enumeration
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/public/engage/caseForms -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","formKey":"case-request","caseId":"00000000-0000-0000-0000-000000000000","metadata":{}}' — check if 404 or 200
+impact: If 200/404 differential confirmed: attacker can enumerate valid case forms per org without auth; leads to PII field discovery (caseForms schema contains contact fields). Severity MEDIUM (enumeration + data schema disclosure).
+testability: PASSIVE
+[HYP] Engage POST cross-route org-UUID oracle with feature-flag gate
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 92
+reasoning: Full-payload POST with valid org UUID → 403 ForbiddenError "External case creation is not enabled" (feature-flag gate); nil-UUID → 404 NotFoundError; both handler-level, NOT 401. Auth gate structurally absent. CORS reflected. Cross-route oracle validated on 5 orgs (spare/grt/dallas/winnipeg/hsr).
+evidence_needed: Confirm all 5 known org UUIDs return 403 (not 401); confirm unknown UUID returns 404
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"<each-org-uuid>","caseTypeId":"00000000-0000-0000-0000-000000000000","contactInfo":{"email":"test@test.com"}}' — expect 403 for known orgs, 404 for nil
+impact: Confirms auth-gate absence + per-org feature-flag differentiation; cross-route UUID validation independent of /v1/public/organizations/key oracle; enables org-UUID confirmation without enumeration. Severity MEDIUM (auth bypass + feature-flag enumeration).
+testability: PASSIVE
+[HYP] scheme-only Bearer bypass on /v1/global/regions with write-method CORS chain
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Bearer x → 200+725B region registry with ACAO+ACAC; OPTIONS 204 advertises PUT/PATCH/POST/DELETE; sha256 fb9800acb…585c3fe byte-stable 86h+; deterministic on fast replicas; longcat "PATCHED" false positive; staging has fix (401) confirming multi-version LB.
+evidence_needed: None — already confirmed STABLE 86h+ across 7 fleet hosts
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" — confirm 200+725B+ACAO+ACAC
+impact: Region registry disclosure (7 regions, 6 OOS subdomains, apiUrls, routingHosts) with CORS credential reflection enabling cross-origin reads. Severity MEDIUM (info disclosure + CORS misconfiguration; write methods gated at handler level).
+testability: PASSIVE
+[FINAL]
+[PARKED] WorkOS state XSS: Cloudflare blocks server-side requests to WorkOS; cannot verify HTML rendering of reflected state without browser
+[NEXT] PROBE: POST https://api.sparelabs.com/v1/public/engage/caseForms -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","formKey":"case-request","caseId":"00000000-0000-0000-0000-000000000000","metadata":{}}' — test caseRequest as formKey for 200/404 differential; if 404, try formKey values derived from bundle config (check platform.sparelabs.com SPA manifest for form definitions)
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle hypothesis RETAINED at 85 — prior "all guessed formKeys 404" does NOT disprove the oracle (need valid formKeys from bundle/API config); route confirmed live with auth gate ABSENT
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: cross-route org-UUID oracle STABLE — 5 orgs all → 403 feature-flag gate, nil→404; CORS reflected on all branches
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/caseForms POST: formId bridge requires AUTH_HELPED token — passive-only formKey enumeration is the remaining vector
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STABLE ≥11 tenants; state reflection confirmed; redirect_uri dead; fleet-parity 7 hosts
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+[RISK] api.sparelabs.com: 95 → UNCHANGED — auth bypasses + CORS 86h+ stable + SSO oracle ≥11 tenants + engage auth-absent + multi-version LB confirmed
+[RISK] api.us.sparelabs.com: 75 → UNCHANGED — fleet-parity confirmed for auth bypass routes but data oracles CA-specific only
+[RISK] platform.sparelabs.com: 65 → UNCHANGED — CSP infra leak stable (admin Vercel apps + Metabase + 9 cloud services)
+[RISK] api.staging.sparelabs.com: 62 → UNCHANGED — different code version; staging has auth fixes prod lacks
+[RISK] forms.sparelabs.com: 48 → UNCHANGED — bundle main.60865478.js regression with ngrok/Atlassian refs; CA→US routing confirmed
+[RISK] routing.sparelabs.com: 5 → UNCHANGED — STABLE dead since 2026-08-07
+[RISK] web (spare.com/sparelabs.com): 10 → UNCHANGED — static marketing only
