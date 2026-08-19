@@ -10970,3 +10970,41 @@
 - LEARN: REJECTED: api.sparelabs.com/v1/global/* controller-wide — 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped to exactly 
 - LEARN: REJECTED: write-escalation @ /v1/global/{organizations,regions} — POST/PUT/PATCH/DELETE → 401 InvalidTokenError — both bypass routes READ-ONLY GET only
 - LEARN: REJECTED: redirect_uri injection @ /v1/identity/workos/auth — parameter silently dropped by handler, NOT reflected in authorizeUrl; state-only injection confirm
+
+## RANKED HYPOTHESES 2026-08-19 20:44:50 UTC
+- [91] /v1/public/engage/cases: Engage cascade POST chain — full payload 403 body inspection for caseId leak (from reports/hypotheses-bigpickle.txt)
+- [90] api.sparelabs.com/v1/public/engage/form: Full unauthenticated form schema disclosure and formId extraction enabling caseForms POST chain (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET https://api.sparelabs.com/v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test -H "Origin: https://evil.example
+- NEXT(hypotheses-laguna.txt): PROBE: Verify the multi-version envoy LB replica-split mechanism for the /v1/global/regions bypass across multiple sequential requests to confirm deterministic 
+- NEXT(hypotheses-bigpickle.txt): PROBE: Execute the cascading Engage pipeline — first extract caseTypeId and formId, then POST full payload to /cases and inspect the 403 response body for any c
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle confirmed live — Spare org has "test" + "incident" keys with int
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed live — 20 fields on "test" form + 5 fields + 20 incident categorie
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle confirmed live — 404 "Form was not found" vs 200 discriminator; 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: error envelope leaks metadata.correlationId (UUID) on every 401/404 response — request-tracking artifact
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — contains ngrok/Atlassian/localhost refs; prior "PATCHED" claims on m
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle rotation main.63fe135c.js→main.60865478.js — prod now serves staging bundle with infra refs; downgrade from ACC
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — 90h+ byte-stable (sha256 fb9800acb…585c3fe verified), deterministic
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE not flapping — 200+11B+ACAO+ACAC on all 6 probes across ~2h, writ
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no SSO oracle), terms no per-tenant filter; staging
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — validation BEFORE auth in pipeline; handler-level respons
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle confirmed live — Spare org has "test" + "incident" keys with int
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed live — 20 fields on "test" form, 5 fields + 20 incident categories
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: correlationId (UUID) leak confirmed on every 401/404 response across all /v1/** paths
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — prod serves staging-identical bundle with ngrok/Atlassian/localhost 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split; longcat "PATCHE
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE not flapping — writes properly gated at handler level
+- LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed
+- LEARN: ACCEPTED NEW FINDING @ api.sparelabs.com/v1/global/regions: UAT region (`api.uat.sparelabs.com`, `simulationsEnabled: true`) now appears in prod fleet regions l
+- LEARN: ACCEPTED NEW FINDING @ api.uat.sparelabs.com: regions bypass confirmed accessible — 200+751B+ACAO+ACAC; UAT is a full region (not staging partition); the entire
+- LEARN: ACCEPTED CONFIRMATION @ api.uat.sparelabs.com: UAT regions list includes UAT as first entry + all 7 prod regions (CA/US/US2/US3/JP/EU + UAT itself); confirms UA
+- LEARN: ACCEPTED CONFIRMATION @ api.sparelabs.com/v1/identity/workos/auth: dart.org and winnipeg.ca WorkOS connections confirmed — connection IDs unique per tenant; sam
+- LEARN: ACCEPTED RECON @ api.sparelabs.com/v1/public/engage/caseType GET: Spare org caseTypeKeys: "test" (id: 770a2c9c-535d-487e-be97-05591ba6d4c0) + "incident" (confir
+- LEARN: ACCEPTED RECON @ api.sparelabs.com/v1/public/engage/form GET: form schema has 20 custom fields (required: 3×text + 1×toggle + 1×singleChoice + 1×datetime + 1×da
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: 403 ForbiddenError "External case creation is not enabled for this organization" — feature-fl
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: 404 NotFoundError "Case was not found" — case lookup runs after validation; fabricated ca

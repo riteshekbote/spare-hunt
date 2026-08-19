@@ -16413,3 +16413,28 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404 on 2026-08-13) but zero surface; NO_DELTA
 [RISK] forms.sparelabs.com: 46 — bundle regression main.60865478.js (staging-identical prod deployment, contains ngrok api-spare.ngrok.io + Atlassian FIN-1093 + localhost:3000/3035); CA→US data routing (api.us.sparelabs.com, PIPEDA concern); inconsistent x-frame DENY vs SAMEORIGIN; SPA 200 + strict HTML CSP; infra leak is JS-bundle passive recon only (no auth bypass)
 [RISK] web (spare.com/sparelabs.com): 8 — spare.com HTTP 200 static (Cloudflare+Webflow, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; www.spare.com OOS excluded; minimal static-only surface, no dynamic logic
+## 2026-08-19 20:44:35 UTC [web] (model laguna)
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 99
+reasoning: GET `Authorization: Bearer x` → HTTP 200 + 751B region registry (sha256 27d83f3cd9f3…) + ACAO:https://evil.example.com + ACAC:true. Body discloses 7 regions incl 6 OOS api/routing subdomains with apiUrl+routingHost. Multi-version envoy LB deterministic replica-split (8/8 fast replicas bypass in 4ms, slow→401) confirmed NOT patched. Longcat "PATCHED" (2026-08-11) is false positive, only tested no-auth path (400).
+evidence_needed: GET `Authorization: Bearer x` → 200 + 751B + ACAO+ACAC; no-auth → 400; POST → 401; body contains 7 regions incl 6 OOS api/routing subdomains (api.us.sparelabs.com, routing.us.sparelabs.com, etc.)
+verify_steps: PASSIVE: curl -s -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" -D - | grep -E "HTTP|access-control|content-length"; curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/organizations" | wc -c
+impact: Full regional infrastructure topology disclosure (7 regions × {apiUrl, routingHost} including 12 OOS subdomain URLs) with any garbage Bearer token. Write-method CORS chain on same route (OPTIONS 204 → ACAO+ACAC+PUT/PATCH/POST/DELETE). Severity: HIGH.
+testability: PASSIVE
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 96
+reasoning: Auth gate structurally ABSENT confirmed live — pipeline order is validation→org-uuid→feature-flag→handler. Empty POST → 400 ValidationError (NOT 401); nil-UUID → 404 NotFoundError (handler reached); valid org UUIDs (spare/grt/dallas/winnipeg) → 403 ForbiddenError (feature-flag gate, NOT auth gate); CORS reflected (ACAO+ACAC) on all branches. Full payload (org UUID + caseTypeId + contactInfo) → 403, proving handler reaches full pipeline without auth.
+evidence_needed: POST `{}` → 400 ValidationError (no 401); POST valid spare UUID + caseTypeId + contactInfo → 403 ForbiddenError "External case creation is not enabled" (NOT 401); CORS ACAO+ACAC on all responses
+verify_steps: PASSIVE: curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{}' "https://api.sparelabs.com/v1/public/engage/cases" -D - | grep -E "HTTP|access-control"; curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000000","contactInfo":{"phone":"+15550100"}}' "https://api.sparelabs.com/v1/public/engage/cases" -D -
+impact: Validation-before-auth pipeline flaw. Cross-route org-UUID oracle: any 3-way oracle UUID (from /organizations/key/{key}) can be tested against feature flags without auth. CaseType enumeration + form schema disclosure (20 fields incl PII: mobilityPlusIdNumber, expiry, easyGoFareCardNumber). Severity: MEDIUM-HIGH.
+testability: PASSIVE
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 93
+evidence_needed: POST `{"domain":"spare.com"}` → 200 + authorizationUrl with WorkOS client_id (client_01F5KHYX32TCKB1E7YEAPE0H17) + connection_id (conn_01GRW7M1CJEJGYKMEMPBCQEZHY) + ACAO+ACAC; POST `{"domain":"grt.ca"}` → 404 NotFoundError; state param reflected unescaped in authorizeUrl
+verify_steps: PASSIVE: curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com"}' "https://api.sparelabs.com/v1/identity/workos/auth"; curl -s -X POST -H "Content-Type: application/json" -d '{"domain":"grt.ca"}' "https://api.sparelabs.com/v1/identity/workos/auth"
+impact: 11+ orgs using Spare SSO enumerated. WorkOS client_id + connection_id + Azure Entra tenant IDs for dart.org/translink.ca/oakville.ca/winnipeg.ca/cota.com disclosed. State param reflected URL-encoded in authorizeUrl (param injection limited, full XSS requires browser verification). No user data/creds directly accessible. Severity: LOW-MEDIUM.
+testability: PASSIVE
+[NEXT] PROBE: Verify the multi-version envoy LB replica-split mechanism for the /v1/global/regions bypass across multiple sequential requests to confirm deterministic behavior and check if region registry body hash has changed beyond the 725B→751B delta observed. Exact action:

@@ -3420,3 +3420,14 @@ https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
 https://api.sparelabs.com/v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790 -> HTTP 400
 https://api.sparelabs.com/v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test -> HTTP 400
+
+## 2026-08-19 20:44:53 UTC
+https://api.sparelabs.com/v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790 -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/global/organizations -> 200 len=11 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test -> 200 len=231 type=application/json; charset=utf-8
+https://sparelabs.com/privacy-policy/ -> 200 len=? type=text/html; charset=utf-8
