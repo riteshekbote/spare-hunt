@@ -10955,3 +10955,18 @@
 - LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
 - LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
 - LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed
+
+## RANKED HYPOTHESES 2026-08-19 20:09:57 UTC
+- [99] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on /v1/global/regions enables infrastructure topology mapping (from reports/hypotheses-laguna.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: Verify the scheme-only Bearer bypass is still NOT patched and capture fresh evidence: `curl -s -H "Authorization: Bearer x" -H "Origin: https://evil.exam
+- LEARN: ACCEPTED: api.sparelabs.com/v1/global/regions — scheme-only Bearer bypass remains NOT patched, longcat "PATCHED" (2026-08-11) is false positive (only tested no-
+- LEARN: ACCEPTED: api.sparelabs.com/v1/global/organizations — zero-header read-only bypass confirmed STABLE not flapping (200+11B+ACAO+ACAC on all 6 probes across ~2h, 
+- LEARN: ACCEPTED: api.sparelabs.com/v1/identity/workos/auth — 11+ SSO tenants confirmed (oakville.ca + cota.com added), fleet-parity across 7 hosts, multi-version LB co
+- LEARN: ACCEPTED: api.sparelabs.com/v1/public/engage/cases POST + caseForms POST — auth gate structurally ABSENT, handler reached without 401 (validation-before-auth pi
+- LEARN: ACCEPTED: api.sparelabs.com/v1/public/engage/caseType GET + form GET — caseTypeKey enumeration oracle (Spare org has "test" + "incident" keys) + full schema dis
+- LEARN: REJECTED: forms.sparelabs.com JS bundle — main.60865478.js REGRESSION PERSISTED (contains ngrok + Atlassian refs); prior PATCHED claims on main.8a2a39cb.js were
+- LEARN: REJECTED: api.staging.sparelabs.com — OOS per scope exclusions, different code version (has fixes prod lacks), useful for prod context only
+- LEARN: REJECTED: routing.sparelabs.com — envoy 404/0B on ALL probed paths since 2026-08-07, STABLE dead, NO_DELTA
+- LEARN: REJECTED: api.sparelabs.com/v1/global/* controller-wide — 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped to exactly 
+- LEARN: REJECTED: write-escalation @ /v1/global/{organizations,regions} — POST/PUT/PATCH/DELETE → 401 InvalidTokenError — both bypass routes READ-ONLY GET only
+- LEARN: REJECTED: redirect_uri injection @ /v1/identity/workos/auth — parameter silently dropped by handler, NOT reflected in authorizeUrl; state-only injection confirm
