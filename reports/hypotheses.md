@@ -10039,3 +10039,77 @@
 - LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION — infra refs reactivated; prior PATCHED claims were false positives
 - LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organiz
+
+## RANKED HYPOTHESES 2026-08-19 05:54:41 UTC
+- [95] api.sparelabs.com/v1/public/engage/cases: Engage cases POST auth gate structurally absent — handler reachable without auth (from reports/hypotheses-nemotron3.txt)
+- [92] api.sparelabs.com/v1/public/engage/cases: Engage cases POST auth gate structurally absent — validation precedes auth in pipeline (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d7
+- NEXT(hypotheses-laguna.txt): PROBE: curl -X POST -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-00000
+- NEXT(hypotheses-bigpickle.txt): PROBE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d7
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — validation precedes auth in pipeline; handler-level responses
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — live probe 2026-08-18 15:00 UTC confirms 200+725B+ACAO+ACAC with Be
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: complete zero-header read-only bypass STABLE 86h+ — GET no-auth → 200+11B+ACAO+ACAC; POST/PUT/PATCH/D
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs {spare,grt,dallas,winnipeg,hsr}; 22 candidates exhau
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: 9th SSO tenant winnipeg.ca confirmed (conn_01HP76PPV8CMRJH6RYRTWEPSGS); state reflected unescaped; fl
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle UPDATED to `main.60865478.js` — now IDENTICAL to staging bundle; contains ngrok (`api-spare.ngrok.io`), Atlassi
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: Universal CORS credential reflection STABLE 86h+ — non-path-conditional via 22-sibling sweep
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/{caseType,form} GET: flapping between OpenAPI validation (400) and router-level-not-found (400) — multi-
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.63fe135c.js CONFIRMED REGRESSION — infra refs (atlassian/ngrok/metabase) REACTIVATED; prior PATCHED cla
+- LEARN: REJECTED MISCONFIG @ api.us.sparelabs.com oracles: UUID oracle + org-key oracle + SSO oracle are CA-specific — US host returns 404/401; data exposure is NOT uni
+- LEARN: REJECTED MISCONFIG @ api.staging.sparelabs.com/v1/identity/workos/auth: Returns 401 for all domains — NO SSO oracle on staging; staging has different auth gate
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: fail-open now STABLE — 200 ×6 across ~2h incl. pagination variants (params ignored, hardcoded `{"data
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com: CORS reflect-any-origin+credentials re-confirmed on all /v1 (401, 404, and 200 paths) — uniformly applied API-scoped midd
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; previousl
+- LEARN: CHANGED @ api.staging.sparelabs.com/v1/identity/workos/auth: staging has auth enforced (401) but prod doesn't (200+SSO data) — confirms multi-version LB serves 
+- LEARN: NEW @ api.staging.sparelabs.com/v1/public/organizations/key/spare: staging org key oracle returns 288B with staging-specific data (spare-staging-ca-photos bucke
+- LEARN: NEW @ api.staging.sparelabs.com: translink org is staging-only (UUID 7e2d0fc8-...) — not in prod
+- LEARN: NEW @ api.sparelabs.com: Spare UUID shared across prod+staging (d736519f-...) — shared database for org IDs
+- LEARN: NEW @ api.staging.sparelabs.com: GCS bucket names leak environment info (spare-staging-ca-photos vs spare-production-ca-photos)
+- LEARN: NEW @ api.staging.sparelabs.com/v1/public/organizations/key/translink: staging-only org has real terms URLs (https://sparelabs.com/terms-of-use/)
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — longcat "PATCHED" (2026-08-11) is false positive, multi-version LB replica
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster ≥11 tenants, state reflection confirmed; redirect_uri dead
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js PATCHED — zero infra refs; 3 Maps keys referrer-restricted
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organiz
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — longcat "PATCHED" (2026-08-11) is false positive, multi-version LB replica
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT — handler reached without 401; feature-flag gate per-org (403 for known orgs
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster ≥11 tenants, state reflection confirmed; redirect_uri dead; fleet-parity 7 hosts
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js PATCHED — zero infra refs; 3 Maps keys referrer-restricted
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organiz
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent confirmed STABLE — validation precedes auth in pipeline; handle
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, multi-version LB replica-sp
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster ≥11 tenants, state reflection confirmed; redirect_uri dead; fleet-parity 7 hosts
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION — infra refs reactivated; prior PATCHED claims were false positives
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organiz
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed via full-payload test — 403 ForbiddenError with valid spare org UU
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STABLE — spare.com → 200+181B with authorizationUrl containing WorkOS client_id+connection
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass STABLE 86h+ confirmed live — Bearer x → 200 + 725B, sha256 `fb9800acb…95c3fe` byt
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — GET no-auth → 200 + `{"data":[]}` + CORS; POST/PUT/PATCH/DELETE
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/spare: 3-way oracle STABLE — spare → 200+351B (full org details: UUID d736519f…, 5 feature flags, 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — contains ngrok/api-spare.ngrok.io/atlassian/FIN-1093/localhost:3000/
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle remains FLAPPING 2-way↔3-way across envoy LB replicas — nil→404 fast / 400
+- LEARN: NEW @ api.staging.sparelabs.com: translink org staging-only (UUID 7e2d0fc8-…) with real terms URLs — not in prod; GCS bucket spare-staging-ca-photos leaks envir
+- LEARN: NEW @ api.sparelabs.com/v1/global/organizations error envelope: leaks metadata.correlationId (UUID) on all 401/404 responses — request-tracking artifact, no ind
+- LEARN: REJECTED MISCONFIG @ platform.sparelabs.com (admin/API path sweep): All 10 probed paths (/admin,/api,/graphql,/v1,/internal,/config,/env,/status,/health,/metric
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent confirmed STABLE — validation precedes auth in pipeline; handle
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — longcat "PATCHED" (2026-08-11) false positive, multi-version LB replica-sp
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO roster ≥11 tenants, state reflection confirmed; redirect_uri dead; fleet-parity 7 hosts
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION — infra refs reactivated; prior PATCHED claims were false positives
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only; plural /organiz
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; previousl
+- LEARN: CHANGED @ api.staging.sparelabs.com/v1/identity/workos/auth: staging has auth enforced (401) but prod doesn't (200+SSO data) — confirms multi-version LB serves 
+- LEARN: NEW @ api.staging.sparelabs.com/v1/public/organizations/key/spare: staging org key oracle returns 288B with staging-specific data (spare-staging-ca-photos bucke
+- LEARN: NEW @ api.staging.sparelabs.com: translink org is staging-only (UUID 7e2d0fc8-...) — not in prod
+- LEARN: NEW @ api.sparelabs.com: Spare UUID shared across prod+staging (d736519f-...) — shared database for org IDs
+- LEARN: NEW @ api.staging.sparelabs.com: GCS bucket names leak environment info (spare-staging-ca-photos vs spare-production-ca-photos)
+- LEARN: NEW @ api.staging.sparelabs.com/v1/public/organizations/key/translink: staging-only org has real terms URLs (https://sparelabs.com/terms-of-use/)
