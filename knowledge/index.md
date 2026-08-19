@@ -2586,3 +2586,4 @@
 - 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: 403 body verified clean — no caseId leak; pipeline order body→org→feature-flag→handler confirmed; auth gate structurally absent at middleware level
 - 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: full validation chain formId→caseId→metadata→responses; if valid caseId obtainable, write proceeds without auth
 - 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases: PATCH/DELETE/PUT all 401 — only POST is unauth; auth middleware selectively excludes POST method for public rider case creation
+- 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally ABSENT — validation precedes auth in pipeline; handler reached without 401 (400/403/404)

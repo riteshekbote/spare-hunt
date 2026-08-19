@@ -14127,3 +14127,4 @@ testability: AUTH_HELPED
 [RISK] api.staging.sparelabs.com: 62 | different code version (regions=400, workos=401 enforced); organizations zero-header bypass still works; staging-specific data (translink org); OOS per scope; staging has fixes prod lacks
 [RISK] forms.sparelabs.com: 52 | bundle regression main.60865478.js with ngrok/Atlassian/localhost refs + CA→US data routing (PIPEDA); SPA catch-all; x-frame DENY; no auth bypass value
 [RISK] routing.sparelabs.com: 5 | STABLE dead since 2026-08-07; envoy 404 on all paths; no surface
+## 2026-08-19 22:03:47 UTC [api] (model bigpickle)
