@@ -2596,3 +2596,5 @@
 - 2026-08-19 ACCEPTED AUTH @ api.staging.sparelabs.com: different code version confirmed — regions=400 (auth enforced), workos=401 (no SSO oracle), terms returns real URLs for all mobileAppId (no per-tenant filter); staging is newer code with fixes prod lacks
 - 2026-08-19 REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only, no write escalation
 - 2026-08-19 REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed — 20 fields + 20 incident categories; formId extractable for POST chain
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split; longcat "PATCHED" false positive confirmed

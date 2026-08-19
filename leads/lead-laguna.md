@@ -16563,3 +16563,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 10 — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404 on 2026-08-13) but zero API surface, NO_DELTA
 [RISK] forms.sparelabs.com: 65 — JS bundle main.60865478.js regression: prod serves staging-identical bundle with ngrok (api-spare.ngrok.io) + Atlassian (FIN-1093) + localhost:3000/3035 refs + CA→US data routing (api.us.sparelabs.com, PIPEDA concern). x-frame-options: DENY (inconsistent posture). Strict HTML CSP + x-frame, infra leak is JS-bundle level only.
 [RISK] web (spare.com/sparelabs.com): 25 — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com apex (was TIMEOUT); minimal static-only surface, no dynamic logic, no API surface
+## 2026-08-19 23:25:36 UTC [web] (model laguna)
