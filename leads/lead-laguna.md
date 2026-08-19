@@ -15344,3 +15344,32 @@ testability: PASSIVE
 [PARKED] /v1/global/organizations write-path escalation: POST/PUT/PATCH/DELETE → 401 InvalidTokenError confirmed — write methods properly gated at handler level; no escalation path beyond GET; auth asymmetry verified.
 [FINAL]
 [NEXT] PROBE: `curl -s -w "\nHTTP %{http_code} | size %{size_download} | acao=%header{access-control-allow-origin}" -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"10000000-0000-0000-0000-000000000000","contactInfo":{"email":"probe@sparelabs.com","name":"Recon"}}' "https://api.sparelabs.com/v1/public/engage/cases"` — confirms whether valid caseTypeId UUID advances past 400 ValidationError (handler reached before auth → 403 feature-flag gate, proving pipeline order); expect 403 ForbiddenError + ACAO:evil + ACAC:true
+## 2026-08-19 08:43:29 UTC [web] (model laguna)
+[HYP] Scheme-only auth bypass on /v1/global/regions remains unpatched — longcat "PATCHED" is false positive
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Live probe 2026-08-19 confirms GET with `Authorization: Bearer x` (garbage token, scheme-only gate) returns HTTP 200 + 725B region registry containing 7 regions incl 6 out-of-scope api/routing subdomains (api.us.sparelabs.com, api.jp.sparelabs.com, api.eu.sparelabs.com, etc.) + ACAO:https://evil.example.com + ACAC:true. No-Auth returns 400 "Authorization header required"; control /v1/journeys returns 401 InvalidTokenError. Multi-version envoy LB serves stale code on prod: fast replicas (4ms) return 200 bypass, slow replicas return 401; staging correctly returns 401 confirming staging is newer code. Longcat triage 2026-08-11 claimed PATCHED but only tested the no-auth path (400), never tested the actual Bearer-x bypass vector.
+evidence_needed: 200 + 725B with Bearer x; 400 without auth; 401 on /v1/journeys; 200 on staging regions (different code version)
+verify_steps: PASSIVE: curl -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" → expect 200 + 725B; curl "https://api.staging.sparelabs.com/v1/global/regions" -H "Authorization: Bearer x" → expect 401 (staging has fix, prod stale)
+impact: Full regional infrastructure topology disclosure (7 regions, 6 OOS api/routing subdomain URLs) + read-only data access with scheme-only Bearer (no valid token). Severity HIGH. Read-only only — write methods POST/PUT/PATCH/DELETE return 401 (auth asymmetry at handler level).
+testability: PASSIVE
+[HYP] Unauthenticated SSO-configuration oracle enables WorkOS tenant enumeration + state-reflected XSS surface
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 90
+evidence_needed: POST spare.com → 200+172B with client_id+connection_id+authorizationUrl; POST grt.ca → 404+131B (3-way differential); state param URL-encoded passthrough in authorizationUrl
+verify_steps: PASSIVE: curl -X POST -H "Content-Type: application/json" -d '{"domain":"cota.com"}' "https://api.sparelabs.com/v1/identity/workos/auth" → expect 200 + 172B; curl -X POST -d '{"domain":"grt.ca"}' "..." → expect 404. AUTH_HELPED: open https://api.workos.com/sso/authorize?...&state=%3Cimg+src%3Dx+onerror%3Dalert(1)%3E in browser to check WorkOS page for XSS
+impact: Tenant enumeration reveals which orgs use Spare SSO + their WorkOS connection_id + Entra tenant IDs. 10+ tenants confirmed (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca, cota.com + 2 undocumented). If state XSS confirmed on WorkOS authorize page: session hijack → impersonate any SSO-configured tenant user (10+ tenants incl enterprise/municipal). Severity MEDIUM (tenant discovery) / POTENTIAL_HIGH (if XSS confirmed).
+testability: PASSIVE for oracle / AUTH_HELPED for XSS
+[HYP] Auth gate structurally absent on /v1/public/engage/cases POST — validation precedes auth in pipeline, handler reached without 401
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 88
+reasoning: Live probe 2026-08-19 confirms empty POST → HTTP 400 ValidationError "must have required property 'organizationId'" (306B, NO 401 InvalidTokenError). Valid spare org UUID d736519f… + caseTypeId UUID + contactInfo → HTTP 403 ForbiddenError "External case creation is not enabled" (feature-flag gate, NOT auth gate). nil-UUID → 404 NotFoundError "Other was not found" (handler reached). All responses reflect CORS (ACAO+ACAC). Pipeline order: validation → org-uuid → feature-flag → caseTypeId → handler. Confirmed on api.us.sparelabs.com too (spare UUID → 404, handler reached). Cross-route org-UUID oracle validated: spare/grt/dallas/winnipeg → 403 on prod, nil → 404.
+evidence_needed: empty POST → 400 (not 401); nil-UUID → 404 NotFoundError; spare UUID → 403 ForbiddenError; CORS reflected on all branches
+verify_steps: PASSIVE: curl -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{}' "https://api.sparelabs.com/v1/public/engage/cases" → expect 400 ValidationError (no 401); curl -X POST -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"10000000-0000-0000-0000-000000000000","contactInfo":{"email":"probe@sparelabs.com"}}' "..." → expect 403 ForbiddenError
+impact: Handler reached without authentication; if any org enables "External case creation" feature flag, attacker can submit unauthenticated write requests to create Engage cases/incident reports (P311-style) in victim org's system. Currently blocked at feature-flag layer (403), not auth layer. Severity MEDIUM-HIGH (pre-auth write path exposed, mitigated only by feature flag).
+testability: PASSIVE
+[FINAL]
+[NEXT] PROBE: `curl -s -w "\nHTTP %{http_code} | size %{size_download} | acao=%{header{access-control-allow-origin}} | acac=%{header{access-control-allow-credentials} | allow=%header{allow}" -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Authorization,Content-Type" "https://api.sparelabs.com/v1/public/engage/cases" --max-time 10` — confirms whether the auth-gate-absent POST route carries full write-method CORS preflight surface (ACAO reflected + ACAC:true + Allow: POST/PUT/PATCH/DELETE advertised), closing the write-CORS-chain gap on the unauthenticated Engage endpoint (same pattern confirmed on /v1/global/regions OPTIONS 204).
