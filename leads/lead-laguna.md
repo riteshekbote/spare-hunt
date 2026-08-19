@@ -15449,3 +15449,31 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07; envoy 404/0B on ALL probed paths; no surface, NO_DELTA
 [RISK] forms.sparelabs.com: 45 — SPA 200 + strict HTML CSP + x-frame DENY (envoy+Google CDN); JS bundle main.60865478.js regression (ngrok/Atlassian/localhost refs persist); CA→US data routing (Production_CA→api.us.sparelabs.com, PIPEDA concern); no real API behind SPA shell
 [RISK] web (spare.com/sparelabs.com): 10 — spare.com apex HTTP 200 static Webflow marketing (Cloudflare+HSTS, CSP frame-ancestors 'self'); sparelabs.com 301→spare.com; minimal static-only surface, no internal infra leaks in HTML/JS
+## 2026-08-19 10:24:04 UTC [web] (model laguna)
+[HYP] Scheme-only auth bypass on /v1/global/regions remains unpatched despite longcat false positive
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 99
+reasoning: Live probe 2026-08-16 17:33 UTC confirms GET with `Authorization: Bearer x` → HTTP 200 + 725B region registry (body sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-identical, 90h+ stable) + ACAO:reflected + ACAC:true. Body contains 7 regions incl 6 OOS api/routing subdomains. no-Auth → 400 "Authorization header required"; control /v1/journeys → 401 InvalidTokenError. Multi-version LB serves fast replicas (8/8 bypass) vs slow replicas (401) — deterministic replica-split, NOT a patch.
+evidence_needed: 200+725B sha256 fb9800acb…585c3fe with Bearer x; 400 no-auth; 401 on /v1/journeys control; OPTIONS 204 with write methods + CORS
+verify_steps: PASSIVE: curl -s -D - -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" | grep -E "HTTP|access-control|725" ; curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/journeys" | grep -E "HTTP|InvalidToken"
+impact: Full regional infrastructure topology disclosure (7 regions, 6 OOS api/routing subdomain URLs incl CA/US/US2/US3/JP/EU/UAT) with scheme-only Bearer (no valid token). Read-only only — POST/PUT/PATCH/DELETE return 401 at handler. Severity: HIGH (auth bypass + infra topology disclosure, 90h persistent).
+testability: PASSIVE
+[HYP] Unauthenticated SSO-configuration oracle enables WorkOS tenant enumeration + state-reflected XSS surface
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: Live probe confirms POST {"domain":"spare.com"} → HTTP 200 + 172B returning authorizationUrl with WorkOS client_id=client_01F5KHYX32TCKB1E7YEAPE0H17 + connection_id=conn_01GRW7M1CJEJGYKMEMPBCQEZHY + ACAO+ACAC. POST {"domain":"grt.ca"} → 404 NotFoundError (3-way differential). 11+ tenants confirmed fleet-parity across 7 hosts: spare.com, dart.org (Entra tenant 4bdf4200-…), translink.ca (Entra tenant 4157b39d-…), mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca (conn_01HP76PPV8CMRJH6RYRTWEPSGS), oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W), cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC). state param reflected URL-encoded in authorizeUrl body; redirect_uri param silently dropped (param injection dead). Staging returns 401 for all domains (no oracle) — multi-version LB serves stale code to prod.
+evidence_needed: POST spare.com → 200+172B with client_id+connection_id+authorizeUrl; POST grt.ca → 404 (3-way differential); state param URL-encoded passthrough in authorizeUrl
+verify_steps: PASSIVE: curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"oakville.ca"}' "https://api.sparelabs.com/v1/identity/workos/auth" | head -c 200 ; AUTH_HELPED: open https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY&response_type=code&state=%3Cimg+src%3Dx+onerror%3Dalert(document.domain)%3E in browser to check if WorkOS renders state unescaped in authorize page HTML
+impact: Tenant enumeration reveals which orgs use Spare SSO + their WorkOS connection_id + Entra tenant IDs. 11+ tenants incl enterprise/municipal. If state XSS confirmed on WorkOS authorize page: session hijack → impersonate any SSO-configured tenant user. Severity: MEDIUM (tenant discovery) / POTENTIAL_HIGH (if XSS confirmed).
+testability: PASSIVE for oracle / AUTH_HELPED for XSS
+[HYP] 3-way org enumeration oracle via human-readable key with per-tenant feature-flag disclosure
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 90
+reasoning: Live probe confirms GET /v1/public/organizations/key/spare → HTTP 200 + 351B returning full org details: UUID d736519f-f384-4771-a2d2-4f95e884d790, name "Spare", logoUrl on GCS, 5 feature flags (riderLoginless, multimodal, riderPhonePin, driverAppLoginless, riderUniversalLink). GET /key/grt → 200 + 288B (2 flags); /key/dallas → 200 + 237B (0 flags); /key/winnipeg → 200 + 288B (2 flags); /key/hsr → 200 + 321B (3 flags); /key/cambus → 404 NotFoundError (3-way differential intact). Live set DEFINITIVELY CLOSED at {spare,grt,dallas,winnipeg,hsr} — 22 new candidate keys all 404. prod-only data (uat/us2/jp → 404 on all org keys). Universal CORS on both 200 and 404 branches.
+evidence_needed: GET /key/spare → 200+351B with UUID + feature flags; GET /key/cambus → 404+131B; 22 candidate keys → all 404
+verify_steps: PASSIVE: curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/winnipeg" | head -c 400 ; curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/cambus" | head -c 200
+impact: Unauthenticated tenant enumeration with per-tenant feature-flag disclosure (auth-methods: riderLoginless, multimodal, riderPhonePin, driverAppLoginless, riderUniversalLink) enables targeted exploitation. 5 confirmed live orgs with distinct UUIDs. Severity: MEDIUM (tenant recon + auth-method disclosure).
+testability: PASSIVE
