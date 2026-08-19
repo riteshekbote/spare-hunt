@@ -1,5 +1,5 @@
 
-===== REPOSCAN 2026-08-19 03:29:16 UTC =====
+===== REPOSCAN 2026-08-19 03:29:53 UTC =====
 ## Grep hits:
 SCAN SUMMARY: 0 code/config files scanned, 0 hits
 
@@ -7,16 +7,14 @@ SCAN SUMMARY: 0 code/config files scanned, 0 hits
 [0m
 > build · nemotron-3-ultra-free
 [0m
-**Triage Result: No Findings**
+No findings to triage — the scan scanned 0 files and produced 0 hits.
 
-| Category | Count |
-|----------|-------|
-| REAL_SECRET | 0 |
-| TEST_OR_EXAMPLE | 0 |
-| ENDPOINT_LEAK | 0 |
-| INTERESTING | 0 |
+| Category | File | Line | SHA256 | Notes |
+|----------|------|------|--------|-------|
+| REAL_SECRET | — | — | — | none |
+| TEST_OR_EXAMPLE | — | — | — | none |
+| ENDPOINT_LEAK | — | — | — | none |
+| INTERESTING | — | — | — | none |
 
-**Verdict:**
-- **REPORT_CANDIDATE: no** — The static scan of `gladiaio/` GitHub org repositories scanned **0 code/config files** and produced **0 grep hits**. No secrets, endpoint leaks, or interesting artifacts were detected in this scan run.
-
-**Note:** The scan appears to have a target misconfiguration (0 files scanned). Verify the repository clone target and scan configuration before relying on this result. The knowledge base provided pertains to `sparelabs.com` infrastructure, not the `gladiaio` SDK repos being scanned.
+**Verdict**
+- REPORT_CANDIDATE: no (no findings)
