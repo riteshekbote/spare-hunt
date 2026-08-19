@@ -14742,3 +14742,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07; envoy 404/0B on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; newly responsive (TIMEOUT→404 on 2026-08-13) but zero surface
 [RISK] web (spare.com/sparelabs.com): 10 — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; www.spare.com OOS excluded; minimal static-only surface
 [RISK] metabase.sparelabs.com + metabase.staging.sparelabs.com: 25 — EXPOSED Metabase v0.58.24 (2026-08-05) with unauth /api/session/properties 106KB+25KB config dumps; OOS per scope exclusions but confirms CSP leak accuracy; no RCE (setup-token→404); version current, no CVE chain; Google OAuth client IDs (50504000455-u4ircqjokkmk27mj7t5u1437a1cnfn8g) disclosed
+## 2026-08-19 03:16:24 UTC [web] (model laguna)
