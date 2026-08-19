@@ -3917,3 +3917,14 @@
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST — validation chain expanded (requires organizationId→caseTypeId→contactInfo); handler-level 403 still reached without auth; PATCH/DELETE/PUT→401
 - CHANGED forms.sparelabs.com bundle — main.60865478.js regression PERSISTED (staging bundle with ngrok/Atlassian/localhost refs; CA→US routing)
 - CHANGED api.staging.sparelabs.com — staging enforces 401 on /identity/workos/auth while prod returns 200; confirms multi-version LB serves older vulnerable code to prod
+
+## 2026-08-19 23:00:44 UTC
+- NEW api.uat.sparelabs.com accessible in prod fleet — regions bypass + zero-header bypass parity; simulationsEnabled:true; 8th fleet host
+- NEW api.sparelabs.com/v1/public/engage/caseType GET — caseTypeKey enumeration oracle live (Spare org has "test" + "incident" keys with internal UUIDs); CORS reflected; auth-free
+- NEW api.sparelabs.com/v1/public/engage/form GET — full schema disclosure (20 fields on "test" form, 5 fields + 20 incident categories on "incident" form); formId extractable for POST chain; auth-free; COR
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST — formKey-existence oracle (nil-UUID→404 "Form was not found", empty→400 ValidationError, valid→200 discriminator); auth gate ABSENT; CORS reflected
+- NEW api.sparelabs.com/v1/** error envelope — metadata.correlationId (UUID) leaked on every 401/404 response across all /v1/** paths
+- CHANGED api.sparelabs.com/v1/global/regions — body now 751B (was 725B) with UAT region added; sha256 changed
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST — validation chain expanded (requires organizationId→caseTypeId→contactInfo); handler-level 403 still reached without auth; PATCH/DELETE/PUT→401 (only POS
+- CHANGED forms.sparelabs.com bundle — main.60865478.js regression PERSISTED (staging bundle with ngrok/Atlassian/localhost refs; CA→US routing)
+- CHANGED api.staging.sparelabs.com — staging enforces 401 on /identity/workos/auth while prod returns 200; confirms multi-version LB serves older vulnerable code to prod
