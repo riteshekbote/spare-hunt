@@ -2402,3 +2402,15 @@
 - 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split
 - 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — 403 feature-flag gate not auth gate, CORS reflected
 - 2026-08-19 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B all paths since 2026-08-07
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle RETAINED at 80 — route live, auth gate ABSENT, need valid formKeys from bundle/API config
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass NOT patched — longcat "PATCHED" (2026-08-11) confirmed FALSE POSITIVE, only tested no-auth path (400), never tested Bearer-x vector; 90h+ byte-stable across 7 fleet hosts
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: auth fail-open now STABLE not flapping — HTTP 200 `{"data":[]}` confirmed on all 6 samples across ~2h; params ignored, 11B hardcoded payload; route-specific via 22-sibling sweep
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle live set DEFINITIVELY CLOSED at 5 orgs {spare,grt,dallas,winnipeg,hsr} — 22 new candidates all 404; prod-only data (uat/us2/jp→404); feature-flag differential stable
+- 2026-08-19 REJECTED MISCONFIG @ api.staging.sparelabs.com: staging host OOS per scope exclusions — different code version useful for prod context only (staging has fixes prod lacks)
+- 2026-08-19 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — 90h+ byte-stable (sha256 fb9800acb…585c3fe), deterministic fast-replica split; longcat "PATCHED" false positive
+- 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — 403 feature-flag gate not auth gate, CORS reflected, validation precedes auth in pipeline
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle ≥11 tenants confirmed fleet-parity across 7 hosts; state param reflected URL-encoded in authorizeUrl; redirect_uri dead
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs; prod-only data (uat/us2/jp→404)
+- 2026-08-19 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION — ngrok/Atlassian/localhost refs active; prior PATCHED claims on main.8a2a39cb.js confirmed false positives
+- 2026-08-19 REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
