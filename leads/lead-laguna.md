@@ -15766,3 +15766,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404/0B on ALL probed paths (>30 paths swept) since 2026-08-07; newly responsive (TIMEOUT→404 on 2026-08-13) but zero API surface; no bypass, no data, no infosec risk
 [RISK] forms.sparelabs.com: 46 — bundle regression main.60865478.js (staging-identical prod deployment, contains ngrok api-spare.ngrok.io + Atlassian FIN-1093 + localhost:3000/3035), CA→US data routing (api.us.sparelabs.com, PIPEDA concern), x-frame DENY (vs SAMEORIGIN elsewhere); SPA 200 + strict HTML CSP; infra leak is JS-bundle passive recon only, no auth bypass
 [RISK] web (spare.com/sparelabs.com): 8 — spare.com HTTP 200 static (Cloudflare+Webflow, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; www.spare.com OOS excluded; minimal static-only surface, no dynamic logic
+## 2026-08-19 15:18:32 UTC [web] (model laguna)
