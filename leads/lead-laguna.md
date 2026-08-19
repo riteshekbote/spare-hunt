@@ -15304,3 +15304,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 6 → UNCHANGED — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404 on 2026-08-13) but zero surface; STABLE dead, NO_DELTA
 [RISK] forms.sparelabs.com: 48 → UNCHANGED — bundle regression main.60865478.js contains ngrok/Atlassian/localhost refs; CA→US data routing (PIPEDA concern); strict HTML CSP + x-frame DENY but infra-recon value only; SPA catch-all, no real API behind host
 [RISK] web (spare.com/sparelabs.com): 11 → UNCHANGED — spare.com HTTP 200 static Webflow marketing (Cloudflare, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
+## 2026-08-19 07:17:07 UTC [web] (model laguna)

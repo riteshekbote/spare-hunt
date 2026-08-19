@@ -2381,3 +2381,4 @@
 - 2026-08-19 ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no SSO oracle), terms returns same URLs for all mobileAppId (no per-tenant filter); staging has fixes prod lacks
 - 2026-08-19 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js confirmed REGRESSION — ngrok/Atlassian/localhost refs reactivated; prior "PATCHED" claims on main.8a2a39cb.js were false positives
 - 2026-08-19 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle remains FLAPPING 2-way↔3-way across envoy LB replicas — downgraded to validation-leak-only; plural /organizations/{id} is superior stable oracle
+- 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: auth gate ABSENT — validation precedes auth in pipeline; handler reached without 401; form existence oracle via 404 vs 200
