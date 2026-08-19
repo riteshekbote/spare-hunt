@@ -3780,3 +3780,5 @@
 - CHANGED forms.sparelabs.com JS bundle: rotation to `main.60865478.js` confirmed stable — prod now serves staging-identical bundle containing `api-spare.ngrok.io` + Atlassian `FIN-1093` + `localhost:3000/3035`
 - CHANGED api.staging.sparelabs.com: translink org (UUID `7e2d0fc8-...`) staging-only — not in prod; GCS bucket `spare-staging-ca-photos` vs `spare-production-ca-photos` leaks environment topology; staging is O
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded across replicas — now requires organizationId→caseTypeId(UUID)→contactInfo→403; previously only organizationId→403, confirming 
+
+## 2026-08-19 17:56:03 UTC

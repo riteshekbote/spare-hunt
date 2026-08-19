@@ -10799,3 +10799,51 @@
 - LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; no surface, NO_DELTA
 - LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — both bypass routes are R
 - LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" (2026-08-11) is FALSE POSITIVE — only tested no-auth path (400), never tested Bearer-
+
+## RANKED HYPOTHESES 2026-08-19 17:56:03 UTC
+- [99] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on /v1/global/regions enables full regional infrastructure topology disclosure (from reports/hypotheses-laguna.txt)
+- [91] api.sparelabs.com/v1/public/engage/caseType: ENGAGE FULL PIPELINE — caseType→form→caseForms POST complete unauthenticated write chain (from reports/hypotheses-bigpickle.txt)
+- [90] api.sparelabs.com/v1/public/engage/cases: Unauthenticated write-path handler reach on engage cases POST with feature-flag gate (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: POST https://api.sparelabs.com/v1/public/engage/caseForms -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId"
+- NEXT(hypotheses-laguna.txt): PROBE: curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","c
+- NEXT(hypotheses-bigpickle.txt): PROBE: Execute the cascading POST chain to confirm handler behavior at each stage — POST /cases with Spare UUID + caseTypeId "test" + minimal contactInfo to con
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — validation BEFORE auth in pipeline; full payload (org UUI
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle confirmed live — 404 "Form was not found" vs 200 discriminator; 
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (oakville.ca + cota.com newly confirmed); fleet-parity across 7 ho
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: error envelope leaks metadata.correlationId (UUID) on every 401/404 response — request-tracking artifact
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — contains ngrok/Atlassian/localhost refs; prior "PATCHED" claims on m
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle rotation main.63fe135c.js→main.60865478.js — prod now serves staging bundle with infra refs; downgrade from ACC
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — 90h+ byte-stable (sha256 fb9800acb…585c3fe verified), deterministic
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE not flapping — 200+11B+ACAO+ACAC on all 6 probes across ~2h, writ
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no SSO oracle), terms no per-tenant filter; staging
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle live — Spare org has "test" + "incident" keys with internal UUID
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure live — 20 fields on "test" form, 5 fields + 20 incident categories on "incid
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs; 3-way oracle STABLE; prod-only data residency confi
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js regression persisted (infra-reccon only, no auth bypass) — downgrade from ACCEPTED to dead/
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/global/*: 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family DEFINITIVELY scoped to exactly {/orga
+- LEARN: REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET 
+- LEARN: REJECTED (longcat triage) @ api.sparelabs.com/v1/global/regions: "PATCHED" (2026-08-11) is FALSE POSITIVE — only tested no-auth path (400), never tested Bearer-
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy LB replicas — downgraded to validation-l
+- LEARN: ACCEPTED: api.sparelabs.com/v1/global/regions scheme-only Bearer bypass — 90h+ byte-stable (sha256 fb9800acb…585c3fe), NOT patched despite longcat false positiv
+- LEARN: ACCEPTED: api.sparelabs.com/v1/public/engage/auth-gate-absent pattern — multi-version LB serves older code to prod (staging has fixes), validation-before-auth p
+- LEARN: ACCEPTED: api.sparelabs.com/v1/identity/workos/auth SSO fleet-parity — 11+ tenants confirmed across 7 hosts, state param reflected URL-encoded
+- LEARN: REJECTED: api.sparelabs.com/v1/public/organization (singular) UUID oracle — FLAPPING 2-way↔3-way across envoy LB replicas, downgraded to validation-leak-only
+- LEARN: REJECTED: forms.sparelabs.com JS bundle "PATCHED" claims — main.8a2a39cb.js patch claims were false positives; current main.60865478.js regression persists (ngr
+- LEARN: REJECTED: routing.sparelabs.com — envoy 404/0B on ALL probed paths since 2026-08-07, STABLE dead, NO_DELTA
+- LEARN: REJECTED: staging host oracles — api.staging.sparelabs.com OOS per scope exclusions, different code version useful for prod context only
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — validation BEFORE auth in pipeline; full payload (org UUI
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: auth gate ABSENT confirmed STABLE — handler reached without 401; cascading validation cha
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle confirmed live — Spare org has "test" + "incident" keys with int
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed live — 20 fields on "test" form + 5 fields + 20 incident categorie
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js regression PERSISTED — prod serves staging-identical bundle with ngrok/Atlassian/localhost 
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07; NO_DELTA
+- LEARN: ACCEPTED BUSLOGIC @ /v1/public/organizations/{uuid}: Feature flag disclosure confirmed for all 5 orgs — Spare has 5 flags, Winnipeg 4, GRT 2, HSR 2, Dallas 0. N
+- LEARN: ACCEPTED BUSLOGIC @ /v1/public/engage/caseType: Cross-org narrowing confirmed — only Spare has caseTypes. GRT/Dallas/Winnipeg/HSR all 404 "Other was not found".
+- LEARN: ACCEPTED IDOR @ /v1/public/engage/caseForms POST: FormId oracle confirmed — "Form was not found" vs "Case was not found" differentiates valid/invalid formIds.
+- LEARN: REJECTED BUSLOGIC @ /v1/public/engage/caseType+form+caseForms POST pipeline: caseId BLOCKED for all 5 orgs (403 feature-flag gate, no leak). Pipeline structural
+- LEARN: ACCEPTED MISCONFIG @ /v1/public/engage/form: Incident report form schema fully disclosed — 5 fields including securityFootage (file upload, required, allowMedia

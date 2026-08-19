@@ -2496,3 +2496,20 @@
 - 2026-08-19 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: correlationId (UUID) leak confirmed on every 401/404 response across all /v1/** paths — request-tracking artifact
 - 2026-08-19 ACCEPTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js regression PERSISTED — prod serves staging-identical bundle with ngrok/Atlassian/localhost refs; downgraded from ACCEPTED to infra-recon only
 - 2026-08-19 REJECTED AUTH (write-escalation) @ api.sparelabs.com/v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — both bypass routes are READ-ONLY GET only, no write escalation path
+- 2026-08-19 ACCEPTED: api.sparelabs.com/v1/global/regions scheme-only Bearer bypass — 90h+ byte-stable (sha256 fb9800acb…585c3fe), NOT patched despite longcat false positive
+- 2026-08-19 ACCEPTED: api.sparelabs.com/v1/public/engage/auth-gate-absent pattern — multi-version LB serves older code to prod (staging has fixes), validation-before-auth pipeline confirmed
+- 2026-08-19 ACCEPTED: api.sparelabs.com/v1/identity/workos/auth SSO fleet-parity — 11+ tenants confirmed across 7 hosts, state param reflected URL-encoded
+- 2026-08-19 REJECTED: api.sparelabs.com/v1/public/organization (singular) UUID oracle — FLAPPING 2-way↔3-way across envoy LB replicas, downgraded to validation-leak-only
+- 2026-08-19 REJECTED: forms.sparelabs.com JS bundle "PATCHED" claims — main.8a2a39cb.js patch claims were false positives; current main.60865478.js regression persists (ngrok/Atlassian/localhost refs)
+- 2026-08-19 REJECTED: staging host oracles — api.staging.sparelabs.com OOS per scope exclusions, different code version useful for prod context only
+- 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — validation BEFORE auth in pipeline; full payload (org UUID + caseTypeId UUID + contactInfo) → 403 feature-flag gate, NOT auth gate; CORS reflected on all branches
+- 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: auth gate ABSENT confirmed STABLE — handler reached without 401; cascading validation chain confirmed this session
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle confirmed live — Spare org has "test" + "incident" keys with internal UUIDs and form lists; CORS reflected, auth-free
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed live — 20 fields on "test" form + 5 fields + 20 incident categories on "incident" form; formId extractable for POST chain
+- 2026-08-19 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js regression PERSISTED — prod serves staging-identical bundle with ngrok/Atlassian/localhost refs; prior PATCHED claims were false positives
+- 2026-08-19 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07; NO_DELTA
+- 2026-08-19 ACCEPTED BUSLOGIC @ /v1/public/organizations/{uuid}: Feature flag disclosure confirmed for all 5 orgs — Spare has 5 flags, Winnipeg 4, GRT 2, HSR 2, Dallas 0. No auth required.
+- 2026-08-19 ACCEPTED BUSLOGIC @ /v1/public/engage/caseType: Cross-org narrowing confirmed — only Spare has caseTypes. GRT/Dallas/Winnipeg/HSR all 404 "Other was not found".
+- 2026-08-19 ACCEPTED IDOR @ /v1/public/engage/caseForms POST: FormId oracle confirmed — "Form was not found" vs "Case was not found" differentiates valid/invalid formIds.
+- 2026-08-19 REJECTED BUSLOGIC @ /v1/public/engage/caseType+form+caseForms POST pipeline: caseId BLOCKED for all 5 orgs (403 feature-flag gate, no leak). Pipeline structurally complete but write path unreachable without auth-helped caseId creation.
+- 2026-08-19 ACCEPTED MISCONFIG @ /v1/public/engage/form: Incident report form schema fully disclosed — 5 fields including securityFootage (file upload, required, allowMediaUploads=true), 20 incident categories. All fields hidden from rider interface (driver-facing only).
