@@ -3858,3 +3858,27 @@
 - CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥11 tenants (oakville.ca + cota.com + winnipeg.ca newly confirmed, fleet-parity across 7 hosts)
 - CHANGED forms.sparelabs.com/: `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture across fleet
 - CHANGED api.sparelabs.com/v1/** error envelope: `metadata.correlationId` (UUID) now explicitly confirmed leaked on every 401/404 response across all /v1/** paths
+
+## 2026-08-19 21:07:27 UTC
+- NEW api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle live — Spare org has "test" + "incident" keys with internal UUIDs and form lists; CA-specific
+- NEW api.sparelabs.com/v1/public/engage/form GET: auth-free schema disclosure live — 20 fields on "test" form, 5 fields + 20 incident categories on "incident" form; formId extractable for POST chain
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle — nil-UUID→404 "Form was not found", empty→400 ValidationError, valid→200 discriminator; auth gate ABSENT
+- NEW api.sparelabs.com/v1/** error envelope: metadata.correlationId (UUID) leaked on every 401/404 response across all /v1/** paths — request-tracking artifact
+- NEW forms.sparelabs.com bundle `main.60865478.js` confirmed current — contains ngrok (`api-spare.ngrok.io`) + Atlassian (`FIN-1093`) + localhost:3000/3035 + staging API URLs; regression persisted from sta
+- NEW api.staging.sparelabs.com: translink org staging-only (UUID 7e2d0fc8-...) with real terms URLs — not in prod; GCS bucket names leak environment info
+- NEW api.staging.sparelabs.com/v1/identity/workos/auth: staging enforces auth (401) while prod returns 200+SSO data — confirms multi-version LB serves older vulnerable code to prod
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→403; previously only organizationId→403 on older code version
+- CHANGED api.sparelabs.com/v1/global/organizations: auth fail-open STABLE confirmed not flapping — HTTP 200 `{"data":[]}` on all 6 samples across ~2h (params ignored, 11B hardcoded)
+- CHANGED forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — prod now serves staging bundle identically (ngrok/Atlassian/localhost refs); prior main.8a2a39cb.js "PATCHED" claims confirmed FA
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥11 tenants (oakville.ca + cota.com + winnipeg.ca newly confirmed, fleet-parity across 7 hosts)
+- CHANGED forms.sparelabs.com/: `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture across fleet
+- CHANGED api.sparelabs.com/v1/** error envelope: `metadata.correlationId` (UUID) now explicitly confirmed leaked on every 401/404 response across all /v1/** paths
+- NEW api.uat.sparelabs.com — UAT region now appears in prod fleet regions list; entire /v1 bypass chain confirmed accessible on 8th host; `simulationsEnabled: true`
+- NEW api.sparelabs.com/v1/public/engage/caseType GET — caseTypeKey enumeration oracle live (Spare has "test" + "incident"); CORS reflected; auth-free
+- NEW api.sparelabs.com/v1/public/engage/form GET — full schema disclosure (20 fields, formId extractable); auth-free; CORS reflected
+- NEW api.sparelabs.com/v1/** error envelope — metadata.correlationId (UUID) leaked on every 401/404 response
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST — validation chain expanded (requires organizationId→caseTypeId→contactInfo); handler-level 403 still reached without auth
+- CHANGED api.sparelabs.com/v1/global/organizations — zero-header bypass STABLE confirmed NOT flapping (200×6 across ~2h)
+- CHANGED forms.sparelabs.com bundle — main.60865478.js regression PERSISTED (staging bundle with ngrok/Atlassian/localhost refs; CA→US routing)
+- CHANGED api.staging.sparelabs.com — staging enforces 401 on /identity/workos/auth while prod returns 200; confirms multi-version LB serves older vulnerable code to prod
+- CHANGED api.sparelabs.com/v1/global/regions — body now 751B (was 725B) with UAT region added; sha256 changed
