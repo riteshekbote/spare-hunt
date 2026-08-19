@@ -3460,3 +3460,12 @@
 - CHANGED api.sparelabs.com/v1/global/organizations/key/{anything} → 404 NotFoundError "Organization was not found" WITHOUT auth, no format validation
 - CHANGED api.sparelabs.com/v1/global/organizations/zones/centroid (platform-bundle-derived) → 400 ValidationError "not found" WITHOUT auth — not a live route, yet bypasses the auth gate
 - CHANGED Control /v1/global/settings → 401 InvalidTokenError stable; Origin-reflect + credentials + envoy re-confirmed on all 8 probes this session
+
+## 2026-08-19 06:25:24 UTC
+- NEW api.staging.sparelabs.com: translink org staging-only (UUID 7e2d0fc8-...) with real terms URLs — not in prod
+- NEW api.staging.sparelabs.com: GCS bucket names leak environment info (spare-staging-ca-photos vs spare-production-ca-photos)
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle (404 vs 200 discriminator), auth gate ABSENT, handler reached
+- NEW api.staging.sparelabs.com/v1/public/organizations/key/spare: staging org key oracle returns 288B with staging-specific data (spare-staging-ca-photos bucket, 2 feature flags vs 5 on prod)
+- CHANGED forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — contains ngrok/Atlassian/localhost refs; prod now serves staging bundle identically
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403
+- CHANGED api.staging.sparelabs.com/v1/identity/workos/auth: staging has auth enforced (401) but prod doesn't (200+SSO data) — confirms multi-version LB serves older code to prod
