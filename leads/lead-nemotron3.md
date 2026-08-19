@@ -24164,3 +24164,69 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 reason — Envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_DELTA
 [RISK] forms.sparelabs.com: 45 reason — Engage portal SPA live; JS bundle REGRESSION (main.60865478.js reactivated ngrok/atlassian/metabase refs); 3 Google Maps keys referrer-restricted; all API paths return SPA catch-all; no real API endpoints behind host; CA→US data routing confirmed (PIPEDA implications); x-frame-options: DENY inconsistent with fleet
 [RISK] web (spare.com/sparelabs.com): 15 reason — spare.com apex: Cloudflare+Webflow static marketing (CSP frame-ancestors 'self', HSTS); sparelabs.com: 301→spare.com; no internal infra leaks in HTML/JS; minimal static-only surface
+## 2026-08-19 21:37:47 UTC [platform] (model nemotron3)
+[NEW] api.uat.sparelabs.com accessible in prod fleet — regions bypass + zero-header bypass parity; simulationsEnabled:true; 8th fleet host
+[NEW] api.sparelabs.com/v1/public/engage/caseType GET — caseTypeKey enumeration oracle live (Spare org has "test" + "incident" keys with internal UUIDs); CORS reflected; auth-free
+[NEW] api.sparelabs.com/v1/public/engage/form GET — full schema disclosure (20 fields on "test" form, 5 fields + 20 incident categories on "incident" form); formId extractable for POST chain; auth-free; CORS reflected
+[NEW] api.sparelabs.com/v1/public/engage/caseForms POST — formKey-existence oracle (nil-UUID→404 "Form was not found", empty→400 ValidationError, valid→200 discriminator); auth gate ABSENT; CORS reflected
+[NEW] api.sparelabs.com/v1/** error envelope — metadata.correlationId (UUID) leaked on every 401/404 response across all /v1/** paths
+[CHANGED] api.sparelabs.com/v1/public/engage/cases POST — validation chain expanded (requires organizationId→caseTypeId→contactInfo); handler-level 403 still reached without auth; PATCH/DELETE/PUT→401 (only POST unauthenticated)
+[CHANGED] api.sparelabs.com/v1/global/organizations — zero-header bypass STABLE confirmed NOT flapping (200×6 across ~2h, params ignored, 11B hardcoded)
+[CHANGED] api.sparelabs.com/v1/global/regions — body now 751B (was 725B) with UAT region added; sha256 changed
+[CHANGED] forms.sparelabs.com bundle — main.60865478.js regression PERSISTED (staging bundle with ngrok/Atlassian/localhost refs; CA→US routing)
+[CHANGED] api.staging.sparelabs.com — staging enforces 401 on /identity/workos/auth while prod returns 200; confirms multi-version LB serves older vulnerable code to prod
+[PRIO] api.sparelabs.com/v1/global/regions, 8.75, attack_surface=9, business_value=9, tech_exposure=8, gate_ease=9, cloud_surface=8, freshness=9
+[PRIO] api.sparelabs.com/v1/public/engage/caseType GET, 8.55, attack_surface=9, business_value=8, tech_exposure=8, gate_ease=10, cloud_surface=6, freshness=10
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST, 8.05, attack_surface=8, business_value=8, tech_exposure=7, gate_ease=10, cloud_surface=6, freshness=9
+[PRIO] api.sparelabs.com/v1/identity/workos/auth, 8.15, attack_surface=8, business_value=8, tech_exposure=7, gate_ease=10, cloud_surface=7, freshness=9
+[PRIO] api.sparelabs.com/v1/global/organizations, 7.95, attack_surface=8, business_value=7, tech_exposure=8, gate_ease=10, cloud_surface=6, freshness=9
+[PRIO] api.sparelabs.com/v1/public/engage/caseForms POST, 7.90, attack_surface=8, business_value=7, tech_exposure=7, gate_ease=10, cloud_surface=6, freshness=10
+[PRIO] forms.sparelabs.com JS bundle regression, 5.90, attack_surface=5, business_value=4, tech_exposure=5, gate_ease=10, cloud_surface=4, freshness=10
+[PRIO] api.sparelabs.com/v1/** correlationId leak, 5.15, attack_surface=4, business_value=3, tech_exposure=4, gate_ease=10, cloud_surface=3, freshness=10
+[PRIO] forms.sparelabs.com x-frame-options DENY, 4.35, attack_surface=3, business_value=2, tech_exposure=3, gate_ease=10, cloud_surface=2, freshness=9
+[HYP] Multi-version envoy LB replica-split mechanism enabling deterministic scheme-only Bearer bypass on /v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 85
+reasoning: 8/8 fast replicas (4-17ms) return 200+751B+ACAO+ACAC with `Bearer x`; 8/8 slow replicas return 401; body sha256 changed with UAT region addition; UAT region (`api.uat.sparelabs.com`, `simulationsEnabled: true`) now appears in prod fleet regions list; longcat "PATCHED" claim (2026-08-11) false positive — only tested no-auth path (400), never tested Bearer-x vector; staging (api.staging.sparelabs.com) returns 400 "Authorization header required" on /regions (different code version)
+evidence_needed: confirm deterministic replica routing (source-IP/route-based) and UAT region persistence in prod fleet
+verify_steps: PROBE GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" (repeat 20x) — confirm 8/8 fast replicas return 200+751B, 0/8 return 401. PROBE GET https://api.uat.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" — confirm UAT region accessible. PROBE GET https://api.staging.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" — confirm 400 (staging enforces auth).
+impact: Scheme-only auth bypass on fleet-wide regions endpoint (8 hosts: CA/US/US2/US3/JP/EU/UAT + prod); discloses 8 regions × {apiUrl, routingHost} including 12 OOS subdomains; CORS credential reflection enables cross-origin reads; write-method CORS chain advertised (OPTIONS 204 returns PUT/PATCH/POST/DELETE). Severity: HIGH (auth bypass + infra topology disclosure + CORS write surface)
+testability: PASSIVE
+[HYP] Full unauthenticated form schema disclosure and formId extraction enabling caseForms POST chain
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/form GET
+confidence: 90
+reasoning: GET with organizationId=spare-uuid&caseTypeKey=test returns 200 with 20-field schema including securityFootage (file upload, required, allowMediaUploads=true); incident form has 5 fields + 20 incident categories; formId extractable for caseForms POST chain; CORS reflected; no auth required; cross-org narrowing confirmed (only Spare org has caseTypes)
+evidence_needed: valid organizationId + caseTypeKey to retrieve form schema and extract formId for POST chain
+verify_steps: PROBE GET https://api.sparelabs.com/v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test -H "Origin: https://evil.example.com" (no Authorization header) — confirm 200 with full schema + formId. PROBE with caseTypeKey=incident — confirm incident categories disclosed.
+impact: Full unauthenticated form schema disclosure (PII fields, file upload config, incident categories); formId enables caseForms POST chain; cross-org narrowing (only Spare has caseTypes); CORS credential reflection on auth-free endpoint. Severity: MEDIUM (information disclosure + write-path enabler)
+testability: PASSIVE
+[HYP] Unauthenticated caseTypeKey enumeration oracle with cross-organization narrowing
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseType GET
+confidence: 85
+reasoning: GET with organizationId=spare-uuid returns 200 with "test" and "incident" caseType keys including internal UUIDs and form lists; other orgs (grt/dallas/winnipeg/hsr) return 404 "Other was not found"; CORS reflected; no auth required; cross-org narrowing confirmed
+evidence_needed: valid organizationId to enumerate caseTypeKeys; confirm only Spare org has caseTypes
+verify_steps: PROBE GET https://api.sparelabs.com/v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790 -H "Origin: https://evil.example.com" (no Authorization) — confirm 200 with caseType keys + UUIDs. PROBE with grt org UUID (1966c7f8-3e36-4320-b0d7-de0f7d8d4355) — confirm 404 "Other was not found". PROBE with nil UUID — confirm 404 NotFoundError.
+impact: Unauthenticated caseType enumeration per organization; internal UUID disclosure; cross-org discriminator (only Spare has caseTypes); enables form GET + caseForms POST chain. Severity: LOW-MEDIUM (information disclosure + enumeration)
+testability: PASSIVE
+[PARKED] Request correlationId leakage via error envelope on all /v1/** endpoints: confidence 95 but class MISCONFIG is low-severity info disclosure only; no auth bypass or data access; verify_steps passive but impact minimal (request-tracking artifact)
+[FINAL] 1. Multi-version envoy LB replica-split mechanism enabling deterministic scheme-only Bearer bypass on /v1/global/regions
+[FINAL] 2. Full unauthenticated form schema disclosure and formId extraction enabling caseForms POST chain
+[FINAL] 3. Unauthenticated caseTypeKey enumeration oracle with cross-organization narrowing
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test -H "Origin: https://evil.example.com" (no Authorization header) — confirm 200 with full schema + formId extraction for caseForms POST chain
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle confirmed live — Spare org has "test" + "incident" keys with internal UUIDs and form lists; CORS reflected, auth-free
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed live — 20 fields on "test" form + 5 fields + 20 incident categories on "incident" form; formId extractable for POST chain
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle confirmed live — 404 "Form was not found" vs 200 discriminator; auth gate ABSENT; handler reached without 401; CORS reflected
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: error envelope leaks metadata.correlationId (UUID) on every 401/404 response — request-tracking artifact
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — contains ngrok/Atlassian/localhost refs; prior "PATCHED" claims on main.8a2a39cb.js confirmed false positives
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle rotation main.63fe135c.js→main.60865478.js — prod now serves staging bundle with infra refs; downgrade from ACCEPTED MISCONFIG to infra-recon (passive-only value)
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — 90h+ byte-stable (sha256 fb9800acb…585c3fe verified), deterministic fast-replica split; longcat "PATCHED" false positive
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE not flapping — 200+11B+ACAO+ACAC on all 6 probes across ~2h, writes properly gated at 401
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak-only
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+[LEARN] ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no SSO oracle), terms no per-tenant filter; staging is newer code
+[LEARN] REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+[LEARN] REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+[LEARN] REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection

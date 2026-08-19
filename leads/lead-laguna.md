@@ -16480,3 +16480,4 @@ testability: PASSIVE
 [FINAL] api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass enables infrastructure topology disclosure (AUTH, conf 99) — 90h+ byte-stable, NOT patched, now 8-host fleet with UAT added (751B, sha256 27d83f3cd9f3…)
 [FINAL] api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent on write path (BUSLOGIC, conf 96) — validation-before-auth pipeline flaw, handler-before-auth confirmed on 5 org UUIDs, feature-flag gate not auth gate
 [FINAL] api.sparelabs.com/v1/identity/workos/auth: SSO tenant enumeration + WorkOS client_id disclosure (OATH, conf 93) — 11+ tenants, fleet-parity 7 hosts, staging has fix confirming prod serves older vulnerable code
+## 2026-08-19 21:36:57 UTC [web] (model laguna)
