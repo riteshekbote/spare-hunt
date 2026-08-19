@@ -2463,3 +2463,13 @@
 - 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally ABSENT confirmed STABLE — expanded validation chain (400→400→403) proves handler full-pipeline reach without auth; pipeline order validation→org-uuid→feature-flag→handler; 90h+ stable
 - 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle ≥11 tenants fleet-parity confirmed; staging enforces auth (401) confirming multi-version divergence; state reflection confirmed
 - 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 3-way oracle STABLE — live set closed at {spare,grt,dallas,winnipeg,hsr}; prod-only data
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass still NOT patched — live probe 2026-08-19 confirms 200+725B+ACAO+ACAC, sha256 fb9800acb...585c3fe byte-identical
+- 2026-08-19 REJECTED: forms.sparelabs.com JS bundle regression (main.60865478.js contains ngrok/Atlassian/localhost refs) — infra-reccon only, no auth bypass, passive-value limited
+- 2026-08-19 ACCEPTED: api.sparelabs.com/v1/public/engage/caseForms POST — formKey-existence oracle alive (auth gate ABSENT, handler reached without 401)
+- 2026-08-19 REJECTED: api.sparelabs.com/v1/public/organization (singular) UUID oracle — remains FLAPPING 2-way↔3-way across envoy replicas, not a reliable enumeration oracle
+- 2026-08-19 REJECTED: routing.sparelabs.com — envoy 404/0B on ALL probed paths since 2026-08-07, STABLE dead, NO_DELTA
+- 2026-08-19 REJECTED: longcat triage "PATCHED" claim on /v1/global/regions — FALSE POSITIVE, only tested no-auth path (400), never tested Bearer-x bypass vector (200+725B confirmed 90h+ stable)
+- 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — pipeline validation→org-uuid→feature-flag→handler; 90h+ stable across all probes
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle live — Spare org has "test" + "incident" keys with internal UUIDs and form lists; CA-specific
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure live — 20 fields on "test" form, 5 fields + 20 incident categories on "incident" form; formId extractable for POST chain
+- 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live set DEFINITIVELY CLOSED at 5 orgs; 3-way oracle STABLE; prod-only data residency confirmed
