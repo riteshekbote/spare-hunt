@@ -10847,3 +10847,31 @@
 - LEARN: ACCEPTED IDOR @ /v1/public/engage/caseForms POST: FormId oracle confirmed — "Form was not found" vs "Case was not found" differentiates valid/invalid formIds.
 - LEARN: REJECTED BUSLOGIC @ /v1/public/engage/caseType+form+caseForms POST pipeline: caseId BLOCKED for all 5 orgs (403 feature-flag gate, no leak). Pipeline structural
 - LEARN: ACCEPTED MISCONFIG @ /v1/public/engage/form: Incident report form schema fully disclosed — 5 fields including securityFootage (file upload, required, allowMedia
+
+## RANKED HYPOTHESES 2026-08-19 18:08:07 UTC
+- [99] api.sparelabs.com/v1/global/regions: Bearer-x scheme-only bypass on /v1/global/regions — infra topology disclosure (from reports/hypotheses-laguna.txt)
+- [90] api.sparelabs.com/v1/public/engage/form: Unauthenticated form schema disclosure and formId extraction via engage form GET (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: GET https://api.sparelabs.com/v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test -H "Origin: https://evil.example
+- NEXT(hypotheses-laguna.txt): PROBE: curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","c
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle confirmed live — Spare org has "test" + "incident" keys with int
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed live — 20 fields on "test" form + 5 fields + 20 incident categorie
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle confirmed live — 404 "Form was not found" vs 200 discriminator; 
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: error envelope leaks metadata.correlationId (UUID) on every 401/404 response — request-tracking artifact
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — contains ngrok/Atlassian/localhost refs; prior "PATCHED" claims on m
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle rotation main.63fe135c.js→main.60865478.js — prod now serves staging bundle with infra refs; downgrade from ACC
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — 90h+ byte-stable (sha256 fb9800acb…585c3fe verified), deterministic
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE not flapping — 200+11B+ACAO+ACAC on all 6 probes across ~2h, writ
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- LEARN: ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no SSO oracle), terms no per-tenant filter; staging
+- LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed
+- LEARN: ACCEPTED: api.sparelabs.com/v1/global/regions scheme-only Bearer bypass — NOT patched despite longcat false positive; 90h+ byte-stable sha256 verified, determin
+- LEARN: REJECTED: api.sparelabs.com/v1/public/organization (singular) UUID oracle — FLAPPING 2-way↔3-way across envoy replicas, downgraded to validation-leak-only; plur
+- LEARN: REJECTED: routing.sparelabs.com — envoy 404/0B on ALL paths since 2026-08-07, STABLE dead, NO_DELTA
+- LEARN: REJECTED: forms.sparelabs.com JS bundle "PATCHED" claims — main.8a2a39cb.js patch claims were false positives; current main.60865478.js regression persists (ngr
+- LEARN: REJECTED: api.staging.sparelabs.com — OOS per scope exclusions, different code version useful for prod context only (staging has fixes prod lacks)
+- LEARN: REJECTED: /v1/global/* controller-wide — 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family scoped to exactly {/organizations, /regions}
+- LEARN: REJECTED: write-escalation @ /v1/global/{organizations,regions} — POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- LEARN: REJECTED: api.sparelabs.com/v1/public/engage/{caseType,form} GET — flapping between OpenAPI validation (400) and router-level-not-found (400) across envoy repli

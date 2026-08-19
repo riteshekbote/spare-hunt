@@ -2513,3 +2513,10 @@
 - 2026-08-19 ACCEPTED IDOR @ /v1/public/engage/caseForms POST: FormId oracle confirmed — "Form was not found" vs "Case was not found" differentiates valid/invalid formIds.
 - 2026-08-19 REJECTED BUSLOGIC @ /v1/public/engage/caseType+form+caseForms POST pipeline: caseId BLOCKED for all 5 orgs (403 feature-flag gate, no leak). Pipeline structurally complete but write path unreachable without auth-helped caseId creation.
 - 2026-08-19 ACCEPTED MISCONFIG @ /v1/public/engage/form: Incident report form schema fully disclosed — 5 fields including securityFootage (file upload, required, allowMediaUploads=true), 20 incident categories. All fields hidden from rider interface (driver-facing only).
+- 2026-08-19 ACCEPTED: api.sparelabs.com/v1/global/regions scheme-only Bearer bypass — NOT patched despite longcat false positive; 90h+ byte-stable sha256 verified, deterministic on 8/8 fast replicas
+- 2026-08-19 REJECTED: api.sparelabs.com/v1/public/organization (singular) UUID oracle — FLAPPING 2-way↔3-way across envoy replicas, downgraded to validation-leak-only; plural /organizations/{id} superior
+- 2026-08-19 REJECTED: routing.sparelabs.com — envoy 404/0B on ALL paths since 2026-08-07, STABLE dead, NO_DELTA
+- 2026-08-19 REJECTED: api.staging.sparelabs.com — OOS per scope exclusions, different code version useful for prod context only (staging has fixes prod lacks)
+- 2026-08-19 REJECTED: /v1/global/* controller-wide — 22 sibling routes + 8 undocumented controllers ALL 401 — bypass family scoped to exactly {/organizations, /regions}
+- 2026-08-19 REJECTED: write-escalation @ /v1/global/{organizations,regions} — POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- 2026-08-19 REJECTED: api.sparelabs.com/v1/public/engage/{caseType,form} GET — flapping between OpenAPI validation (400) and router-level-not-found (400) across envoy replicas, NOT reliable passive surface
