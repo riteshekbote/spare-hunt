@@ -3397,3 +3397,40 @@
 - NEW api.staging.sparelabs.com/v1/public/organizations/key/translink: staging-only org has real terms URLs (https://sparelabs.com/terms-of-use/)
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; previously only needed organizationId→403 on older code ver
 - CHANGED api.staging.sparelabs.com/v1/identity/workos/auth: staging has auth enforced (401) but prod doesn't (200+SSO data) — confirms multi-version LB serves older code to prod
+
+## 2026-08-19 05:17:56 UTC
+- NEW forms.sparelabs.com JS bundle updated to `main.60865478.js` — identical to staging bundle; contains ngrok (`api-spare.ngrok.io`), Atlassian (`FIN-1093`), localhost:3000/3035, staging API URLs; prod bu
+- NEW api.staging.sparelabs.com different code version confirmed — regions=400 (no bypass, "Authorization header required"), workos=401 (no oracle), terms=real URLs for ALL mobileAppId (no per-tenant filter
+- NEW api.us.sparelabs.com fleet-wide auth bypass parity confirmed (scheme-only Bearer + zero-header on `/v1/global/regions` and `/organizations`) BUT data oracles (UUID/org-key/SSO) are CA-specific only
+- NEW api.sparelabs.com/v1/identity/workos/auth SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca newly confirmed); state parameter reflected unescaped; fleet-pa
+- NEW api.sparelabs.com/v1/global/regions write-method CORS chain convergence confirmed — OPTIONS 204 advertises PUT/PATCH/POST/DELETE with ACAO+ACAC on scheme-only bypass route; multi-version LB replica-sp
+- NEW api.sparelabs.com/v1/public/engage/cases POST auth gate ABSENT confirmed via full-payload test — 403 ForbiddenError with valid org UUID; nil-caseTypeId → 403 proves feature-flag gate precedes caseType
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST validation passes without auth (404 "Form was not found"); CORS write+auth-route chain confirmed; same pattern as cases POST
+- NEW api.sparelabs.com/v1/public/organizations/key/{key} full org details (id, name, logoUrl GCS path, organizationKey, enabledPublicFeatureFlags) returned without auth for all 5 known keys
+- NEW api.sparelabs.com/v1/public/terms per-tenant config chain confirmed — spare→107B literal "asdfd" prod junk, winnipeg→197B real external URL (info.winnipegtransit.com), grt/hsr/dallas→137B generic; byt
+- NEW forms.sparelabs.com CA→US data routing: Production_CA bundle points to api.us.sparelabs.com — Canadian transit data egress to US endpoint (PIPEDA implications)
+- NEW all 4 admin-*.vercel.app hosts (admin-eam-app, admin-fixed-route-app + staging) return 200 — dev-only web-component preview shells with localhost API URLs (EAM:3057, fixed-route:3063); script-src CSP
+- CHANGED forms.sparelabs.com bundle: main.8a2a39cb.js → main.63fe135c.js → main.60865478.js REGRESSION — infra leak reactivated and spread from staging to production
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded 8→11+ tenants (oakville.ca conn_01HTN1GCQYJY8X5TNBK0HPE42W, cota.com conn_01KCKYHA0YPZ8N52Q4DVT96SAC, winnipeg.ca conn_01HP76PPV8CMRJH6RY
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: live set closed at {spare,grt,dallas,winnipeg,hsr} (5 orgs); 22 candidates exhausted; feature-flag differential stable
+- CHANGED api.us.sparelabs.com: fleet-wide bypass parity confirmed but data oracles (UUID/org-key/SSO) are CA-specific only
+- CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle remains FLAPPING 2-way↔3-way across envoy LB replicas — downgraded to validation-leak-only; plural `/organizations/{id}` superior
+- CHANGED platform/forms/routing/sparelabs.com: all transitioned from TIMEOUT (2026-08-07 seed) → responsive (2026-08-13+)
+- CHANGED forms.sparelabs.com JS bundle hash: confirmed `main.60865478.js` still contains `api-spare.ngrok`, `sparelabs.atlassian`, `staging.sparelabs` refs — regression persisted
+- CHANGED platform.sparelabs.com/login CSP: now 5327B (rotated HTML 5555B→5327B on 2026-08-17) but admin-eam-app + admin-fixed-route-app + Metabase + 9 cloud services STABLE in CSP directives
+- CHANGED Staging probe revealed multi-version LB confirmation: staging WorkOS has auth (401), prod doesn't (200). This validates the hypothesis that prod serves older code with auth omissions.
+- NEW api.staging.sparelabs.com/v1/public/organizations/key/spare: staging org key oracle returns 288B with staging-specific data (spare-staging-ca-photos bucket, 2 feature flags vs 5 on prod)
+- NEW api.staging.sparelabs.com: translink org is staging-only (UUID 7e2d0fc8-...) — not in prod
+- NEW api.sparelabs.com: Spare UUID shared across prod+staging (d736519f-...) — shared database for org IDs
+- NEW api.staging.sparelabs.com: GCS bucket names leak environment info (spare-staging-ca-photos vs spare-production-ca-photos)
+- NEW api.staging.sparelabs.com/v1/public/organizations/key/translink: staging-only org has real terms URLs (https://sparelabs.com/terms-of-use/)
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; previously only needed organizationId→403 on older code ver
+- CHANGED api.staging.sparelabs.com/v1/identity/workos/auth: staging has auth enforced (401) but prod doesn't (200+SSO data) — confirms multi-version LB serves older code to prod
+- CHANGED api.sparelabs.com /v1/global/organizations: auth fail-open is now STABLE not flapping — HTTP 200 `{"data":[]}` on all 6 samples across ~2h including ?limit=&offset= variants (params ignored, 11B hardc
+- NEW api.sparelabs.com /v1/** error envelope leaks `metadata.correlationId` (UUID) on every 401/404 — request-tracking artifact, no independent value.
+- NEW forms.sparelabs.com/ now shows `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture, low value.
+- NEW api.sparelabs.com/v1/global/organizations/key/{anything} → 404 NotFoundError "Organization was not found" WITHOUT auth, no format validation (probed: `not-a-uuid`, `x`, all-zero UUID → byte-identical 
+- NEW api.sparelabs.com/v1/global/organizations/zones/centroid (platform-bundle-derived) → 400 ValidationError "not found" WITHOUT auth — not a live route, yet bypasses the auth gate → omission is controlle
+- CHANGED /v1/global/organizations list still 200 hardcoded `{"data":[]}` (params ignored) — empty-payload cap persists; no data-bearing 200 found
+- CHANGED Control /v1/global/settings → 401 InvalidTokenError stable; Origin-reflect + credentials + envoy re-confirmed on all 8 probes this session
+- CHANGED Staging probe revealed multi-version LB confirmation: staging WorkOS has auth (401), prod doesn't (200). This validates the hypothesis that prod serves older code with auth omissions.

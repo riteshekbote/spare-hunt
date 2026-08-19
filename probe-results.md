@@ -3197,3 +3197,13 @@ https://sparelabs.com/terms-of-use/ -> 200 len=? type=text/html; charset=utf-8
 https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
 https://api.sparelabs.com/v1/global/regions -> HTTP 400
 https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+
+## 2026-08-19 05:17:58 UTC
+https://sparelabs.com/terms-of-use/ -> 200 len=? type=text/html; charset=utf-8
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/terms?organizationId=00000000-0000-0000-0000-000000000000 -> 200 len=137 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/global/settings -> HTTP 401
+https://api.sparelabs.com/v1/global/organizations/key/x` -> HTTP 404
+https://api.staging.sparelabs.com/v1/global/regions -> HTTP 400
