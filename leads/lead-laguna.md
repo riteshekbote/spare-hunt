@@ -14805,3 +14805,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07; envoy 404/0B on ALL probed paths including /openapi.json, /swagger.json, /docs, /health, /status; newly responsive (TIMEOUT→404 on 2026-08-13) but zero surface
 [RISK] forms.sparelabs.com: 48 — JS bundle main.60865478.js regression with infra refs (ngrok/api-spare.ngrok.io + Atlassian/FIN-1093 + localhost:3000/3035 + staging API URLs); CA→US data routing (Production_CA→api.us.sparelabs.com, PIPEDA concern); SPA catch-all with strict HTML CSP + x-frame DENY; staging→prod pipeline has no security gate
 [RISK] web (spare.com/sparelabs.com): 10 — spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; www.spare.com OOS excluded; minimal static-only surface
+## 2026-08-19 04:45:37 UTC [web] (model laguna)
