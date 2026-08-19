@@ -2450,3 +2450,6 @@
 - 2026-08-19 ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no oracle), terms no per-tenant filter; staging is newer code
 - 2026-08-19 REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
 - 2026-08-19 REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed
+- 2026-08-19 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass reclassified — 90h+ byte-stable, deterministic fast-replica split, longcat "PATCHED" false positive confirmed; staging has fix (401) confirming multi-version LB serves older vulnerable code
+- 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally ABSENT confirmed STABLE — expanded validation chain (400→400→403) proves handler full-pipeline reach without auth; pipeline order validation→org-uuid→feature-flag→handler
+- 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — writes properly gated at handler level, auth asymmetry confirmed

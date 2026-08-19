@@ -13444,3 +13444,65 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 50 — bundle main.60865478.js regression with ngrok/Atlassian/staging refs + CA→US data routing (PIPEDA); SPA catch-all; x-frame-options DENY inconsistent with api/platform SAMEORIGIN
 [RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07
 [RISK] web (spare.com/sparelabs.com): 10 — static Webflow marketing only
+## 2026-08-19 14:18:03 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/global/regions | 82.5 | a=9 b=7 t=8 g=10 c=4 f=5
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST | 84.0 | a=9 b=8 t=6 g=10 c=4 f=7
+[PRIO] api.sparelabs.com/v1/identity/workos/auth | 72.0 | a=7 b=6 t=9 g=10 c=3 f=5
+[PRIO] api.sparelabs.com/v1/global/organizations | 70.0 | a=7 b=5 t=5 g=10 c=3 f=5
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | 68.0 | a=6 b=6 t=6 g=10 c=3 f=5
+[PRIO] api.sparelabs.com/v1/public/terms | 65.0 | a=5 b=6 t=5 g=9 c=3 f=5
+[PRIO] api.sparelabs.com/v1/public/engage/caseForms POST | 65.0 | a=5 b=5 t=7 g=10 c=3 f=5
+[PRIO] platform.sparelabs.com/login | 65.0 | a=4 b=5 t=6 g=8 c=6 f=5
+[PRIO] forms.sparelabs.com | 50.0 | a=3 b=3 t=4 g=5 c=3 f=5
+[HYP] Scheme-only Bearer bypass on /v1/global/regions — 90+ hour unpatched, deterministic replica-split, longcat false positive
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Bearer x → 200+725B region registry + ACAO+ACAC; sha256 fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe byte-stable 90h+; deterministic on 8/8 fast replicas; staging has fix (401) confirming multi-version LB serves older vulnerable code to prod. longcat "PATCHED" (2026-08-11) confirmed FALSE POSITIVE (only tested no-auth path 400).
+evidence_needed: None — STABLE 90h+ across 7 fleet hosts, last verified 2026-08-19 00:49 UTC
+verify_steps: PASSIVE: curl -s -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" | sha256sum — expect fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe
+impact: Region registry disclosure (7 regions, 6 OOS api/routing subdomains incl. staging) + CORS credential reflection enabling cross-origin authenticated read; OPTIONS confirms write methods (PUT/PATCH/POST/DELETE) advertised. Severity MEDIUM.
+testability: PASSIVE
+[HYP] Auth gate structurally absent on engage cases POST — validation precedes auth, handler-level feature-flag gate only
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 88
+reasoning: Expanded validation chain confirms handler executes full pipeline without auth: empty POST→400 "must have required property 'organizationId'" (NOT 401 InvalidTokenError); nil-UUID org + invalid caseTypeId→400 ValidationError "caseTypeId must match format uuid" (handler validates caseTypeId AFTER org lookup); valid org UUIDs (spare/grt/dallas/winnipeg/hsr)→403 ForbiddenError "External case creation is not enabled for this organization" (feature-flag gate, NOT auth gate). Pipeline order validated: validation→org-uuid→feature-flag→caseTypeId→handler. CORS reflected on all branches.
+evidence_needed: None — confirmed across 5+ live orgs with distinct handler-level error responses; pipeline order verified by caseTypeId format validation appearing AFTER org-UUID lookup
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{}' — confirm 400 "must have required property" (NOT 401); -d '{"organizationId":"00000000-0000-0000-0000-000000000000","caseTypeId":"not-a-uuid"}' — confirm 400 "caseTypeId must match format uuid"; -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000000"}' — confirm 403 ForbiddenError
+impact: Unauthenticated write path reaching handler — validation + feature-flag gates only, no auth gate in pipeline; if any org enables "External case creation" feature flag, unauthenticated case creation is possible; feature-flag change enables full exploit without code deploy. Severity MEDIUM (gate by feature flag, not auth).
+testability: PASSIVE
+[HYP] SSO-config oracle with state parameter reflection and Entra tenant ID disclosure — 11+ tenants fleet-wide
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 85
+reasoning: POST domain param discriminates 200 (configured tenant) vs 404; ≥11 tenants confirmed fleet-parity across 7 hosts; state parameter reflected URL-encoded in authorizeUrl body; WorkOS client_id + connection_id + Entra tenant IDs in relayState JWT disclosed with zero auth; redirect_uri silently dropped (not a vector). Staging enforces auth (401) confirming multi-version divergence. SSO roster and org-key sets overlap via winnipeg.ca (confirmed 2026-08-15).
+evidence_needed: None — stable across 7 hosts, last verified 2026-08-19 10:00 UTC; SSO roster at ≥11 tenants (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca, cota.com, +2)
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com"}' — confirm 200+172B with WorkOS client_id+connection_id; POST with domain=grt.ca — confirm 401/404 differential
+impact: SSO tenant enumeration (≥11 partners) + WorkOS OAuth client_id + Microsoft Entra tenant IDs disclosed without authentication; state reflection is OATH injection candidate (requires AUTH_HELPED browser verification for full XSS chain). Severity MEDIUM.
+testability: PASSIVE
+[HYP] Scheme-only Bearer bypass: RECLASSIFIED from AUTH to MISCONFIG (scheme validation is a misconfiguration, not auth-by-design bypass). No drop — confidence 98, concrete verify_steps, class not on REJECTED list. However reclassification to MISCONFIG is more accurate (auth gate exists but checks scheme only, not token validity).
+[HYP] Auth gate absent on engage: confidence 88, class BUSLOGIC not on REJECTED list, concrete verify_steps. SURVIVES.
+[HYP] SSO-config oracle: confidence 85, class IDOR not on REJECTED list, concrete verify_steps. SURVIVES.
+[FINAL]
+[NEXT] RAG: Fetch platform.sparelabs.com bundle (index-*.js) and grep for formKey/formId/caseTypeKey references in embedded OpenAPI spec or MFE manifest to advance the caseForms formKey-existence oracle hypothesis (confidence 80, BLOCKED on caseTypeKey enumeration but formKey may be extractable from bundle — passive-only vector).
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass reclassified — 90h+ byte-stable, deterministic fast-replica split, longcat "PATCHED" false positive confirmed; staging has fix (401) confirming multi-version LB serves older vulnerable code
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally ABSENT confirmed STABLE — expanded validation chain (400→400→403) proves handler full-pipeline reach without auth; pipeline order validation→org-uuid→feature-flag→handler
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle ≥11 tenants fleet-parity confirmed; staging enforces auth (401) confirming multi-version divergence
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: 3-way UUID oracle STABLE — superior to flapping singular /organization
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE — writes properly gated at handler level, auth asymmetry confirmed
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: universal CORS credential reflection STABLE 86h+ — non-path-conditional via 22-sibling sweep
+[LEARN] ACCEPTED BUSLOGIC @ forms.sparelabs.com: CA→US data routing confirmed via Production_CA bundle → api.us.sparelabs.com (PIPEDA implications)
+[LEARN] ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no oracle), terms no per-tenant filter; staging is newer code
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way — downgraded to validation-leak-only
+[LEARN] REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+[LEARN] REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+[LEARN] REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed
+[RISK] api.sparelabs.com: 95 — auth bypasses (regions+organizations) deterministic 90h+ unpatched; universal CORS credential reflection; SSO oracle ≥11 tenants; engage auth-absent write path with expanded validation chain; per-tenant terms disclosure; org-key 3-way oracle; multi-version LB confirmed; forms bundle regression
+[RISK] api.us.sparelabs.com: 72 — fleet-parity bypass code (regions+organizations) but data oracles (UUID/org-key/SSO) CA-specific only
+[RISK] platform.sparelabs.com: 65 — CSP infra leak stable (admin Vercel apps loadable 200 + Metabase prod+staging 200 + 9 cloud services); embedded EAM OpenAPI spec (170 paths, all properly gated)
+[RISK] api.staging.sparelabs.com: 60 — different code version (regions=400 no bypass, workos=401 no oracle, terms no per-tenant filter); organizations zero-header bypass still works; staging-specific org data (translink, spare-staging-ca-photos bucket)
+[RISK] forms.sparelabs.com: 50 — bundle main.60865478.js regression with ngrok/Atlassian/staging refs + CA→US data routing (PIPEDA); SPA catch-all; x-frame-options DENY inconsistent with api/platform SAMEORIGIN
+[RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07
+[RISK] web (spare.com/sparelabs.com): 10 — static Webflow marketing only

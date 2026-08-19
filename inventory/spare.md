@@ -3635,3 +3635,11 @@
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; was simpler on older code version
 - CHANGED forms.sparelabs.com/: x-frame-options: DENY while api/platform show SAMEORIGIN — inconsistent clickjacking posture
 - CHANGED api.sparelabs.com/v1/** error envelope: metadata.correlationId (UUID) now explicitly tracked as leaked on every 401/404 response
+
+## 2026-08-19 14:18:16 UTC
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥11 tenants with specific connection IDs (oakville.ca conn_01HTN1GCQYJY8X5TNBK0HPE42W, cota.com conn_01KCKYHA0YPZ8N52Q4DVT96SAC, winnipeg
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle retained at confidence 85 — nil-UUID→404 "Form was not found", empty→400 ValidationError, valid→200; auth gate ABSENT, handl
+- NEW api.sparelabs.com/v1/** error envelope: metadata.correlationId (UUID) leaked on every 401/404 response across all /v1/** paths
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; previously only organizationId→403 on older code version
+- CHANGED forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — prod now serves staging bundle identically (ngrok/Atlassian/localhost refs); prior main.8a2a39cb.js "PATCHED" claims confirmed FA
+- CHANGED api.sparelabs.com/v1/global/organizations: auth fail-open STABLE confirmed not flapping — HTTP 200 `{"data":[]}` on all 6 samples across ~2h (params ignored, 11B hardcoded)
