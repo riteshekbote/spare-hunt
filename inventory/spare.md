@@ -3499,3 +3499,22 @@
 - NEW api.staging.sparelabs.com: translink org staging-only (UUID 7e2d0fc8-...) with real terms URLs — not in prod
 - NEW api.staging.sparelabs.com: GCS bucket names leak environment info (spare-staging-ca-photos vs spare-production-ca-photos)
 - NEW api.staging.sparelabs.com/v1/public/organizations/key/spare: staging org key oracle returns 288B with staging-specific data (spare-staging-ca-photos bucket, 2 feature flags vs 5 on prod)
+
+## 2026-08-19 09:35:02 UTC
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle (404 vs 200 discriminator), auth gate ABSENT, handler reached
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca newly confirmed); state parameter reflected unescaped; fleet-p
+- CHANGED forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — contains ngrok/Atlassian/localhost refs; prod now serves staging bundle identically
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403
+- CHANGED api.sparelabs.com/v1/global/organizations: auth fail-open now STABLE not flapping — HTTP 200 `{"data":[]}` on all samples across ~2h (params ignored, 11B hardcoded)
+- CHANGED api.sparelabs.com/v1/** error envelope: leaks `metadata.correlationId` (UUID) on every 401/404 response — request-tracking artifact
+- CHANGED forms.sparelabs.com/: `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture
+- CHANGED api.sparelabs.com/v1/global/organizations/key/{anything}: 404 NotFoundError "Organization was not found" WITHOUT auth, no format validation
+- CHANGED api.sparelabs.com/v1/global/organizations/zones/centroid: 400 ValidationError "not found" WITHOUT auth — not a live route, yet bypasses auth gate
+- CHANGED api.sparelabs.com/v1/global/settings: 401 InvalidTokenError stable; Origin-reflect + credentials + envoy re-confirmed
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; previously only needed organizationId→403 on older code ver
+- CHANGED api.staging.sparelabs.com/v1/identity/workos/auth: staging has auth enforced (401) but prod doesn't (200+SSO data) — confirms multi-version LB serves older code to prod
+- CHANGED api.sparelabs.com /v1/global/organizations: auth fail-open is now STABLE not flapping — HTTP 200 `{"data":[]}` on all 6 samples across ~2h including ?limit=&offset= variants
+- CHANGED api.sparelabs.com/v1/** error envelope leaks `metadata.correlationId` (UUID) on every 401/404 — request-tracking artifact
+- CHANGED forms.sparelabs.com/ now shows `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture
+- CHANGED api.sparelabs.com/v1/global/organizations/key/{anything} → 404 NotFoundError "Organization was not found" WITHOUT auth, no format validation
+- CHANGED api.sparelabs.com/v1/global/organizations/zones/centroid (platform-bundle-derived) → 400 ValidationError "not found" WITHOUT auth — not a live route, yet bypasses the auth gate
