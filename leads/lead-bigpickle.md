@@ -13315,3 +13315,4 @@ testability: PASSIVE (step 1-2), AUTH_HELPED (step 3)
 [RISK] forms.sparelabs.com: 45 — bundle main.60865478.js regression with ngrok/Atlassian/staging refs + CA→US data routing (PIPEDA); SPA catch-all, no API behind host; auth gate absent on engage write routes
 [RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07; envoy 404/0B all paths
 [RISK] web (spare.com/sparelabs.com): 10 — static Webflow marketing only; Cloudflare+HSTS, no internal infra leaks
+## 2026-08-19 11:55:46 UTC [api] (model bigpickle)

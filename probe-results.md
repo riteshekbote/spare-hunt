@@ -3282,3 +3282,9 @@ https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
 https://platform.sparelabs.com/login -> 200 len=5327 type=text/html; charset=UTF-8
 https://forms.sparelabs.com -> 200 len=537 type=text/html; charset=utf-8
+
+## 2026-08-19 11:56:00 UTC
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400

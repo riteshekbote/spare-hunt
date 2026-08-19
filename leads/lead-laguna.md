@@ -15573,3 +15573,29 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — envoy 404 on ALL probed paths since 2026-08-07, zero surface, merely DNS-reachable
 [RISK] forms.sparelabs.com: 45 — bundle regression (main.60865478.js identical to staging with ngrok/Atlassian/localhost refs), CA→US data routing via api.us.sparelabs.com, but SPA-only HTML CSP with x-frame DENY
 [RISK] web (spare.com/sparelabs.com): 8 — spare.com HTTP 200 static (Cloudflare+Webflow, CSP frame-ancestors self, HSTS), sparelabs.com 301→spare.com, minimal static-only surface
+## 2026-08-19 11:50:50 UTC [web] (model laguna)
+[HYP] Scheme-only Bearer bypass on /v1/global/regions remains unpatched after 90+ hours
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 99
+reasoning: Live probe confirms GET `Authorization: Bearer x` → HTTP 200 + 725B region registry (body sha256 `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe` byte-identical, 90h+ stable), + ACAO:reflected + ACAC:true. No-auth → 400, POST → 401, control /v1/journeys → 401. Multi-version envoy LB serves fast replicas (8/8 bypass) vs slow replicas (401) — deterministic replica-split, NOT a patch. longcat "PATCHED" (2026-08-11) is false positive — only tested no-auth path (400), never tested Bearer-x vector.
+evidence_needed: 200 + 725B with sha256 fb9800acb…585c3fe + ACAO+ACAC with Bearer x; 400 no-auth; POST → 401; OPTIONS 204 advertises write methods + CORS
+verify_steps: PASSIVE: curl -s -D - -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" | grep -E "HTTP/|access-control-allow-origin|access-control-allow-credentials"; curl -s "https://api.sparelabs.com/v1/global/regions" | sha256sum
+[HYP] Unauthenticated WorkOS SSO configuration oracle enables tenant enumeration with state-reflected URL-injection surface
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: Live probe confirms POST {"domain":"oakville.ca"} → HTTP 200 + 181B returning authorizationUrl with WorkOS client_id=client_01F5KHYX32TCKB1E7YEAPE0H17, connection_id=conn_01HTN1GCQYJY8X5TNBK0HPE42W, + ACAO:reflected + ACAC:true. POST {"domain":"grt.ca"} → 404 NotFoundError (3-way differential). 7/7 tested tenants return 200 (spare.com, oakville.ca, cota.com, winnipeg.ca, saskatoon.ca, mbta.com, kingcounty.gov). state param URL-encoded passthrough in authorizeUrl body.
+evidence_needed: POST spare.com → 200 + authorizationUrl with client_id+connection_id; POST grt.ca → 404; 7+ configured tenants return 200
+verify_steps: PASSIVE: curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"cota.com"}' "https://api.sparelabs.com/v1/identity/workos/auth" | head -c 200; curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"grt.ca"}' "https://api.sparelabs.com/v1/identity/workos/auth" | head -c 120; AUTH_HELPED: open WorkOS authorize URL in browser to verify state XSS on authorize page
+[HYP] Auth gate structurally absent on Engage case-creation POST — handler reached without 401
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 88
+reasoning: Live probe confirms POST {} → 400 ValidationError "must have required property 'organizationId'" (NOT 401 InvalidTokenError), confirming auth gate is post-validation. Pipeline order: validation→org-uuid→feature-flag→handler. nil-UUID org → 404 NotFoundError (handler reached). valid org UUIDs (spare/grt/dallas/winnipeg/hsr) → 403 ForbiddenError "External case creation is not enabled" (feature-flag gate, NOT auth gate). CORS reflected on all branches. Validation chain expanded requires organizationId→caseTypeId→contactInfo→...→403.
+evidence_needed: empty POST → 400 ValidationError (no 401); nil-UUID org → 404 NotFoundError (handler reached); valid org UUID → 403 ForbiddenError (feature-flag gate not auth)
+verify_steps: PASSIVE: curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{}' "https://api.sparelabs.com/v1/public/engage/cases" | head -c 200; curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"organizationId":"00000000-0000-0000-0000-000000000000"}' "https://api.sparelabs.com/v1/public/engage/cases" | head -c 200
+[FINAL] 1. api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass (AUTH, conf 99, 90h+ stable, longcat false positive)
+[FINAL] 2. api.sparelabs.com/v1/identity/workos/auth: SSO tenant enumeration oracle + state reflection (OATH, conf 92, 7/7 tenants confirmed live)
+[FINAL] 3. api.sparelabs.com/v1/public/engage/cases POST: Auth gate structurally absent (BUSLOGIC, conf 88, handler reached without 401)
+[NEXT] PROBE: curl -s -D - -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" | grep -E "HTTP/|access-control-allow-origin|access-control-allow-credentials|x-envoy"; curl -s -X OPTIONS -H "Origin: https://evil.example.com" -H "Access-Control-Request-Method: DELETE" -H "Access-Control-Request-Headers: Authorization" "https://api.sparelabs.com/v1/global/regions" | grep -i "access-control-allow"
