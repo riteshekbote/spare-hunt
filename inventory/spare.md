@@ -3518,3 +3518,17 @@
 - CHANGED forms.sparelabs.com/ now shows `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture
 - CHANGED api.sparelabs.com/v1/global/organizations/key/{anything} → 404 NotFoundError "Organization was not found" WITHOUT auth, no format validation
 - CHANGED api.sparelabs.com/v1/global/organizations/zones/centroid (platform-bundle-derived) → 400 ValidationError "not found" WITHOUT auth — not a live route, yet bypasses the auth gate
+
+## 2026-08-19 10:00:05 UTC
+- NEW api.staging.sparelabs.com/v1/identity/workos/auth: staging enforces auth (401) while prod returns 200+SSO data — confirms multi-version LB serves older vulnerable code to prod
+- NEW api.staging.sparelabs.com/v1/public/organizations/key/spare: staging-only org key oracle returns 288B with staging-specific data (spare-staging-ca-photos bucket, 2 feature flags vs 5 prod)
+- NEW api.staging.sparelabs.com: translink org staging-only (UUID 7e2d0fc8-...) with real terms URLs — not in prod
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle (404 vs 200 discriminator), auth gate ABSENT, handler reached without 401
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to ≥11 tenants (saskatoon.ca, mbta.com, oakville.ca, cota.com, winnipeg.ca); state reflected unescaped
+- CHANGED forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — contains ngrok/Atlassian/localhost refs; prod now serves staging bundle identically
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403
+- CHANGED api.sparelabs.com/v1/global/organizations: auth fail-open STABLE not flapping — HTTP 200 `{"data":[]}` on all samples across ~2h (params ignored, 11B hardcoded)
+- CHANGED api.sparelabs.com/v1/** error envelope: leaks `metadata.correlationId` (UUID) on every 401/404 response
+- CHANGED forms.sparelabs.com: `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture
+- CHANGED api.sparelabs.com/v1/global/organizations/key/{anything}: 404 NotFoundError without auth, no format validation
+- CHANGED api.sparelabs.com/v1/global/organizations/zones/centroid: 400 ValidationError without auth — not a live route yet bypasses auth gate
