@@ -13944,3 +13944,4 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 50 | bundle main.60865478.js regression with ngrok/Atlassian/localhost refs + CA→US data routing (PIPEDA); SPA catch-all; x-frame DENY; 3 Google Maps keys referrer-restricted
 [RISK] routing.sparelabs.com: 5 | STABLE dead since 2026-08-07, envoy 404 on ALL paths
 [RISK] web (spare.com/sparelabs.com): 10 | static Webflow marketing only, no dynamic surface
+## 2026-08-19 19:18:53 UTC [api] (model bigpickle)
