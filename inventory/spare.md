@@ -3678,3 +3678,39 @@
 - CHANGED api.sparelabs.com/v1/** error envelope: leaks `metadata.correlationId` (UUID) on every 401/404 response — request-tracking artifact
 - CHANGED forms.sparelabs.com/: `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture across fleet
 - CHANGED api.staging.sparelabs.com: staging host confirmed OOS (per scope exclusions) but different code version — regions=400 (auth enforced, no bypass), workos=401 (no SSO oracle, different client_id); prod 
+
+## 2026-08-19 16:07:26 UTC
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥11 tenants with specific connection IDs (oakville.ca conn_01HTN1GCQYJY8X5TNBK0HPE42W, cota.com conn_01KCKYHA0YPZ8N52Q4DVT96SAC, winnipeg
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle retained at confidence 85 — nil-UUID→404 "Form was not found", empty→400 ValidationError, valid→200 discriminator; auth gate
+- NEW api.sparelabs.com/v1/** error envelope: metadata.correlationId (UUID) leaked on every 401/404 response across all /v1/** paths
+- NEW forms.sparelabs.com bundle `main.60865478.js` confirmed current — contains ngrok (`api-spare.ngrok.io`) + Atlassian (`FIN-1093`) + localhost:3000/3035 + staging API URLs; regression persisted from sta
+- NEW api.staging.sparelabs.com: translink org staging-only (UUID 7e2d0fc8-...) with real terms URLs — not in prod; GCS bucket names leak environment info (spare-staging-ca-photos vs spare-production-ca-pho
+- NEW api.staging.sparelabs.com/v1/public/organizations/key/spare: staging org key oracle returns 288B with staging-specific data (spare-staging-ca-photos bucket, 2 feature flags vs 5 prod)
+- NEW api.staging.sparelabs.com/v1/identity/workos/auth: staging enforces auth (401) while prod returns 200+SSO data — confirms multi-version LB serves older vulnerable code to prod
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; previously only organizationId→403 on older code version
+- CHANGED api.sparelabs.com/v1/global/organizations: auth fail-open STABLE confirmed not flapping — HTTP 200 `{"data":[]}` on all 6 samples across ~2h (params ignored, 11B hardcoded)
+- CHANGED forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — prod now serves staging bundle identically (ngrok/Atlassian/localhost refs); prior main.8a2a39cb.js "PATCHED" claims confirmed FA
+- CHANGED api.sparelabs.com/v1/** error envelope: leaks `metadata.correlationId` (UUID) on every 401/404 response — request-tracking artifact
+- CHANGED forms.sparelabs.com/: `x-frame-options: DENY` while api/platform show SAMEORIGIN — inconsistent clickjacking posture across fleet
+- CHANGED api.staging.sparelabs.com: staging host confirmed OOS (per scope exclusions) but different code version — regions=400 (auth enforced, no bypass), workos=401 (no SSO oracle, different client_id); prod 
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle — GET→POST 404 "Form was not found" vs 200 discriminator, auth gate ABSENT, handler reached without 401
+- CHANGED api.sparelabs.com/v1/global/organizations: auth fail-open now STABLE not flapping — HTTP 200 `{"data":[]}` on all 6 samples across ~2h (params ignored, 11B hardcoded)
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded ≥11 tenants (oakville.ca + cota.com + winnipeg.ca newly confirmed, fleet-parity across 7 hosts)
+- CHANGED forms.sparelabs.com: bundle regression main.60865478.js serves staging bundle identically; ngrok/Atlassian/localhost refs persist (prior "PATCHED" claims on main.8a2a39cb.js confirmed false positives)
+- CHANGED api.sparelabs.com/v1/** error envelope: leaks `metadata.correlationId` (UUID) on every 401/404 response — request-tracking artifact
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403
+- NEW api.sparelabs.com/v1/** error envelope: metadata.correlationId (UUID) now explicitly tracked as leaked on every 401/404 response — confirmed via probe
+- NEW forms.sparelabs.com bundle `main.60865478.js` confirmed current (was `main.63fe135c.js` → rotation delta captured) — contains ngrok + Atlassian + localhost refs
+- NEW Staging differentiator: api.staging.sparelabs.com returns 401 on /identity/workos/auth (prod=200) while prod has /v1/global/regions bypass and staging does not — staging is newer code version (OOS per
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO roster expanded to 11+ tenants (oakville.ca conn_01HTN1GCQYJY8X5TNBK0HPE42W, cota.com conn_01KCKYHA0YPZ8N52Q4DVT96SAC, winnipeg.ca conn_01HP76PPV8CMRJH6R
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle retained at confidence 85 — nil-UUID→404 "Form was not found", empty→400 ValidationError, valid→200 discriminator; auth gate
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; previously only needed organizationId→403 on older code rep
+- CHANGED api.sparelabs.com/v1/global/organizations: auth fail-open confirmed STABLE not flapping — HTTP 200 `{"data":[]}` on all 6 samples across ~2h (params ignored, 11B hardcoded, control /v1/journeys still 
+- CHANGED forms.sparelabs.com JS bundle: rotation to `main.60865478.js` (identical to staging) — regression with ngrok (api-spare.ngrok.io) + Atlassian (FIN-1093) + localhost:3000/3035 refs; prior main.8a2a39cb
+- CHANGED api.sparelabs.com/v1/** error envelope: leaks `metadata.correlationId` (UUID) on every 401/404 response across all /v1/** paths
+- CHANGED api.staging.sparelabs.com: staging host confirmed OOS (per scope exclusions) but different code version — regions=400 (auth enforced, no bypass), workos=401 (no SSO oracle, different client_id); prod 
+- NEW forms.sparelabs.com JS bundle: `main.60865478.js` regression confirmed live — prod now serves staging-identical bundle containing ngrok (api-spare.ngrok.io) + Atlassian (FIN-1093) + localhost:3000/303
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: validation chain expanded — now requires organizationId→caseTypeId(UUID)→contactInfo→...→403; previously only needed organizationId→403 on older code rep
+- CHANGED api.staging.sparelabs.com: translink org (UUID 7e2d0fc8-...) staging-only — not in prod; GCS bucket names leak env (spare-staging-ca-photos vs spare-production-ca-photos); staging enforces auth on /id
+- CHANGED api.sparelabs.com/v1/** error envelope: `metadata.correlationId` (UUID) leaked on every 401/404 response across all /v1/** paths
+- CHANGED forms.sparelabs.com/: `x-frame-options: DENY` while api/platform show `SAMEORIGIN` — inconsistent clickjacking posture across fleet
