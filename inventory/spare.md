@@ -3292,3 +3292,5 @@
 - CHANGED api.sparelabs.com/v1/public/organization (singular): UUID oracle remains FLAPPING 2-way↔3-way across envoy LB replicas (nil→404 on fast, 400 on slow) — downgraded to validation-leak-only; plural /orga
 - CHANGED platform.sparelabs.com/login CSP: now 5327B (rotated HTML 5555B→5327B on 2026-08-17) but admin-eam-app + admin-fixed-route-app + Metabase + 9 cloud services STABLE in CSP directives
 - CHANGED Staging probe revealed multi-version LB confirmation: staging WorkOS has auth (401), prod doesn't (200). This validates the hypothesis that prod serves older code with auth omissions.
+
+## 2026-08-19 00:49:11 UTC

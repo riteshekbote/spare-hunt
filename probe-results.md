@@ -3170,3 +3170,8 @@ https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.staging.sparelabs.com/v1/global/settings -> HTTP 401
 https://api.staging.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://sparelabs.com/terms-of-use/ -> 200 len=? type=text/html; charset=utf-8
+
+## 2026-08-19 00:49:12 UTC
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.staging.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/global/regions -> HTTP 400

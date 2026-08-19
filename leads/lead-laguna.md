@@ -14690,3 +14690,4 @@ verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/identity/workos/auth -H
 impact: SSO tenant enumeration (11+ transit/municipal agencies) + WorkOS client_id + connection_id disclosure; state reflection enables redirect/chaining analysis; relayState JWT may leak Entra tenant IDs; no direct user data/creds/auth bypass. Severity LOW-MEDIUM
 testability: PASSIVE
 ## 2026-08-18 23:52:45 UTC [web] (model laguna)
+## 2026-08-19 00:48:58 UTC [web] (model laguna)
