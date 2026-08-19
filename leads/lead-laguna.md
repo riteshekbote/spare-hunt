@@ -14689,3 +14689,4 @@ evidence_needed: POST domain=spare.com → 200 + WorkOS client_id + connection_i
 verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com","state":"PROBE123"}' → extract authorizeUrl from 200 response → confirm state=PROBE123 reflected; POST -d '{"domain":"grt.ca"}' → confirm 404 (differential)
 impact: SSO tenant enumeration (11+ transit/municipal agencies) + WorkOS client_id + connection_id disclosure; state reflection enables redirect/chaining analysis; relayState JWT may leak Entra tenant IDs; no direct user data/creds/auth bypass. Severity LOW-MEDIUM
 testability: PASSIVE
+## 2026-08-18 23:52:45 UTC [web] (model laguna)
