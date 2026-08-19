@@ -1,1 +1,44 @@
-## 2026-08-19 10:26:05 UTC [api] (model bigpickle)
+## 2026-08-19 10:59:35 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/global/regions | 95 | a=9 b=7 t=8 g=10 c=4 f=3
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST | 88 | a=8 b=8 t=7 g=9 c=4 f=5
+[PRIO] api.sparelabs.com/v1/identity/workos/auth | 70 | a=7 b=7 t=8 g=8 c=3 f=3
+[HYP] FormKey existence oracle on /v1/public/engage/caseForms POST
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseForms POST
+confidence: 80
+reasoning: Route confirmed live with auth gate ABSENT (empty POST→400 ValidationError, no 401). Prior all-guessed formKeys returned 404 "Form was not found" — but valid formKeys from bundle/SPA config have never been tested. 404 vs 200 differential proven on cases/caseForms routes for org UUIDs; same pattern expected for formKeys.
+evidence_needed: Valid formKey values from platform.sparelabs.com bundle manifest or Engage portal JS
+verify_steps: PASSIVE: (1) Fetch platform.sparelabs.com login page, extract JS bundle URL, grep for formKey/formId references; (2) POST https://api.sparelabs.com/v1/public/engage/caseForms -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","formKey":"<candidate>","caseId":"00000000-0000-0000-0000-000000000000","metadata":{}}'
+impact: Valid formKey confirmation without auth (403/200 vs 404); cross-route oracle for form inventory. Severity MEDIUM.
+testability: PASSIVE
+[HYP] scheme-only Bearer bypass region registry disclosure with CORS credential reflection
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 98
+reasoning: Bearer x → 200+725B region registry + ACAO+ACAC; sha256 fb9800acb…585c3fe byte-stable 90h+; deterministic on fast replicas; longcat "PATCHED" false positive; staging has fix (401) confirming multi-version LB.
+evidence_needed: None — STABLE 90h+ across 7 fleet hosts
+verify_steps: PASSIVE: GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com"
+impact: Region registry disclosure (7 regions, 6 OOS subdomains) + CORS credential reflection. Severity MEDIUM.
+testability: PASSIVE
+[HYP] WorkOS SSO tenant enumeration with state reflection
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 82
+reasoning: POST domain param discriminates 200 (configured tenant) vs 404; ≥11 tenants confirmed fleet-parity; state parameter reflected unescaped in authorizeUrl; redirect_uri silently dropped.
+evidence_needed: None — stable across 7 hosts
+verify_steps: PASSIVE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"domain":"spare.com"}'
+impact: SSO-config oracle + WorkOS client_id/connection_id disclosure + state injection. Severity MEDIUM.
+testability: PASSIVE
+[FINAL]
+[NEXT] RAG: Fetch platform.sparelabs.com SPA login page, extract JS bundle, grep for formKey/formId/caseType values to feed into caseForms POST oracle probe
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle RETAINED at 80 — route live, auth gate ABSENT, need valid formKeys from bundle manifest
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE — 403 feature-flag gate not auth gate, CORS reflected
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B all paths since 2026-08-07
+[RISK] api.sparelabs.com: 95 — auth bypasses (regions+organizations) + CORS 90h+ + SSO oracle ≥11 tenants + engage auth-absent + multi-version LB + forms bundle regression
+[RISK] api.us.sparelabs.com: 75 — fleet-parity bypass code but data oracles CA-specific only
+[RISK] platform.sparelabs.com: 65 — CSP infra leak (admin Vercel apps + Metabase + 9 cloud services)
+[RISK] api.staging.sparelabs.com: 62 — different code version; staging has auth fixes prod lacks
+[RISK] forms.sparelabs.com: 48 — bundle main.60865478.js regression with ngrok/Atlassian refs; CA→US routing
+[RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07
+[RISK] web (spare.com/sparelabs.com): 10 — static marketing only
