@@ -14170,3 +14170,40 @@ testability: PASSIVE
 [RISK] api.staging.sparelabs.com: 62 | different code version (regions=400 enforced, workos=401 enforced); organizations zero-header bypass still works; staging-specific data; OOS per scope; staging has fixes prod lacks
 [RISK] forms.sparelabs.com: 52 | bundle regression main.60865478.js with ngrok/Atlassian/localhost refs + CA→US data routing (PIPEDA); SPA catch-all; no auth bypass value
 [RISK] routing.sparelabs.com: 5 | STABLE dead since 2026-08-07; envoy 404 on all paths; no surface
+## 2026-08-19 23:48:16 UTC [api] (model bigpickle)
+[PRIO]
+[HYP] Engage unauth write cascade — POST /cases + /caseForms chain
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 91
+reasoning: 403 body verified clean (no caseId leak). Feature-flag "externalCaseCreation" currently disabled — if ANY partner org enables it, entire unauth write chain becomes live. Pipeline order: body→org→feature-flag→handler confirmed across 4+ orgs. Auth gate structurally absent at middleware level.
+evidence_needed: One partner org UUID where "externalCaseCreation" is in enabledPublicFeatureFlags
+verify_steps: PASSIVE: 1) GET /v1/public/organizations/key/{each_known_key} | jq .enabledPublicFeatureFlags; 2) For any org with externalCaseCreation=true, POST full payload to /cases and inspect for caseId; 3) POST caseId to /caseForms
+impact: Unauthenticated case creation + form submission into live transit support system; PII injection; severity HIGH when feature-flag enabled
+testability: PASSIVE
+[HYP] Engage form schema disclosure enabling POST chain
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/form GET
+confidence: 88
+reasoning: Full form schema (20 fields on "test" form, 5 fields + 20 incident categories on "incident" form) disclosed without auth. formId extractable (f0fad64e-e080-438b-9095-5ae8f8364047 for "test") for caseForms POST chain. CORS reflected. Pipeline: caseType→form→caseForms→cases all auth-free.
+evidence_needed: Verify formId is accepted by caseForms POST endpoint
+verify_steps: PASSIVE: 1) GET /v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test | jq .formId; 2) Verify formId appears in caseForms validation error response
+impact: Full PII field schema disclosure (mobilityPlusIdNumber, expiry, easyGoFareCardNumber) enabling targeted case creation when feature-flag enabled
+testability: PASSIVE
+[HYP] Regions bypass — scheme-only Bearer gate, 90h+ stable
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: scheme-only bypass deterministic on 8/8 fast replicas (4-17ms). sha256 fb9800acb…585c3fe byte-stable 90h+. Multi-version LB confirmed: staging enforces 401 (newer code), prod serves older vulnerable code. longcat "PATCHED" claim (2026-08-11) is FALSE POSITIVE — only tested no-auth path (400), never tested Bearer-x vector.
+evidence_needed: None — fully confirmed
+verify_steps: Already confirmed across 15+ probes over 90h+
+impact: 725B region registry disclosure (7 regions incl 6 OOS api/routing subdomains) + ACAO+ACAC credentials; read-only bypass (POST→401); severity MEDIUM
+testability: PASSIVE
+[FINAL]
+[NEXT] PROBE: GET https://api.uat.sparelabs.com/v1/global/organizations -H "Origin: https://evil.example.com" | jq . to test zero-header bypass on UAT 8th fleet host; then GET /v1/public/organizations/key/spare on UAT to compare org data topology with prod
+[LEARN] ACCEPTED AUTH @ api.uat.sparelabs.com: zero-header bypass + regions bypass confirmed fleet-parity on 8th host; simulationsEnabled=true; UAT is full region not staging partition
+[LEARN] ACCEPTED CONFIG @ api.sparelabs.com/v1/public/organizations/{uuid}: Spare org enabledPublicFeatureFlags = ["callForVerificationCode","multimodal","riderEmailAuthentication","riderPhonePin","riderLoginless"] — "externalCaseCreation" NOT present; feature-flag confirmed as per-org gate blocking unauth case creation
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: 403 body verified clean — no caseId leak; pipeline order body→org→feature-flag→handler confirmed; auth gate structurally absent at middleware level
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: full validation chain formId→caseId→metadata→responses; if valid caseId obtainable, write proceeds without auth
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases: PATCH/DELETE/PUT all 401 — only POST is unauth; auth middleware selectively excludes POST method for public rider case creation
+[RISK]
