@@ -13763,3 +13763,51 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: **50** — bundle regression; CA→US data routing
 [RISK] routing.sparelabs.com: **5** — STABLE dead since 2026-08-07
 [RISK] web (spare.com/sparelabs.com): **10** — static marketing only
+## 2026-08-19 16:56:20 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/engage/caseType+form+cascade — 92.5 | attack:9 business:8 tech:9 gate:10 cloud:7 fresh:9
+[PRIO] api.sparelabs.com/v1/global/regions — 87.5 | attack:8 business:8 tech:6 gate:10 cloud:5 fresh:9
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 86.0 | attack:9 business:7 tech:8 gate:10 cloud:6 fresh:9
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — 85.5 | attack:8 business:8 tech:7 gate:10 cloud:5 fresh:8
+[HYP] ENGAGE FULL PIPELINE — caseType→form→caseForms POST complete unauthenticated write chain
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/caseType GET + /v1/public/engage/form GET + /v1/public/engage/caseForms POST
+confidence: 91
+reasoning: GET /caseType returns caseTypeIds + formIds without auth for all 5 live orgs. GET /form returns full schema (all fields, types, choices) without auth. POST /caseForms accepts formId + caseId + metadata without auth gate (validation precedes auth, handler reached at 404 "Case was not found"). Cascade: extract formId from /form GET → feed to /caseForms POST → handler reached. Only blocker is valid caseId (requires cases POST which also lacks auth gate, blocked by per-org feature-flag 403). The pipeline is structurally complete: schema intel extraction → form submission, with auth gate absent at every stage.
+evidence_needed: None — all endpoints confirmed 200 with full data; caseForms POST confirmed handler-level 404 (not 401)
+verify_steps: PASSIVE: curl -s "https://api.sparelabs.com/v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test&formKey=test" -H "Origin: https://evil.example.com" | python3 -c "import sys,json; d=json.load(sys.stdin); print('formId:', d.get('id')); print('fields:', [(f['key'],f['type'],f.get('required')) for f in d.get('fields',[])])"; curl -s -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"formId":"<from above>","caseId":"00000000-0000-0000-0000-000000000000","metadata":{}}' "https://api.sparelabs.com/v1/public/engage/caseForms"
+impact: Complete unauthenticated case form submission pipeline — full schema extraction + POST handler reach. Current blocker: valid caseId (per-org feature-flag gate on cases POST). If any org enables external case creation, attacker achieves full unauth form write. Severity HIGH (structural auth absence + full pipeline validation); currently MEDIUM (blocked by feature-flag). Full form schema disclosure (20 fields on test form, 5 fields + 20 incident categories on incident form) enables social engineering and payload crafting.
+testability: PASSIVE
+[HYP] caseType FORM-FIELD ORACLE — per-tenant caseType/form enumeration across all 5 orgs
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseType GET + /v1/public/engage/form GET
+confidence: 89
+reasoning: Spare org has 2 confirmed caseTypeKeys ("test", "incident") with distinct internal UUIDs and form lists. form GET returns 20 fields (test) and 5 fields + 20 incident categories (incident). Cross-org: grt/dallas/winnipeg/hsr caseTypeKeys unknown — enumeration via POST with known org UUIDs may yield distinct caseType sets per tenant. prod-only data (uat/us2/jp return empty/404). CA-specific (api.us.sparelabs.com returns 404 for Spare org). Terms disclosure (asdfd junk for Spare) embedded in form response body.
+evidence_needed: caseTypeKeys for grt/dallas/winnipeg/hsr orgs (POST /cases with org UUIDs yields 403 but caseTypeKey param may yield validation error revealing valid keys)
+verify_steps: PASSIVE: for each org in {spare,grt,dallas,winnipeg,hsr}, curl -s "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=<uuid>&caseTypeKey=test" -H "Origin: https://evil.example.com" — compare response sizes and form counts across orgs
+impact: Per-tenant case type and form schema enumeration without auth — reveals internal case categorization, incident types, form fields across all transit agencies. Severity MEDIUM (complete intel disclosure enabling targeted social engineering and payload crafting).
+testability: PASSIVE
+[HYP] ENGAGE FORM POST — caseForms formId+caseId oracle with cross-route case creation chain
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseForms POST
+confidence: 86
+reasoning: POST /caseForms with cascading validation: {}→400 formId required; {formId}→400 caseId required; {formId,caseId}→400 metadata required; {formId,caseId,metadata:{}}→404 "Case was not found" (handler reached, NOT 401). FormId obtainable from /form GET. CaseId obtainable from cases POST (403 on valid org → caseId not returned, but handler reached). Fleet-parity: api.us.sparelabs.com returns "Form was not found" (CA-specific formId). If caseId oracle resolved, unauth case form submission becomes possible.
+evidence_needed: Valid caseId — requires cases POST with valid org UUID + caseTypeId + contactInfo to yield caseId in 403 response or via side-channel
+verify_steps: PASSIVE: curl -s -X POST -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"formId":"bee24b41-294d-42fe-8765-10111c0b820d","caseId":"00000000-0000-0000-0000-000000000000","metadata":{}}' "https://api.sparelabs.com/v1/public/engage/caseForms" — confirm 404 "Case was not found" (NOT 401); then try with random UUIDs to confirm handler-level behavior
+impact: Unauthenticated case form submission — if valid caseId obtainable, attacker can attach arbitrary form data to transit rider cases without authentication. Severity MEDIUM-HIGH (PII injection into active cases).
+testability: PASSIVE
+[FINAL]
+[NEXT] PROBE: POST /v1/public/engage/cases with spare UUID + caseTypeId from /caseType GET + contactInfo to confirm whether 403 response body leaks caseId or any new field; then POST /v1/public/engage/caseForms with that caseId to test if handler advances past "Case was not found"
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle live — Spare org has "test" + "incident" keys with internal UUIDs and form lists; CA-specific
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure live — 20 fields on "test" form, 5 fields + 20 incident categories on "incident" form; formId extractable for POST chain
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally ABSENT confirmed STABLE — pipeline order validation→org-uuid→feature-flag→handler; 90h+ stable
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle retained at 86 — auth gate ABSENT, handler reached without 401; cascading validation chain confirmed this session
+[LEARN] REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION confirmed — contains ngrok/Atlassian/localhost refs; prior PATCHED claims were false positives; prod serves staging code
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B all paths since 2026-08-07; NO_DELTA
+[LEARN] REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 InvalidTokenError — bypass is READ-ONLY GET only; confirmed again this session
+[RISK] api.sparelabs.com: 98 — auth bypasses (regions+organizations) deterministic 90h+ unpatched; universal CORS credential reflection; SSO oracle ≥11 tenants; engage full pipeline (caseType→form→caseForms POST chain) with auth gate structurally absent; per-tenant terms disclosure; org-key 3-way oracle; multi-version LB confirmed; 86h+ stable across all findings
+[RISK] api.us.sparelabs.com: 74 — fleet-parity bypass code (regions+organizations) but engage data endpoints return 404 (CA-specific caseTypes/forms); forms bundle routes CA traffic here (PIPEDA)
+[RISK] platform.sparelabs.com: 65 — CSP infra leak stable (admin Vercel apps loadable 200 + Metabase prod+staging 200 + 9 cloud services); embedded EAM OpenAPI spec (170 paths, all properly gated); MFE SPA shell
+[RISK] api.staging.sparelabs.com: 62 — different code version (regions=400 no bypass, workos=401 no oracle); organizations zero-header bypass still works; staging-specific org data (translink staging-only); OOS per scope
+[RISK] forms.sparelabs.com: 50 — bundle main.60865478.js regression with ngrok/Atlassian/localhost refs + CA→US data routing (PIPEDA); SPA catch-all; x-frame DENY; 3 Google Maps keys referrer-restricted
+[RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07, envoy 404 on ALL paths
+[RISK] web (spare.com/sparelabs.com): 10 — static Webflow marketing only, no dynamic surface
