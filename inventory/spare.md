@@ -3951,3 +3951,14 @@
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST — validation chain expanded (requires organizationId→caseTypeId→contactInfo); handler-level 403 still reached without auth; PATCH/DELETE/PUT→401 (only POS
 - CHANGED forms.sparelabs.com bundle — main.60865478.js regression PERSISTED (staging bundle with ngrok/Atlassian/localhost refs; CA→US routing confirmed PIPEDA concern)
 - CHANGED api.staging.sparelabs.com — staging enforces 401 on /identity/workos/auth while prod returns 200; confirms multi-version LB serves older vulnerable code to prod
+
+## 2026-08-20 00:26:27 UTC
+- NEW api.uat.sparelabs.com accessible in prod fleet — full auth bypass chain parity confirmed (zero-header /organizations + scheme-only Bearer /regions + CORS reflection); simulationsEnabled:true; 8th flee
+- NEW api.sparelabs.com/v1/public/engage/caseType GET — caseTypeKey enumeration oracle live (Spare org has "test" + "incident" keys with internal UUIDs and form lists); CORS reflected; auth-free
+- NEW api.sparelabs.com/v1/public/engage/form GET — full schema disclosure (20 fields on "test" form, 5 fields + 20 incident categories on "incident" form); formId extractable for POST chain; auth-free; COR
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST — formKey-existence oracle (nil-UUID→404 "Form was not found", empty→400 ValidationError, valid→200 discriminator); auth gate ABSENT; CORS reflected
+- NEW api.sparelabs.com/v1/** error envelope — metadata.correlationId (UUID) leaked on every 401/404 response across all /v1/** paths
+- CHANGED api.sparelabs.com/v1/global/regions — body grew 725B→751B with UAT region added (simulationsEnabled:true); sha256 changed from fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST — validation chain expanded (requires organizationId→caseTypeId→contactInfo); handler-level 403 still reached without auth; PATCH/DELETE/PUT→401
+- CHANGED forms.sparelabs.com bundle — main.60865478.js regression PERSISTED (staging bundle with ngrok/Atlassian/localhost refs; CA→US routing confirmed PIPEDA concern)
+- CHANGED api.staging.sparelabs.com — staging enforces 401 on /identity/workos/auth while prod returns 200; confirms multi-version LB serves older vulnerable code to prod

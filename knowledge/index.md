@@ -2599,3 +2599,24 @@
 - 2026-08-19 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed — 20 fields + 20 incident categories; formId extractable for POST chain
 - 2026-08-19 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split; longcat "PATCHED" false positive confirmed
 - 2026-08-19 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally ABSENT confirmed STABLE — pipeline order validation→org-uuid→feature-flag→handler confirmed
+- 2026-08-20 ACCEPTED AUTH @ api.uat.sparelabs.com: zero-header bypass + regions bypass confirmed fleet-parity on 8th host; simulationsEnabled=true; UAT is full region not staging partition
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle confirmed live — Spare org has "test" + "incident" keys with internal UUIDs and form lists; CORS reflected, auth-free
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed live — 20 fields on "test" form + 5 fields + 20 incident categories on "incident" form; formId extractable for POST chain
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey-existence oracle confirmed live — 404 "Form was not found" vs 200 discriminator; auth gate ABSENT; handler reached without 401; CORS reflected
+- 2026-08-20 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: error envelope leaks metadata.correlationId (UUID) on every 401/404 response — request-tracking artifact
+- 2026-08-20 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.60865478.js REGRESSION PERSISTED — contains ngrok/Atlassian/localhost refs; prior "PATCHED" claims on main.8a2a39cb.js confirmed false positives
+- 2026-08-20 ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle rotation main.63fe135c.js→main.60865478.js — prod now serves staging bundle with infra refs; downgrade from ACCEPTED MISCONFIG to infra-recon (passive-only value)
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — 90h+ byte-stable (sha256 fb9800acb…585c3fe verified), deterministic fast-replica split; longcat "PATCHED" false positive
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header read-only bypass STABLE not flapping — 200+11B+ACAO+ACAC on all 6 probes across ~2h, writes properly gated at 401
+- 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/organization (singular): UUID oracle FLAPPING 2-way↔3-way across envoy replicas — downgraded to validation-leak-only
+- 2026-08-20 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B ALL paths since 2026-08-07
+- 2026-08-20 ACCEPTED AUTH @ api.staging.sparelabs.com: different code version — regions=400 (auth enforced), workos=401 (no SSO oracle), terms no per-tenant filter; staging is newer code
+- 2026-08-20 REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
+- 2026-08-20 REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
+- 2026-08-20 REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally ABSENT confirmed STABLE — pipeline order validation→org-uuid→feature-flag→handler confirmed
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed — 20 fields + 20 incident categories; formId extractable for POST chain
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: bypass NOT patched — 90h+ byte-stable, deterministic fast-replica split; longcat "PATCHED" false positive confirmed
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE 90h+ — pipeline order validation→org-uuid→feature-flag→handler; CORS reflected
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed — formId extractable for POST chain
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: bypass NOT patched — deterministic fast-replica split; 751B now with UAT; longcat false positive

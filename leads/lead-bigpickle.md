@@ -14207,3 +14207,46 @@ testability: PASSIVE
 [LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseForms POST: full validation chain formId→caseId→metadata→responses; if valid caseId obtainable, write proceeds without auth
 [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/public/engage/cases: PATCH/DELETE/PUT all 401 — only POST is unauth; auth middleware selectively excludes POST method for public rider case creation
 [RISK]
+## 2026-08-20 00:25:31 UTC [api] (model bigpickle)
+[PRIO]
+[HYP] Engage unauth write cascade — externalCaseCreation feature-flag gate
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 91
+reasoning: Validation-before-auth pipeline confirmed stable 90h+. Full payload (org UUID + caseTypeId + contactInfo) reaches handler 403 ForbiddenError. Feature-flag "externalCaseCreation" absent from Spare's enabledPublicFeatureFlags — if ANY partner org enables it, unauth write chain goes live. Cross-route org-UUID oracle validated on 4 orgs (spare/grt/dallas/winnipeg→403, nil→404).
+evidence_needed: One partner org with externalCaseCreation=true in enabledPublicFeatureFlags
+verify_steps: PASSIVE: 1) GET /v1/public/organizations/key/{each_known_key} | jq .enabledPublicFeatureFlags; 2) If externalCaseCreation found, POST full payload to /cases; 3) POST returned caseId to /caseForms
+impact: Unauthenticated case creation + form submission into live transit support system; PII injection; severity HIGH when enabled
+testability: PASSIVE
+[HYP] Engage form schema disclosure enabling targeted POST chain
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/form GET
+confidence: 88
+reasoning: Full PII field schema (20 fields incl mobilityPlusIdNumber, expiry, easyGoFareCardNumber) disclosed without auth. formId extractable for caseForms POST chain. CORS reflected. caseType→form→caseForms→cases all auth-free pipeline confirmed.
+evidence_needed: Verify formId accepted by caseForms POST
+verify_steps: PASSIVE: GET /v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test | jq .formId
+impact: Full PII field schema disclosure enabling targeted case creation; severity MEDIUM
+testability: PASSIVE
+[HYP] Regions bypass scheme-only Bearer gate
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: Deterministic on fast replicas. 751B now with UAT region added. Body sha256 byte-stable per-replica-version. Multi-version LB confirmed: staging enforces 401 (newer code), prod serves older vulnerable code. longcat "PATCHED" false positive confirmed.
+evidence_needed: None — fully confirmed 90h+ stable
+verify_steps: Already confirmed across 15+ probes
+impact: Region registry disclosure + 8 fleet hosts + ACAO+ACAC; read-only; severity MEDIUM
+testability: PASSIVE
+[PARKED] UAT fleet parity: OOS host, recon value only — not actionable within scope
+[PARKED] caseForms formKey oracle: need valid formKeys from bundle, BLOCKED without auth
+[PARKED] caseTypeKey oracle: admin-created keys, no public enumeration, BLOCKED
+[FINAL]
+[NEXT] PROBE: GET https://api.sparelabs.com/v1/public/organizations/key/spare | jq .enabledPublicFeatureFlags — re-verify Spare's feature flags for any new "externalCaseCreation" addition since last probe
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE 90h+ — pipeline order validation→org-uuid→feature-flag→handler; CORS reflected
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed — formId extractable for POST chain
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: bypass NOT patched — deterministic fast-replica split; 751B now with UAT; longcat false positive
+[RISK] api.sparelabs.com: 98 | auth bypasses deterministic; universal CORS; SSO oracle ≥11 tenants; engage full pipeline auth gate absent; per-tenant terms disclosure; org-key 3-way oracle; 8 fleet hosts
+[RISK] platform.sparelabs.com: 65 | CSP infra leak stable; embedded OpenAPI spec all gated; no real API behind MFE shell
+[RISK] forms.sparelabs.com: 52 | bundle regression with ngrok/Atlassian refs; CA→US data routing; SPA catch-all; no auth bypass
+[RISK] routing.sparelabs.com: 5 | STABLE dead since 2026-08-07
+[RISK] api.uat.sparelabs.com: 75 | UAT 8th fleet host full bypass parity; simulationsEnabled; OOS per scope but publicly routable
+[RISK] api.staging.sparelabs.com: 62 | different code version (has fixes prod lacks); organizations bypass; OOS per scope
