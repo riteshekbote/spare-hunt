@@ -4310,3 +4310,18 @@
 - CHANGED forms.sparelabs.com: Bundle rotated to main.9f3ec6b6.js (replaced main.60865478.js); still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing persists
 - CHANGED api.sparelabs.com: Mixed patch enforcement across multi-version LB replicas; 7 endpoints return 401 on patched replicas, 200 on unpatched
 - CHANGED api.uat.sparelabs.com: UAT bypass parity LOST; returns 401 on all routes; removed from prod fleet
+
+## 2026-08-20 16:02:28 UTC
+- NEW api.sparelabs.com: Major patch event deployed ~2026-08-20; 7 auth-free endpoints now return 401 on SOME envoy replicas; multi-version LB creates inconsistent enforcement
+- NEW api.sparelabs.com/v1/global/regions: MIXED — patched replicas return 401, unpatched return 200+751B with UAT region (was 725B, now includes UAT); SHA256 changed
+- NEW api.sparelabs.com/v1/global/organizations: MIXED — patched=401, unpatched=200+11B zero-header bypass
+- NEW api.sparelabs.com/v1/public/engage/cases POST: MIXED — unpatched replicas return 403 feature-flag gate, patched replicas unknown
+- NEW api.sparelabs.com/v1/public/engage/caseType GET: MIXED — patched=401, unpatched=200+caseType keys
+- NEW api.sparelabs.com/v1/public/terms: MIXED — patched=401, unpatched=200+137B
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: MIXED — patched=401, unpatched=200+351B
+- NEW api.sparelabs.com/v1/public/organizations/{id}: MIXED — patched=401, unpatched=200+org data
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive across all 7 fleet hosts post-patch (returns 200+172B with fleet-parity)
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle CONSISTENTLY alive — returns 404 handler-reached without 401, SURVIVED patch
+- NEW forms.sparelabs.com: Bundle rotated to `main.9f3ec6b6.js` (replaced `main.60865478.js`); still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing persists
+- NEW api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+- NEW api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (auth-gated paths now standard 401 without CORS reflection)

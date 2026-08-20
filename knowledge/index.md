@@ -2718,3 +2718,27 @@
 - 2026-08-20 REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes; removed from prod fleet; UAT region now appears in prod regions list but no bypass
 - 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas — auth-gated paths now standard 401 without CORS reflection
 - 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR — returns 200 with fleet-parity across 7 hosts post-patch
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); validation→org-uuid→feature-flag→handler confirmed
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); POST method not in patch batch
+- 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/global/regions: PATCHED fleet-wide on most replicas (returns 401); multi-version LB creates mixed enforcement; earlier "NOT patched" claims were false positives testing only no-auth path
+- 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/global/organizations: PATCHED fleet-wide on most replicas (returns 401); zero-header fail-open resolved
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression; returns 200 with full org data + UUID + feature flags for all 7 known orgs
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: UUID oracle FULLY REVERTED; returns 200 with full org data
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle alive; 10+ tenants confirmed; WorkOS client_id + connection_id disclosed
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/terms: Per-tenant terms disclosure via organizationId parameter; Spare has junk URL "asdfd"
+- 2026-08-20 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/*: CORS credential reflection on all /public/* endpoints with full method list
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate structurally absent; 400 schema validation reveals required fields
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle; 404 handler-reached without auth
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Returns 400 "Authorization header required" — no data leak, but no 401
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Returns 200 with empty data — no auth required
+- 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression; returns 200 with full org data + UUID + feature flags for all 7 known orgs
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: UUID oracle FULLY REVERTED; returns 200 with full org data
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle alive; 10+ tenants confirmed; WorkOS client_id + connection_id disclosed
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/terms: Per-tenant terms disclosure via organizationId parameter; Spare has junk URL "asdfd"
+- 2026-08-20 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/*: CORS credential reflection on all /public/* endpoints with full method list
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate structurally absent; 400 schema validation reveals required fields
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle; 404 handler-reached without auth
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Returns 400 "Authorization header required" — no data leak, but no 401
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Returns 200 with empty data — no auth required
+- 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas

@@ -11648,3 +11648,47 @@
 - LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: PATCHED on most replicas (returns 401); UUID oracle resolved
 - LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes; removed from prod fleet; UAT region now appears in prod regions list 
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas — auth-gated paths now sta
+
+## RANKED HYPOTHESES 2026-08-20 16:02:28 UTC
+- [95] api.sparelabs.com/v1/identity/workos/auth: SSO tenant enumeration via WorkOS auth endpoint survives fleet-wide patching (from reports/hypotheses-nemotron3.txt)
+- [88] api.sparelabs.com/v1/identity/workos/auth: SSO tenant config oracle survives fleet-wide patching with state reflection injection vector (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -X POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizatio
+- NEXT(hypotheses-bigpickle.txt): PROBE: Verify all three surviving findings against current envoy replicas — 1) `curl -s -o /dev/null -w "%{http_code} %{time_total}s" -X POST https://api.sparel
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR post-patch — returns 200+172B with fleet-parity across 7 hosts
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); validation→org-uuid→
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR post-patch — returns 404 handler-reached without 401
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions: Mixed — some replicas patched (401), some unpatched (200+751B with UAT). Multi-version LB inconsistency. Pa
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations: Mixed — some replicas patched (401), some unpatched (200+11B). Same multi-version LB mechanism.
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes. Removed from prod fleet.
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas. Mixed across fleet.
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: Bundle regression PERSISTED — main.9f3ec6b6.js contains ngrok/atlassian/metabase refs; CA→US data routing confirmed
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR post-patch — returns 200+172B with fleet-parity across 7 hosts; NOT in patched en
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); POST method not in p
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR post-patch — returns 404 handler-reached without 401; second unauth w
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions: PATCHED fleet-wide on most replicas (returns 401); multi-version LB creates mixed enforcement; earlier "NOT
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations: PATCHED fleet-wide on most replicas (returns 401); zero-header fail-open resolved
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: PATCHED on most replicas (returns 401); some unpatched still serve 200
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: PATCHED on most replicas (returns 401); UUID oracle resolved
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes; removed from prod fleet
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas — auth-gated paths now sta
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression; returns 200 with full org data + UUID 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: UUID oracle FULLY REVERTED; returns 200 with full org data
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle alive; 10+ tenants confirmed; WorkOS client_id + connection_id disclosed
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/terms: Per-tenant terms disclosure via organizationId parameter; Spare has junk URL "asdfd"
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/*: CORS credential reflection on all /public/* endpoints with full method list
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate structurally absent; 400 schema validation reveals required fields
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle; 404 handler-reached without auth
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Returns 400 "Authorization header required" — no data leak, but no 401
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Returns 200 with empty data — no auth required
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression; returns 200 with full org data + UUID 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: UUID oracle FULLY REVERTED; returns 200 with full org data
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle alive; 10+ tenants confirmed; WorkOS client_id + connection_id disclosed
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/terms: Per-tenant terms disclosure via organizationId parameter; Spare has junk URL "asdfd"
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/*: CORS credential reflection on all /public/* endpoints with full method list
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate structurally absent; 400 schema validation reveals required fields
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle; 404 handler-reached without auth
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Returns 400 "Authorization header required" — no data leak, but no 401
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Returns 200 with empty data — no auth required
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
