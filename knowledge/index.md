@@ -2653,3 +2653,14 @@
 - 2026-08-20 ACCEPTED MISCONFIG @ forms.sparelabs.com JS bundle — main.9f3ec6b6.js contains ngrok + Atlassian + Metabase refs (1 each); CA→US data routing confirmed
 - 2026-08-20 REJECTED AUTH @ api.uat.sparelabs.com — no bypass parity; returns 401 on both /regions and /organizations (no longer 8th fleet host)
 - 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/** error envelope — correlationId leak status unclear (patched on 401 paths, may persist on some routes)
+- 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/global/regions — scheme-only Bearer bypass PATCHED; now returns 401 for both zero-auth and Bearer-x attempts
+- 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/global/organizations — zero-header fail-open PATCHED; now returns 401 for zero-auth GET
+- 2026-08-20 REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id} — UUID oracle PATCHED; now returns 401
+- 2026-08-20 REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key} — org-key oracle PATCHED; now returns 401
+- 2026-08-20 REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType GET — schema disclosure PATCHED; now returns 401
+- 2026-08-20 REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form GET — schema disclosure PATCHED; now returns 401
+- 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/terms — per-tenant config disclosure PATCHED; now returns 401
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth — SSO oracle STILL alive post-patch; returns 200 with fleet-parity across 7 hosts
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST — auth gate STILL absent post-patch; returns 403 feature-flag gate (not 401)
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST — formKey oracle STILL alive post-patch; returns 404 handler-reached without 401
+- 2026-08-20 REJECTED AUTH @ api.uat.sparelabs.com — UAT bypass parity LOST; returns 401 on both /regions and /organizations

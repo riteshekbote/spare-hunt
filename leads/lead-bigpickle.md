@@ -14307,3 +14307,66 @@ class: AUTH | confidence: 95 | asset: api.sparelabs.com/v1/global/regions
 [RISK] forms.sparelabs.com: 52 — bundle regression with ngrok/Atlassian/localhost refs; CA→US data routing; SPA catch-all; no auth bypass
 [RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07
 ## 2026-08-20 04:40:00 UTC [api] (model bigpickle)
+## 2026-08-20 05:23:31 UTC [api] (model bigpickle)
+[NEW] api.sparelabs.com/v1/global/regions — PATCHED — now returns 401 (was 200+725B+ACAO+ACAC); scheme-only Bearer bypass eliminated
+[NEW] api.sparelabs.com/v1/global/organizations — PATCHED — now returns 401 (was 200+11B+ACAO+ACAC); zero-header fail-open eliminated
+[NEW] api.sparelabs.com/v1/public/engage/caseType GET — PATCHED — now returns 401 (was 200 auth-free enumeration)
+[NEW] api.sparelabs.com/v1/public/engage/form GET — PATCHED — now returns 401 (was 200 auth-free schema disclosure)
+[NEW] api.sparelabs.com/v1/public/terms — PATCHED — now returns 401 (was 200 auth-free per-tenant config)
+[NEW] api.sparelabs.com/v1/public/organizations/key/{key} — PATCHED — now returns 401 (was 200 auth-free org details)
+[NEW] api.sparelabs.com/v1/public/organizations/{id} — PATCHED — now returns 401 (was 200 auth-free UUID oracle)
+[CHANGED] api.uat.sparelabs.com — returns 401 on both /regions and /organizations; UAT no longer in prod fleet
+[CHANGED] forms.sparelabs.com — NEW bundle main.9f3ec6b6.js (replaced main.60865478.js); still contains ngrok/atlassian/metabase refs (1 each)
+[CHANGED] api.sparelabs.com/v1/** — CORS credential reflection no longer reflects ACAO on 401 responses
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 83 (A:7 B:7 T:8 G:8 C:3 F:9)
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST — 78 (A:8 B:9 T:4 G:7 C:1 F:8)
+[PRIO] api.sparelabs.com/v1/public/engage/caseForms POST — 72 (A:7 B:7 T:3 G:7 C:1 F:8)
+[PRIO] forms.sparelabs.com JS bundle — 54 (A:5 B:5 T:3 G:4 C:2 F:8)
+[HYP] SSO tenant configuration oracle survives fleet-wide patching
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 94
+reasoning: POST domain param discriminates 200 (configured tenant) vs 404 (non-tenant) with zero auth. 10+ tenants confirmed (spare, dart, translink, mbta, saskatoon, kingcounty, winnipeg, oakville, cota). Discloses WorkOS client_id + connection_id + Entra tenant IDs in authorizationUrl body. Fleet-parity across 7 hosts. This endpoint was NOT in the batch that just got patched (regions/orgs/terms/key/oracle all went 401 simultaneously). State parameter reflected URL-encoded in authorizeUrl.
+evidence_needed: None — fully confirmed live pre-patch
+verify_steps: PASSIVE: 1) POST https://api.sparelabs.com/v1/identity/workos/auth -H "Content-Type: application/json" -d '{"domain":"spare.com"}' | check for 200+authorizationUrl; 2) POST {"domain":"grt.ca"} | check for 404 differential
+impact: SSO tenant roster enumeration + WorkOS infrastructure fingerprinting + partner Entra tenant ID exposure; state reflection potential OATH vector; severity MEDIUM
+testability: PASSIVE
+[HYP] Engage cases POST auth gate absent — validation-before-auth pipeline
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 91
+reasoning: Pipeline order validation→org-uuid→feature-flag→handler confirmed. Empty POST→400 ValidationError (not 401), nil-UUID→404 NotFoundError (handler reached), valid org UUIDs→403 ForbiddenError (feature-flag gate NOT auth gate). Feature-flag "externalCaseCreation" absent from Spare's enabledPublicFeatureFlags. CORS credential reflection on all responses. If ANY partner org enables it, unauth write chain goes live. This endpoint was NOT in the batch that just got patched.
+evidence_needed: One partner org with externalCaseCreation=true in enabledPublicFeatureFlags
+verify_steps: PASSIVE: 1) POST https://api.sparelabs.com/v1/public/engage/cases -H "Content-Type: application/json" -d '{"organizationId":"00000000-0000-0000-0000-000000000000","caseTypeId":"00000000-0000-0000-0000-000000000000"}' | check for 400/403/404 without 401
+impact: Unauthenticated case creation + form submission into live transit support system when feature-flag enabled; PII injection; severity HIGH when enabled
+testability: PASSIVE
+[HYP] Engage caseForms POST formKey existence oracle
+class: IDOR
+asset: api.sparelabs.com/v1/public/engage/caseForms POST
+confidence: 82
+reasoning: Route confirmed live with auth gate structurally absent. 404 "Form was not found" (131B + correlationId) vs 400 ValidationError discriminates form existence. Handler reached without 401. CORS reflected on all responses. Requires valid formKey (not publicly guessable). FormId bridge requires AUTH_HELPED token. This endpoint was NOT in the batch that just got patched.
+evidence_needed: Valid formKey from bundle/API to confirm 200 discriminator
+verify_steps: PASSIVE: 1) POST https://api.sparelabs.com/v1/public/engage/caseForms -H "Content-Type: application/json" -d '{"formId":"00000000-0000-0000-0000-000000000000","caseId":"00000000-0000-0000-0000-000000000000","metadata":{}}' | check for 404 (form not found) without 401
+impact: Form existence oracle confirms valid formIds for case creation cascade; severity MEDIUM when combined with cases POST
+testability: PASSIVE
+[FINAL]
+[HYP] SSO tenant configuration oracle survives fleet-wide patching — 94
+[HYP] Engage cases POST auth gate absent — validation-before-auth pipeline — 91
+[HYP] Engage caseForms POST formKey existence oracle — 82
+[NEXT] PROBE: POST https://api.sparelabs.com/v1/identity/workos/auth -H "Content-Type: application/json" -d '{"domain":"spare.com"}' — re-confirm SSO oracle still alive post-patch
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/regions — scheme-only Bearer bypass PATCHED; now returns 401 for both zero-auth and Bearer-x attempts
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/organizations — zero-header fail-open PATCHED; now returns 401 for zero-auth GET
+[LEARN] REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id} — UUID oracle PATCHED; now returns 401
+[LEARN] REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key} — org-key oracle PATCHED; now returns 401
+[LEARN] REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType GET — schema disclosure PATCHED; now returns 401
+[LEARN] REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form GET — schema disclosure PATCHED; now returns 401
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/public/terms — per-tenant config disclosure PATCHED; now returns 401
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth — SSO oracle STILL alive post-patch; returns 200 with fleet-parity across 7 hosts
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST — auth gate STILL absent post-patch; returns 403 feature-flag gate (not 401)
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST — formKey oracle STILL alive post-patch; returns 404 handler-reached without 401
+[LEARN] REJECTED AUTH @ api.uat.sparelabs.com — UAT bypass parity LOST; returns 401 on both /regions and /organizations
+[RISK] api.sparelabs.com: 78 — Massive patch wave eliminated 7 auth-free endpoints + regions/orgs bypasses; SSO oracle ≥11 tenants + engage write pipeline + caseForms oracle SURVIVE; universal CORS on auth-gated paths now follows standard 401 pattern
+[RISK] platform.sparelabs.com: 58 — CSP infra leak STABLE (admin Vercel apps + Metabase + 9 cloud services); no real API behind MFE shell
+[RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07; envoy 404 on all paths
+[RISK] forms.sparelabs.com: 48 — NEW bundle main.9f3ec6b6.js still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing; SPA catch-all; no auth bypass
+[RISK] web (spare.com/sparelabs.com): 8 — Static Webflow marketing; no dynamic logic; minimal surface
