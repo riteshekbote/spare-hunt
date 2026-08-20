@@ -11254,3 +11254,12 @@
 - LEARN: REJECTED AUTH (write-escalation) @ /v1/global/{organizations,regions}: POST/PUT/PATCH/DELETE → 401 — bypass is READ-ONLY GET only
 - LEARN: REJECTED (longcat triage) @ /v1/global/regions: "PATCHED" false positive — only tested no-auth path 400, missed Bearer-x vector
 - LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only confirmed
+
+## RANKED HYPOTHESES 2026-08-20 03:07:47 UTC
+- [96] api.sparelabs.com/v1/public/engage/cases: Engage unauthenticated write pipeline — validation-before-auth enables handler reach with PII schema disclosure (from reports/hypotheses-laguna.txt)
+- NEXT(hypotheses-laguna.txt): PROBE: curl -s -X POST -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","c
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.8a2a39cb.js → main.60865478.js regression — prod serves staging bundle with ngrok/Atlassian/localhost r
+- LEARN: ACCEPTED AUTH @ api.uat.sparelabs.com: zero-header bypass + regions bypass confirmed fleet-parity on 8th host; simulationsEnabled=true; UAT is full region not s
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — pipeline order validation→org-uuid→feature-flag→handler confi
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/** error envelope: metadata.correlationId (UUID) leaked on every 401/404 response across all paths
+- LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only reflection (URL-encoded passthro

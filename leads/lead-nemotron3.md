@@ -24729,3 +24729,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 reason: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_DELTA
 [RISK] forms.sparelabs.com: 40 reason: Engage portal SPA live; JS bundle regression PERSISTED (main.60865478.js identical to staging) with ngrok/Atlassian/localhost refs; CA→US data routing confirmed (PIPEDA implications); x-frame-options: DENY; no real API behind forms host (all 8 API paths SPA catch-all); infra-recon value only
 [RISK] web (spare.com/sparelabs.com): 15 reason: spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
+## 2026-08-20 03:05:48 UTC [platform] (model nemotron3)
