@@ -3984,3 +3984,17 @@
 - NEW api.sparelabs.com/v1/public/engage/caseType GET — caseTypeKey enumeration oracle live (Spare org has "test" + "incident" caseTypeKeys with internal UUIDs and form lists); CORS reflected; auth-free
 - NEW api.sparelabs.com/v1/public/engage/form GET — full schema disclosure (20 fields on "test" form, 5 fields + 20 incident categories on "incident" form); formId extractable for caseForms POST chain; CORS
 - NEW api.sparelabs.com/v1/public/engage/caseForms POST — formKey-existence oracle (nil-UUID→404 "Form was not found", empty→400 ValidationError, valid→200 discriminator); auth gate ABSENT; CORS reflected
+
+## 2026-08-20 04:04:32 UTC
+- CHANGED api.sparelabs.com/v1/global/regions — scheme-only Bearer bypass now returns 401 (was 200+725B+ACAO+ACAC); sha256 fb9800acb…585c3fe no longer matches live body
+- CHANGED api.sparelabs.com/v1/global/organizations — zero-header bypass now returns 401 (was 200+11B+ACAO+ACAC); fail-open patched
+- CHANGED api.sparelabs.com/v1/public/engage/caseType GET — now returns 401 (was 200 auth-free with caseTypeKey enumeration)
+- CHANGED api.sparelabs.com/v1/public/engage/form GET — now returns 401 (was 200 auth-free with full schema disclosure)
+- CHANGED api.sparelabs.com/v1/public/terms — now returns 401 (was 200 auth-free with per-tenant config)
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key} — now returns 401 (was 200 auth-free with org details)
+- CHANGED api.sparelabs.com/v1/public/organizations/{id} — now returns 401 (was 200 auth-free with UUID oracle)
+- CHANGED api.uat.sparelabs.com — returns 401 on both /regions and /organizations (no bypass parity; UAT not in prod fleet)
+- CHANGED forms.sparelabs.com — NEW bundle main.9f3ec6b6.js (replaced main.60865478.js); still contains ngrok/atlassian/metabase refs (1 each)
+- CHANGED api.sparelabs.com/v1/identity/workos/auth — STILL returns 200 (SSO oracle alive, fleet-parity 7 hosts)
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST — STILL returns 403 ForbiddenError (auth gate absent, feature-flag gate; validation→org-uuid→feature-flag→handler)
+- CHANGED api.sparelabs.com/v1/public/engage/caseForms POST — STILL returns 404 NotFoundError (auth gate absent, handler reached; formId→caseId→metadata chain)

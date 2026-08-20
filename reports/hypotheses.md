@@ -11263,3 +11263,16 @@
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate structurally absent — pipeline order validation→org-uuid→feature-flag→handler confi
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/** error envelope: metadata.correlationId (UUID) leaked on every 401/404 response across all paths
 - LEARN: REJECTED OATH @ api.sparelabs.com/v1/identity/workos/auth: redirect_uri injection dead — parameter silently dropped; state-only reflection (URL-encoded passthro
+
+## RANKED HYPOTHESES 2026-08-20 04:04:32 UTC
+- [91] api.sparelabs.com/v1/public/engage/cases: Engage unauth write cascade via validation-before-auth pipeline (from reports/hypotheses-bigpickle.txt)
+- [90] api.sparelabs.com/v1/public/engage/cases: Engage cases POST unauthenticated write pipeline with PII exposure (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -X POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizatio
+- NEXT(hypotheses-bigpickle.txt): PROBE: GET https://api.sparelabs.com/v1/public/organizations/key/spare | jq .enabledPublicFeatureFlags — re-verify Spare's feature flags for any new "externalCa
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT confirmed STABLE 90h+ — pipeline order validation→org-uuid→feature-flag→hand
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle ≥11 tenants fleet-parity confirmed; staging enforces 401 confirming multi-version LB serve
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: bypass NOT patched — deterministic fast-replica split; 751B now with UAT; longcat "PATCHED" false positive
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST write-escalation: PATCH/DELETE/PUT→401 (auth properly enforced on write methods); POST only un
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed — 20 fields + 20 incident categories; formId extractable for P
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle confirmed live — Spare org has "test" + "incident" keys; COR
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: error envelope leaks metadata.correlationId (UUID) on every 401/404 response — request-tracking artifact across al
