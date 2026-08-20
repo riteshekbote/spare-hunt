@@ -4271,3 +4271,20 @@
 - CHANGED api.sparelabs.com/v1/public/engage/caseType GET — PATCHED on most replicas (returns 401); caseType enumeration resolved
 - CHANGED api.sparelabs.com/v1/public/engage/form GET — PATCHED on most replicas (returns 401); schema disclosure resolved
 - CHANGED api.sparelabs.com/v1/** — CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas
+
+## 2026-08-20 14:07:04 UTC
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive across all 7 fleet hosts post-patch (returns 200+172B with fleet-parity)
+- NEW api.sparelabs.com/v1/public/engage/cases POST: Unauthenticated write path SURVIVED patch — returns 403 feature-flag gate (not 401) on unpatched replicas
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle CONSISTENTLY alive — returns 404 handler-reached without 401, SURVIVED patch
+- NEW forms.sparelabs.com: Bundle rotated to `main.9f3ec6b6.js` (replaced `main.60865478.js`); still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing persists
+- NEW api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+- NEW api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (auth-gated paths now standard 401 without CORS reflection)
+- CHANGED api.sparelabs.com: Major patch event deployed ~2026-08-20; 7 auth-free endpoints now return 401 on SOME envoy replicas; multi-version LB creates inconsistent enforcement
+- CHANGED api.sparelabs.com/v1/global/regions: MIXED — patched replicas return 401, unpatched return 200+751B with UAT region (was 725B, now includes UAT); SHA256 changed
+- CHANGED api.sparelabs.com/v1/global/organizations: MIXED — patched=401, unpatched=200+11B zero-header bypass
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: MIXED — patched=401, unpatched=200+org details
+- CHANGED api.sparelabs.com/v1/public/organizations/{id}: MIXED — patched=401, unpatched=200+org data
+- CHANGED api.sparelabs.com/v1/public/terms: MIXED — patched=401, unpatched=200+terms URLs
+- CHANGED api.sparelabs.com/v1/public/engage/caseType GET: MIXED — patched=401, unpatched=200+caseType keys
+- CHANGED api.sparelabs.com/v1/public/engage/form GET: MIXED — patched=401, unpatched=200+schema
+- CHANGED api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas
