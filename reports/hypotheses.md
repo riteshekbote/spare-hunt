@@ -11389,3 +11389,32 @@
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: unauth write path STILL alive — returns 403 feature-flag gate (not 401); validation→org-uuid→
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey oracle STILL alive — returns 404 "Form was not found" (handler reached, no 401)
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses (patched on auth-gated paths)
+
+## RANKED HYPOTHESES 2026-08-20 07:19:56 UTC
+- [90] api.sparelabs.com/v1/public/engage/cases: Engage unauthenticated write pipeline with PII exposure (from reports/hypotheses-nemotron3.txt)
+- [88] api.sparelabs.com/v1/identity/workos/auth: SSO tenant config oracle survives fleet-wide patching (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -X POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizatio
+- NEXT(hypotheses-bigpickle.txt): PROBE: Verify all three surviving findings in parallel — 1) POST https://api.sparelabs.com/v1/identity/workos/auth -H "Content-Type: application/json" -d '{"dom
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass PATCHED — now returns 401 for both zero-auth and Bearer-x attempts
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header fail-open PATCHED — now returns 401 for zero-auth GET
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: UUID oracle PATCHED — now returns 401
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: org-key oracle PATCHED — now returns 401
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType GET: auth-free enumeration PATCHED — now returns 401
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form GET: auth-free schema disclosure PATCHED — now returns 401
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/terms: per-tenant config disclosure PATCHED — now returns 401
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — now returns 401 on both /regions and /organizations; UAT not in prod fleet
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STILL alive — returns 200 with fleet-parity across 7 hosts
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: unauth write path STILL alive — returns 403 feature-flag gate (not 401); validation→org-uuid→
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey oracle STILL alive — returns 404 "Form was not found" (handler reached, no 401)
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses (patched on auth-gated paths)
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions — PATCHED (now 401; multi-version LB path closed)
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations — PATCHED (now 401; fail-open resolved)
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id} — PATCHED (now 401)
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key} — PATCHED (now 401)
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType GET — PATCHED (now 401)
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form GET — PATCHED (now 401)
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/terms — PATCHED (now 401)
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com — bypass parity LOST (now 401 on all routes)
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth — SSO oracle SURVIVOR; returns 200 fleet-parity
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST — auth gate SURVIVOR; returns 403 feature-flag
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST — formKey oracle SURVIVOR; returns 404 handler-reached
