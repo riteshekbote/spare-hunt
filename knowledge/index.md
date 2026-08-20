@@ -2780,3 +2780,11 @@
 - 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType: 200+231B schema — engage read chain never patched.
 - 2026-08-20 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO/ACAC reflected, methods include POST/PATCH/DELETE — credentialed-CORS preflight reflection alive on authed routes.
 - 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live 200+351B @2026-08-20T21:40Z post-revert, body sha256 3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd — FULLY_REVERTED confirmed
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: vendor fix ~2026-08-20 fully reverted fleet-wide — oracle alive post-revert (200+351B @21:40Z, sha256 `3099f1bab…`)
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: gate validates header presence/scheme only — bypass consistent post-revert (200+751B incl. UAT region, sha256 `27d83f3c…`)
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle survived patch/revert untouched — never in patch batch, fleet-parity intact
+- 2026-08-20 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/journeys (OPTIONS): credentialed-CORS preflight reflection alive post-patch (204 + ACAO/ACAC + write methods advertised)
+- 2026-08-20 REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity lost (401 on /regions + /organizations) — no longer mirrors prod bypass family
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: pipeline order post-revert = OpenAPI validation → (org resolution → feature-flag gate → handler per KB captures); auth check absent from entry path entirely
+- 2026-08-20 ACCEPTED INFOLEAK @ api.sparelabs.com/v1/public/engage/cases POST: unauth callers receive sequential required-property disclosure + per-request correlationId (schema-shape oracle)
+- 2026-08-20 NOTE: valid-org 403 differential post-revert requires full body schema satisfaction (≥3 required props enumerated so far); 403 feature-flag-gate captures already on file from patch-window SURVIVOR entries — behavior unchanged across patch/revert
