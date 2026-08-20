@@ -15216,3 +15216,28 @@ verify_steps: DONE
 impact: Business logic data disclosure; severity LOW
 testability: PASSIVE
 [NEXT] **CORS credential reflection exploitation verification** — confirm that cross-origin GET response bodies are readable (not just reflected headers) by testing with `credentials: include` semantics. Then verify if auth cookies are httpOnly. If readable, this is a CRITICAL finding enabling full data exfiltration from any malicious site when an authenticated Spare user visits it.
+## 2026-08-20 18:08:34 UTC [api] (model bigpickle)
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 97
+reasoning: All 7 known org keys return 200 + full org data (UUID, name, logoUrl GCS path, enabledFeatureFlags, organizationKey) without auth. Post-revert CORS credential reflection (ACAO:reflected + ACAC:true) confirmed on this route. Any malicious site can read full org data cross-origin when a user with a browser (or session cookie) hits it.
+evidence_needed: Live GET with Origin header returns 200 + ACAO+ACAC on org-key response body
+verify_steps: PASSIVE: `curl -s -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/public/organizations/key/spare -v 2>&1 | grep -iE "access-control|HTTP/"`
+impact: Full org UUID + feature flag + GCS logo bucket disclosure for 7 tenants; enables targeted attacks per org (e.g. spare has 5 flags including riderLoginless); severity HIGH-MEDIUM
+testability: PASSIVE
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 93
+reasoning: POST {"domain":"<any>"} returns 200+172B with WorkOS client_id + connection_id for 10+ confirmed tenants; 404 for non-tenants. connection_id is byte-stable per domain. Fleet-parity confirmed across 7 hosts. Entra tenant IDs disclosed in relayState JWT for dart.org and translink.ca.
+evidence_needed: Already verified live in KB (10+ tenants, 7-host fleet-parity)
+verify_steps: PASSIVE: `curl -s -X POST https://api.sparelabs.com/v1/identity/workos/auth -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"winnipeg.ca"}' -v 2>&1 | grep -iE "access-control|HTTP/|authorizationUrl"`
+impact: 10+ SSO tenant enumeration (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca, cota.com +); WorkOS client_id+connection_id disclosure; Entra tenant IDs for 2 tenants; severity MEDIUM-HIGH
+testability: PASSIVE
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 90
+reasoning: POST without auth reaches handler (403 ForbiddenError "External case creation is not enabled" not 401); validation precedes auth in pipeline (body→org-uuid→feature-flag→handler); valid org UUIDs confirmed on 5 orgs (spare/grt/dallas/winnipeg/hsr all 403, nil 404); CORS reflected on all branches. "externalCaseCreation" feature flag NOT present in Spare's enabledPublicFeatureFlags list — flag is off for all 5 orgs.
+evidence_needed: Already verified live (403 across 5 orgs, 404 on nil, no 401)
+verify_steps: PASSIVE: `curl -s -X POST https://api.sparelabs.com/v1/public/engage/cases -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{}' -v 2>&1 | grep -iE "access-control|HTTP/|feature|ForbiddenError|organizationId"`
+impact: Unauthenticated case creation when feature-flag enabled for any org; cross-tenant handler reach confirmed; 403/404 differential usable as org-UUID oracle; severity MEDIUM (gated by feature flag, currently off for all 5 orgs)
+testability: PASSIVE
