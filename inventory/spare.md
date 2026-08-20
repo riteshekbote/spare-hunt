@@ -4288,3 +4288,5 @@
 - CHANGED api.sparelabs.com/v1/public/engage/caseType GET: MIXED — patched=401, unpatched=200+caseType keys
 - CHANGED api.sparelabs.com/v1/public/engage/form GET: MIXED — patched=401, unpatched=200+schema
 - CHANGED api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas
+
+## 2026-08-20 14:40:22 UTC

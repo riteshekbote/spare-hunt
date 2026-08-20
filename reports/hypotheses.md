@@ -11622,3 +11622,5 @@
 - LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: PATCHED on most replicas (returns 401); UUID oracle resolved
 - LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes; removed from prod fleet; UAT region now appears in prod regions list 
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas — auth-gated paths now sta
+
+## RANKED HYPOTHESES 2026-08-20 14:40:22 UTC

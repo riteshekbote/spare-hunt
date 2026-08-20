@@ -14779,3 +14779,4 @@ confidence: 75
 [RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07; envoy 404/0B on all probed paths; NO_DELTA; resurrected from TIMEOUT→404 on 2026-08-13 but zero surface
 [RISK] forms.sparelabs.com: 50 — NEW bundle main.9f3ec6b6.js still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing confirmed; SPA catch-all no auth bypass; infra-recon value only; bundle rotated 4x in 7 days indicating active development
 [RISK] web (spare.com/sparelabs.com): 8 — Static Webflow marketing; Cloudflare+HSTS; CSP frame-ancestors 'self'; no internal infra leaks in HTML/JS; minimal static-only surface; no dynamic logic
+## 2026-08-20 14:40:08 UTC [api] (model bigpickle)
