@@ -11574,3 +11574,27 @@
 - LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: PATCHED on most replicas (returns 401); UUID oracle resolved
 - LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes; removed from prod fleet; UAT region now appears in prod regions list 
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas — auth-gated paths now sta
+
+## RANKED HYPOTHESES 2026-08-20 13:09:53 UTC
+- [95] api.sparelabs.com/v1/identity/workos/auth: SSO tenant enumeration via WorkOS auth endpoint survives fleet-wide patching (from reports/hypotheses-nemotron3.txt)
+- [88] api.sparelabs.com/v1/identity/workos/auth: SSO tenant config oracle survives fleet-wide patching with state reflection injection vector (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -X POST https://api.sparelabs.com/v1/public/engage/cases -H "Origin: https://evil.example.com" -H "Content-Type: application/json" -d '{"organizatio
+- NEXT(hypotheses-bigpickle.txt): PROBE: Verify all three surviving findings against current envoy replicas — 1) curl -s -o /dev/null -w "%{http_code} %{time_total}s" -X POST https://api.sparela
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR — returns 200 with fleet-parity across 7 hosts post-patch
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Unauth write path SURVIVOR — returns 403 feature-flag gate (not 401); validation→org-uuid→fea
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR — returns 404 handler-reached without 401
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions: Mixed — some replicas patched (401), some unpatched (200+751B with UAT). Multi-version LB inconsistency. Pa
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations: Mixed — some replicas patched (401), some unpatched (200+11B). Same multi-version LB mechanism.
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes. Removed from prod fleet.
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas. Mixed across fleet.
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: Bundle regression PERSISTED — main.9f3ec6b6.js contains ngrok/atlassian/metabase refs; CA→US data routing confirmed
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR post-patch — returns 200+172B with fleet-parity across 7 hosts; NOT in patched en
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); validation→org-uuid→
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR post-patch — returns 404 handler-reached without 401; second unauth w
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions: PATCHED fleet-wide (returns 401 on patched replicas); unpatched replicas still serve 200+751B with UAT regi
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations: PATCHED fleet-wide (returns 401 on patched replicas); multi-version LB inconsistent; zero-header fail
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: PATCHED on most replicas (returns 401); some unpatched still serve 200
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: PATCHED on most replicas (returns 401); UUID oracle resolved
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes; removed from prod fleet; UAT region now appears in prod regions list 
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas — auth-gated paths now sta

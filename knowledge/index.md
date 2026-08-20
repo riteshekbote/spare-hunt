@@ -2717,3 +2717,4 @@
 - 2026-08-20 REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: PATCHED on most replicas (returns 401); UUID oracle resolved
 - 2026-08-20 REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes; removed from prod fleet; UAT region now appears in prod regions list but no bypass
 - 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas — auth-gated paths now standard 401 without CORS reflection
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR — returns 200 with fleet-parity across 7 hosts post-patch

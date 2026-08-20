@@ -4246,3 +4246,28 @@
 - CHANGED api.uat.sparelabs.com — Bypass parity LOST; returns 401 on all routes; removed from prod fleet
 - NEW forms.sparelabs.com — Bundle rotated to main.9f3ec6b6.js (replaced main.60865478.js); still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing persists
 - NEW api.sparelabs.com/v1/global/regions — UAT region now appears in prod fleet regions list (simulationsEnabled:true); content-length grew 725B→751B; 8th host added to bypass chain on unpatched replicas
+
+## 2026-08-20 13:09:53 UTC
+- NEW api.sparelabs.com/v1/global/regions: Major patch deployed — returns 401 on patched replicas, 200+751B (with UAT region) on unpatched replicas; scheme-only Bearer bypass MIXED across fleet
+- NEW api.sparelabs.com/v1/global/organizations: Major patch deployed — returns 401 on patched replicas, 200+11B on unpatched replicas; zero-header fail-open MIXED across fleet
+- NEW api.sparelabs.com/v1/public/engage/cases POST: Major patch deployed — unauthenticated write path MIXED (unpatched replicas return 403 feature-flag gate, patched replicas unknown)
+- NEW api.sparelabs.com/v1/public/engage/caseType GET: Major patch deployed — auth-free enumeration MIXED (unpatched replicas return 200+caseType keys, patched return 401)
+- NEW api.sparelabs.com/v1/public/terms: Major patch deployed — per-tenant config MIXED (unpatched replicas return 200+137B, patched return 401)
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: Major patch deployed — auth-free org details MIXED (unpatched replicas return 200+351B, patched return 401)
+- NEW api.sparelabs.com/v1/public/organizations/{id}: Major patch deployed — UUID oracle MIXED (unpatched replicas return 200+org data, patched return 401)
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive across all 7 fleet hosts post-patch (returns 200+172B with fleet-parity)
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle CONSISTENTLY alive — returns 404 handler-reached without 401, SURVIVED patch
+- NEW forms.sparelabs.com: Bundle rotated to `main.9f3ec6b6.js` (replaced `main.60865478.js`); still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing persists
+- NEW api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+- NEW api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (auth-gated paths now standard 401 without CORS reflection)
+- CHANGED api.sparelabs.com: Major patch event deployed ~2026-08-20; 7 auth-free endpoints now return 401 on SOME envoy replicas; multi-version LB creates inconsistent enforcement
+- CHANGED forms.sparelabs.com — bundle rotated to `main.9f3ec6b6.js` (replaced `main.60865478.js`); still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing persists
+- CHANGED api.uat.sparelabs.com — bypass parity LOST; returns 401 on both `/regions` and `/organizations`; removed from prod fleet
+- CHANGED api.sparelabs.com/v1/global/regions — PATCHED fleet-wide (returns 401 on patched replicas); unpatched replicas still serve 200+751B with UAT region; multi-version LB creates inconsistent enforcement
+- CHANGED api.sparelabs.com/v1/global/organizations — PATCHED fleet-wide (returns 401 on patched replicas); zero-header fail-open resolved on most replicas
+- CHANGED api.sparelabs.com/v1/public/organizations/{id} — PATCHED on most replicas (returns 401); UUID oracle resolved
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key} — PATCHED on most replicas (returns 401); some unpatched still serve 200
+- CHANGED api.sparelabs.com/v1/public/terms — PATCHED on most replicas (returns 401); per-tenant config disclosure resolved
+- CHANGED api.sparelabs.com/v1/public/engage/caseType GET — PATCHED on most replicas (returns 401); caseType enumeration resolved
+- CHANGED api.sparelabs.com/v1/public/engage/form GET — PATCHED on most replicas (returns 401); schema disclosure resolved
+- CHANGED api.sparelabs.com/v1/** — CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas
