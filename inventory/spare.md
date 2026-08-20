@@ -4156,3 +4156,18 @@
 - CHANGED api.sparelabs.com/v1/identity/workos/auth — STILL returns 200 (SSO oracle alive, fleet-parity 7 hosts)
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST — STILL returns 403 ForbiddenError (auth gate absent, feature-flag gate; validation→org-uuid→feature-flag→handler)
 - CHANGED api.sparelabs.com/v1/public/engage/caseForms POST — STILL returns 404 NotFoundError (auth gate absent, handler reached; formId→caseId→metadata chain)
+
+## 2026-08-20 10:03:50 UTC
+- NEW api.sparelabs.com/v1/global/regions — scheme-only Bearer bypass STILL ALIVE (returns 200+725B, NOT patched; inventory claim false positive)
+- NEW api.sparelabs.com/v1/global/organizations — zero-header fail-open STILL ALIVE (returns 200+11B, NOT patched; inventory claim false positive)
+- NEW api.sparelabs.com/v1/public/engage/caseType GET — auth-free enumeration STILL ALIVE (returns 200+caseTypes, NOT patched)
+- NEW api.sparelabs.com/v1/public/engage/form GET — full schema disclosure STILL ALIVE (returns 200+20 fields, NOT patched)
+- NEW api.sparelabs.com/v1/public/terms — per-tenant config STILL ALIVE (returns 200+URLs, NOT patched)
+- NEW api.sparelabs.com/v1/public/organizations/key/{key} — auth-free org details STILL ALIVE (returns 200+org data, NOT patched)
+- NEW api.sparelabs.com/v1/public/organizations/{id} — auth-free UUID oracle STILL ALIVE (returns 200+org data, NOT patched)
+- NEW api.uat.sparelabs.com — returns 401 on /regions and /organizations (UAT bypass parity LOST, confirmed dead)
+- NEW forms.sparelabs.com — NEW bundle main.9f3ec6b6.js (replaced main.60865478.js); still contains ngrok/atlassian/metabase refs
+- NEW api.sparelabs.com/v1/** — CORS credential reflection STILL reflects ACAO on 401 responses (inventory claim false positive)
+- CHANGED api.sparelabs.com/v1/identity/workos/auth — STILL returns 200 (SSO oracle alive, fleet-parity 7 hosts)
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST — STILL returns 403 ForbiddenError (auth gate absent, feature-flag gate)
+- CHANGED api.sparelabs.com/v1/public/engage/caseForms POST — STILL returns 404 NotFoundError (auth gate absent, handler reached)

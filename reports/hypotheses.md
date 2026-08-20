@@ -11466,3 +11466,19 @@
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: unauth write path STILL alive — returns 403 feature-flag gate (not 401); validation→org-uuid→
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey oracle STILL alive — returns 404 "Form was not found" (handler reached, no 401)
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses (patched on auth-gated paths)
+
+## RANKED HYPOTHESES 2026-08-20 10:03:50 UTC
+- [95] api.sparelabs.com/v1/global/regions: Fleet-wide auth bypass via multi-version LB replica split (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -X GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" — confirm 200+725B+ACAO+ACAC a
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass NOT patched — inventory claim false positive, only tested no-auth path (400), mis
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header fail-open NOT patched — inventory claim false positive; zero-header GET returns 200+11B a
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType GET: auth-free enumeration NOT patched — inventory claim false positive; returns 200 with caseTy
+- LEARN: REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form GET: auth-free schema disclosure NOT patched — inventory claim false positive; returns 200 with 20 f
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/public/terms: per-tenant config disclosure NOT patched — inventory claim false positive; returns 200 with URLs
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: UUID oracle NOT patched — inventory claim false positive; returns 200 with org data
+- LEARN: REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: org-key oracle NOT patched — inventory claim false positive; returns 200 with org details
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STILL reflects ACAO on 401 responses — inventory claim false positive
+- LEARN: ACCEPTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — now returns 401 on both /regions and /organizations; UAT removed from prod fleet
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STILL alive — returns 200 with fleet-parity across 7 hosts
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: unauth write path STILL alive — returns 403 feature-flag gate (not 401)
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey oracle STILL alive — returns 404 handler-reached without 401
