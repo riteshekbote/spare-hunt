@@ -3678,3 +3678,9 @@ https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
 https://api.sparelabs.com/v1/public/organizations/key/grt -> 200 len=288 type=application/json; charset=utf-8
 https://api.sparelabs.com/v1/public/organizations/key/nonexistent-probe -> HTTP 404
+
+## 2026-08-20 22:05:06 UTC
+https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth` -> HTTP 401

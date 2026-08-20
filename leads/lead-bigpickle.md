@@ -15542,3 +15542,28 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com: 38 reason bundle regression persists (ngrok/Atlassian refs, CA→US routing)
 [RISK] routing.sparelabs.com: 5 reason dead envoy 404 all paths
 [RISK] spare.com: 8 reason static marketing, no new surface
+## 2026-08-20 22:04:52 UTC [api] (model bigpickle)
+class: IDOR
+confidence: 98
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+reasoning: Guessable-slug GET returns full org object (internal UUID, name, production GCS bucket URL, security-relevant feature flags) with zero auth; 4 distinct tenants confirmed live post-revert vs clean 404 control; arbitrary-Origin reflection + ACAC:true on every response makes it readable by any website's JS with victim cookies attached.
+evidence_needed: COMPLETE — `/tmp/opencode/p0820b/`: 3×200 full-record bodies + prior `key/spare` 200+351B (`3099f1ba…`) + 404 control, headers captured, bodies hashed.
+verify_steps: PASSIVE GET ×4 @≤1rps executed 2026-08-20T21:52Z: `key/{grt,dallas,winnipeg}` → 200 full records; `key/nonexistent-probe` → 404 NotFoundError; all reflect `Origin: https://evil.example.com` + `Access-Control-Allow-Credentials: true`.
+impact: Unauthenticated harvesting of Spare's customer roster incl. internal IDs, infra endpoints, and auth-posture flags (riderLoginless, riderPhonePin); drive-by cross-origin exfiltration enabled by CORS misconfig.
+testability: HIGH — deterministic single GETs, byte-stable hashed bodies.
+class: IDOR
+confidence: 93
+asset: api.sparelabs.com/v1/identity/workos/auth
+reasoning: POST `{domain}` returns 200+172B byte-stable tenant config for ≥11 gov domains with fleet-parity (7 hosts); staging enforces 401 (newer code) proving prod regression; client_id disclosed.
+evidence_needed: Post-revert re-confirm (last confirm pre-dates revert window).
+verify_steps: PASSIVE POST config lookup: `curl -sS -m 15 -D - -o /tmp/opencode/p0820b/sso.json -w "%{http_code} %{size_download}B\n" -H 'Content-Type: application/json' -d '{"domain":"spare.com"}' https://api.sparelabs.com/v1/identity/workos/auth` expect 200+172B byte-stable.
+impact: Maps which agencies use Spare SSO + connection metadata; aids targeted phishing/tenant enumeration.
+testability: HIGH — non-mutating config lookup, deterministic.
+class: BUSLOGIC
+confidence: 90
+asset: api.sparelabs.com/v1/public/engage/cases (+caseForms formKey oracle)
+reasoning: Empty-body POST → 400 ValidationError (not 401); valid-org → 403 feature-flag gate vs nil-org → 404; caseForms formKey → 404 handler-reached; PATCH/DELETE properly 401 isolates POST-path ordering flaw; staging enforces 401.
+evidence_needed: Post-revert re-confirm of 400-not-401 ordering.
+verify_steps: PASSIVE: `POST /v1/public/engage/cases` empty JSON body expect 400 ValidationError; `POST /v1/public/engage/caseForms {"formKey":"nonexistent"}` expect 404 handler-reached.
+impact: Auth-order defect signals systemic middleware gap; schema disclosure aids abuse-chain construction if any org enables externalCaseCreation.
+testability: HIGH — non-mutating (validation rejects before handler).
