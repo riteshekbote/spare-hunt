@@ -4205,3 +4205,18 @@
 - CHANGED api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
 - NEW forms.sparelabs.com: bundle rotated to `main.9f3ec6b6.js` (replaced `main.60865478.js`); still contains ngrok/atlassian/metabase refs (1 each)
 - CHANGED api.sparelabs.com: Major patch event deployed — 7 previously auth-free endpoints now return 401 on SOME envoy replicas (regions, organizations, orgKey, orgId, caseType GET, form GET, terms). Multi-ver
+
+## 2026-08-20 11:44:14 UTC
+- NEW api.sparelabs.com: Major patch event deployed causing multi-version LB inconsistency — 7 previously auth-free endpoints now return 401 on SOME envoy replicas (regions, organizations, orgKey, orgId, ca
+- CHANGED api.sparelabs.com/v1/global/regions: Now returns 200+751B with UAT region on unpatched replicas (was 725B), patched replicas return 401; scheme-only Bearer bypass MIXED across fleet
+- CHANGED api.sparelabs.com/v1/global/organizations: Zero-header fail-open MIXED — unpatched replicas return 200+11B, patched return 401
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: Unauthenticated write path MIXED — unpatched replicas return 403 feature-flag gate (not 401), patched replicas unknown
+- CHANGED api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive across all 7 fleet hosts (returns 200+172B), SURVIVED patch
+- CHANGED api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle CONSISTENTLY alive — returns 404 handler-reached without 401, SURVIVED patch
+- CHANGED forms.sparelabs.com: Bundle rotated to `main.9f3ec6b6.js` (replaced `main.60865478.js`); still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing persists
+- CHANGED api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+- CHANGED api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (auth-gated paths now standard 401 without CORS reflection)
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: Auth-free org details MIXED — unpatched replicas return 200+351B, patched return 401
+- CHANGED api.sparelabs.com/v1/public/organizations/{id}: UUID oracle MIXED — unpatched replicas return 200+org data, patched return 401
+- CHANGED api.sparelabs.com/v1/public/terms: Per-tenant config MIXED — unpatched replicas return 200+137B, patched return 401
+- CHANGED api.sparelabs.com/v1/public/engage/caseType GET: Auth-free enumeration MIXED — unpatched replicas return 200+caseType keys, patched return 401

@@ -14591,3 +14591,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07; envoy 404 on all paths
 [RISK] forms.sparelabs.com: 48 — New bundle main.9f3ec6b6.js still contains ngrok/atlassian/metabase refs; CA→US data routing; SPA catch-all; no auth bypass
 [RISK] web (spare.com/sparelabs.com): 8 — Static Webflow marketing; no dynamic logic; minimal surface
+## 2026-08-20 11:44:00 UTC [api] (model bigpickle)
