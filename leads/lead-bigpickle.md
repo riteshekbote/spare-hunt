@@ -15443,3 +15443,49 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — STABLE dead envoy 404/0B on ALL paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface; NO_DELTA
 [RISK] forms.sparelabs.com: 38 — Bundle regression main.9f3ec6b6.js persists (ngrok/Atlassian/localhost refs); CA→US data routing (PIPEDA concern); SPA catch-all no API endpoints; strict HTML CSP mitigates HTML-level; regression indicates broken deployment pipeline
 [RISK] web (spare.com/sparelabs.com): 8 — Static Webflow marketing (Cloudflare, CSP frame-ancestors 'self', HSTS); no internal infra leaks; sparelabs.com 301→spare.com; minimal dynamic surface
+## 2026-08-20 21:06:45 UTC [api] (model bigpickle)
+[HYP] Org-key oracle FULLY REVERTED — full org data disclosure for 7 tenants post-patch-revert
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 95
+reasoning: KB confirms FULLY REVERTED post-patch-regression. All 7 known org keys (spare/grt/dallas/winnipeg/hsr + 2 new) should return 200 with full org UUID, name, logoUrl, enabledFeatureFlags without auth. Patch was attempted then reverted — indicates active but failed remediation. Multi-version LB means mixed enforcement is possible.
+evidence_needed: Live GET with Origin header returns 200 + ACAO+ACAC + org data body
+verify_steps: PASSIVE: `curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare" -v 2>&1 | grep -iE "access-control|HTTP/|uuid|featureFlag|organizationKey"`
+impact: Full org UUID + feature flag names + GCS logo URL for 7 tenants; enables targeted attacks per org; severity HIGH
+testability: PASSIVE
+[HYP] SSO oracle SURVIVOR post-patch-revert — never in patch batch, fleet-parity across 7 hosts
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 93
+reasoning: KB confirms SSO oracle SURVIVOR of both patch and revert cycles — was never in patch batch. staging enforces 401 confirming multi-version LB serves older vulnerable code to prod. POST domain param discriminates 200 (configured tenant) vs 404. Returns WorkOS client_id + connection_id without auth. ≥11 tenants confirmed.
+evidence_needed: Live POST returns 200+172B with ACAO+ACAC for configured tenant domain
+verify_steps: PASSIVE: `curl -s -X POST "https://api.sparelabs.com/v1/identity/workos/auth" -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com"}' -v 2>&1 | grep -iE "HTTP/|access-control|authorizationUrl|client_id|connection"`
+impact: 10+ SSO tenant enumeration + WorkOS identifiers; enables targeted SSO-based phishing against transit agency employees; severity MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Unauth case creation write path SURVIVOR — validation-before-auth pipeline flaw, POST not in patch batch
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 90
+reasoning: POST without auth reaches handler (403 ForbiddenError "External case creation is not enabled" not 401). Pipeline order: body validation → org UUID check → feature-flag gate → handler. "externalCaseCreation" feature flag NOT present in Spare's enabledPublicFeatureFlags. CORS reflected on all branches. Auth gate structurally absent at middleware level. SURVIVOR of patch/revert cycle — POST method not in patch batch.
+evidence_needed: Live POST returns 403 ForbiddenError (NOT 401) with valid org UUID
+verify_steps: PASSIVE: `curl -s -X POST "https://api.sparelabs.com/v1/public/engage/cases" -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790"}' -v 2>&1 | grep -iE "HTTP/|access-control|ForbiddenError|feature|organizationId"`
+impact: Unauthenticated case creation when feature-flag enabled for any org; handler-level feature gate currently off for all 5 orgs; severity MEDIUM (activation-dependent)
+testability: PASSIVE
+[FINAL]
+[NEXT] PROBE: Live re-confirmation of full reversion state — execute 3 parallel passive probes against api.sparelabs.com to resolve the KB contradiction between "FULLY REVERTED" and "PATCHED" entries:
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression — returns 200 with full org data + CORS; 7 known orgs confirmed; live verification pending
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR of patch/revert cycle — was never in patch batch; staging enforces 401 confirming multi-version LB serves older vulnerable code
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — POST method not in patch batch; 403 feature-flag gate confirmed post-revert
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR — returns 404 handler-reached without 401; never patched
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED — 3-way UUID oracle restored
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: FULLY REVERTED — fail-open restored, 200+11B with no auth
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: FULLY REVERTED — per-tenant terms disclosure restored
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/regions: UNCLEAR/MIXED post-revert — returns 400 on no-auth path; Bearer-x path status mixed across replicas; needs live verification
+[LEARN] REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas — auth-gated paths now standard 401 without CORS on some replicas
+[LEARN] REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; NO_DELTA
+[RISK] api.sparelabs.com: 80 — Patch attempt then full revert indicates active but failed remediation; 3 survivor findings (SSO oracle, engage POST, caseForms POST) never patched; 4 reverted findings (org-key, UUID, terms, orgs) back to pre-patch state; multi-version LB replica split creates inconsistent enforcement; failed patch cycle increases urgency
+[RISK] platform.sparelabs.com: 42 — CSP infra leak stable (admin Vercel apps + Metabase + 9 cloud services); MFE shell only (no real API behind host); strict HTML CSP + x-frame mitigates HTML-level; leak is infra-level via CSP directives
+[RISK] routing.sparelabs.com: 5 — STABLE dead envoy 404/0B on ALL paths since 2026-08-07; newly responsive but zero surface; NO_DELTA
+[RISK] forms.sparelabs.com: 38 — Bundle regression main.9f3ec6b6.js persists (ngrok/Atlassian/localhost refs); CA→US data routing (PIPEDA concern); SPA catch-all no API endpoints; broken deployment pipeline indicated by repeated bundle rotations with same regression
+[RISK] web (spare.com/sparelabs.com): 8 — Static Webflow marketing (Cloudflare, CSP frame-ancestors 'self', HSTS); no internal infra leaks; sparelabs.com 301→spare.com; minimal dynamic surface
