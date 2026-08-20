@@ -11736,3 +11736,30 @@
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression; returns 200 with full org data + UUID 
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: UUID oracle FULLY REVERTED; returns 200 with full org data
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
+
+## RANKED HYPOTHESES 2026-08-20 17:44:48 UTC
+- [95] api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle full data disclosure post-revert (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -X GET https://api.sparelabs.com/v1/public/organizations/key/spare -H "Origin: https://evil.example.com" -v — confirm 200+351B with UUID d736519f-f3
+- NEXT(hypotheses-bigpickle.txt): PROBE: Verify the three confirmed findings against current envoy replicas — specifically test org-key oracle (most data-rich) and confirm patch regression state
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR post-patch — returns 200+172B with fleet-parity across 7 hosts
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); validation→org-uuid→
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR post-patch — returns 404 handler-reached without 401
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions: Mixed — some replicas patched (401), some unpatched (200+751B with UAT). Multi-version LB inconsistency. Pa
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/organizations: Mixed — some replicas patched (401), some unpatched (200+11B). Same multi-version LB mechanism.
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes. Removed from prod fleet.
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas. Mixed across fleet.
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: Bundle regression PERSISTED — main.9f3ec6b6.js contains ngrok/atlassian/metabase refs; CA→US data routing confirmed
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression; returns 200 with full org data + UUID 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: UUID oracle FULLY REVERTED; returns 200 with full org data
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED post-patch-regression — returns 200 with full org data + UUID + feature flag
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED — returns 200 with full org data
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR — returns 200+172B with fleet-parity; was never patched
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: FULLY REVERTED — per-tenant terms disclosure restored
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR — returns 403 feature-flag gate (not 401); POST method not in patch batch
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR — returns 404 handler-reached without 401
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Returns 200 with empty data — no auth required (post-revert)
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions: Returns 400 "Authorization header required" — no data leak but no 401; not exploitable for data
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes; removed from prod fleet
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas; mixed across fleet
