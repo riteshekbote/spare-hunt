@@ -2742,3 +2742,11 @@
 - 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Returns 400 "Authorization header required" — no data leak, but no 401
 - 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Returns 200 with empty data — no auth required
 - 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED post-patch-regression — returns 200 with full org data + UUID + feature flags for all 7 known orgs
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED — returns 200 with full org data
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR — returns 200+172B with fleet-parity; was never patched
+- 2026-08-20 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: FULLY REVERTED — per-tenant terms disclosure restored
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR — returns 403 feature-flag gate (not 401); POST method not in patch batch
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Returns 200 with empty data — no auth required (post-revert)
+- 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/global/regions: Returns 400 "Authorization header required" — no data leak but no 401; not exploitable for data
+- 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas; mixed across fleet
