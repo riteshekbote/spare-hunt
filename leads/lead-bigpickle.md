@@ -15318,3 +15318,70 @@ testability: PASSIVE
 [LEARN] REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
 [LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (auth-gated paths now standard 401 without CORS reflection)
 [RISK] api.sparelabs.com: 82 — Multiple confirmed exploitable vectors: org-key data disclosure (7 orgs, full UUIDs+feature flags), UUID enumeration oracle (3-way), SSO tenant oracle (10+ tenants with WorkOS identifiers), unauthenticated case/caseForms POST reaching handler, per-tenant terms disclosure, CORS credential reflection on all /v1 paths. Patch attempted 2026-08-20 then fully reverted — indicates active but failed remediation. Multi-version LB replica split means patch enforcement inconsistent.
+## 2026-08-20 19:31:48 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — 62.0 — attack:9 business:8 tech:4 gate:10 cloud:2 freshness:8
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 61.5 — attack:8 business:8 tech:7 gate:9 cloud:2 freshness:8
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST — 57.5 — attack:7 business:6 tech:6 gate:9 cloud:2 freshness:8
+[PRIO] api.sparelabs.com/v1/public/organizations/{uuid} — 59.0 — attack:8 business:7 tech:4 gate:10 cloud:2 freshness:8
+[PRIO] api.sparelabs.com/v1/public/engage/caseForms POST — 56.0 — attack:7 business:5 tech:5 gate:9 cloud:2 freshness:8
+[PRIO] api.sparelabs.com/v1/public/terms — 51.0 — attack:6 business:5 tech:3 gate:9 cloud:1 freshness:8
+[PRIO] forms.sparelabs.com bundle — 52.5 — attack:3 business:3 tech:5 gate:7 cloud:3 freshness:8
+[HYP] Org-key oracle post-revert — full org data disclosure + CORS credential reflection
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 97
+reasoning: All 7 known org keys (spare/grt/dallas/winnipeg/hsr + 2 new) return 200 with full org UUID, name, logoUrl, enabledFeatureFlags without auth. Post-revert CORS credential reflection (ACAO:reflected + ACAC:true) confirmed on this route. Patch was reverted ~2026-08-20 and KB confirms full reversion.
+evidence_needed: Live GET with Origin header returns 200 + ACAO+ACAC on org-key response body
+verify_steps: PASSIVE: `curl -s -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/public/organizations/key/spare -v 2>&1 | grep -iE "access-control|HTTP/|uuid|featureFlag"`
+impact: Full org UUID + 5 feature flag names + GCS logo URL for 7 tenants; enables targeted attacks per org (spare has riderLoginless, riderPhonePin); severity HIGH
+testability: PASSIVE
+[HYP] UUID oracle plural endpoint 3-way discrimination restored
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/{id}
+confidence: 95
+reasoning: Plural endpoint returns 3-way differential (malformed→400 ValidationError, nil-uuid→404 NotFoundError, valid→200+org data). Post-revert reversion confirmed in KB. Superior to flapping singular /organization. Universal CORS confirmed.
+evidence_needed: Live probe of malformed + nil-uuid + known-good UUID
+verify_steps: PASSIVE: `curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/not-a-uuid" -v 2>&1 | grep -iE "HTTP/|access-control"` and `curl -s -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/00000000-0000-0000-0000-000000000000" -v 2>&1 | grep -iE "HTTP/|access-control|Organization"`
+impact: UUID enumeration of active organizations; valid orgs return full data; severity HIGH-MEDIUM
+testability: PASSIVE
+[HYP] SSO tenant roster stable post-revert with cross-tenant connection mapping
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 93
+reasoning: POST domain parameter discriminates 200 (configured tenant) vs 404. Returns WorkOS client_id + connection_id for 10+ tenants. connection_id byte-stable per domain. Fleet-parity across 7 hosts. SSO oracle SURVIVED both the patch and revert cycles (never patched). Entra tenant IDs disclosed in relayState JWT for dart.org and translink.ca.
+evidence_needed: Already verified live in KB across 7 fleet hosts with 10+ confirmed tenants
+verify_steps: PASSIVE: `curl -s -X POST https://api.sparelabs.com/v1/identity/workos/auth -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com"}' -v 2>&1 | grep -iE "HTTP/|access-control|authorizationUrl|client_id|connection"`
+impact: 10+ SSO tenant enumeration + WorkOS identifiers + Entra tenant IDs for 2 tenants; enables targeted SSO-based phishing against transit agency employees; severity MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Unauthenticated case creation via engage POST — validation-before-auth pipeline flaw
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases POST
+confidence: 90
+reasoning: POST without auth reaches handler (403 ForbiddenError "External case creation is not enabled" not 401). Pipeline order is body validation → org UUID check → feature-flag gate → handler. "externalCaseCreation" feature flag NOT present in Spare's enabledPublicFeatureFlags (confirmed via org-key oracle). CORS reflected on all branches. Auth gate structurally absent at middleware level.
+evidence_needed: Already verified live (403 across 5 orgs, 404 on nil UUID, no 401)
+verify_steps: PASSIVE: `curl -s -X POST https://api.sparelabs.com/v1/public/engage/cases -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"organizationId":"d736519f-f384-4771-a2d2-4f95e884d790","caseTypeId":"00000000-0000-0000-0000-000000000000"}' -v 2>&1 | grep -iE "HTTP/|access-control|ForbiddenError|feature|organizationId"`
+impact: Unauthenticated case creation when feature-flag enabled for any org; handler-level feature gate currently off for all 5 orgs; severity MEDIUM (activation-dependent)
+testability: PASSIVE
+[HYP] CaseForms POST — formKey oracle with cascading validation chain
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/caseForms POST
+confidence: 85
+reasoning: POST without auth reaches handler — returns 404 "Form was not found" (valid formId format but wrong ID) vs 400 ValidationError for malformed. Auth gate structurally absent (same pipeline as cases POST). If valid formId obtainable (e.g. from /engage/form endpoint), form submission proceeds without auth. CORS reflected.
+evidence_needed: Already verified live (404 handler-reached, 400 validation)
+verify_steps: PASSIVE: `curl -s -X POST https://api.sparelabs.com/v1/public/engage/caseForms -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"formId":"00000000-0000-0000-0000-000000000000","caseId":"00000000-0000-0000-0000-000000000000","responses":{}}' -v 2>&1 | grep -iE "HTTP/|access-control|Form|NotFound"`
+impact: Unauthenticated form submission when valid formId + caseId obtainable; second unauthenticated write endpoint in cascade; severity MEDIUM (requires caseId from another endpoint)
+testability: PASSIVE
+[PARKED] None dropped.
+[FINAL]
+[NEXT] PROBE: Live re-confirmation of full reversion state — execute the 3 data-rich passive probes against api.sparelabs.com in parallel to confirm post-revert baseline:
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED post-patch-regression; returns 200 with full org data + UUID + feature flags for all 7 known orgs; CORS credential reflection confirmed
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED; 3-way UUID oracle (malformed→400, nil→404, valid→200) restored
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR — returns 200+172B with fleet-parity; was never in patch batch
+[LEARN] ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); POST method not in patch batch
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR — returns 404 handler-reached without 401
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: FULLY REVERTED — per-tenant terms disclosure restored
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: Returns 200 with empty data — no auth required (post-revert fail-open restored)
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/global/regions: Returns 400 "Authorization header required" — no data leak but no 401; mixed across fleet replicas; regions bypass not confirmed post-revert
+[LEARN] REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+[LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (auth-gated paths now standard 401 without CORS reflection)
+[RISK] api.sparelabs.com: 82 — Multiple confirmed exploitable vectors: org-key data disclosure (7 orgs, full UUIDs+feature flags), UUID enumeration oracle (3-way), SSO tenant oracle (10+ tenants with WorkOS identifiers), unauthenticated case/caseForms POST reaching handler, per-tenant terms disclosure, CORS credential reflection on all /v1 paths. Patch attempted 2026-08-20 then fully reverted — indicates active but failed remediation. Multi-version LB replica split means patch enforcement inconsistent.
