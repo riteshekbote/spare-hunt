@@ -2757,3 +2757,13 @@
 - 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/global/regions: Returns 400 "Authorization header required" — no data leak but no 401; mixed across fleet replicas; regions bypass not confirmed post-revert
 - 2026-08-20 REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
 - 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (auth-gated paths now standard 401 without CORS reflection)
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR of patch/revert cycle — was never in patch batch; staging enforces 401 confirming multi-version LB divergence
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR — POST method not in patch batch; 403 feature-flag gate confirmed post-revert
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR — returns 404 handler-reached without 401; never patched
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED — patch attempted then reverted; returns 200 with full org data + CORS
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED — 3-way UUID oracle restored
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: FULLY REVERTED — fail-open restored, 200+11B with no auth
+- 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/global/regions: UNCLEAR post-revert — returns 400 on no-auth path; Bearer-x path status mixed across replicas; needs live verification
+- 2026-08-20 REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — removed from prod fleet; returns 401 on all routes
+- 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection may be partially affected — no ACAO on 401s on some replicas post-patch
+- 2026-08-20 REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.9f3ec6b6.js regression PERSISTED — prod serves staging bundle with ngrok/Atlassian refs; CA→US data routing persists

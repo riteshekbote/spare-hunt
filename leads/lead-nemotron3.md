@@ -26479,3 +26479,27 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 reason: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_DELTA
 [RISK] forms.sparelabs.com: 44 reason: Engage portal SPA live; JS bundle main.9f3ec6b6.js contains ngrok/atlassian/metabase refs (regression persisted); CA→US data routing confirmed (PIPEDA); x-frame-options: DENY; no real API behind forms host (all 8 API paths SPA catch-all); infra-recon value only
 [RISK] web (spare.com/sparelabs.com): 15 reason: spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
+## 2026-08-20 20:38:31 UTC [platform] (model nemotron3)
+[NEW] api.sparelabs.com: Major patch deployed ~2026-08-20 then FULLY REVERTED — all 7 previously-patched endpoints reverted to pre-patch state (200 responses) across fleet
+[NEW] api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive across all 7 fleet hosts post-patch/revert (returns 200+172B with fleet-parity)
+[NEW] api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle CONSISTENTLY alive — returns 404 handler-reached without 401, SURVIVED patch/revert cycle
+[NEW] forms.sparelabs.com: Bundle rotated to `main.9f3ec6b6.js` (replaced `main.60865478.js`); still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing persists
+[NEW] api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+[NEW] api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (auth-gated paths now standard 401 without CORS reflection)
+[CHANGED] api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED — returns 200 with full org data + UUID + feature flags for all 7 known orgs
+[CHANGED] api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED — returns 200 with full org data (UUID oracle restored)
+[CHANGED] api.sparelabs.com/v1/public/terms: FULLY REVERTED — per-tenant terms disclosure restored
+[CHANGED] api.sparelabs.com/v1/global/organizations: Returns 200 with empty data — no auth required (was patched 401, now reverted)
+[CHANGED] api.sparelabs.com/v1/global/regions: Returns 400 "Authorization header required" — no data leak but no 401; mixed across fleet replicas
+[CHANGED] api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); validation→org-uuid→feature-flag→handler confirmed
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}, 9.10, attack_surface:10, business_value:9, tech_exposure:8, gate_ease:10, cloud_surface:8, freshness:10
+[PRIO] api.sparelabs.com/v1/identity/workos/auth, 8.90, attack_surface:9, business_value:8, tech_exposure:9, gate_ease:10, cloud_surface:8, freshness:10
+[PRIO] api.sparelabs.com/v1/public/engage/cases, 8.30, attack_surface:9, business_value:7, tech_exposure:8, gate_ease:10, cloud_surface:6, freshness:10
+[PRIO] api.sparelabs.com/v1/public/organizations/{uuid}, 8.15, attack_surface:9, business_value:7, tech_exposure:7, gate_ease:10, cloud_surface:7, freshness:10
+[PRIO] api.sparelabs.com/v1/public/engage/caseForms, 7.55, attack_surface:8, business_value:6, tech_exposure:7, gate_ease:10, cloud_surface:5, freshness:10
+[PRIO] api.sparelabs.com/v1/global/organizations, 7.25, attack_surface:7, business_value:6, tech_exposure:7, gate_ease:10, cloud_surface:6, freshness:8
+[HYP] Org-key oracle full data disclosure post-revert
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 95
+reasoning: Post-revert probe confirms 200 responses for all 7 known org keys (spare/grt/dallas/winnipeg/hsr + 2 more) with full org data including UUID, name, logoUrl

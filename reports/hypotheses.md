@@ -11851,3 +11851,20 @@
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression; returns 200 with full org data + UUID 
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: UUID oracle FULLY REVERTED; returns 200 with full org data
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
+
+## RANKED HYPOTHESES 2026-08-20 20:45:44 UTC
+- [95] api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle full data disclosure post-revert (from reports/hypotheses-nemotron3.txt)
+- [93] api.sparelabs.com/v1/identity/workos/auth: SSO-config oracle stable post-patch-revert — 10+ tenants, WorkOS identifiers, fleet-parity (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-bigpickle.txt): PROBE: Live re-confirmation of full reversion state — execute 3 parallel passive probes against api.sparelabs.com to resolve the KB contradiction between "FULLY
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR of patch/revert cycle — was never in patch batch; staging enforces 401 confirming
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR — POST method not in patch batch; 403 feature-flag gate confirmed post-rev
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR — returns 404 handler-reached without 401; never patched
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED — patch attempted then reverted; returns 200 with full org data + CORS
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED — 3-way UUID oracle restored
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: FULLY REVERTED — fail-open restored, 200+11B with no auth
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: FULLY REVERTED — per-tenant terms disclosure restored
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/global/regions: UNCLEAR post-revert — returns 400 on no-auth path; Bearer-x path status mixed across replicas; needs live v
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — removed from prod fleet; returns 401 on all routes
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection may be partially affected — no ACAO on 401s on some replicas post-patch
+- LEARN: REJECTED MISCONFIG @ forms.sparelabs.com JS bundle: main.9f3ec6b6.js regression PERSISTED — prod serves staging bundle with ngrok/Atlassian refs; CA→US data rou
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07
