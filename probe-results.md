@@ -3547,3 +3547,8 @@ https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
 https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
 https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
+
+## 2026-08-20 08:07:03 UTC
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
