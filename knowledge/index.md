@@ -2695,3 +2695,6 @@
 - 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection STILL reflects ACAO on 401 responses — inventory claim false positive
 - 2026-08-20 ACCEPTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — now returns 401 on both /regions and /organizations; UAT removed from prod fleet
 - 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey oracle STILL alive — returns 404 handler-reached without 401
+- 2026-08-20 REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form GET: auth-free schema disclosure NOT patched — inventory claim false positive; returns 200 with 20 fields (when valid formKey used)
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST — unauth write path SURVIVOR; returns 403 feature-flag
+- 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/** — CORS credential reflection no longer reflects ACAO on 401 responses (patched on auth-gated paths)

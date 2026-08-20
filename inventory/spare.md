@@ -4171,3 +4171,23 @@
 - CHANGED api.sparelabs.com/v1/identity/workos/auth — STILL returns 200 (SSO oracle alive, fleet-parity 7 hosts)
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST — STILL returns 403 ForbiddenError (auth gate absent, feature-flag gate)
 - CHANGED api.sparelabs.com/v1/public/engage/caseForms POST — STILL returns 404 NotFoundError (auth gate absent, handler reached)
+
+## 2026-08-20 10:41:20 UTC
+- CHANGED api.sparelabs.com/v1/global/regions — scheme-only Bearer bypass **STILL ALIVE** (returns 200+751B with UAT region, NOT patched; earlier "PATCHED" claims were FALSE POSITIVES testing only no-auth path)
+- CHANGED api.sparelabs.com/v1/global/organizations — zero-header fail-open **STILL ALIVE** (returns 200+11B, NOT patched; earlier "PATCHED" claims were FALSE POSITIVES)
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST — unauthenticated write path **STILL ALIVE** (returns 403 feature-flag gate, NOT 401; validation→org-uuid→feature-flag→handler confirmed)
+- CHANGED api.sparelabs.com/v1/public/engage/caseType GET — auth-free enumeration **STILL ALIVE** (returns 200+caseType keys for Spare org)
+- CHANGED api.sparelabs.com/v1/public/engage/form GET — schema disclosure status uncertain (404 on known formKey, may need valid key)
+- CHANGED api.sparelabs.com/v1/public/terms — per-tenant config **STILL ALIVE** (returns 200+137B URLs)
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key} — auth-free org details **STILL ALIVE** (returns 200+351B for spare key)
+- CHANGED api.sparelabs.com/v1/public/organizations/{id} — UUID oracle **STILL ALIVE** (returns 200+org data)
+- CHANGED api.sparelabs.com/v1/identity/workos/auth — SSO oracle **STILL ALIVE** (returns 200+172B, fleet-parity 7 hosts)
+- CHANGED api.sparelabs.com/v1/** — CORS credential reflection **STILL REFLECTS ACAO on 401 responses** (earlier "patched" claim FALSE POSITIVE)
+- CHANGED api.uat.sparelabs.com — UAT bypass parity **LOST** (now returns 401 on /regions and /organizations; UAT removed from prod fleet)
+- NEW forms.sparelabs.com — bundle rotated to `main.9f3ec6b6.js` (replaced `main.60865478.js`); still contains ngrok/atlassian/metabase refs (1 each)
+- CHANGED api.sparelabs.com: Major patch event deployed — 7 previously auth-free endpoints now return 401 on some envoy replicas (regions, organizations, orgKey, orgId, caseType GET, form GET, terms). Multi-ver
+- NEW api.sparelabs.com: Three findings SURVIVED patch — (1) `/v1/identity/workos/auth` SSO oracle still 200+fleet-parity; (2) `/v1/public/engage/cases POST` auth gate still absent (403 feature-flag, not 40
+- CHANGED api.uat.sparelabs.com: Bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet.
+- CHANGED api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (auth-gated paths now standard 401 without CORS reflection).
+- NEW forms.sparelabs.com: New bundle `main.9f3ec6b6.js` — still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing persists.
+- CHANGED Contradictory probe signals (09:02 says PATCHED, 10:03 says NOT PATCHED) — consistent with multi-version envoy LB serving different code versions per replica. Patch is real but not fleet-wide.
