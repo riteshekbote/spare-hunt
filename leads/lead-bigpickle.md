@@ -15612,3 +15612,33 @@ testability: PASSIVE
 [FINAL] 1. Org-key oracle IDOR (97) 2. Regions scheme-bypass AUTH (92) 3. WorkOS SSO oracle IDOR (90) 4. Engage validation-before-auth BUSLOGIC (90). None match REJECTED classes; all PASSIVE-testable.
 [NEXT] PROBE: engage cases POST pair above (empty-body expect 400 ValidationError; `{"organizationKey":"spare"}` expect 403 ForbiddenError) — closes last evidence gap; then draft report from `/tmp/opencode/p0820b/` + `/tmp/opencode/p0820c/`.
 [RISK] api.sparelabs.com: 88 reason | platform.sparelabs.com: 42 reason | forms.sparelabs.com: 38 reason | routing.sparelabs.com: 5 reason | web (spare.com/sparelabs.com): 8 reason
+## 2026-08-20 23:06:17 UTC [api] (model bigpickle)
+[HYP] Org-key enumeration discloses full tenant roster unauthenticated with credentialed CORS
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 97
+reasoning: Post-revert live set {spare,grt,dallas,winnipeg,hsr} all return 200 full records (internal UUID, name, prod GCS logoUrl, enabledPublicFeatureFlags) vs negative-control 404 NotFoundError; every response reflects arbitrary Origin + ACAC:true; vendor deployed a fix ~2026-08-20 then fully reverted it fleet-wide.
+evidence_needed: COMPLETE — 5/5 roster members captured post-revert with headers+sha256 (hsr closed this cycle).
+verify_steps: PASSIVE replay: `curl -sS -m 15 -D - "https://api.sparelabs.com/v1/public/organizations/key/{spare|grt|dallas|winnipeg|hsr}" -H "Origin: https://evil.example.com"`
+impact: HIGH — unauthenticated cross-origin harvest of customer roster, internal IDs, auth-posture flags by any website's JS.
+testability: PASSIVE
+[HYP] WorkOS SSO-config oracle survived patch/revert cycle unauthenticated
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 93
+reasoning: POST {"domain"} discriminates configured tenants (≥11 gov domains) vs 404; returns WorkOS client_id+connection_id; fleet-parity across 7 hosts; staging (OOS) enforces 401 proving prod regression; post-revert 200+172B reconfirmed this cycle.
+evidence_needed: COMPLETE.
+verify_steps: PASSIVE non-mutating config lookup: `curl -sS -m 15 -X POST "https://api.sparelabs.com/v1/identity/workos/auth" -H "Content-Type: application/json" -d '{"domain":"spare.com"}'`
+impact: MEDIUM-HIGH — partner IdP roster + connection IDs enable targeted phishing/OAuth relay against transit agencies.
+testability: PASSIVE
+[HYP] Scheme-only Bearer bypass on /v1/global/regions persists post-revert with UAT region disclosure
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 94
+reasoning: Nil header→400 "Authorization header required", wrong-scheme→400, `Bearer x`→200+751B (incl. UAT region entry); token validity never checked; byte-stable across two independent intervals post-revert (sha256 `27d83f3c…`).
+evidence_needed: COMPLETE.
+verify_steps: PASSIVE: `curl -sS -m 15 -o /dev/null -w "%{http_code} %{size_download}B\n" -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/regions"`
+impact: MEDIUM-HIGH — full regional infra map (per-region apiUrl+routingHost incl. staging/UAT hosts) with any garbage token; read-only.
+testability: PASSIVE
+[FINAL]:
+[NEXT] HUMAN: all top-3 evidence sets are COMPLETE — hand off PoC package (`/tmp/opencode/p0820b/`, `/tmp/opencode/p0820c/`) for report drafting/submission: primary = org-key oracle (5/5 roster + credentialed CORS + write-method advertisement), chained = regions scheme-bypass + SSO oracle. No further probes required to exit POC phase.

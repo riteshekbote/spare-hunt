@@ -11967,3 +11967,24 @@
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: nil mobileAppId 200+137B — disclosure restored.
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType: 200+231B schema — engage read chain never patched.
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO/ACAC reflected, methods include POST/PATCH/DELETE — credentialed-CORS preflight reflectio
+
+## RANKED HYPOTHESES 2026-08-20 23:06:28 UTC
+- [97] api.sparelabs.com/v1/public/organizations/key/{key}: Org-key enumeration discloses full tenant roster unauthenticated with credentialed CORS (from reports/hypotheses-bigpickle.txt)
+- [95] api.sparelabs.com/v1/public/organizations/key/{key}: Full tenant data disclosure via org-key enumeration post-revert (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -X GET https://api.sparelabs.com/v1/public/organizations/key/spare -H "Origin: https://evil.example.com" -v — confirm 200+351B with UUID d736519f-f3
+- NEXT(hypotheses-bigpickle.txt): HUMAN: all top-3 evidence sets are COMPLETE — hand off PoC package (`/tmp/opencode/p0820b/`, `/tmp/opencode/p0820c/`) for report drafting/submission: primary = 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression; returns 200 with full org data + UUID 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: UUID oracle FULLY REVERTED; returns 200 with full org data
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-auth 200+11B — fail-open restored fleet-wide
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-x 200+751B — replica ambiguity resolved, bypass consistent
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: nil mobileAppId 200+137B — disclosure restored
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType: 200+231B schema — engage read chain never patched
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO/ACAC reflected, methods include POST/PATCH/DELETE — credentialed-CORS preflight reflectio
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR post-patch — returns 200+172B with fleet-parity across 7 hosts
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); validation→org-uuid→
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR post-patch — returns 404 handler-reached without 401
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes; removed from prod fleet
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas
+- LEARN: REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: Bundle regression PERSISTED — main.9f3ec6b6.js contains ngrok/atlassian/metabase refs; CA→US data routing confirmed
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
