@@ -139627,3 +139627,190 @@ ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/*: credentialed CORS reflection
 **[RISK]**
 api.sparelabs.com: 84 ↑ (failed patch fully reverted; org-key oracle now report-ready; 3 survivors intact; credentialed CORS on public controller — active exploitation window)
 platform.sparelabs.com: 42 · forms.sparelabs.com: 38 · routing.sparelabs.com: 5 · web: 8
+===== ANALYST bigpickle 2026-08-20 22:42:06 UTC =====
+[0m
+> build · big-pickle
+[0m
+## STEP 1 — DELTA
+- [CHANGED] api.sparelabs.com/v1/global/regions: bypass body baseline grew 725B→751B (UAT region added); new sha256 `27d83f3cd…` supersedes `fb9800acb…`; bypass consistent post-revert
+- [CHANGED] api.sparelabs.com (fleet-wide): ~2026-08-20 patch FULLY REVERTED — all 7 previously-patched endpoints back to pre-patch 200 responses; 3 survivors (workos/auth, engage/cases POST, caseForms POST) were never in patch batch
+- [CHANGED] api.uat.sparelabs.com: bypass parity LOST during patch window (401 on /regions + /organizations) — no longer 8th fleet host
+- [CHANGED] forms.sparelabs.com: bundle rotated main.60865478.js → main.9f3ec6b6.js; ngrok/atlassian/metabase refs persist; CA→US routing persists
+- [CHANGED] api.sparelabs.com/v1/**: credentialed-CORS reflection ALIVE post-revert (journeys OPTIONS 204 + ACAO/ACAC); "no ACAO on 401" claims were transient patched-replica artifacts
+
+## STEP 2 — PRIORITIZE
+- [PRIO] api.sparelabs.com/v1/public/organizations/key/{key}: 8.4 (attack 9, business 9, tech 6, gate 10, cloud 5, fresh 10)
+- [PRIO] api.sparelabs.com/v1/global/regions (Bearer-x): 7.7 (attack 8, business 7, tech 8, gate 9, cloud 4, fresh 10)
+- [PRIO] api.sparelabs.com/v1/identity/workos/auth: 7.65 (attack 7, business 8, tech 8, gate 10, cloud 3, fresh 9)
+- [PRIO] api.sparelabs.com/v1/public/engage/cases POST: 7.1 (attack 8, business 7, tech 6, gate 9, cloud 2, fresh 9)
+
+## STEP 3 — HYPOTHESES
+[HYP] Org-key enumeration discloses full tenant roster unauthenticated with credentialed CORS
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 97
+reasoning: Post-revert live probes @21:40–21:52Z: key/{spare,grt,dallas,winnipeg} → 200 full records (internal UUID, name, prod GCS logoUrl, enabledPublicFeatureFlags); negative control → 404 NotFoundError; every response reflects arbitrary Origin + ACAC:true. Vendor deployed a fix ~2026-08-20 then fully reverted it.
+evidence_needed: COMPLETE except hsr — one GET key/hsr closes the 5/5 roster PoC set.
+verify_steps: PASSIVE curl -sS -m 15 -D - -o /tmp/opencode/p0820c/hsr.json -w "%{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/hsr"; sleep 1.2; sha256sum /tmp/opencode/p0820c/hsr.json
+impact: HIGH — unauthenticated harvest of customer roster + internal IDs + auth-posture flags (riderLoginless, riderPhonePin), readable cross-origin by any site's JS via ACAC:true.
+testability: PASSIVE
+
+[HYP] Scheme-only Bearer bypass on /v1/global/regions persists post-revert with expanded UAT region data
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 92
+reasoning: KB-stable 90h+ across 7 hosts; post-revert probe returns 200+751B (sha256 27d83f3cd…) now including UAT region entry; no-auth → 400 "Authorization header required", wrong-scheme → 400; token validity never checked. Staging enforces 401 proving prod-only regression.
+evidence_needed: Second-interval re-hash of 751B body to confirm new baseline byte-stability.
+verify_steps: PASSIVE curl -sS -m 15 -o /tmp/opencode/p0820c/regions.json -w "%{http_code} %{size_download}B\n" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"; sleep 1.2; sha256sum /tmp/opencode/p0820c/regions.json
+impact: MEDIUM-HIGH — full regional infra map (per-region apiUrl+routingHost incl. staging/UAT) with any garbage token; read-only.
+testability: PASSIVE
+
+[HYP] WorkOS SSO-config oracle survived patch/revert cycle unauthenticated
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 90
+reasoning: POST {"domain"} discriminates configured tenants (≥11 gov domains) vs 404; returns WorkOS client_id + connection_id + Entra tenant IDs; fleet-parity across 7 hosts; staging enforces 401 (newer code). Inventory marks SURVIVOR but my own post-revert confirm is pending.
+evidence_needed: One post-revert 200+172B confirm (spare.com) + one 404 control (non-tenant domain).
+verify_steps: PASSIVE curl -sS -m 15 -X POST "https://api.sparelabs.com/v1/identity/workos/auth" -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com"}' -o /tmp/opencode/p0820c/sso.json -w "%{http_code} %{size_download}B\n" (non-mutating config lookup)
+impact: MEDIUM-HIGH — partner IdP roster + connection IDs enable targeted phishing/OAuth relay against transit agencies.
+testability: PASSIVE
+
+## STEP 4 — SELF-CRITIQUE
+[PARKED] none — all three ≥90 confidence, none match REJECTED classes (controller-wide, write-escalation, redirect_uri injection, singular-UUID flapping), all carry concrete verify_steps.
+[FINAL] 1. Org-key oracle IDOR (97) 2. Regions scheme-bypass AUTH (92) 3. WorkOS SSO oracle IDOR (90)
+
+## STEP 5 — NEXT ACTION
+[NEXT] PROBE: `curl -sS -m 15 -D - -o /tmp/opencode/p0820c/hsr.json -w "%{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/hsr"` — expect 200+~320B full record; completes 5/5 tenant-roster PoC evidence for the top-ranked finding.
+
+## STEP 6 — LEARNING
+- [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: patch-deployed-then-reverted proves vendor awareness without durable fix; oracle alive post-revert with full-record bodies + ACAC:true.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass alive post-revert; body baseline changed 725B→751B (UAT added) — new sha256 `27d83f3cd…` supersedes `fb9800acb…`.
+- [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: credentialed-CORS reflection alive post-revert (journeys OPTIONS 204 + ACAO/ACAC); "no ACAO on 401" was transient patched-replica artifact.
+- [LEARN] REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity lost in patch window (401 both routes) — unstable/OOS-adjacent, stop chasing as fleet host.
+
+## STEP 7 — RISK SCORE
+[RISK] api.sparelabs.com: 88 reason | platform.sparelabs.com: 42 reason | routing.sparelabs.com: 5 reason | forms.sparelabs.com: 38 reason | web (spare.com/sparelabs.com): 8 reason
+## Objective
+- Run a passive-first bug bounty campaign against the Spare program (primary target `api.sparelabs.com`), following a strict 8-step analyst loop (DELTA → PRIORITIZE → HYPOTHESES → SELF-CRITIQUE → NEXT ACTION → LEARNING → RISK SCORE).
+- Current phase: **POC** on target `api` — finalizing report-ready evidence for the top 3 surviving findings after a major patch/revert cycle on 2026-08-20.
+
+## Important Details
+- **Scope (IN):** spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com. **Exclusions:** all other subdomains of sparelabs.com/spare.com, third parties (staging hosts, metabase.*, ngrok, vercel apps are OOS).
+- Rules: passive-first (GET/HEAD, ≤1 rps, no data modification), secrets hashed sha256-only, no class on REJECTED list, facts vs hypotheses strictly separated.
+- **Patch/revert event (~2026-08-20):** Major patch deployed then FULLY REVERTED fleet-wide. Reverted endpoints: `/v1/global/regions` (Bearer-x bypass back, 200+751B incl. new UAT region, sha256 `27d83f3cd9f3ddb108c00967767698885a15b2592eecba5a3fae56d08514927b`), `/v1/global/organizations` (zero-header fail-open restored, 200+11B), UUID oracle `/v1/public/organizations/{uuid}`, org-key oracle `/key/{key}` (200+351B, sha256 `3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd`), `/public/terms`, engage caseType/form GET.
+- **Patch survivors (never patched):** SSO oracle `/v1/identity/workos/auth` (200+172B, ≥11 tenants, fleet-parity 7 hosts), engage cases POST auth-gate-absent (400-not-401, valid-org→403 feature-flag gate), caseForms formKey oracle (404 handler-reached).
+- Multi-version envoy LB replica-split mechanism confirmed deterministic: fast replicas (4ms) serve old vulnerable code, slow replicas (600ms+) serve newer code; X-Forwarded-For does NOT shift routing.
+- Longcat triage "PATCHED" claim (2026-08-11) repeatedly proven FALSE POSITIVE (only tested no-auth path, never Bearer-x vector).
+- Org-key live set DEFINITIVELY CLOSED at `{spare,grt,dallas,winnipeg,hsr}` (5 orgs); 22 candidates exhausted; prod-only data (uat/us2/jp→404). Feature flags: spare=5, winnipeg=4, hsr=2-3, grt=2, dallas=0.
+- SSO tenant roster (≥11): spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca (`conn_01HTN1GCQYJY8X5TNBK0HPE42W`), cota.com (`conn_01KCKYHA0YPZ8N52Q4DVT96SAC`); client_id `client_01F5KHYX32TCKB1E7YEAPE0H17`; connection_id byte-stable per domain.
+- REJECTED classes (do not re-emit): controller-wide auth omission, write-escalation on bypass routes (POST/PUT/PATCH/DELETE→401, read-only only), redirect_uri injection (param silently dropped), singular `/public/organization` UUID oracle (flapping 2-way↔3-way, downgraded to validation-leak-only), engage `{caseType,form}` GET flapping (unreliable), staging-host findings (OOS).
+- Engage write chain blocked: `externalCaseCreation` flag NOT enabled on any known org (403 ForbiddenError "External case creation is not enabled"); PATCH/DELETE/PUT properly 401 (only POST unauth by design).
+- Forms bundle regression persists: current `main.9f3ec6b6.js` contains ngrok/atlassian/metabase refs; CA→US data routing (Production_CA→api.us.sparelabs.com, PIPEDA concern).
+- Risk scores: api.sparelabs.com=82 (reverted patch + survivors + CORS reflection = active window), platform=42 (CSP infra leak), forms=38 (bundle regression), routing=5 (dead), web=8 (static).
+
+## Work State
+### Completed
+- Full recon cycle 2026-08-07→08-20: baseline surface, CSP/MFE manifest leaks (platform /login), JS bundle infra leaks (forms), API enumeration, CORS credential reflection mapping (uniform across /v1, OPTIONS 204 + GET).
+- Confirmed stable findings: regions scheme-only Bearer bypass (90h+ byte-stable, sha256 `fb9800acb…585c3fe` pre-UAT), organizations zero-header fail-open (read-only), universal CORS reflection, org-key oracle, UUID oracle (plural), terms disclosure, engage schema disclosure (caseType "test"+"incident", formId `f0fad64e-e080-438b-9095-5ae8f8364047`, 20 fields + 20 incident categories), SSO oracle, per-tenant terms config (spare→"asdfd" junk, winnipeg→real URL).
+- Post-revert verification (2026-08-20T21:40–21:52Z): org-key oracle PoC COMPLETE — `key/{grt,dallas,winnipeg}` → 200 full records, `key/nonexistent-probe` → 404 control, all reflect `Origin: https://evil.example.com` + ACAC:true; bodies captured/hashed in `/tmp/opencode/p0820b/`.
+- Final ranked hypotheses: 1) Org-key oracle IDOR (97-98), 2) WorkOS SSO oracle IDOR (93), 3) Engage validation-before-auth BUSLOGIC (90).
+
+### Active
+- POC phase: completing evidence_needed items for remaining two hypotheses:
+  - SSO oracle: needs post-revert re-confirm of 200+172B byte-stable response (last confirm predates revert window).
+  - Engage cases POST: needs post-revert re-confirm of 400-not-401 ordering.
+- Report drafting pending once evidence complete.
+
+### Blocked
+- Engage write-path exploitation: requires AUTH_HELPED token AND an org with `externalCaseCreation` flag enabled (none found; flag absent from all 5 known orgs' `enabledPublicFeatureFlags`).
+- caseTypeKey enumeration beyond "test"/"incident": admin-created values, no public enumeration endpoint (BLOCKED, not killable without admin access).
+- GitHub reposcan pipeline: scan-target misconfigured (gladiaio org instead of sparelabs, `reposcan-raw/sparelabs` dir empty) — 0 files scanned every run until clone target fixed.
+- FormId bridge for caseForms POST requires valid caseId (case entity UUID, not org UUID) — obtainable only via authenticated flow.
+
+## Next Move
+1. `[NEXT] PROBE`: Re-confirm WorkOS SSO oracle post-revert — `curl -sS -m 15 -D - -o /tmp/opencode/p0820b/sso.json -w "%{http_code} %{size_download}B\n" -X POST https://api.sparelabs.com/v1/identity/workos/auth -H 'Content-Type: application/json' -H 'Origin: https://evil.example.com' -d '{"domain":"spare.com"}'` — expect 200+172B byte-stable (non-mutating config lookup, PASSIVE).
+2. Then re-confirm engage cases POST ordering (empty JSON body → expect 400 ValidationError, NOT 401) and draft the report using completed PoC evidence from `/tmp/opencode/p0820b/`.
+
+## Relevant Files
+- `/tmp/opencode/p0820b/` — org-key oracle PoC evidence: 3×200 full-record bodies (grt/dallas/winnipeg) + prior `key/spare` 200+351B (`3099f1ba…`) + 404 control, headers captured, bodies hashed.
+- `/tmp/opencode/p0820/grt.json` — earlier org-key probe output.
+- `/tmp/opencode/regions.json` — captured 725B regions body (pre-UAT, sha256 `fb9800acb…585c3fe`).
+- `reports/hypotheses-nemotron3.txt` — aggregated hypothesis file (source of top-ranked org-key oracle hypothesis).
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+[0m# [0mTodos
+[•] Probe key/hsr to complete 5/5 org-key PoC set
+[ ] Re-hash regions bypass post-revert baseline (751B)
+[ ] Post-revert confirm WorkOS SSO oracle (200+172B)
+[ ] Update loop state: DELTA→RISK after probes
+[0m
+[0m$ [0mmkdir -p /tmp/opencode/p0820c && curl -sS -m 15 -D /tmp/opencode/p0820c/hsr.headers -o /tmp/opencode/p0820c/hsr.json -w "%{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/hsr" && sleep 1.2 && sha256sum /tmp/opencode/p0820c/hsr.json
+200 321B
+0e87b694685c640be69751f8f2e3f151ebddb0fd16a455c71fea203fe5a4af39  /tmp/opencode/p0820c/hsr.json
+[0m
+[0m→ [0mRead /tmp/opencode/p0820c/hsr.headers
+[0m→ [0mRead /tmp/opencode/p0820c/hsr.json
+`key/hsr` → 200 + 321B full record (Hamilton Street Railway, UUID `83303a6b-fb96-4ff3-8f58-d6069a043fbb`, 2 feature flags) with `ACAO: https://evil.example.com` + `ACAC: true` reflected. **5/5 tenant-roster PoC set complete.** Next: regions bypass re-hash, then SSO oracle post-revert confirm.
+[0m
+[0m$ [0msleep 1.2 && curl -sS -m 15 -D /tmp/opencode/p0820c/regions.headers -o /tmp/opencode/p0820c/regions.json -w "%{http_code} %{size_download}B\n" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions" && sleep 1.2 && sha256sum /tmp/opencode/p0820c/regions.json
+200 751B
+27d83f3cd9f3ddb108c00967767698885a15b2592eecba5a3fae56d08514927b  /tmp/opencode/p0820c/regions.json
+[0m
+Regions bypass re-hash: **200 + 751B, sha256 `27d83f3cd…` — byte-identical to post-revert baseline.** New baseline confirmed stable. Now SSO oracle confirm:
+[0m$ [0msleep 1.2 && curl -sS -m 15 -D /tmp/opencode/p0820c/sso.headers -o /tmp/opencode/p0820c/sso.json -w "%{http_code} %{size_download}B\n" -X POST "https://api.sparelabs.com/v1/identity/workos/auth" -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com"}' && sleep 1.2 && curl -sS -m 15 -o /tmp/opencode/p0820c/sso-404.json -w "%{http_code} %{size_download}B\n" -X POST "https://api.sparelabs.com/v1/identity/workos/auth" -H "Content-Type: application/json" -d '{"domain":"nonexistent-probe.example"}'
+200 172B
+404 124B
+[0m
+[0m$ [0msha256sum /tmp/opencode/p0820c/sso.json && cat /tmp/opencode/p0820c/sso.json
+5b170be7b7829635753da63537ecfe9068be5eea0b0a6218ffd72b8770ae4414  /tmp/opencode/p0820c/sso.json
+{"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY&response_type=code&state="}
+[0m
+[0m# [0mTodos
+[✓] Probe key/hsr to complete 5/5 org-key PoC set
+[✓] Re-hash regions bypass post-revert baseline (751B)
+[✓] Post-revert confirm WorkOS SSO oracle (200+172B)
+[•] Update loop state: DELTA→RISK after probes
+[0m
+[0m# [0mTodos
+[✓] Probe key/hsr to complete 5/5 org-key PoC set
+[✓] Re-hash regions bypass post-revert baseline (751B)
+[✓] Post-revert confirm WorkOS SSO oracle (200+172B)
+[✓] Update loop state: DELTA→RISK after probes
+[0m
+## STEP 1 — DELTA
+- [CONFIRMED] api.sparelabs.com/v1/public/organizations/key/hsr: 200+321B @22:41:04Z, sha256 `0e87b694…a4af39` — Hamilton Street Railway, UUID `83303a6b-fb96-4ff3-8f58-d6069a043fbb`, flags `[callForVerificationCode,riderEmailAuthentication]`; ACAO `https://evil.example.com` + ACAC:true reflected. **5/5 roster PoC set COMPLETE**
+- [CONFIRMED] api.sparelabs.com/v1/global/regions: Bearer-x → 200+751B, sha256 `27d83f3cd…4927b` byte-identical to post-revert baseline — new baseline STABLE across two intervals
+- [CONFIRMED] api.sparelabs.com/v1/identity/workos/auth: POST spare.com → 200+172B sha256 `5b170be7…ae4414`, body identical to KB baseline (`client_01F5KHYX32TCKB1E7YEAPE0H17`, `conn_01GRW7M1CJEJGYKMEMPBCQEZHY`); negative control nonexistent-probe.example → 404+124B. **Post-revert survivor status CONFIRMED**
+- No new surface; no regressions. All three top-hypothesis evidence gaps CLOSED.
+
+## STEP 2 — PRIORITIZE
+- [PRIO] org-key oracle IDOR: 8.4 (evidence COMPLETE)
+- [PRIO] regions scheme-bypass AUTH: 7.7 (evidence COMPLETE)
+- [PRIO] WorkOS SSO oracle IDOR: 7.65 (evidence COMPLETE)
+- [PRIO] engage cases POST validation-before-auth BUSLOGIC: 7.1 (evidence needs one post-revert re-confirm)
+
+## STEP 3 — HYPOTHESES
+[HYP] Engage case-creation endpoint performs input validation before authentication
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases (POST)
+confidence: 90
+reasoning: Empty body → 400 ValidationError (not 401) proves route reachable unauthenticated; valid orgKey → 403 feature-flag gate ("External case creation is not enabled") leaks per-org feature posture on a write-shaped route; only the final gate is authz. Last direct confirm predates revert-window close.
+evidence_needed: One post-revert empty-body POST confirm (400-not-401) + one valid-org control (spare → 403).
+verify_steps: PASSIVE curl -sS -m 15 -o /tmp/opencode/p0820c/engage-empty.json -w "%{http_code} %{size_download}B\n" -X POST "https://api.sparelabs.com/v1/public/engage/cases" -H "Content-Type: application/json" -d '{}'; sleep 1.2; curl -sS -m 15 -o /tmp/opencode/p0820c/engage-spare.json -w "%{http_code} %{size_download}B\n" -X POST "https://api.sparelabs.com/v1/public/engage/cases" -H "Content-Type: application/json" -d '{"organizationKey":"spare"}' (no data created — both rejected pre-write)
+impact: MEDIUM — unauth validation-oracle + per-org flag disclosure; write path gated by disabled externalCaseCreation flag.
+testability: PASSIVE
+
+[PARKED] Org-key oracle (97), regions bypass (92), SSO oracle (90) — evidence complete, ready for report.
+
+## STEP 4 — SELF-CRITIQUE
+[FINAL] 1. Org-key oracle IDOR (97) 2. Regions scheme-bypass AUTH (92) 3. WorkOS SSO oracle IDOR (90) 4. Engage validation-before-auth BUSLOGIC (90). None match REJECTED classes; all PASSIVE-testable.
+
+## STEP 5 — NEXT ACTION
+[NEXT] PROBE: engage cases POST pair above (empty-body expect 400 ValidationError; `{"organizationKey":"spare"}` expect 403 ForbiddenError) — closes last evidence gap; then draft report from `/tmp/opencode/p0820b/` + `/tmp/opencode/p0820c/`.
+
+## STEP 6 — LEARNING
+- [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: 5/5 tenant PoC set complete (spare/grt/dallas/winnipeg/hsr), full records hashed, ACAC:true on all; report-ready.
+- [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: post-revert baseline 751B/sha256 `27d83f3cd…` stable across intervals; report-ready.
+- [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: post-revert survivor confirmed 200+172B byte-stable vs 404 control; report-ready.
+
+## STEP 7 — RISK SCORE
+[RISK] api.sparelabs.com: 88 reason | platform.sparelabs.com: 42 reason | forms.sparelabs.com: 38 reason | routing.sparelabs.com: 5 reason | web (spare.com/sparelabs.com): 8 reason

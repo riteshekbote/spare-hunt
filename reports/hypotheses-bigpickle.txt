@@ -1,25 +1,45 @@
-## 2026-08-20 22:04:52 UTC [api] (model bigpickle)
+## 2026-08-20 22:41:57 UTC [api] (model bigpickle)
+[HYP] Org-key enumeration discloses full tenant roster unauthenticated with credentialed CORS
 class: IDOR
-confidence: 98
 asset: api.sparelabs.com/v1/public/organizations/key/{key}
-reasoning: Guessable-slug GET returns full org object (internal UUID, name, production GCS bucket URL, security-relevant feature flags) with zero auth; 4 distinct tenants confirmed live post-revert vs clean 404 control; arbitrary-Origin reflection + ACAC:true on every response makes it readable by any website's JS with victim cookies attached.
-evidence_needed: COMPLETE — `/tmp/opencode/p0820b/`: 3×200 full-record bodies + prior `key/spare` 200+351B (`3099f1ba…`) + 404 control, headers captured, bodies hashed.
-verify_steps: PASSIVE GET ×4 @≤1rps executed 2026-08-20T21:52Z: `key/{grt,dallas,winnipeg}` → 200 full records; `key/nonexistent-probe` → 404 NotFoundError; all reflect `Origin: https://evil.example.com` + `Access-Control-Allow-Credentials: true`.
-impact: Unauthenticated harvesting of Spare's customer roster incl. internal IDs, infra endpoints, and auth-posture flags (riderLoginless, riderPhonePin); drive-by cross-origin exfiltration enabled by CORS misconfig.
-testability: HIGH — deterministic single GETs, byte-stable hashed bodies.
+confidence: 97
+reasoning: Post-revert live probes @21:40–21:52Z: key/{spare,grt,dallas,winnipeg} → 200 full records (internal UUID, name, prod GCS logoUrl, enabledPublicFeatureFlags); negative control → 404 NotFoundError; every response reflects arbitrary Origin + ACAC:true. Vendor deployed a fix ~2026-08-20 then fully reverted it.
+evidence_needed: COMPLETE except hsr — one GET key/hsr closes the 5/5 roster PoC set.
+verify_steps: PASSIVE curl -sS -m 15 -D - -o /tmp/opencode/p0820c/hsr.json -w "%{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/hsr"; sleep 1.2; sha256sum /tmp/opencode/p0820c/hsr.json
+impact: HIGH — unauthenticated harvest of customer roster + internal IDs + auth-posture flags (riderLoginless, riderPhonePin), readable cross-origin by any site's JS via ACAC:true.
+testability: PASSIVE
+[HYP] Scheme-only Bearer bypass on /v1/global/regions persists post-revert with expanded UAT region data
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 92
+reasoning: KB-stable 90h+ across 7 hosts; post-revert probe returns 200+751B (sha256 27d83f3cd…) now including UAT region entry; no-auth → 400 "Authorization header required", wrong-scheme → 400; token validity never checked. Staging enforces 401 proving prod-only regression.
+evidence_needed: Second-interval re-hash of 751B body to confirm new baseline byte-stability.
+verify_steps: PASSIVE curl -sS -m 15 -o /tmp/opencode/p0820c/regions.json -w "%{http_code} %{size_download}B\n" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"; sleep 1.2; sha256sum /tmp/opencode/p0820c/regions.json
+impact: MEDIUM-HIGH — full regional infra map (per-region apiUrl+routingHost incl. staging/UAT) with any garbage token; read-only.
+testability: PASSIVE
+[HYP] WorkOS SSO-config oracle survived patch/revert cycle unauthenticated
 class: IDOR
-confidence: 93
 asset: api.sparelabs.com/v1/identity/workos/auth
-reasoning: POST `{domain}` returns 200+172B byte-stable tenant config for ≥11 gov domains with fleet-parity (7 hosts); staging enforces 401 (newer code) proving prod regression; client_id disclosed.
-evidence_needed: Post-revert re-confirm (last confirm pre-dates revert window).
-verify_steps: PASSIVE POST config lookup: `curl -sS -m 15 -D - -o /tmp/opencode/p0820b/sso.json -w "%{http_code} %{size_download}B\n" -H 'Content-Type: application/json' -d '{"domain":"spare.com"}' https://api.sparelabs.com/v1/identity/workos/auth` expect 200+172B byte-stable.
-impact: Maps which agencies use Spare SSO + connection metadata; aids targeted phishing/tenant enumeration.
-testability: HIGH — non-mutating config lookup, deterministic.
-class: BUSLOGIC
 confidence: 90
-asset: api.sparelabs.com/v1/public/engage/cases (+caseForms formKey oracle)
-reasoning: Empty-body POST → 400 ValidationError (not 401); valid-org → 403 feature-flag gate vs nil-org → 404; caseForms formKey → 404 handler-reached; PATCH/DELETE properly 401 isolates POST-path ordering flaw; staging enforces 401.
-evidence_needed: Post-revert re-confirm of 400-not-401 ordering.
-verify_steps: PASSIVE: `POST /v1/public/engage/cases` empty JSON body expect 400 ValidationError; `POST /v1/public/engage/caseForms {"formKey":"nonexistent"}` expect 404 handler-reached.
-impact: Auth-order defect signals systemic middleware gap; schema disclosure aids abuse-chain construction if any org enables externalCaseCreation.
-testability: HIGH — non-mutating (validation rejects before handler).
+reasoning: POST {"domain"} discriminates configured tenants (≥11 gov domains) vs 404; returns WorkOS client_id + connection_id + Entra tenant IDs; fleet-parity across 7 hosts; staging enforces 401 (newer code). Inventory marks SURVIVOR but my own post-revert confirm is pending.
+evidence_needed: One post-revert 200+172B confirm (spare.com) + one 404 control (non-tenant domain).
+verify_steps: PASSIVE curl -sS -m 15 -X POST "https://api.sparelabs.com/v1/identity/workos/auth" -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com"}' -o /tmp/opencode/p0820c/sso.json -w "%{http_code} %{size_download}B\n" (non-mutating config lookup)
+impact: MEDIUM-HIGH — partner IdP roster + connection IDs enable targeted phishing/OAuth relay against transit agencies.
+testability: PASSIVE
+[PARKED] none — all three ≥90 confidence, none match REJECTED classes (controller-wide, write-escalation, redirect_uri injection, singular-UUID flapping), all carry concrete verify_steps.
+[FINAL] 1. Org-key oracle IDOR (97) 2. Regions scheme-bypass AUTH (92) 3. WorkOS SSO oracle IDOR (90)
+[NEXT] PROBE: `curl -sS -m 15 -D - -o /tmp/opencode/p0820c/hsr.json -w "%{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/hsr"` — expect 200+~320B full record; completes 5/5 tenant-roster PoC evidence for the top-ranked finding.
+[RISK] api.sparelabs.com: 88 reason | platform.sparelabs.com: 42 reason | routing.sparelabs.com: 5 reason | forms.sparelabs.com: 38 reason | web (spare.com/sparelabs.com): 8 reason
+[HYP] Engage case-creation endpoint performs input validation before authentication
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/cases (POST)
+confidence: 90
+reasoning: Empty body → 400 ValidationError (not 401) proves route reachable unauthenticated; valid orgKey → 403 feature-flag gate ("External case creation is not enabled") leaks per-org feature posture on a write-shaped route; only the final gate is authz. Last direct confirm predates revert-window close.
+evidence_needed: One post-revert empty-body POST confirm (400-not-401) + one valid-org control (spare → 403).
+verify_steps: PASSIVE curl -sS -m 15 -o /tmp/opencode/p0820c/engage-empty.json -w "%{http_code} %{size_download}B\n" -X POST "https://api.sparelabs.com/v1/public/engage/cases" -H "Content-Type: application/json" -d '{}'; sleep 1.2; curl -sS -m 15 -o /tmp/opencode/p0820c/engage-spare.json -w "%{http_code} %{size_download}B\n" -X POST "https://api.sparelabs.com/v1/public/engage/cases" -H "Content-Type: application/json" -d '{"organizationKey":"spare"}' (no data created — both rejected pre-write)
+impact: MEDIUM — unauth validation-oracle + per-org flag disclosure; write path gated by disabled externalCaseCreation flag.
+testability: PASSIVE
+[PARKED] Org-key oracle (97), regions bypass (92), SSO oracle (90) — evidence complete, ready for report.
+[FINAL] 1. Org-key oracle IDOR (97) 2. Regions scheme-bypass AUTH (92) 3. WorkOS SSO oracle IDOR (90) 4. Engage validation-before-auth BUSLOGIC (90). None match REJECTED classes; all PASSIVE-testable.
+[NEXT] PROBE: engage cases POST pair above (empty-body expect 400 ValidationError; `{"organizationKey":"spare"}` expect 403 ForbiddenError) — closes last evidence gap; then draft report from `/tmp/opencode/p0820b/` + `/tmp/opencode/p0820c/`.
+[RISK] api.sparelabs.com: 88 reason | platform.sparelabs.com: 42 reason | forms.sparelabs.com: 38 reason | routing.sparelabs.com: 5 reason | web (spare.com/sparelabs.com): 8 reason
