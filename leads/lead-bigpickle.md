@@ -15385,3 +15385,4 @@ testability: PASSIVE
 [LEARN] REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
 [LEARN] REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (auth-gated paths now standard 401 without CORS reflection)
 [RISK] api.sparelabs.com: 82 — Multiple confirmed exploitable vectors: org-key data disclosure (7 orgs, full UUIDs+feature flags), UUID enumeration oracle (3-way), SSO tenant oracle (10+ tenants with WorkOS identifiers), unauthenticated case/caseForms POST reaching handler, per-tenant terms disclosure, CORS credential reflection on all /v1 paths. Patch attempted 2026-08-20 then fully reverted — indicates active but failed remediation. Multi-version LB replica split means patch enforcement inconsistent.
+## 2026-08-20 20:01:22 UTC [api] (model bigpickle)

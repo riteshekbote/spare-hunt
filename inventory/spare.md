@@ -4422,3 +4422,17 @@
 - CHANGED api.sparelabs.com/v1/public/terms: FULLY REVERTED — per-tenant terms disclosure restored
 - CHANGED api.sparelabs.com/v1/global/organizations: Returns 200 with empty data — no auth required (was patched 401, now reverted)
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); validation→org-uuid→feature-flag→handler confirmed
+
+## 2026-08-20 20:01:34 UTC
+- NEW api.sparelabs.com: Major patch deployed ~2026-08-20 then FULLY REVERTED — all 7 previously-patched endpoints reverted to pre-patch state (200 responses) across fleet
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive across all 7 fleet hosts post-patch/revert (returns 200+172B with fleet-parity)
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle CONSISTENTLY alive — returns 404 handler-reached without 401, SURVIVED patch/revert cycle
+- CHANGED forms.sparelabs.com: Bundle rotated to `main.9f3ec6b6.js` (replaced `main.60865478.js`); still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing persists
+- CHANGED api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+- CHANGED api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (auth-gated paths now standard 401 without CORS reflection)
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED — returns 200 with full org data + UUID + feature flags for all 7 known orgs
+- CHANGED api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED — returns 200 with full org data (UUID oracle restored)
+- CHANGED api.sparelabs.com/v1/public/terms: FULLY REVERTED — per-tenant terms disclosure restored
+- CHANGED api.sparelabs.com/v1/global/organizations: Returns 200 with empty data — no auth required (was patched 401, now reverted)
+- CHANGED api.sparelabs.com/v1/global/regions: Returns 400 "Authorization header required" — no data leak but no 401; mixed across fleet replicas
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); validation→org-uuid→feature-flag→handler confirmed
