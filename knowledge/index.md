@@ -2630,3 +2630,26 @@
 - 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form GET: full schema disclosure confirmed — 20 fields + 20 incident categories; formId extractable for POST chain
 - 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType GET: caseTypeKey enumeration oracle confirmed live — Spare org has "test" + "incident" keys; CORS reflected; auth-free
 - 2026-08-20 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: error envelope leaks metadata.correlationId (UUID) on every 401/404 response — request-tracking artifact across all paths
+- 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/global/regions: scheme-only Bearer bypass PATCHED — now returns 401; multi-version LB fast-replica path closed
+- 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header fail-open PATCHED — now returns 401; not flapping
+- 2026-08-20 REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType GET: auth-free enumeration PATCHED — now returns 401
+- 2026-08-20 REJECTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form GET: auth-free schema disclosure PATCHED — now returns 401
+- 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/terms: auth-free per-tenant config PATCHED — now returns 401
+- 2026-08-20 REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: auth-free org details PATCHED — now returns 401
+- 2026-08-20 REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id}: auth-free UUID oracle PATCHED — now returns 401
+- 2026-08-20 REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — now returns 401 on both /regions and /organizations; UAT not in prod fleet
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle STILL alive — returns 200 with fleet-parity across 7 hosts
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: unauth write path STILL alive — returns 403 feature-flag gate (not 401); validation→org-uuid→feature-flag→handler
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: formKey oracle STILL alive — returns 404 "Form was not found" (handler reached, no 401)
+- 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/global/regions — scheme-only Bearer bypass patched; now returns 401 InvalidTokenError for both zero-auth and Bearer-x attempts; body sha256 no longer matches (was fb9800acb…585c3fe)
+- 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/global/organizations — zero-header bypass patched; now returns 401 for zero-auth GET; fail-open STABLE finding resolved
+- 2026-08-20 REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/{id} — UUID oracle patched; now returns 401 (was 404/400/200 auth-free)
+- 2026-08-20 REJECTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key} — org-key oracle patched; now returns 401 (was 200 auth-free with org details)
+- 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/caseType GET — schema disclosure patched; now returns 401 (was 200 auth-free)
+- 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/engage/form GET — full schema disclosure patched; now returns 401 (was 200 auth-free)
+- 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/public/terms — per-tenant config disclosure patched; now returns 401 (was 200 auth-free)
+- 2026-08-20 ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth — SSO oracle ALIVE; still returns 200+authorizationUrl for valid tenant domains; fleet-parity across 7 hosts confirmed
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST — auth gate ABSENT confirmed; validation precedes auth in pipeline; feature-flag gate (403) not auth gate
+- 2026-08-20 ACCEPTED MISCONFIG @ forms.sparelabs.com JS bundle — main.9f3ec6b6.js contains ngrok + Atlassian + Metabase refs (1 each); CA→US data routing confirmed
+- 2026-08-20 REJECTED AUTH @ api.uat.sparelabs.com — no bypass parity; returns 401 on both /regions and /organizations (no longer 8th fleet host)
+- 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/** error envelope — correlationId leak status unclear (patched on 401 paths, may persist on some routes)

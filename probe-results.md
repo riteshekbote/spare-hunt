@@ -3520,3 +3520,10 @@ https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
 https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
 https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+
+## 2026-08-20 04:40:14 UTC
+https://api.sparelabs.com/v1/public/engage/cases -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/engage/caseForms -> HTTP 400
+https://forms.sparelabs.com/ -> 200 len=537 type=text/html; charset=utf-8
+https://forms.sparelabs.com/static/js/main.9f3ec6b6.js -> 200 len=7161544 type=application/javascript; charset=utf-8

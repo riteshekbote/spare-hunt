@@ -14306,3 +14306,4 @@ class: AUTH | confidence: 95 | asset: api.sparelabs.com/v1/global/regions
 [RISK] api.staging.sparelabs.com: 62 — different code version (has fixes prod lacks); organizations bypass; OOS per scope
 [RISK] forms.sparelabs.com: 52 — bundle regression with ngrok/Atlassian/localhost refs; CA→US data routing; SPA catch-all; no auth bypass
 [RISK] routing.sparelabs.com: 5 — STABLE dead since 2026-08-07
+## 2026-08-20 04:40:00 UTC [api] (model bigpickle)

@@ -3998,3 +3998,32 @@
 - CHANGED api.sparelabs.com/v1/identity/workos/auth — STILL returns 200 (SSO oracle alive, fleet-parity 7 hosts)
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST — STILL returns 403 ForbiddenError (auth gate absent, feature-flag gate; validation→org-uuid→feature-flag→handler)
 - CHANGED api.sparelabs.com/v1/public/engage/caseForms POST — STILL returns 404 NotFoundError (auth gate absent, handler reached; formId→caseId→metadata chain)
+
+## 2026-08-20 04:40:13 UTC
+- NEW api.sparelabs.com/v1/global/regions — now returns 401 (was 200+725B+ACAO+ACAC); scheme-only Bearer bypass PATCHED
+- NEW api.sparelabs.com/v1/global/organizations — now returns 401 (was 200+11B+ACAO+ACAC); zero-header fail-open PATCHED
+- NEW api.sparelabs.com/v1/public/engage/caseType GET — now returns 401 (was 200 auth-free caseTypeKey enumeration)
+- NEW api.sparelabs.com/v1/public/engage/form GET — now returns 401 (was 200 auth-free full schema disclosure)
+- NEW api.sparelabs.com/v1/public/terms — now returns 401 (was 200 auth-free per-tenant config)
+- NEW api.sparelabs.com/v1/public/organizations/key/{key} — now returns 401 (was 200 auth-free org details)
+- NEW api.sparelabs.com/v1/public/organizations/{id} — now returns 401 (was 200 auth-free UUID oracle)
+- NEW api.uat.sparelabs.com — returns 401 on both /regions and /organizations (no bypass parity; UAT not in prod fleet)
+- NEW forms.sparelabs.com — NEW bundle main.9f3ec6b6.js (replaced main.60865478.js); still contains ngrok/atlassian/metabase refs (1 each)
+- CHANGED api.sparelabs.com/v1/identity/workos/auth — STILL returns 200 (SSO oracle alive, fleet-parity 7 hosts)
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST — STILL returns 403 ForbiddenError (auth gate absent, feature-flag gate; validation→org-uuid→feature-flag→handler)
+- CHANGED api.sparelabs.com/v1/public/engage/caseForms POST — STILL returns 404 NotFoundError (auth gate absent, handler reached; formId→caseId→metadata chain)
+- CHANGED api.sparelabs.com/v1/global/regions — scheme-only Bearer bypass now returns 401 (was 200+725B+ACAO+ACAC); sha256 fb9800acb…585c3fe no longer matches live body
+- CHANGED api.sparelabs.com/v1/global/organizations — zero-header bypass now returns 401 (was 200+11B+ACAO+ACAC); fail-open patched
+- CHANGED api.sparelabs.com/v1/public/engage/caseType GET — now returns 401 (was 200 auth-free)
+- CHANGED api.sparelabs.com/v1/public/engage/form GET — now returns 401 (was 200 auth-free with schema disclosure)
+- CHANGED api.sparelabs.com/v1/public/terms — now returns 401 (was 200 auth-free)
+- CHANGED api.sparelabs.com/v1/public/organizations/key/{key} — now returns 401 (was 200 auth-free)
+- CHANGED api.sparelabs.com/v1/public/organizations/{id} — now returns 401 (was 200 auth-free)
+- CHANGED api.uat.sparelabs.com — returns 401 on both /regions and /organizations (no bypass parity)
+- CHANGED forms.sparelabs.com — NEW bundle main.9f3ec6b6.js (replaced main.60865478.js); still contains ngrok/atlassian/metabase refs (1 each)
+- CHANGED api.sparelabs.com/v1/global/* — all bypass routes now return 401 (zero-auth + Bearer-x); controller-wide auth enforcement confirmed
+- CHANGED api.sparelabs.com/v1/public/* — all previously-bypassed endpoints now return 401 (auth enforcement confirmed)
+- CHANGED api.sparelabs.com/v1/identity/workos/auth — still returns 200 on valid domains (SSO oracle remains alive)
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST — STILL returns 403 (auth gate absent, feature-flag gate active); validation→org-uuid→feature-flag→handler pipeline intact
+- CHANGED api.sparelabs.com/v1/public/engage/caseForms POST — STILL returns 404 (auth gate absent, handler reached)
+- CHANGED api.sparelabs.com/v1/** — CORS credential reflection no longer reflects ACAO header on 401 responses (patched on auth-gated paths)
