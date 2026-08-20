@@ -2773,3 +2773,9 @@
 - 2026-08-20 REJECTED AUTH @ api.sparelabs.com/v1/global/regions: UNCLEAR/MIXED post-revert — returns 400 on no-auth path; Bearer-x path status mixed across replicas; needs live verification
 - 2026-08-20 REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas — auth-gated paths now standard 401 without CORS on some replicas
 - 2026-08-20 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; NO_DELTA
+- 2026-08-20 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: live 200+351B @2026-08-20T21:40Z post-revert, body sha256 3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd, ACAO+ACAC reflected.
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-auth 200+11B — fail-open restored fleet-wide.
+- 2026-08-20 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-x 200+751B — replica ambiguity resolved, bypass consistent.
+- 2026-08-20 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: nil mobileAppId 200+137B — disclosure restored.
+- 2026-08-20 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType: 200+231B schema — engage read chain never patched.
+- 2026-08-20 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO/ACAC reflected, methods include POST/PATCH/DELETE — credentialed-CORS preflight reflection alive on authed routes.
