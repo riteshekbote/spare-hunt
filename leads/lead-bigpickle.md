@@ -15842,3 +15842,38 @@ testability: Fully reproducible unauthenticated; stable through the vendor's pat
 [RISK] forms.sparelabs.com: 38 — bundle regression main.9f3ec6b6.js persists (ngrok/Atlassian/Metabase refs, CA→US data routing PIPEDA concern).
 [RISK] web: 8 — static, no new surface.
 [RISK] routing.sparelabs.com: 5 — envoy 404 all paths since 2026-08-07.
+## 2026-08-21 04:26:01 UTC [api] (model bigpickle)
+[HYP] Unauthenticated guessable-slug key enumeration leaks full tenant organization records fleet-wide
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 97
+reasoning: Slug keys are guessable from public marketing domains (spare→spare.com, grt→grt.ca); endpoint returns full org record (UUID, name, GCS logoUrl, enabledPublicFeatureFlags) with zero auth; prod-only data (uat/us2/jp→404) proves real-tenant exposure; vendor patch ~2026-08-20 fully reverted by 2026-08-21 and seventh-interval probe confirms still live.
+evidence_needed: 200+351B body sha256 `3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd` vs 22-candidate 404 set; closed live-set map {spare,grt,dallas,winnipeg,hsr}; credentialed-CORS reflection amplifier on same route.
+verify_steps: curl -sS -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/public/organizations/key/spare → expect 200+351B, sha256 match; repeat /key/cambus → expect 404+131B; confirm ACAO reflects Origin + ACAC:true on 200 response.
+impact: Full tenant inventory + internal feature-flag posture disclosed to any anonymous party; enables targeted attacks against all five live transit agencies and undermines flag-based access decisions.
+testability: PASSIVE
+[HYP] Scheme-only Bearer token gate bypass exposes global multi-region infrastructure registry including UAT fleet
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 94
+reasoning: Any syntactically valid `Authorization: Bearer x` header passes the gate without JWT validation (200+751B) while no-header/wrong-scheme→400 and writes→401; response enumerates 8 regions with apiUrl+routingHost incl. UAT simulationsEnabled:true and 6 OOS subdomains; alive across six intervals incl. post-revert.
+evidence_needed: Bearer-x 200+751B body sha256 `27d83f3cd9f3ddb108c00967767698885a15b2592eecba5a3fae56d08514927b`; controls (no-header 400, Basic 400, garbage-JWT 400, POST/PUT/PATCH/DELETE 401).
+verify_steps: curl -sS -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions → expect 200+751B sha256 match; curl -sS -X POST same header → expect 401; curl -sS no auth → expect 400.
+impact: Complete backend topology map (prod+UAT endpoints, internal subdomains) handed to attackers pre-recon; gate pattern likely shared across sibling routes.
+testability: PASSIVE
+[HYP] WorkOS SSO configuration oracle enumerates customer tenants and IdP metadata per domain without authentication
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 93
+reasoning: POST {"domain":X} returns 200+172B authorizationUrl embedding WorkOS client_id client_01F5KHYX32TCKB1E7YEAPE0H17, per-domain connection_id, and Entra tenant IDs inside relayState JWT for ≥11 confirmed tenants (spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov conn_01JKRZ46KNAQRZN3J3PYTJKWAQ, winnipeg.ca conn_01HP76PPV8CMRJH6RYRTWEPSGS, oakville.ca conn_01HTN1GCQYJY8X5TNBK0HPE42W, cota.com conn_01KCKYHA0YPZ8N52Q4DVT96SAC) vs 404 non-tenants; SURVIVOR — never entered vendor patch batch.
+evidence_needed: sso-spare.json 200+172B vs sso-neg.json 404+124B; connection_id table across 11 tenants; relayState JWT tenant-ID disclosure.
+verify_steps: curl -sS -X POST -H "Content-Type: application/json" -d '{"domain":"spare.com"}' https://api.sparelabs.com/v1/identity/workos/auth → expect 200+172B authorizationUrl; same with {"domain":"nonexistent.example"} → expect 404+124B.
+impact: Customer SSO tenant census + IdP connection identifiers enable targeted phishing, SSO-pivot recon, and confirms agency customer list (competitive/intel harm).
+testability: PASSIVE
+[FINAL] P1 IDOR @ api.sparelabs.com/v1/public/organizations/key/{key} — conf 97, seventh-interval byte-stable, evidence complete in /tmp/opencode/p0821e/
+[FINAL] P2 AUTH @ api.sparelabs.com/v1/global/regions — conf 94, six-interval stable, sha256-exact
+[FINAL] P3 IDOR @ api.sparelabs.com/v1/identity/workos/auth — conf 93, SURVIVOR never patched, evidence complete
+[NEXT] HUMAN: submit the four-finding report package NOW — assemble from /tmp/opencode/p0821e/ (fresh seventh-interval captures) plus p0821d baselines; immediately before clicking submit, re-run the four verify_steps above (vendor demonstrated same-day deploy/revert churn ~2026-08-20→21); if any finding flips to 401/404 at submit time, downgrade it to regression-note status and lead with the two SURVIVORS (workos/auth SSO oracle + engage/cases chain) which never entered the patch batch.
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: seventh-interval re-stamp — 200+351B sha256 `3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd` identical across three consecutive intervals spanning the vendor's revert window; negative control cambus 404+131B confirms closed-set stability.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: patch/revert cycle proves vendor monitors these routes but rollback restored vulnerable build fleet-wide — report fast, expect whack-a-mole remediation.
+[RISK] api.sparelabs.com: 92 — four unauth finding families live post-revert (org-key oracle, scheme-only Bearer bypass, SSO config oracle, zero-header fail-open), universal credentialed-CORS amplifier, engage read chain unpatched, vendor fix reverted same-day | platform.sparelabs.com: 42 — stable CSP infra leak (admin-eam-app/admin-fixed-route-app vercel apps prod+staging, Metabase prod+staging, 9 cloud services) | forms.sparelabs.com: 38 — bundle main.9f3ec6b6.js ngrok/atlassian/metabase refs + CA→US data routing (PIPEDA concern) | web (spare.com/sparelabs.com): 8 — static marketing/301 only | routing.sparelabs.com: 5 — dead envoy 404 all paths since 2026-08-07
