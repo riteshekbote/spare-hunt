@@ -15760,3 +15760,40 @@ testability: PASSIVE
 [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle alive at fourth interval with clean 200/404 discrimination — never entered patch batch
 [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-auth fail-open 200+11B restored state re-stamped
 [RISK] {"api.sparelabs.com": 92, "platform.sparelabs.com": 42, "routing.sparelabs.com": 5, "forms.sparelabs.com": 38, "web": 8}
+## 2026-08-21 02:53:59 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/identity/workos/auth | attack_surface=8 business_value=9 tech_exposure=9 gate_ease=10 cloud_surface=5 freshness=10 | priority=8.60
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | attack_surface=9 business_value=9 tech_exposure=6 gate_ease=10 cloud_surface=6 freshness=10 | priority=8.50
+[PRIO] api.sparelabs.com/v1/global/regions | attack_surface=8 business_value=8 tech_exposure=7 gate_ease=9 cloud_surface=7 freshness=10 | priority=8.10
+[PRIO] api.sparelabs.com/v1/public/engage/cases | attack_surface=8 business_value=7 tech_exposure=7 gate_ease=9 cloud_surface=4 freshness=9 | priority=7.45
+[HYP] Unauthenticated WorkOS SSO configuration oracle enumerates partner agency IdP roster
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 93
+reasoning: POST {"domain":X} returns 200+authorizationUrl (prod WorkOS client_id, per-domain connection_id, Entra tenant IDs in relayState JWT) for configured tenants vs 404 for non-tenants — unauthenticated tenant/IdP roster oracle across ≥11 government/transit partners; never entered vendor's patch batch; staging enforces 401 confirming prod regression.
+evidence_needed: COMPLETE — sso-spare.json (200+172B) + sso-neg.json (404) re-stamped this cycle at fifth interval.
+verify_steps: curl -sS -X POST -H "Content-Type: application/json" -d '{"domain":"spare.com"}' https://api.sparelabs.com/v1/identity/workos/auth → 200; same with {"domain":"notreal.example"} → 404.
+impact: Unauth disclosure of SSO partner roster, IdP connection IDs, tenant infrastructure; aids targeted phishing/tenant mapping.
+testability: PASSIVE
+[HYP] Org-key enumeration discloses full transit-agency roster with credentialed CORS reflection
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 97
+reasoning: Guessable slug keys return full org records (UUID/name/GCS logoUrl/enabledPublicFeatureFlags) with attacker-origin ACAO reflection + ACAC:true; live set closed at 5 agencies {spare,grt,dallas,winnipeg,hsr}, 22 candidates 404; byte-identical post-revert at fifth interval.
+evidence_needed: COMPLETE — spare.json sha256 `3099f1bab…e8cd` + cambus.json 404 control, both captured this cycle.
+verify_steps: curl -sS -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/public/organizations/key/spare → 200+351B; …/key/cambus → 404+131B.
+impact: Full customer roster + internal feature-flag posture disclosed to any origin with credentialed CORS.
+testability: PASSIVE
+[HYP] Scheme-only Bearer gate accepts garbage tokens and leaks regional infrastructure map
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 94
+reasoning: Auth gate validates only "Bearer " prefix — `Bearer x` yields 200+751B 8-region registry with apiUrl/routingHost incl. UAT/staging hosts; no-header/wrong-scheme → 400; writes 401 (read-only); byte-identical post-revert at fifth interval.
+evidence_needed: COMPLETE — regions.json sha256 `27d83f3c…427b` + h-regions.txt headers captured this cycle.
+verify_steps: curl -sS -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions → 200+751B; no header → 400; POST → 401.
+impact: Internal regional topology (prod/UAT/staging API+routing hosts) disclosed unauthenticated.
+testability: PASSIVE
+[FINAL] 1. IDOR @ api.sparelabs.com/v1/public/organizations/key/{key} (97)
+[FINAL] 2. AUTH @ api.sparelabs.com/v1/global/regions (94)
+[FINAL] 3. IDOR @ api.sparelabs.com/v1/identity/workos/auth (93)
+[NEXT] HUMAN: submit the four-finding report package — assemble from KB-documented findings plus this cycle's fresh captures in `/tmp/opencode/p0821c/` (prior package dirs absent from sandbox); all four reproduce commands re-verified this cycle at fifth interval, so submit immediately given vendor's demonstrated same-day deploy/revert churn.
+[RISK] api.sparelabs.com: 92 — four unauth finding families live post-revert, universal credentialed-CORS amplifier, vendor fix reverted same-day | platform.sparelabs.com: 42 — stable CSP infra leak (admin vercel apps, Metabase prod+staging) | routing.sparelabs.com: 5 — dead envoy 404 | forms.sparelabs.com: 38 — bundle main.9f3ec6b6.js ngrok/atlassian/metabase refs + CA→US data routing (PIPEDA) | web: 8 — static marketing/301 only

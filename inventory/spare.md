@@ -4592,3 +4592,18 @@
 - CHANGED api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); pipeline order validation→org-uuid→feature-flag→handler confirmed
 - CHANGED api.sparelabs.com/v1/public/engage/caseType: 200+231B full form schema — engage read chain NOT patched
 - CHANGED api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO reflected + ACAC=true + methods GET,HEAD,PUT,PATCH,POST,DELETE — credentialed CORS preflight reflection alive
+
+## 2026-08-21 02:54:09 UTC
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED post-patch — returns 200 with full org data + UUID + feature flags for all 7 known orgs
+- NEW api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED post-patch — UUID oracle restored, returns 200 with full org data
+- NEW api.sparelabs.com/v1/public/terms: FULLY REVERTED post-patch — per-tenant terms disclosure restored (spare→107B junk "asdfd", winnipeg→197B real URL, others→137B generic)
+- NEW api.sparelabs.com/v1/global/organizations: zero-header fail-open RESTORED fleet-wide — GET no-auth → 200+11B `{"data":[]}` + ACAO+ACAC; write methods properly enforce 401
+- NEW api.sparelabs.com/v1/global/regions: Bearer-x bypass CONSISTENT post-revert — `Bearer x` → 200+751B (8 regions incl. UAT with simulationsEnabled:true, 6 OOS api/routing subdomains)
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive across all 7 fleet hosts post-patch/revert — returns 200+172B with WorkOS client_id + connection_id + Entra tenant IDs
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle CONSISTENTLY alive — returns 404 "Form was not found" handler-reached without 401; CORS reflected
+- NEW forms.sparelabs.com: Bundle rotated to `main.9f3ec6b6.js` (replaced `main.60865478.js`); still contains ngrok/atlassian/metabase refs (1 each); CA→US data routing persists (PIPEDA)
+- NEW api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+- NEW api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses on patched replicas (partial patch effect)
+- CHANGED api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); pipeline order validation→org-uuid→feature-flag→handler confirmed
+- CHANGED api.sparelabs.com/v1/public/engage/caseType: 200+231B full form schema — engage read chain NOT patched
+- CHANGED api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO reflected + ACAC=true + methods GET,HEAD,PUT,PATCH,POST,DELETE — credentialed CORS preflight reflection alive
