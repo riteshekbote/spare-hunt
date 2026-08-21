@@ -3809,3 +3809,9 @@ https://api.sparelabs.com/v1/global/regions -> HTTP 400
 https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.sparelabs.com/v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790 -> HTTP 400
 https://api.sparelabs.com/v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test&formKey=f0fad64e-e080-438b-9095-5ae8f8364047 -> HTTP 404
+
+## 2026-08-21 14:39:05 UTC
+https://api.sparelabs.com/v1/global/regions -> HTTP 400
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
+https://api.sparelabs.com/v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790 -> HTTP 400
+https://api.sparelabs.com/v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test&formKey=f0fad64e-e080-438b-9095-5ae8f8364047 -> HTTP 404

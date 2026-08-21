@@ -12345,3 +12345,18 @@
 
 ## RANKED HYPOTHESES 2026-08-21 14:00:26 UTC
 - [95] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on regions endpoint with full infra topology disclosure (from reports/hypotheses-nemotron3.txt)
+
+## RANKED HYPOTHESES 2026-08-21 14:39:04 UTC
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on regions endpoint with full infra topology disclosure (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -X GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" -v — confirm 200+751B with 8 r
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass alive post-revert — 8 regions incl UAT, 751B sha256 stable, deterministic fast-re
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive post-patch/revert — never in patch batch, fleet-parity 7 hosts
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType: 200+231B schema — engage read chain never patched
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form: Full schema disclosure — 20 fields + 20 incident categories, auth-free + CORS
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO/ACAC reflected, methods include POST/PATCH/DELETE — credentialed-CORS preflight reflectio
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression — 7th interval byte-stable re-stamp
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header fail-open RESTORED fleet-wide — GET no-auth → 200+11B {"data":[]} + ACAO+ACAC; write meth
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+- LEARN: CHANGED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses — partial patch effect on auth-gated pat
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: Bundle regression PERSISTED — main.7f821c2b.js contains ngrok/atlassian/metabase refs; CA→US data routing confirmed
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
