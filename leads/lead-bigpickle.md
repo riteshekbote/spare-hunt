@@ -15959,3 +15959,5 @@ testability: PASSIVE
 [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key} + ACCEPTED AUTH @ /v1/global/regions: byte-stable across eight intervals including a full vendor deploy/revert cycle — treat as chronic, not transient.
 [LEARN] SURVIVOR classes hold: workos/auth SSO oracle and engage chain never entered the patch batch; lead with these if any finding flips post-submission.
 [RISK] api.sparelabs.com: 92 — unchanged | platform.sparelabs.com: 42 | forms.sparelabs.com: 38 | routing.sparelabs.com: 5 | web: 8.
+## 2026-08-21 07:17:20 UTC [api] (model bigpickle)
+[FINAL]
