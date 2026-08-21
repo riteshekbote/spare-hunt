@@ -2819,3 +2819,7 @@
 - 2026-08-21 REJECTED AUTH @ api.uat.sparelabs.com: bypass parity lost (401 on all routes) — drop from fleet-parity matrix; host OOS regardless.
 - 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key} + ACCEPTED AUTH @ /v1/global/regions: byte-stable across eight intervals including a full vendor deploy/revert cycle — treat as chronic, not transient.
 - 2026-08-21 SURVIVOR classes hold: workos/auth SSO oracle and engage chain never entered the patch batch; lead with these if any finding flips post-submission.
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: UUID oracle FULLY REVERTED post-patch-regression; returns 200 with full org data
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: nth-interval byte-stable re-stamp post-revert — chronic exposure, not transient churn.
+- 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-x bypass alive, sha256 exact-match — method-gated (GET-only) confirmed again.
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR re-stamped; canonical body hash recorded (5b170be7…) with stable WorkOS client_id — strengthens reproducibility for report.
