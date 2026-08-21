@@ -27402,3 +27402,11 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 reason: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07; newly responsive (TIMEOUT→404) but zero surface, NO_DELTA
 [RISK] forms.sparelabs.com: 44 reason: Engage portal SPA live; JS bundle main.9f3ec6b6.js contains ngrok/atlassian/metabase refs (regression persisted); CA→US data routing confirmed (PIPEDA); x-frame-options: DENY; no real API behind forms host (all 8 API paths SPA catch-all); infra-recon value only
 [RISK] web (spare.com/sparelabs.com): 15 reason: spare.com apex HTTP 200 (Cloudflare+Webflow static marketing, CSP frame-ancestors 'self', HSTS 31536000, no internal infra leaks); sparelabs.com 301→spare.com; minimal static-only surface
+## 2026-08-21 05:45:56 UTC [platform] (model nemotron3)
+[NEW] api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED post-patch-regression — 7th interval re-stamp confirms 200+351B with identical sha256 across intervals
+[NEW] api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED post-patch-regression — UUID oracle restored, 3-way discrimination stable
+[NEW] api.sparelabs.com/v1/global/regions: Bearer-x bypass CONSISTENT post-revert — 8 regions incl UAT, 751B sha256 stable, deterministic fast-replica split
+[NEW] api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive post-patch/revert — never in patch batch, fleet-parity 7 hosts
+[NEW] forms.sparelabs.com: Bundle rotated to main.9f3ec6b6.js — ngrok/atlassian/metabase refs persist; CA→US data routing confirmed
+[NEW] api.uat.sparelabs.com: UAT bypass parity LOST — 401 on all routes; removed from prod fleet
+[NEW] api.sparelabs.com/v1/**: CORS credential reflection no longer reflects A

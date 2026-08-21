@@ -15907,3 +15907,10 @@ verify_steps: curl -H "Authorization: Bearer x" https://api.sparelabs.com/v1/glo
 [RISK] forms.sparelabs.com: 38 — bundle rotation keeps regression fresh; CA→US data routing persists
 [RISK] web (spare.com): 8 — static marketing, no new surface
 [RISK] routing.sparelabs.com: 5 — envoy 404/0B stable since 2026-08-07
+## 2026-08-21 05:48:21 UTC [api] (model bigpickle)
+class: IDOR
+confidence: 98
+class: AUTH
+confidence: 95
+class: IDOR
+confidence: 94

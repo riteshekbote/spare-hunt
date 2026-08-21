@@ -4650,3 +4650,12 @@
 - CHANGED api.sparelabs.com/v1/public/engage/caseType: 200+231B schema — engage read chain never patched
 - CHANGED api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO/ACAC reflected + write methods — credentialed CORS preflight alive
 - CHANGED forms.sparelabs.com/static/js/main.*.js — bundle rotated main.9f3ec6b6.js → main.7f821c2b.js (7,161,544B, sha256 `769f794a3c98a61549ccf82c2b7dc16ca8bcdaa5838ec7af3e5c5055243384f5`); regression markers
+
+## 2026-08-21 05:48:36 UTC
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED post-patch-regression — 7th interval re-stamp confirms 200+351B with identical sha256 across intervals
+- NEW api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED post-patch-regression — UUID oracle restored, 3-way discrimination stable
+- NEW api.sparelabs.com/v1/global/regions: Bearer-x bypass CONSISTENT post-revert — 8 regions incl UAT, 751B sha256 stable, deterministic fast-replica split
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive post-patch/revert — never in patch batch, fleet-parity 7 hosts
+- NEW forms.sparelabs.com: Bundle rotated to main.9f3ec6b6.js — ngrok/atlassian/metabase refs persist; CA→US data routing confirmed
+- NEW api.uat.sparelabs.com: UAT bypass parity LOST — 401 on all routes; removed from prod fleet
+- NEW api.sparelabs.com/v1/**: CORS credential reflection no longer reflects A
