@@ -4903,3 +4903,23 @@
 - NEW api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO reflected + ACAC=true + methods GET,HEAD,PUT,PATCH,POST,DELETE — credentialed CORS preflight reflection alive
 - NEW api.sparelabs.com/v1/public/terms: FULLY REVERTED post-patch-regression — per-tenant terms disclosure restored (spare→107B "asdfd", winnipeg→197B real URL)
 - NEW api.uat.sparelabs.com: UAT bypass parity LOST
+
+## 2026-08-21 20:02:25 UTC
+- NEW forms.sparelabs.com: JS bundle rotated main.9f3ec6b6.js → main.7f821c2b.js (7.1MB, sha256 769f794a…); regression markers (ngrok/atlassian/metabase) persist — chronic across 4+ rotations
+- CHANGED api.sparelabs.com/v1/**: ACAO reflection DEAD on 401 responses on patched replicas — CORS exhibits now scoped to OPTIONS preflight + public/200 paths only
+- CHANGED api.sparelabs.com/v1/global/regions: 200 response omits ACAO while ACAC:true retains — partial CORS header inconsistency on bypass route
+- CHANGED api.sparelabs.com/v1/global/{organizations,regions}: ~2026-08-20 patch FULLY REVERTED fleet-wide — both bypass families restored to pre-patch state
+- NEW api.sparelabs.com/v1/public/terms: behavior flipped AGAIN — now 400+165B (was 200 disclosure → 401 patch → revert → now 400); demoted from reports, unstable
+- NEW forms.sparelabs.com static JS bundle rotated main.9f3ec6b6.js → main.7f821c2b.js (7.1MB, sha256 769f794a3c98a61549ccf82c2b7dc16ca8bcdaa5838ec7af3e5c5055243384f5); regression markers (ngrok/atlassian/m
+- CHANGED api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses — partial patch effect on auth-gated paths; mixed across fleet replicas
+- CHANGED api.sparelabs.com/v1/global/regions: 200 response now omits ACAO while retaining ACAC:true (partial header inconsistency on bypass route)
+- NEW api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED post-patch-regression — 7th+ interval byte-stable re-stamp confirms 200+351B with identical sha256 across intervals
+- NEW api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED post-patch-regression — UUID oracle restored, 3-way discrimination stable
+- NEW api.sparelabs.com/v1/global/regions: Bearer-x bypass CONSISTENT post-revert — 8 regions incl UAT, 751B sha256 stable, deterministic fast-replica split
+- NEW api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive post-patch/revert — never in patch batch, fleet-parity 7 hosts
+- NEW api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle CONSISTENTLY alive — returns 404 "Form was not found" handler-reached without 401; CORS reflected
+- NEW api.sparelabs.com/v1/global/organizations: zero-header fail-open RESTORED fleet-wide — GET no-auth → 200+11B {"data":[]} + ACAO+ACAC; write methods enforce 401
+- NEW api.sparelabs.com/v1/public/engage/caseType: 200+231B full form schema — engage read chain NOT patched
+- NEW api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO reflected + ACAC=true + methods GET,HEAD,PUT,PATCH,POST,DELETE — credentialed CORS preflight reflection alive
+- NEW api.sparelabs.com/v1/public/terms: FULLY REVERTED post-patch-regression — per-tenant terms disclosure restored (spare→107B "asdfd", winnipeg→197B real URL)
+- NEW api.uat.sparelabs.com: UAT bypass parity LOST
