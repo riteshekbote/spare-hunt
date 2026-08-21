@@ -15877,3 +15877,33 @@ testability: PASSIVE
 [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: seventh-interval re-stamp — 200+351B sha256 `3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd` identical across three consecutive intervals spanning the vendor's revert window; negative control cambus 404+131B confirms closed-set stability.
 [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: patch/revert cycle proves vendor monitors these routes but rollback restored vulnerable build fleet-wide — report fast, expect whack-a-mole remediation.
 [RISK] api.sparelabs.com: 92 — four unauth finding families live post-revert (org-key oracle, scheme-only Bearer bypass, SSO config oracle, zero-header fail-open), universal credentialed-CORS amplifier, engage read chain unpatched, vendor fix reverted same-day | platform.sparelabs.com: 42 — stable CSP infra leak (admin-eam-app/admin-fixed-route-app vercel apps prod+staging, Metabase prod+staging, 9 cloud services) | forms.sparelabs.com: 38 — bundle main.9f3ec6b6.js ngrok/atlassian/metabase refs + CA→US data routing (PIPEDA concern) | web (spare.com/sparelabs.com): 8 — static marketing/301 only | routing.sparelabs.com: 5 — dead envoy 404 all paths since 2026-08-07
+## 2026-08-21 05:08:35 UTC [api] (model bigpickle)
+[CHANGED] forms.sparelabs.com/static/js/main.*.js — bundle rotated main.9f3ec6b6.js → main.7f821c2b.js (7,161,544B, sha256 `769f794a3c98a61549ccf82c2b7dc16ca8bcdaa5838ec7af3e5c5055243384f5`); regression markers persist in new bundle (ngrok.io x1, FIN-1093 x1, Production_CA/Production_US x3 each, api.us.sparelabs.com x2)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — 8.90 (attack 9, business 10, tech 7, gate 10, cloud 6, fresh 10)
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 8.50 (attack 8, business 9, tech 9, gate 10, cloud 4, fresh 10)
+[PRIO] api.sparelabs.com/v1/global/regions — 8.10 (attack 8, business 8, tech 7, gate 9, cloud 7, fresh 10)
+[PRIO] api.sparelabs.com/v1/journeys (CORS preflight amplifier) — 7.45 (attack 8, business 7, tech 8, gate 10, cloud 2, fresh 8)
+[PRIO] api.sparelabs.com/v1/public/engage/cases — 7.35 (attack 7, business 8, tech 8, gate 8, cloud 3, fresh 9)
+[HYP] Unauthenticated tenant-record disclosure via guessable public org keys
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 98
+verify_steps: curl -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/public/organizations/key/spare → expect 200+351B sha256-exact; repeat with /key/cambus → expect 404+131B
+[HYP] Cross-tenant SSO configuration oracle via unauthenticated WorkOS domain lookup
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 94
+verify_steps: curl -X POST -H "Content-Type: application/json" -d '{"domain":"spare.com"}' https://api.sparelabs.com/v1/identity/workos/auth → expect 200+172B; repeat with {"domain":"not-a-tenant.example"} → expect 404+124B
+[HYP] Authentication bypass on global config routes via malformed Bearer scheme token
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+verify_steps: curl -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions → expect 200+751B sha256-exact; curl without header → expect 400
+[PARKED] NONE — all three hypotheses pass: confidence ≥94, classes IDOR/AUTH alive per KB and re-confirmed this interval, verify_steps concrete and reproducible, no overlap with rejected classes (write-escalation, controller-wide /v1/global/*, redirect_uri injection all excluded)
+[FINAL] 1. org-key enumeration IDOR (conf 98) — 2. WorkOS SSO config oracle (conf 94) — 3. regions Bearer-scheme bypass (conf 95)
+[NEXT] HUMAN: submit the four-finding package NOW from /tmp/opencode/p0821g/ + p0821e baselines — findings: (1) org-key IDOR, (2) WorkOS SSO oracle, (3) regions Bearer bypass, (4) supporting exhibits: universal credentialed-CORS preflight reflection (OPTIONS /v1/journeys → 204 + ACAO/ACAC/DELETE, captured h_preflight.txt), engage chain, forms bundle regression (update exhibit to main.7f821c2b.js sha256 769f794a…). Re-run the three verify_steps immediately before clicking submit — vendor ran same-day deploy/revert ~2026-08-20→21; if any endpoint flips to 401/404 at click time, downgrade that finding to regression-note and lead with the two patch-batch SURVIVORS (workos/auth oracle + engage/cases chain).
+[RISK] api.sparelabs.com: 92 — four vuln families live post-revert, unauth gates, credentialed-CORS amplifier, transit-agency tenant data
+[RISK] platform.sparelabs.com: 42 — CSP infra leak stable (prod+staging admin apps, Metabase)
+[RISK] forms.sparelabs.com: 38 — bundle rotation keeps regression fresh; CA→US data routing persists
+[RISK] web (spare.com): 8 — static marketing, no new surface
+[RISK] routing.sparelabs.com: 5 — envoy 404/0B stable since 2026-08-07
