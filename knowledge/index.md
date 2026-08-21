@@ -2823,3 +2823,8 @@
 - 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: nth-interval byte-stable re-stamp post-revert — chronic exposure, not transient churn.
 - 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-x bypass alive, sha256 exact-match — method-gated (GET-only) confirmed again.
 - 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR re-stamped; canonical body hash recorded (5b170be7…) with stable WorkOS client_id — strengthens reproducibility for report.
+- 2026-08-21 ACCEPTED MISCONFIG @ forms.sparelabs.com: Bundle regression PERSISTED — main.7f821c2b.js contains ngrok/atlassian/metabase refs; CA→US data routing confirmed
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: ninth-interval byte-stable re-stamp post-revert; sha256 exact-match 3099f1bab…
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR re-stamped; canonical body hash 5b170be7… reproduced exactly
+- 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-x bypass alive, sha256 exact-match 27d83f3c…
+- 2026-08-21 OBSERVED CORS: preflight write-method reflection persists fleet-wide; ACAO reflection absent on regions 200 response while ACAC:true remains — partial header inconsistency worth noting in exhibit
