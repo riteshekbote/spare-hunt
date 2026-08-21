@@ -140282,3 +140282,130 @@ testability: PASSIVE
 
 [STEP 7 — RISK SCORE]
 [RISK] api.sparelabs.com: 92 — four independent unauth finding families live post-revert (roster IDOR, infra-map scheme-bypass, SSO oracle, validation-before-auth chain), universal credentialed-CORS amplifier, fix deployed-and-reverted same day | platform.sparelabs.com: 42 — stable CSP infra leak (admin Vercel apps prod+staging loadable, Metabase prod+staging, 9 cloud services) | routing.sparelabs.com: 5 — envoy 404 dead since 2026-08-07 | forms.sparelabs.com: 38 — bundle main.9f3ec6b6.js ngrok/atlassian/metabase refs + CA→US data routing (PIPEDA) | web: 8 — static marketing/301 only
+===== ANALYST bigpickle 2026-08-21 01:45:29 UTC =====
+[0m
+> build · big-pickle
+[0m
+[0m$ [0mmkdir -p /tmp/opencode/p0821b && cd /tmp/opencode/p0821b && curl -sS -m 15 -D h-spare.txt -o spare.json -w "spare %{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/spare"; sleep 1.2; curl -sS -m 15 -o cambus.json -w "cambus %{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/cambus"; sleep 1.2; curl -sS -m 15 -D h-regions.txt -o regions.json -w "regions %{http_code} %{size_download}B\n" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"; sleep 1.2; curl -sS -m 15 -o orgs.json -w "orgs %{http_code} %{size_download}B\n" "https://api.sparelabs.com/v1/global/organizations"; sleep 1.2; curl -sS -m 15 -o sso-spare.json -w "sso-spare %{http_code} %{size_download}B\n" -X POST "https://api.sparelabs.com/v1/identity/workos/auth" -H "Content-Type: application/json" -d '{"domain":"spare.com"}'; sleep 1.2; curl -sS -m 15 -o sso-neg.json -w "sso-neg %{http_code} %{size_download}B\n" -X POST "https://api.sparelabs.com/v1/identity/workos/auth" -H "Content-Type: application/json" -d '{"domain":"not-a-tenant.example"}'; echo "--- hashes ---"; sha256sum spare.json regions.json orgs.json
+spare 200 351B
+cambus 404 131B
+regions 200 751B
+orgs 200 11B
+sso-spare 200 172B
+sso-neg 404 124B
+--- hashes ---
+3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd  spare.json
+27d83f3cd9f3ddb108c00967767698885a15b2592eecba5a3fae56d08514927b  regions.json
+8fe32e407a1038ee38753b70e5374b3a46d6ae9d5f16cd5b73c53abaca8f5ed0  orgs.json
+[0m
+## Objective
+- Continue the Spare bug-bounty program's passive-first recon/exploit loop (analyst role, 8-step output: DELTA→PRIORITIZE→HYPOTHESES→SELF-CRITIQUE→NEXT ACTION→LEARNING→RISK SCORE) against in-scope hosts, with `api.sparelabs.com` as primary target; finalize four report-ready unauthenticated findings for human submission.
+
+## Important Details
+- **Scope**: IN = spare.com, sparelabs.com, platform.sparelabs.com, api.sparelabs.com, routing.sparelabs.com, forms.sparelabs.com. OUT = all other subdomains of sparelabs.com/spare.com, third parties (metabase.*, api.us., api.staging.*, *.uat are OOS but noted for context).
+- **Rules**: passive-first (GET/HEAD, ≤1 rps, no account creation/data modification); secrets hashed sha256 only; [HYP] fields must each be on own line (never inline confidence/class/asset in title); no classes on REJECTED list; scanner output needs manual validation.
+- **Current state**: `{"phase": "POC", "target": "api"}`; risk scores: api.sparelabs.com=92, platform=42, forms=38, web=8, routing=5.
+- **Critical event (~2026-08-20)**: vendor deployed a major patch then FULLY REVERTED it same day across fleet — all previously-patched endpoints back to vulnerable 200 responses. UAT bypass parity LOST (now 401). Earlier "PATCHED" claims by longcat triage were FALSE POSITIVES (only tested no-auth path, never Bearer-x vector).
+- **Four report-ready findings** (all PASSIVE-testable):
+  1. **Org-key roster IDOR (conf 97)** @ `/v1/public/organizations/key/{key}` — live set {spare,grt,dallas,winnipeg,hsr}→200 full record (UUID/name/GCS logoUrl/enabledPublicFeatureFlags); cambus/notreal→404; ACAO reflected+ACAC:true; post-revert spare body sha256 `3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd`; spare UUID d736519f-f384-4771-a2d2-4f95e884d790.
+  2. **Regions scheme-only bypass AUTH (94)** @ `/v1/global/regions` — no-Auth→400 "header required"; wrong scheme→400; `Bearer x`→200+751B 7-region registry (apiUrl+routingHost incl. UAT/staging); read-only (writes→401); post-revert sha256 `27d83f3cd9f3ddb108c00967767698885a15b2592eecba5a3fae56d08514927b` (pre-UAT 725B was `fb9800acb09b65ec92591f4536e3ecfd08b8c3dba0d2ef9af3ed97047795c3fe`).
+  3. **WorkOS SSO oracle IDOR (93)** @ `/v1/identity/workos/auth` — POST {"domain":X}: ≥11 configured tenants→200 authorizationUrl (client_id `client_01F5KHYX32TCKB1E7YEAPE0H17`, per-domain connection_id, Entra tenant IDs in relayState JWT) vs 404 non-tenants; never entered patch batch; fleet-parity 7 hosts; staging enforces 401 (prod regression).
+  4. **Engage validation-before-auth BUSLOGIC (90)** @ POST `/v1/public/engage/cases` — empty POST→400 ValidationError (NOT 401); sequential required-property disclosure (organizationId→caseTypeId→contactInfo)+correlationId leak; valid org→403 ForbiddenError "External case creation is not enabled" (feature-flag gate, not auth); pipeline: validation→org-uuid→feature-flag→handler; PATCH/DELETE/PUT→401 (POST-only unauth).
+- **Supporting stable findings**: universal CORS credential reflection on /v1 (OPTIONS 204 + GET 200/401/404; partially reduced on patched replicas' 401s); `/v1/global/organizations` zero-header fail-open 200+11B `{"data":[]}` restored; `/v1/public/terms?mobileAppId=nil-uuid`→200+137B restored; plural UUID oracle `/v1/public/organizations/{id}` 3-way (malformed→400, nil→404, valid→200) restored; singular `/organization` flaps 2-way↔3-way (downgraded to validation-leak-only).
+- **REJECTED/dead classes** (do not re-emit): controller-wide auth omission (22 siblings + 8 undocumented controllers all 401); write-escalation on both bypass routes; redirect_uri injection (param silently dropped; state is URL-encoded passthrough); singular-UUID oracle reliability; routing.sparelabs.com surface (envoy 404 since 2026-08-07); forms JS bundle "patched" claims (regression churn); metabase.* (OOS); admin-*.vercel.app takeover (alive but dev-only, localhost API bases); sparelabs.ca (dead DNS); spec-discovery (/openapi.json etc. 404).
+- **SSO tenant roster (≥11)**: spare.com, dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov (conn_01JKRZ46KNAQRZN3J3PYTJKWAQ), winnipeg.ca (conn_01HP76PPV8CMRJH6RYRTWEPSGS), oakville.ca (conn_01HTN1GCQYJY8X5TNBK0HPE42W), cota.com (conn_01KCKYHA0YPZ8N52Q4DVT96SAC); dictionary + marketing partner lists exhausted (roster closed).
+- **Org feature-flag differential**: spare=5 (incl riderLoginless/multimodal/riderPhonePin), winnipeg=4, hsr=2-3, grt=2, dallas=0; "externalCaseCreation" NOT in any flag list (gates POST /cases).
+- **platform.sparelabs.com/login CSP leak STABLE**: admin-eam-app.vercel.app + admin-fixed-route-app.vercel.app (prod+staging, loadable 200) + Metabase prod+staging + Cognito/Stripe/DO-Spaces/S3/Sentry/Intercom/Mapbox/Pusher/Twilio/LiveKit; strict HTML CSP + x-frame SAMEORIGIN mitigates HTML-level only.
+- **forms.sparelabs.com**: bundle regression persisted (`main.9f3ec6b6.js`, ngrok/atlassian/metabase refs; prior bundles main.60865478.js/main.63fe135c.js also regressed; main.8a2a39cb.js "PATCHED" claims false positives); CA→US data routing (Production_CA→api.us.sparelabs.com, PIPEDA concern); SPA catch-all on all API paths.
+- **Engage chain extras**: caseTypeKey enumeration oracle live (spare has "test"+"incident"); form schema disclosure (20 fields test-form, formId f0fad64e-e080-438b-9095-5ae8f8364047); caseForms POST formKey-existence oracle (404 "Form was not found" handler-reached); write path blocked by externalCaseCreation flag off for all 5 orgs.
+
+## Work State
+### Completed
+- Full recon of all in-scope hosts; baseline surface mapped (2026-08-07 onward).
+- Four unauth finding families proven live, byte-stable across patch-window/post-revert/2026-08-21 intervals with sha256 verification and negative controls.
+- Patch/revert cycle fully characterized (fix deployed ~2026-08-20, reverted same day; UAT lost parity).
+- Hypotheses ranked: [98] nemotron3 org-key disclosure, [97] bigpickle org-key roster, [94] regions bypass, [93] SSO oracle, [90] engage chain.
+- Evidence captured under /tmp/opencode/p0820b/, p0820c/, p0820d/, p0821/.
+- Reproduce commands drafted for all four findings (curl one-liners, ≤1 rps with sleep 1.2).
+
+### Active
+- Awaiting emission of the 8-step structured output (STEP 1 DELTA → STEP 7 RISK SCORE) per the latest analyst prompt, using current inventory/state.
+- Final [NEXT] action queued: HUMAN handoff of `/tmp/opencode/p0821/` (README.md report draft + raw captures + reproduce commands), with instruction to re-run reproduce commands immediately before submission due to vendor same-day revert churn.
+
+### Blocked
+- caseTypeKey enumeration beyond {test, incident}: admin-created values, no public enumeration endpoint (BLOCKED, not killable).
+- formId bridge for caseForms POST chain: requires AUTH_HELPED token.
+- Full WorkOS state-reflection XSS chain: Cloudflare blocks direct server-IP access to WorkOS authorize page (HTTP 403); needs browser-based (AUTH_HELPED/HUMAN) verification.
+- GitHub sparelabs repo scan: runner scan-target misconfigured (gladiaio org instead of sparelabs; reposcan-raw/sparelabs dir empty) — 0 files scanned every cycle until clone target fixed.
+- Valid-org 403 differential post-revert requires full body schema satisfaction (≥3 required props enumerated); 403 captures already on file from patch window.
+
+## Next Move
+1. Emit the 8-step structured blocks (STEP 1 DELTA through STEP 7 RISK SCORE) exactly per the analyst prompt format, reflecting NO_DELTA-or-minor delta since 2026-08-21 00:03 UTC inventory, re-affirming the four FINAL hypotheses (org-key IDOR 97, regions AUTH 94, SSO IDOR 93, engage BUSLOGIC 90) with per-line fields, and [NEXT] HUMAN handoff.
+2. After handoff: monitor for another patch/revert cycle; if vendor re-patches, re-stamp freshness via the four passive reproduce commands (org-key sweep ×6 keys, regions Bearer-x, SSO spare.com/not-a-tenant pair, engage empty-POST).
+
+## Relevant Files
+- `/tmp/opencode/p0821/`: report handoff package (README.md draft + raw captures + reproduce commands) — ready for HUMAN submission.
+- `/tmp/opencode/p0820b/`, `/tmp/opencode/p0820c/`, `/tmp/opencode/p0820d/`: earlier evidence dirs (regions.json, sso-spare.json, engage-empty.json, engage-spare.json captures).
+- `reports/hypotheses-nemotron3.txt`, `reports/hypotheses-bigpickle.txt`: ranked hypothesis files feeding the aggregator ([98]/[97] entries).
+- Knowledge base (seed + appended ACCEPTED/REJECTED log): authoritative class registry; consult REJECTED list before emitting new hypotheses.
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+[0m$ [0mgrep -i -E "access-control|vary" /tmp/opencode/p0821b/h-spare.txt /tmp/opencode/p0821b/h-regions.txt
+/tmp/opencode/p0821b/h-spare.txt:access-control-allow-origin: https://evil.example.com
+/tmp/opencode/p0821b/h-spare.txt:vary: Origin, Accept-Encoding
+/tmp/opencode/p0821b/h-spare.txt:access-control-allow-credentials: true
+/tmp/opencode/p0821b/h-regions.txt:access-control-allow-origin: https://evil.example.com
+/tmp/opencode/p0821b/h-regions.txt:vary: Origin, Accept-Encoding
+/tmp/opencode/p0821b/h-regions.txt:access-control-allow-credentials: true
+[0m
+[DELTA] NO_DELTA — third-interval freshness re-stamp (this cycle) byte-identical to post-revert baseline: org-key 200+351B sha256 3099f1baba93…, regions 200+751B sha256 27d83f3cd9f3…, SSO oracle 200+172B/404+124B pair, orgs fail-open 200+11B; ACAO-reflected+ACAC:true confirmed on both 200s. Vendor fix remains reverted; no new surface.
+
+[PRIO] api.sparelabs.com/v1/identity/workos/auth | attack_surface=8 business_value=9 tech_exposure=9 gate_ease=10 cloud_surface=5 freshness=10 | priority=8.60
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | attack_surface=9 business_value=9 tech_exposure=6 gate_ease=10 cloud_surface=6 freshness=10 | priority=8.50
+[PRIO] api.sparelabs.com/v1/global/regions | attack_surface=8 business_value=8 tech_exposure=7 gate_ease=9 cloud_surface=7 freshness=10 | priority=8.10
+[PRIO] api.sparelabs.com/v1/public/engage/cases | attack_surface=8 business_value=7 tech_exposure=7 gate_ease=9 cloud_surface=4 freshness=9 | priority=7.45
+
+[HYP] Unauthenticated org-key enumeration discloses full transit-agency roster with credentialed CORS
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 97
+reasoning: Key space {spare,grt,dallas,winnipeg,hsr} returns full customer records (org UUID, name, GCS logoUrl, enabledPublicFeatureFlags) with zero auth; controls cambus/notreal→404 prove per-key existence gate, not static response; ACAO reflected + ACAC:true makes any victim-browser fetch readable cross-origin.
+evidence_needed: COMPLETE — live set closed at 5 keys across 22 candidates; post-revert body sha256 3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd re-stamped this cycle.
+verify_steps: curl -sS -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/public/organizations/key/spare → 200+351B; repeat grt/dallas/winnipeg/hsr; control /key/cambus → 404+131B; ≤1 rps.
+impact: Entire customer roster of transit agencies (names, org UUIDs usable as keys into other endpoints, feature-flag posture, GCS asset paths) enumerable by anyone; via reflected CORS, drive-by JS exfiltrates it.
+testability: PASSIVE
+
+[HYP] WorkOS SSO configuration oracle exposes partner IdP roster unauthenticated
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 93
+reasoning: POST {"domain":X} returns 200 authorizationUrl (prod client_id, per-domain connection_id, Entra tenant in relayState JWT) for ≥11 configured tenants vs 404 for non-tenants — clean config-existence oracle; survived patch/revert untouched, fleet-parity across 7 hosts while staging enforces 401 (prod regression).
+evidence_needed: COMPLETE — positive/negative pairs captured for full roster; fourth-interval re-stamp this cycle (spare.com 200+172B, not-a-tenant.example 404+124B).
+verify_steps: curl -sS -X POST https://api.sparelabs.com/v1/identity/workos/auth -H "Content-Type: application/json" -d '{"domain":"spare.com"}' → 200 authorizationUrl; '{"domain":"not-a-tenant.example"}' → 404; ≤1 rps.
+impact: Unauthenticated enumeration of SSO partner roster (government transit-authority tenants), internal connection IDs and IdP tenant identifiers disclosed; enables targeted phishing and tenant mapping.
+testability: PASSIVE
+
+[HYP] Scheme-only Bearer gate accepts garbage tokens and leaks regional infrastructure map
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 94
+reasoning: Middleware validates only the "Bearer " prefix, not token validity: no header→400, wrong scheme→400, `Bearer x`→200 with seven-region registry incl apiUrl+routingHost for staging/UAT; read-only (writes→401) so bypass is disclosure-only; byte-stable across patch/revert/third interval.
+evidence_needed: COMPLETE — post-revert body sha256 27d83f3cd9f3ddb108c00967767698885a15b2592eecba5a3fae56d08514927b re-stamped this cycle.
+verify_steps: curl -sS -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions → 200+751B; no-header → 400; "Basic x" → 400; ≤1 rps.
+impact: Regional deployment topology (prod/staging/UAT API+routing hostnames) disclosed unauthenticated — recon map for attacks on non-production infrastructure.
+testability: PASSIVE
+
+[PARKED] MISCONFIG @ platform.sparelabs.com/login CSP infra leak — parked: HTML-level CSP strict; vercel admin apps loadable but dev-only API bases; low value vs FINAL findings.
+[PARKED] BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases validation-before-auth chain — parked at 90: evidence complete (empty-POST→400 ValidationError, valid-org→403 flag gate) but ranks #4; ship as supporting finding in report package.
+No hypothesis touches REJECTED classes (controller-wide omission, write-escalation, redirect_uri injection, singular-UUID flapping all excluded); all carry concrete verify_steps and complete evidence.
+[FINAL] 1. IDOR @ api.sparelabs.com/v1/public/organizations/key/{key} (97)
+[FINAL] 2. AUTH @ api.sparelabs.com/v1/global/regions (94)
+[FINAL] 3. IDOR @ api.sparelabs.com/v1/identity/workos/auth (93)
+
+[NEXT] HUMAN: submit the four-finding report package — /tmp/opencode/p0821/ plus this cycle's freshness captures (/tmp/opencode/p0821b/: spare.json+cambus.json+h-spare.txt, regions.json+h-regions.txt, sso-spare.json+sso-neg.json, orgs.json); re-run the four reproduce commands immediately before submission given vendor's demonstrated same-day deploy/revert churn.
+
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: third-interval post-revert re-stamp byte-identical (sha256 match) — vendor fix still reverted fleet-wide
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass stable at third interval (sha256 match) — alive
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle alive at fourth interval with clean 200/404 discrimination — never entered patch batch
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-auth fail-open 200+11B restored state re-stamped
+
+[RISK] {"api.sparelabs.com": 92, "platform.sparelabs.com": 42, "routing.sparelabs.com": 5, "forms.sparelabs.com": 38, "web": 8}

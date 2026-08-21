@@ -2791,3 +2791,20 @@
 - 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression; returns 200 with full org data + UUID + feature flags
 - 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: UUID oracle FULLY REVERTED; returns 200 with full org data
 - 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-auth 200+11B
+- 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-auth 200+11B — fail-open restored fleet-wide
+- 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-x 200+751B — replica ambiguity resolved, bypass consistent
+- 2026-08-21 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/terms: nil mobileAppId 200+137B — disclosure restored
+- 2026-08-21 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType: 200+231B schema — engage read chain never patched
+- 2026-08-21 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO/ACAC reflected, methods include POST/PATCH/DELETE — credentialed-CORS preflight reflection alive
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle SURVIVOR post-patch — returns 200+172B with fleet-parity across 7 hosts
+- 2026-08-21 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: Auth gate SURVIVOR post-patch — returns 403 feature-flag gate (NOT 401); validation→org-uuid→feature-flag→handler
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle SURVIVOR post-patch — returns 404 handler-reached without 401
+- 2026-08-21 REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on all routes; removed from prod fleet
+- 2026-08-21 REJECTED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO on 401 responses on patched replicas
+- 2026-08-21 REJECTED BUSLOGIC @ routing.sparelabs.com: STABLE dead — envoy 404/0B on ALL probed paths since 2026-08-07
+- 2026-08-21 ACCEPTED MISCONFIG @ forms.sparelabs.com: Bundle regression PERSISTED — main.9f3ec6b6.js contains ngrok/atlassian/metabase refs; CA→US data routing confirmed
+- 2026-08-21 REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: third-interval post-revert re-stamp byte-identical (sha256 match) — vendor fix still reverted fleet-wide
+- 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only bypass stable at third interval (sha256 match) — alive
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle alive at fourth interval with clean 200/404 discrimination — never entered patch batch
+- 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-auth fail-open 200+11B restored state re-stamped
