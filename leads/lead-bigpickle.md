@@ -16286,3 +16286,32 @@ testability: single unauthenticated request.
 [RISK] forms.sparelabs.com: 38 — bundle regression chronic across 4 rotations (ngrok/atlassian/metabase markers; CA→US routing)
 [RISK] routing.sparelabs.com: 5 — dead envoy 404 on all paths since 2026-08-07
 [RISK] web (spare.com/sparelabs.com): 8 — static marketing apex, no dynamic surface
+## 2026-08-21 17:07:15 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}: attack_surface=9, business_value=10, tech_exposure=6, gate_ease=10, cloud_surface=5, freshness=10 → priority=8.65
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: attack_surface=8, business_value=8, tech_exposure=9, gate_ease=10, cloud_surface=6, freshness=10 → priority=8.45
+[PRIO] api.sparelabs.com/v1/global/regions: attack_surface=7, business_value=7, tech_exposure=7, gate_ease=9, cloud_surface=6, freshness=10 → priority=7.50
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 98
+reasoning: Pre-auth GET returns full tenant records (UUID, name, GCS logoUrl, feature flags) for known keys {spare,grt,dallas,winnipeg,hsr}; attacker-Origin echoed with ACAC:true on 200 (re-read from h1_orgkey.txt this interval); closed-set negative control /key/cambus→404+131B reconfirmed; byte-stable across vendor deploy→revert cycle (sha256 3099f1bab… exact-match ×11 intervals).
+evidence_needed: b_key_spare.json (sha256-exact), h1_orgkey.txt (ACAO+ACAC:true on 200), negative control b_key_cambus.json (404+131B).
+verify_steps: GET https://api.sparelabs.com/v1/public/organizations/key/spare -H 'Origin: https://evil.example.com' → 200+351B; GET …/key/cambus → 404; ≤1 rps.
+impact: HIGH — unauthenticated cross-origin credentialed read of tenant metadata fleet-wide; enables targeted follow-on attacks against CA tenants (PIPEDA-relevant).
+testability: PASSIVE
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 94
+reasoning: POST {"domain":X} discriminates configured tenants (200+172B: WorkOS client_id + per-tenant connection_id + relayState JWT w/ Entra tenant IDs) vs non-tenants (404+124B); ≥11 tenants enumerated incl. dart.org/translink.ca/mbta.com/saskatoon.ca/kingcounty.gov/winnipeg.ca/oakville.ca/cota.com; SURVIVOR class never entered the ~2026-08-20 patch batch; canonical body hash 5b170be7…4414 held in KB.
+evidence_needed: b_sso_spare.json + b_sso_neg.json (sha256-exact), tenant roster table.
+verify_steps: POST {"domain":"spare.com"} vs {"domain":"not-a-tenant.example"} to /v1/identity/workos/auth → 200+172B vs 404 (two unauthenticated requests; KB-confirmed ×7 intervals, not re-probed this cycle per passive-first policy).
+impact: MEDIUM-HIGH — customer SSO adoption footprint and connection identifiers disclosed pre-auth.
+testability: PASSIVE
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: Auth gate validates header presence + "Bearer" scheme prefix only; garbage token → 200+751B region registry incl. internal UAT apiUrl/routingHost pairs; no-header→400+219B ("Authorization header required") and POST→401 controls reconfirmed this interval; sha256 27d83f3c…27b exact-match post-revert; h3_regions.txt confirms 200 omits ACAO while ACAC:true retained (partial CORS patch state).
+evidence_needed: b_regions.json (sha256-exact), h3_regions.txt headers, no-header control b_regions_nohdr.json (400+219B).
+verify_steps: GET https://api.sparelabs.com/v1/global/regions -H 'Authorization: Bearer x' → 200+751B; same request without header → 400; ≤1 rps.
+impact: MEDIUM — internal infra topology incl. UAT endpoints disclosed pre-auth; evidences scheme-parsing flaw likely fleet-wide.
+testability: PASSIVE
+[NEXT] HUMAN: submit NOW — rebuild `/tmp/opencode/p0821z/SUBMISSION_INDEX.md` exhibits from today's hash-exact captures in `/tmp/opencode/d0821/` if prior evidence dirs were purged, then file R
