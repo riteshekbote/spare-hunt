@@ -16151,3 +16151,4 @@ testability: PASSIVE
 [LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/**: credentialed CORS reflection persists on 200 responses (arbitrary Origin → ACAO + ACAC:true) even after the partial patch killed 401-path reflection — patch is path-scoped by status code, not global
 [RISK] api.sparelabs.com: 90 — all three classes revalidated post-revert; finding #1 retains full browser-exploitable cross-origin read chain; churn risk unchanged
 [RISK] platform.sparelabs.com: 42 | forms.sparelabs.com: 38 | routing.sparelabs.com: 5 | web: 8 — no movement
+## 2026-08-21 14:00:12 UTC [api] (model bigpickle)

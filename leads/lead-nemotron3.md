@@ -27974,3 +27974,50 @@ asset: api.sparelabs.com/v1/global/regions
 confidence: 95
 reasoning: Post-revert probe confirms Bearer x → 200+751B region registry (8 regions incl UAT with simulationsEnabled:true, 6 OOS api/routing subdomains) + ACAO+ACAC; gate validates header presence/scheme only (token never verified); no-auth → 400; fleet-parity across 7 hosts; multi-version LB split resolved; sha256 27d83f3cd9f3ddb108c00967767698885a15b2592eecba5a3fae56d08514927b
 evidence_needed: Live GET with Authorization: Bearer x confirming 200+751B with full region
+## 2026-08-21 13:56:13 UTC [platform] (model nemotron3)
+[NEW] forms.sparelabs.com static JS bundle rotated main.9f3ec6b6.js → main.7f821c2b.js (7.1MB, sha256 769f794a3c98a61549ccf82c2b7dc16ca8bcdaa5838ec7af3e5c5055243384f5); regression markers (ngrok/atlassian/metabase refs re-activated)
+[CHANGED] api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses — partial patch effect on auth-gated paths; mixed across fleet replicas
+[CHANGED] api.sparelabs.com/v1/global/regions: 200 response now omits ACAO while retaining ACAC:true (partial header inconsistency on bypass route)
+[NEW] api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED post-patch-regression — 7th interval re-stamp confirms 200+351B with identical sha256 across intervals
+[NEW] api.sparelabs.com/v1/public/organizations/{uuid}: FULLY REVERTED post-patch-regression — UUID oracle restored, 3-way discrimination stable
+[NEW] api.sparelabs.com/v1/global/regions: Bearer-x bypass CONSISTENT post-revert — 8 regions incl UAT, 751B sha256 stable, deterministic fast-replica split
+[NEW] api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive post-patch/revert — never in patch batch, fleet-parity 7 hosts
+[NEW] api.sparelabs.com/v1/public/engage/caseForms POST: FormKey oracle CONSISTENTLY alive — returns 404 "Form was not found" handler-reached without 401; CORS reflected
+[NEW] api.sparelabs.com/v1/global/organizations: zero-header fail-open RESTORED fleet-wide — GET no-auth → 200+11B {"data":[]} + ACAO+ACAC; write methods enforce 401
+[NEW] api.sparelabs.com/v1/public/engage/caseType: 200+231B full form schema — engage read chain NOT patched
+[NEW] api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO reflected + ACAC=true + methods GET,HEAD,PUT,PATCH,POST,DELETE — credentialed CORS preflight reflection alive
+[NEW] api.sparelabs.com/v1/public/terms: FULLY REVERTED post-patch-regression — per-tenant terms disclosure restored (spare→107B "asdfd", winnipeg→197B real URL)
+[NEW] api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+[PRIO] api.sparelabs.com/v1/global/regions: 8.1, attack_surface=8, business_value=7, tech_exposure=8, gate_ease=10, cloud_surface=8, freshness=9
+[PRIO] api.sparelabs.com/v1/identity/workos/auth: 7.9, attack_surface=7, business_value=8, tech_exposure=7, gate_ease=10, cloud_surface=7, freshness=9
+[PRIO] api.sparelabs.com/v1/public/engage/form: 7.3, attack_surface=7, business_value=6, tech_exposure=7, gate_ease=10, cloud_surface=7, freshness=8
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key}: 7.2, attack_surface=7, business_value=7, tech_exposure=6, gate_ease=10, cloud_surface=7, freshness=8
+[PRIO] api.sparelabs.com/v1/global/organizations: 7.1, attack_surface=6, business_value=6, tech_exposure=7, gate_ease=10, cloud_surface=7, freshness=8
+[HYP] Scheme-only Bearer bypass on regions endpoint with full infra topology disclosure
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: Post-revert probe confirms Bearer x → 200+751B region registry (8 regions incl UAT with simulationsEnabled:true, 6 OOS api/routing subdomains) + ACAC:true; gate validates header presence/scheme only (token never verified); no-auth → 400; fleet-parity across 7 hosts; multi-version LB split resolved; sha256 27d83f3cd9f3ddb108c00967767698885a15b2592eecba5a3fae56d08514927b
+evidence_needed: Live GET with Authorization: Bearer x confirming 200+751B with full region list; verify no-auth returns 400; confirm fleet-parity on api.us.sparelabs.com; verify CORS reflection
+verify_steps: PROBE curl -X GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" -v — confirm 200+751B with 8 regions incl UAT; curl -X GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -v — confirm 400; repeat on api.us.sparelabs.com
+impact: Full infra topology disclosure (8 regions × {apiUrl, routingHost}); enables targeting OOS subdomains; scheme-only gate is presence-based auth bypass; severity HIGH
+testability: PASSIVE
+[HYP] Unauthenticated SSO configuration oracle via WorkOS authorize endpoint
+class: OATH
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 92
+reasoning: SSO oracle CONSISTENTLY alive post-patch/revert — never entered patch batch; 11+ tenants confirmed fleet-parity across 7 hosts; state parameter reflected unescaped in authorizeUrl body; redirect_uri silently dropped; returns 200+172B with WorkOS client_id+connection_id for valid domains vs 404 for non-tenants
+evidence_needed: Live POST with valid tenant domain (spare.com, winnipeg.ca, etc.) confirming 200 with WorkOS authorizationUrl containing client_id+connection_id; verify 404 for non-tenant (grt.ca); confirm state reflection in response; verify fleet-parity on api.us.sparelabs.com
+verify_steps: PROBE curl -X POST https://api.sparelabs.com/v1/identity/workos/auth -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com"}' -v — confirm 200+172B with client_01F5KHYX32TCKB1E7YEAPE0H17 + connection_id; curl -X POST ... -d '{"domain":"grt.ca"}' -v — confirm 404; repeat for winnipeg.ca, kingcounty.gov, oakville.ca, cota.com
+impact: SSO tenant enumeration (11+ orgs), WorkOS client_id + connection_id disclosure, Entra tenant IDs via relayState; enables phishing/social engineering via fake WorkOS flows; severity MEDIUM-HIGH
+testability: PASSIVE
+[HYP] Full schema disclosure via engage form endpoint with caseTypeKey oracle
+class: BUSLOGIC
+asset: api.sparelabs.com/v1/public/engage/form
+confidence: 85
+reasoning: Engage read chain never patched — caseType GET returns "test" + "incident" keys with internal UUIDs; form GET with valid caseTypeKey returns 20 fields on test form + 5 fields + 20 incident categories on incident form; formId extractable for POST chain; auth-free + CORS reflected
+evidence_needed: Live GET /v1/public/engage/caseType?organizationId=<spare-uuid> confirming caseType keys; Live GET /v1/public/engage/form?organizationId=<spare-uuid>&caseTypeKey=<test-key>&formKey=<form-id> confirming 20-field schema; verify CORS reflection
+verify_steps: PROBE curl -X GET "https://api.sparelabs.com/v1/public/engage/caseType?organizationId=d736519f-f384-4771-a2d2-4f95e884d790" -H "Origin: https://evil.example.com" -v — confirm 200+231B with test+incident keys; curl -X GET "https://api.sparelabs.com/v1/public/engage/form?organizationId=d736519f-f384-4771-a2d2-4f95e884d790&caseTypeKey=test&formKey=f0fad64e-e080-438b-9095-5ae8f8364047" -H "Origin: https://evil.example.com" -v — confirm 20-field schema
+impact: Full incident report form schema disclosure (20 fields including securityFootage file upload, 20 incident categories); formId extractable for unauthenticated write chain; auth-free + CORS; severity MEDIUM
+testability: PASSIVE
+[PARKED] api.sparelabs.com/v1/public/organizations/key/{key} org-key oracle: confidence 98 but class IDOR already proven chronic (9+ interval re-stamps);

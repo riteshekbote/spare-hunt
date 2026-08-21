@@ -12342,3 +12342,6 @@
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: universal ACAO-reflection claim narrowed — 401 responses no longer reflect origin on patched replicas; scope CORS 
 - LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle regression now chronic across 3 rotations (63fe135c→60865478→9f3ec6b6→7f821c2b) — staging-to-prod pipeline lack
 - LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/**: credentialed CORS reflection persists on 200 responses (arbitrary Origin → ACAO + ACAC:true) even after the
+
+## RANKED HYPOTHESES 2026-08-21 14:00:26 UTC
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on regions endpoint with full infra topology disclosure (from reports/hypotheses-nemotron3.txt)
