@@ -16099,3 +16099,4 @@ testability: PASSIVE
 [RISK] forms.sparelabs.com | score=38 | trend=stable | rationale=Bundle regression chronic; ngrok/atlassian/metabase markers persist in main.7f821c2b.js.
 [RISK] routing.sparelabs.com | score=5 | trend=flat | rationale=Envoy 404 since 2026-08-07.
 [RISK] web.spare.com | score=8 | trend=stable | rationale=Static shell only.
+## 2026-08-21 12:00:53 UTC [api] (model bigpickle)
