@@ -4659,3 +4659,7 @@
 - NEW forms.sparelabs.com: Bundle rotated to main.9f3ec6b6.js — ngrok/atlassian/metabase refs persist; CA→US data routing confirmed
 - NEW api.uat.sparelabs.com: UAT bypass parity LOST — 401 on all routes; removed from prod fleet
 - NEW api.sparelabs.com/v1/**: CORS credential reflection no longer reflects A
+
+## 2026-08-21 06:26:48 UTC
+- NEW forms.sparelabs.com/static/js/main.*.js — bundle rotated main.9f3ec6b6.js → main.7f821c2b.js (7,161,544B, sha256 `769f794a3c98a61549ccf82c2b7dc16ca8bcdaa5838ec7af3e5c5055243384f5`); regression markers
+- CHANGED api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses — partial patch effect on auth-gated paths; mixed across fleet replicas
