@@ -16315,3 +16315,31 @@ verify_steps: GET https://api.sparelabs.com/v1/global/regions -H 'Authorization:
 impact: MEDIUM — internal infra topology incl. UAT endpoints disclosed pre-auth; evidences scheme-parsing flaw likely fleet-wide.
 testability: PASSIVE
 [NEXT] HUMAN: submit NOW — rebuild `/tmp/opencode/p0821z/SUBMISSION_INDEX.md` exhibits from today's hash-exact captures in `/tmp/opencode/d0821/` if prior evidence dirs were purged, then file R
+## 2026-08-21 17:33:35 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | attack_surface=9 business_value=10 tech_exposure=6 gate_ease=10 cloud_surface=5 freshness=10 | priority=8.65
+[PRIO] api.sparelabs.com/v1/identity/workos/auth | attack_surface=8 business_value=8 tech_exposure=9 gate_ease=10 cloud_surface=6 freshness=10 | priority=8.45
+[PRIO] api.sparelabs.com/v1/global/regions | attack_surface=7 business_value=7 tech_exposure=7 gate_ease=9 cloud_surface=6 freshness=10 | priority=7.50
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 98
+reasoning: Pre-auth GET returns full tenant records (UUID/name/GCS logoUrl/feature flags) for known keys {spare,grt,dallas,winnipeg,hsr}; negative control cambus→404+131B; canonical sha256 `3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd` exact-match ×12 intervals spanning vendor deploy→revert.
+verify_steps: curl -s https://api.sparelabs.com/v1/public/organizations/key/spare | shasum -a 256 == canonical; curl -s -o /dev/null -w '%{http_code}' .../key/cambus == 404
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 94
+reasoning: POST {"domain":X} → 200+172B (WorkOS client_id + per-tenant connection_id + relayState JWT w/ Entra tenant IDs) vs 404+124B non-tenants; ≥11 tenants enumerated; SURVIVOR of reverted patch batch; canonical hash `5b170be7…4414` KB-confirmed ×7 intervals.
+verify_steps: POST {"domain":"spare.com"} → 200 w/ connection_id; POST {"domain":"example.com"} → 404
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: Header `Authorization: Bearer x` alone yields 200+751B internal region registry incl. UAT apiUrl/routingHost; no-header→400+219B; writes→401 (read-only); post-revert body sha256 `27d83f3cd9f3ddb108c00967767698885a15b2592eecba5a3fae56d08514927b` exact-match this interval.
+verify_steps: curl -s -H 'Authorization: Bearer x' https://api.sparelabs.com/v1/global/regions | shasum -a 256 == canonical; no-header control == 400
+[FINAL] HYP 1 org-key IDOR (conf 98)
+[FINAL] HYP 2 workos/auth SSO IDOR (conf 94)
+[FINAL] HYP 3 regions AUTH bypass (conf 95)
+[NEXT] HUMAN: submit now — R1/R2/R3 as separate reports, R4 as supporting context, from rebuilt `/tmp/opencode/p0821z/SUBMISSION_INDEX.md` (exhibits in `/tmp/opencode/d0821b/`); include churn note requesting coordinated retest given the deploy→revert cycle.
+[RISK] api.sparelabs.com: 90
+[RISK] platform.sparelabs.com: 42
+[RISK] forms.sparelabs.com: 40
+[RISK] routing.sparelabs.com: 5
+[RISK] spare.com/sparelabs.com: 8

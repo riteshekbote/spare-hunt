@@ -12455,3 +12455,6 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-scheme bypass alive post-revert (27d83f3c… exact-match); 200 omits ACAO but ACAC:true persists — hea
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR reconfirmed (5b170be7… exact-match) — never patched through full deploy/revert cycle
 - LEARN: OBSERVED OPS: evidence dirs are not persistent across sessions — canonical hashes recorded in KB enabled byte-exact rebuild of the package from fresh captures
+
+## RANKED HYPOTHESES 2026-08-21 17:41:17 UTC
+- NEXT(hypotheses-bigpickle.txt): HUMAN: submit now — R1/R2/R3 as separate reports, R4 as supporting context, from rebuilt `/tmp/opencode/p0821z/SUBMISSION_INDEX.md` (exhibits in `/tmp/opencode/

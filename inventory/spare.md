@@ -4826,3 +4826,5 @@
 - NEW api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO reflected + ACAC=true + methods GET,HEAD,PUT,PATCH,POST,DELETE — credentialed CORS preflight reflection alive
 - NEW api.sparelabs.com/v1/public/terms: FULLY REVERTED post-patch-regression — per-tenant terms disclosure restored (spare→107B "asdfd", winnipeg→197B real URL)
 - NEW api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+
+## 2026-08-21 17:41:17 UTC
