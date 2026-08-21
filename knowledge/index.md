@@ -2850,3 +2850,7 @@
 - 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-scheme gate alive post-revert (sha256 27d83f3c… exact-match, 8 regions incl UAT) — vendor fix reverted fleet-wide
 - 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class confirmed — never entered patch batch, canonical hash 5b170be7… reproduced across intervals
 - 2026-08-21 REJECTED MISCONFIG @ api.sparelabs.com/v1/**: ACAO reflection on 401 responses dead on patched replicas — CORS exhibits scoped to OPTIONS preflight + public/200 paths only
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: re-stamped post sandbox-reset with hash-exact capture (3099f1bab…) — chronic exposure confirmed yet again
+- 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-scheme bypass alive post-revert (27d83f3c… exact-match); 200 omits ACAO but ACAC:true persists — header inconsistency documented for exhibit
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR reconfirmed (5b170be7… exact-match) — never patched through full deploy/revert cycle
+- 2026-08-21 OBSERVED OPS: evidence dirs are not persistent across sessions — canonical hashes recorded in KB enabled byte-exact rebuild of the package from fresh captures

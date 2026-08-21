@@ -12381,3 +12381,28 @@
 - LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-scheme gate alive post-revert (sha256 27d83f3c… exact-match, 8 regions incl UAT) — vendor fix revert
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class confirmed — never entered patch batch, canonical hash 5b170be7… reproduced across inte
 - LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: ACAO reflection on 401 responses dead on patched replicas — CORS exhibits scoped to OPTIONS preflight + public/200
+
+## RANKED HYPOTHESES 2026-08-21 15:53:25 UTC
+- [98] api.sparelabs.com/v1/public/organizations/key/{key}: Full tenant disclosure via unauthenticated org-key enumeration (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -X GET https://api.sparelabs.com/v1/public/organizations/key/spare -H "Origin: https://evil.example.com" -v — confirm 200+351B with org details (UUI
+- NEXT(hypotheses-bigpickle.txt): HUMAN: submit the package NOW from `/tmp/opencode/p0821r/SUBMISSION_INDEX.md`: (1) P1 org-key IDOR + credentialed-CORS reflection on 200 (8.65), (2) P2 WorkOS S
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass alive post-revert — 8 regions incl UAT, 751B sha256 stable, deterministic fast-re
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive post-patch/revert — never in patch batch, fleet-parity 7 hosts
+- LEARN: ACCEPTED BUSLOGIC @ api.spare
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType: 200+231B schema — engage read chain never patched
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form: Full schema disclosure — 20 fields + 20 incident categories, auth-free + CORS
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO/ACAC reflected, methods include POST/PATCH/DELETE — credentialed-CORS preflight reflectio
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression — 7th interval byte-stable re-stamp
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header fail-open RESTORED fleet-wide — GET no-auth → 200+11B {"data":[]} + ACAO+ACAC; write meth
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+- LEARN: CHANGED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses — partial patch effect on auth-gated pat
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: Bundle regression PERSISTED — main.7f821c2b.js contains ngrok/atlassian/metabase refs; CA→US data routing confirmed
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: ninth-interval byte-stable re-stamp post-revert (sha256 3099f1bab… exact-match) — chronic e
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-scheme gate alive post-revert (sha256 27d83f3c… exact-match, 8 regions incl UAT) — vendor fix revert
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class confirmed — never entered patch batch, canonical hash 5b170be7… reproduced across inte
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: ACAO reflection on 401 responses dead on patched replicas — CORS exhibits scoped to OPTIONS preflight + public/200
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: re-stamped post sandbox-reset with hash-exact capture (3099f1bab…) — chronic exposure confi
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-scheme bypass alive post-revert (27d83f3c… exact-match); 200 omits ACAO but ACAC:true persists — hea
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR reconfirmed (5b170be7… exact-match) — never patched through full deploy/revert cycle
+- LEARN: OBSERVED OPS: evidence dirs are not persistent across sessions — canonical hashes recorded in KB enabled byte-exact rebuild of the package from fresh captures

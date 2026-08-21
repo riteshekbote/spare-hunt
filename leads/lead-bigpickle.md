@@ -16198,3 +16198,47 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — dead envoy 404 on all paths since 2026-08-07
 [RISK] web (spare.com/sparelabs.com): 8 — static marketing apex, no dynamic surface
 [NEXT] HUMAN: submit the package — open `/tmp/opencode/p0821v/SUBMISSION_INDEX.md`, file R1→R3 as separate reports with their matching evidence files, attach R4 as context, and note the ~2026-08-20 deploy/revert churn to request re-test coordination. Evidence is fresh (<5 min), byte-stable across ten intervals; nothing further blocks submission.
+## 2026-08-21 15:53:09 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | priority=8.65 | attack_surface=9 | business_value=10 | tech_exposure=6 | gate_ease=10 | cloud_surface=5 | freshness=10
+[PRIO] api.sparelabs.com/v1/identity/workos/auth | priority=8.45 | attack_surface=8 | business_value=8 | tech_exposure=9 | gate_ease=10 | cloud_surface=6 | freshness=10
+[PRIO] api.sparelabs.com/v1/global/regions | priority=7.50 | attack_surface=7 | business_value=7 | tech_exposure=7 | gate_ease=9 | cloud_surface=6 | freshness=10
+[HYP] Full tenant disclosure via unauthenticated org-key enumeration
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 98
+reasoning: GET /key/spare → 200+351B full org record (UUID, name, GCS `spare-production-ca-photos` logoUrl, enabledPublicFeatureFlags: riderLoginless/riderPhonePin/multimodal…) with zero auth; unknown key cambus → 404+131B control. Byte-stable across the full vendor deploy/revert cycle; credentialed CORS reflection on the 200 confirmed live this interval (ACAO: arbitrary Origin + ACAC:true).
+evidence_needed: DONE — /tmp/opencode/p0821r/b_key_spare.json + h1_orgkey.txt + b_key_cambus.json + h_pf.txt (preflight write-method reflection)
+verify_steps: curl -sS -D- -H "Origin: https://evil.example.com" https://api.sparelabs.com/v1/public/organizations/key/spare → 200+351B sha256 3099f1bab…; control /key/cambus → 404+131B; ≤1 rps.
+impact: Unauthenticated enumeration of every Spare customer (gov-adjacent transit agencies) incl. capability flags; cross-origin read chain intact on public paths. HIGH.
+testability: PASSIVE
+[HYP] Pre-auth SSO tenant enumeration via WorkOS connection oracle
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 94
+reasoning: POST {"domain":"spare.com"} → 200+172B disclosing WorkOS client_id client_01F5KHYX32TCKB1E7YEAPE0H17 + per-tenant connection_id; non-tenant domain → 404+124B. SURVIVOR class — never entered vendor patch batch across deploy/revert window; canonical hash 5b170be7… reproduced exactly this interval.
+evidence_needed: DONE — /tmp/opencode/p0821r/b_sso_spare.json + b_sso_neg.json
+verify_steps: curl -sS -X POST -H "Content-Type: application/json" -d '{"domain":"spare.com"}' https://api.sparelabs.com/v1/identity/workos/auth → 200+172B sha256 5b170be7…; control domain=not-a-tenant.example → 404+124B; ≤1 rps.
+impact: Maps entire customer base pre-auth; connection_id enables crafted SSO-init flows against enrolled tenants. MEDIUM-HIGH.
+testability: PASSIVE
+[HYP] Authentication bypass on global config routes via scheme-only Bearer token
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: "Authorization: Bearer x" → 200+751B full region registry incl. UAT region with per-region apiUrl/routingHost internal hosts; no header → 400; POST same header → 401 (GET-only gate, scheme validated not token). Alive post-revert; hash exact-match 27d83f3c…. Note: 200 now omits ACAO (partial patch) while retaining ACAC:true — CORS subclaim stays dropped from exhibit.
+evidence_needed: DONE — /tmp/opencode/p0821r/b_regions.json + controls h3_ctrl.txt/h3_post.txt
+verify_steps: curl -sS -H "Authorization: Bearer x" https://api.sparelabs.com/v1/global/regions | sha256sum → 27d83f3c…; no-header → 400; POST Bearer-x → 401; ≤1 rps.
+impact: Unauthenticated read of fleet-wide region registry incl. internal UAT endpoints; evidences class-wide scheme-parsing flaw. MEDIUM.
+testability: PASSIVE
+[FINAL] P1 IDOR org-key oracle conf 98 prio 8.65 — nine-plus-interval byte-stable incl. patch/revert; credentialed-CORS-on-200 chain reconfirmed; submission-ready
+[FINAL] P2 IDOR WorkOS SSO tenant oracle conf 94 prio 8.45 — SURVIVOR, canonical hash 5b170be7… exact-match; submission-ready
+[FINAL] P3 AUTH regions Bearer-scheme bypass conf 95 prio 7.50 — alive post-revert, corrected header exhibit (ACAO omission noted); submission-ready
+[NEXT] HUMAN: submit the package NOW from `/tmp/opencode/p0821r/SUBMISSION_INDEX.md`: (1) P1 org-key IDOR + credentialed-CORS reflection on 200 (8.65), (2) P2 WorkOS SSO tenant oracle (8.45), (3) P3 regions Bearer-scheme bypass w/ controls (7.50), plus supporting exhibits (engage read-chain schema, forms bundle regression main.7f821c2b.js, OPTIONS preflight write-method reflection). All hashes exact-match canonical records; vendor churn makes speed critical.
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: re-stamped post sandbox-reset with hash-exact capture (3099f1bab…) — chronic exposure confirmed yet again
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-scheme bypass alive post-revert (27d83f3c… exact-match); 200 omits ACAO but ACAC:true persists — header inconsistency documented for exhibit
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR reconfirmed (5b170be7… exact-match) — never patched through full deploy/revert cycle
+[LEARN] OBSERVED OPS: evidence dirs are not persistent across sessions — canonical hashes recorded in KB enabled byte-exact rebuild of the package from fresh captures
+[RISK] api.sparelabs.com: 90 — three pre-auth data classes live post-revert + credentialed CORS on public paths/preflight; deploy/revert churn keeps triage-flip risk HIGH, submit immediately
+[RISK] platform.sparelabs.com: 42 — stable CSP infra leak (admin Vercel apps prod+staging, Metabase); no API behind MFE shell
+[RISK] routing.sparelabs.com: 5 — dead envoy 404 on all paths since 2026-08-07
+[RISK] forms.sparelabs.com: 38 — bundle regression chronic across 4 rotations (ngrok/atlassian/metabase markers in main.7f821c2b.js)
+[RISK] web (spare.com/sparelabs.com): 8 — static marketing apex, no dynamic surface
