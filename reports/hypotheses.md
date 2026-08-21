@@ -12217,3 +12217,6 @@
 - LEARN: REJECTED AUTH @ api.uat.sparelabs.com: bypass parity lost (401 on all routes) — drop from fleet-parity matrix; host OOS regardless.
 - LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key} + ACCEPTED AUTH @ /v1/global/regions: byte-stable across eight intervals including a full ve
 - LEARN: SURVIVOR classes hold: workos/auth SSO oracle and engage chain never entered the patch batch; lead with these if any finding flips post-submission.
+
+## RANKED HYPOTHESES 2026-08-21 08:55:25 UTC
+- [98] api.sparelabs.com/v1/public/organizations/key/{key}: Full tenant data disclosure via org-key enumeration post-revert (from reports/hypotheses-nemotron3.txt)
