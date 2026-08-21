@@ -15687,3 +15687,33 @@ testability: PASSIVE
 [LEARN] ACCEPTED INFOLEAK @ api.sparelabs.com/v1/public/engage/cases POST: unauth callers receive sequential required-property disclosure + per-request correlationId (schema-shape oracle)
 [LEARN] NOTE: valid-org 403 differential post-revert requires full body schema satisfaction (≥3 required props enumerated so far); 403 feature-flag-gate captures already on file from patch-window SURVIVOR entries — behavior unchanged across patch/revert
 [RISK] api.sparelabs.com: 92 — four independent unauth findings live post-revert, credentialed CORS amplifier, fix/revert instability | platform.sparelabs.com: 42 | routing.sparelabs.com: 5 | forms.sparelabs.com: 38 | web: 8
+## 2026-08-21 00:03:17 UTC [api] (model bigpickle)
+[HYP] Unauthenticated org-key enumeration discloses full transit-agency roster with credentialed CORS
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 97
+reasoning: Live set {spare,grt,dallas,winnipeg,hsr} → 200 full record (internal UUID, name, prod GCS logoUrl, enabledPublicFeatureFlags); controls cambus/notreal → 404. Arbitrary Origin reflected + ACAC:true on every response. Vendor fix deployed and fully reverted same day (~2026-08-20); UAT retains fix proving prod regression unintended. Re-verified byte-stable 2026-08-21.
+evidence_needed: COMPLETE — 5/5 roster + 404 controls, headers + sha256 across three intervals (patch-window, post-revert 21:40Z, 2026-08-21).
+verify_steps: PASSIVE replay: for k in spare grt dallas winnipeg hsr cambus; curl -sS -m 15 -D - -o $k.json -w "%{http_code} %{size_download}B\n" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/public/organizations/key/$k"; sleep 1.2
+impact: HIGH — any website's JS cross-origin harvests Spare's entire customer roster, internal UUIDs, GCS asset paths, per-org auth-posture flags; chains into engage write-chain recon.
+testability: PASSIVE
+[HYP] Scheme-only Bearer gate accepts garbage tokens and leaks regional infrastructure map
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 94
+reasoning: Nil header → 400 "Authorization header required"; wrong scheme → 400; `Bearer x` → 200+751B seven-region registry (per-region apiUrl+routingHost incl. UAT/staging); token validity never checked. OPTIONS advertises write methods w/ ACAO+ACAC but writes enforce 401 (read-only). Byte-stable across patch-window, post-revert, and 2026-08-21 sweeps.
+evidence_needed: COMPLETE — bypass vector + both negative controls captured with byte-hash stability across three intervals.
+verify_steps: PASSIVE: curl -sS -m 15 -D - -o regions.json -w "%{http_code} %{size_download}B\n" -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" "https://api.sparelabs.com/v1/global/regions"; sha256sum regions.json
+impact: MEDIUM-HIGH — complete regional API/routing host map (incl. staging/UAT) for any garbage token; read-only recon multiplier.
+testability: PASSIVE
+[HYP] WorkOS SSO configuration oracle exposes partner IdP roster unauthenticated
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 93
+reasoning: POST {"domain":X} discriminates ≥11 configured gov/municipality tenants (→ 200 authorizationUrl disclosing WorkOS client_id client_01F5KHYX32TCKB1E7YEAPE0H17 + per-domain connection_id; Entra tenant IDs in relayState JWT) vs 404 non-tenants. Fleet parity across 7 hosts; never entered patch batch; OOS staging enforces 401 (prod regression). Non-mutating config lookup; re-verified 2026-08-21.
+evidence_needed: COMPLETE — 11-tenant roster + 404 controls, fleet parity matrix, post-revert + 2026-08-21 confirms.
+verify_steps: PASSIVE non-mutating config lookup: curl -sS -m 15 -X POST "https://api.sparelabs.com/v1/identity/workos/auth" -H "Content-Type: application/json" -d '{"domain":"spare.com"}'; sleep 1.2; curl -sS -m 15 -o /dev/null -w "%{http_code}\n" -X POST "https://api.sparelabs.com/v1/identity/workos/auth" -H "Content-Type: application/json" -d '{"domain":"not-a-tenant.example"}'
+impact: MEDIUM-HIGH — partner IdP roster + connection fingerprints enable targeted phishing/OAuth-relay campaigns against transit agencies.
+testability: PASSIVE
+[NEXT] HUMAN: hand off /tmp/opencode/p0821/ (README.md report draft + raw captures + reproduce commands) for submission — all four findings report-ready; before submitting, re-run the four Reproduce commands to re-stamp freshness given vendor's demonstrated same-day revert churn.
+[RISK] api.sparelabs.com: 92 — four independent unauth finding families live post-revert (roster IDOR, infra-map scheme-bypass, SSO oracle, validation-before-auth chain), universal credentialed-CORS amplifier, fix deployed-and-reverted same day | platform.sparelabs.com: 42 — stable CSP infra leak (admin Vercel apps prod+staging loadable, Metabase prod+staging, 9 cloud services) | routing.sparelabs.com: 5 — envoy 404 dead since 2026-08-07 | forms.sparelabs.com: 38 — bundle main.9f3ec6b6.js ngrok/atlassian/metabase refs + CA→US data routing (PIPEDA) | web: 8 — static marketing/301 only

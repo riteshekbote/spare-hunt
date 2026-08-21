@@ -12017,3 +12017,12 @@
 - LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: pipeline order post-revert = OpenAPI validation → (org resolution → feature-flag gate → handl
 - LEARN: ACCEPTED INFOLEAK @ api.sparelabs.com/v1/public/engage/cases POST: unauth callers receive sequential required-property disclosure + per-request correlationId (s
 - LEARN: NOTE: valid-org 403 differential post-revert requires full body schema satisfaction (≥3 required props enumerated so far); 403 feature-flag-gate captures alread
+
+## RANKED HYPOTHESES 2026-08-21 00:03:26 UTC
+- [98] api.sparelabs.com/v1/public/organizations/key/{key}: Full tenant data disclosure via org-key enumeration post-revert (from reports/hypotheses-nemotron3.txt)
+- [97] api.sparelabs.com/v1/public/organizations/key/{key}: Unauthenticated org-key enumeration discloses full transit-agency roster with credentialed CORS (from reports/hypotheses-bigpickle.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -X GET https://api.sparelabs.com/v1/public/organizations/key/spare -H "Origin: https://evil.example.com" -v — confirm 200+351B with UUID d736519f-f3
+- NEXT(hypotheses-bigpickle.txt): HUMAN: hand off /tmp/opencode/p0821/ (README.md report draft + raw captures + reproduce commands) for submission — all four findings report-ready; before submit
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression; returns 200 with full org data + UUID 
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/{uuid}: UUID oracle FULLY REVERTED; returns 200 with full org data
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-auth 200+11B
