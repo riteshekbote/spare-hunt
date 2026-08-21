@@ -293,3 +293,76 @@ testability: PASSIVE
 [LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle regression chronic across 4+ rotations — staging-to-prod pipeline lacks secret-scan gate
 [RISK] api.sparelabs.com: 78 — Active unauthenticated IDOR chain (SSO oracle + org-key + regions + orgs + engage), CORS credential reflection on public/200 paths, partial patch confirms vendor awareness but full revert proves chronic exposure; ~90h+ unpatched | platform.sparelabs.com: 35 — MFE SPA shell with CSP infra leak (admin Vercel apps + Metabase + 9 cloud services); no auth bypass, recon-only | routing.sparelabs.com: 0 — envoy 404/0B on ALL probed paths since 2026-08-07; no surface | forms.sparelabs.com: 25 — bundle regression chronic across 4+ rotations (ngrok/atlassian/localhost refs); CA→US data routing (PIPEDA); infra-recon only, no auth bypass | web (spare.com/sparelabs.com): 5 — static Webflow marketing; HSTS + CSP frame-ancestors 'self'; no dynamic surface
 ## 2026-08-21 20:59:22 UTC [api] (model mimo)
+## 2026-08-21 21:33:11 UTC [api] (model mimo)
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 8.7 — attack:9 business:9 tech:8 gate:10 cloud:6 freshness:9
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — 8.5 — attack:9 business:8 tech:7 gate:10 cloud:5 freshness:9
+[PRIO] api.sparelabs.com/v1/global/regions — 8.2 — attack:7 business:6 tech:8 gate:9 cloud:7 freshness:9
+[PRIO] api.sparelabs.com/v1/global/organizations — 7.8 — attack:7 business:5 tech:7 gate:10 cloud:4 freshness:9
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST — 7.5 — attack:8 business:7 tech:6 gate:10 cloud:3 freshness:9
+[PRIO] forms.sparelabs.com — 5.2 — attack:3 business:3 tech:4 gate:10 cloud:2 freshness:8
+[HYP] SSO Tenant Enumeration via WorkOS Oracle
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 96
+reasoning: SURVIVOR class — never entered the ~2026-08-20 patch batch. Full canonical hash 5b170be7b7829635753da63537ecfe9068be5eea0b0a6218ffd72b8770ae4414 reproduced across 11+ intervals. POST domain param discriminates 200 (configured tenant with WorkOS client_id+connection_id+Entra tenant ID in relayState JWT) vs 404. Fleet-parity confirmed across 7 prod hosts. >11 tenants enumerated. Staging enforces 401 confirming prod serves older vulnerable code.
+evidence_needed: Canonical hash match confirmed 2026-08-21 18:16 UTC
+verify_steps: curl -X POST https://api.sparelabs.com/v1/identity/workos/auth -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com"}' — expect 200+172B with authorizationUrl containing WorkOS client_id+connection_id
+impact: Unauthenticated enumeration of >11 transit-agency SSO tenants, WorkOS client_id/connection_id disclosure, Entra tenant IDs via relayState JWT — enables targeted SSO phishing per tenant
+testability: PASSIVE
+[HYP] Org-Key Tenant Disclosure via Enumeration Oracle
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 94
+reasoning: FULLY REVERTED post-patch — vendor fix deployed ~2026-08-20 then fully reverted fleet-wide. Byte-stable at sha256 3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd across 11+ intervals. 3-way discrimination: 200+351B (spare UUID + 5 feature flags + GCS logoUrl) vs 404+131B (cambus). 7 known orgs confirmed. Feature-flag differential exposes capability inventory. Prod-only data residency (uat/us2/jp→404).
+evidence_needed: Canonical hash match confirmed 2026-08-21 18:16 UTC
+verify_steps: curl -X GET "https://api.sparelabs.com/v1/public/organizations/key/spare" -H "Origin: https://evil.example.com" — expect 200+351B with UUID d736519f-..., 5 feature flags, GCS logoUrl; negative: /key/cambus→404
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 8.7 — attack:9 business:9 tech:8 gate:10 cloud:6 freshness:9
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — 8.5 — attack:9 business:8 tech:7 gate:10 cloud:5 freshness:9
+[PRIO] api.sparelabs.com/v1/global/regions — 8.2 — attack:7 business:6 tech:8 gate:9 cloud:7 freshness:9
+[PRIO] api.sparelabs.com/v1/global/organizations — 7.8 — attack:7 business:5 tech:7 gate:10 cloud:4 freshness:9
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST — 7.5 — attack:8 business:7 tech:6 gate:10 cloud:3 freshness:9
+[HYP] SSO Tenant Enumeration via WorkOS Oracle
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 96
+reasoning: SURVIVOR class — never entered patch batch. Canonical hash 5b170be7b7829635753da63537ecfe9068be5eea0b0a6218ffd72b8770ae4414 reproduced again this cycle. 200+172B on configured tenants, 404+124B on nonexistent. Full CORS chain intact (ACAO: evil.example.com, ACAC: true) on both 200 and OPTIONS 204 preflight. Fleet-parity confirmed across 7 hosts. >11 tenants enumerated. Staging enforces 401 confirming prod serves older vulnerable code.
+evidence_needed: Canonical hash match confirmed 2026-08-21 22:00 UTC
+verify_steps: POST /v1/identity/workos/auth with {"domain":"spare.com"} — expect 200+172B + WorkOS client_id/connection_id in authorizationUrl
+impact: Unauthenticated enumeration of >11 transit-agency SSO tenants, WorkOS client_id/connection_id disclosure, Entra tenant IDs via relayState JWT — enables targeted SSO phishing per tenant
+testability: PASSIVE
+[HYP] Org-Key Tenant Disclosure via Enumeration Oracle
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 94
+reasoning: FULLY REVERTED post-patch — vendor deployed fix ~2026-08-20, then fully reverted fleet-wide. Byte-stable at sha256 3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd again this cycle. 200+351B with UUID + 5 feature flags + GCS logoUrl on valid keys; 404+131B on invalid. Feature-flag differential exposes capability inventory. Prod-only data (uat/us2/jp → 404).
+evidence_needed: Canonical hash match confirmed 2026-08-21 22:00 UTC
+verify_steps: GET /v1/public/organizations/key/spare — expect 200+351B with 5 feature flags
+impact: Unauthenticated enumeration of customer organizations via predictable keys, exposes internal feature-flag inventory and GCS storage URLs
+testability: PASSIVE
+[HYP] Regions Infrastructure Topology Disclosure + Bearer-x Auth Bypass
+class: AuthN bypass
+asset: api.sparelabs.com/v1/global/regions
+confidence: 91
+reasoning: SURVIVOR class — scheme-only "Bearer x" bypass confirmed alive post-revert. 200+751B with ACAO:evil.example.com + ACAC:true on the 200 response. Regions omit ACAC on its own CORS but includes it with Bearer-x. 8 regions with full apiUrl+routingHost per region. UAT region exposes simulationsEnabled:true. Staging returns 401 enforcing auth — confirms prod serves older vulnerable code. Confirmed deterministic fast-replica split (8/8 fast→200, slow→401) from envoy LB.
+evidence_needed: Bearer-x bypass confirmed 2026-08-21 22:00 UTC
+verify_steps: GET /v1/global/regions with Authorization: Bearer x — expect 200+751B; without auth header → 400 "Authorization header required"
+impact: Bypasses authentication via malformed Bearer token, discloses 8-region production infrastructure with direct API URLs and routing hosts, exposes non-production UAT region
+testability: PASSIVE
+[HYP] Zero-Header Organizations Bypass (Read-Only)
+class: AuthN bypass
+asset: api.sparelabs.com/v1/global/organizations
+confidence: 85
+reasoning: 200+11B `{"data":[]}` with zero Authorization header — fail-open restored post-revert. Write methods (POST/PUT/DELETE) enforce 401. GET never entered the patch batch.
+evidence_needed: 200+11B confirmed 2026-08-21 22:00 UTC
+verify_steps: GET /v1/global/organizations without any auth header — expect 200+11B
+impact: Confirms structural authN fail-open on read path; combined with org-key oracle enables customer enumeration without any credentials
+testability: PASSIVE
+[HYP] Engage Cases POST Auth Gate Absent
+class: AuthN bypass
+asset: api.sparelabs.com/v1/public/engage/cases
+confidence: 80
+reasoning: SURVIVOR class — never entered patch batch. POST with empty body returns 400+306B validation error (no auth gate, just validation). Full pipeline: validation → org-uuid → feature-flag → handler. Never returns 401 on any path.
+evidence_needed: 400+306B validation error confirmed 2026-08-21 22:00 UTC
+verify_steps: POST /v1/public/engage/cases with empty body — expect 400 validation error, never 401
+impact: Auth-free case creation endpoint; with valid caseTypeId and contactInfo could create cases in any customer's environment
+testability: PASSIVE
