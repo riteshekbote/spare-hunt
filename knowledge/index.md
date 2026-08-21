@@ -2886,3 +2886,6 @@
 - 2026-08-21 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT SURVIVOR — POST not in patch batch, 403 feature-flag gate post-revert
 - 2026-08-21 REJECTED AUTH @ api.uat.sparelabs.com: bypass parity LOST — 401 on all routes, removed from fleet-parity matrix
 - 2026-08-21 CHANGED MISCONFIG @ api.sparelabs.com/v1/**: ACAO reflection DEAD on 401 responses on patched replicas — CORS exhibits now scoped to OPTIONS preflight + public/200 paths only
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class confirmed — never entered patch batch, canonical hash 5b170be7…4414 reproduced, fleet-parity 7 hosts, staging enforces 401 confirming multi-version divergence
+- 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED post-patch — sha256 3099f1bab… byte-stable across 11+ intervals post-revert; vendor fix rolled back fleet-wide
+- 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-x bypass RESTORED post-revert — sha256 27d83f3c…27b byte-stable, 8 regions incl UAT, deterministic fast-replica split
