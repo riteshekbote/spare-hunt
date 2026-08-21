@@ -4715,3 +4715,10 @@
 - NEW api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO reflected + ACAC=true + methods GET,HEAD,PUT,PATCH,POST,DELETE — credentialed CORS preflight reflection alive
 - NEW api.sparelabs.com/v1/public/terms: FULLY REVERTED post-patch-regression — per-tenant terms disclosure restored (spare→107B "asdfd", winnipeg→197B real URL)
 - NEW api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+
+## 2026-08-21 11:09:10 UTC
+- NEW forms.sparelabs.com static JS bundle rotated main.9f3ec6b6.js → main.7f821c2b.js (7.1MB, sha256 769f794a3c98a61549ccf82c2b7dc16ca8bcdaa5838ec7af3e5c5055243384f5); regression markers (ngrok/atlassian/m
+- CHANGED api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses — partial patch effect on auth-gated paths; mixed across fleet replicas
+- NEW forms.sparelabs.com/static/js/main.*.js — bundle rotated main.9f3ec6b6.js → main.7f821c2b.js (7,161,544B, sha256 769f794a3c98a61549ccf82c2b7dc16ca8bcdaa5838ec7af3e5c5055243384f5); regression markers (
+- CHANGED api.sparelabs.com/v1/** — CORS: ACAO reflection absent on 401 responses on patched replicas (partial patch effect, mixed fleet); ACAC:true + preflight write-method reflection persist
+- CHANGED api.sparelabs.com/v1/global/regions — 200 response now omits ACAO while retaining ACAC:true (partial header inconsistency on bypass route)
