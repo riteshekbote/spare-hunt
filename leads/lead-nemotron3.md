@@ -27634,3 +27634,4 @@ evidence_needed: Live GET with Authorization: Bearer x confirming 200+751B with 
 verify_steps: PROBE curl -X GET https://api.sparelabs.com/v1/global/regions -H "Authorization: Bearer x" -H "Origin: https://evil.example.com" -v — confirm 200+751B with 8 regions incl UAT; curl -X GET https://api.sparelabs.com/v1/global/regions -H "Origin: https://evil.example.com" -v — confirm 400; repeat on api.us.sparelabs.com
 impact: Full infra topology disclosure (8 regions × {apiUrl, routingHost}); enables targeting OOS subdomains; scheme-only gate is presence-based auth bypass; severity HIGH
 testability: PASSIVE
+## 2026-08-21 09:29:32 UTC [platform] (model nemotron3)

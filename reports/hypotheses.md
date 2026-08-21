@@ -12220,3 +12220,6 @@
 
 ## RANKED HYPOTHESES 2026-08-21 08:55:25 UTC
 - [98] api.sparelabs.com/v1/public/organizations/key/{key}: Full tenant data disclosure via org-key enumeration post-revert (from reports/hypotheses-nemotron3.txt)
+
+## RANKED HYPOTHESES 2026-08-21 09:32:24 UTC
+- NEXT(hypotheses-bigpickle.txt): HUMAN: submit the four-finding package NOW from /tmp/opencode/p0821g/ + p0821e baselines, attaching today's p0821i captures as freshest proof. Verification wind
