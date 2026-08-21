@@ -12333,3 +12333,12 @@
 - LEARN: CHANGED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses — partial patch effect on auth-gated pat
 - LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: Bundle regression PERSISTED — main.7f821c2b.js contains ngrok/atlassian/metabase refs; CA→US data routing confirmed
 - LEARN: REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
+
+## RANKED HYPOTHESES 2026-08-21 13:09:03 UTC
+- [98] api.sparelabs.com/v1/public/organizations/key/{key}: Full tenant disclosure via unauthenticated org-key enumeration (from reports/hypotheses-bigpickle.txt)
+- [95] api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass on regions endpoint with full infra topology disclosure (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-bigpickle.txt): PROBE: guard-triggered freshness re-pass (captures now >1h old) at ≤1 rps, then submit — `curl -sS -D h1.txt -o b_key.json https://api.sparelabs.com/v1/public/o
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/global/regions: 200 response omits ACAO while retaining ACAC:true — partial CORS patch reached the bypass route; brows
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: universal ACAO-reflection claim narrowed — 401 responses no longer reflect origin on patched replicas; scope CORS 
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle regression now chronic across 3 rotations (63fe135c→60865478→9f3ec6b6→7f821c2b) — staging-to-prod pipeline lack
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/public/**: credentialed CORS reflection persists on 200 responses (arbitrary Origin → ACAO + ACAC:true) even after the

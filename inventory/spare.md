@@ -4732,3 +4732,12 @@
 - NEW forms.sparelabs.com static JS bundle rotated main.9f3ec6b6.js → main.7f821c2b.js (7.1MB, sha256 769f794a3c98a61549ccf82c2b7dc16ca8bcdaa5838ec7af3e5c5055243384f5); regression markers (ngrok/atlassian/m
 - CHANGED api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses — partial patch effect on auth-gated paths; mixed across fleet replicas
 - CHANGED api.sparelabs.com/v1/global/regions: 200 response now omits ACAO while retaining ACAC:true (partial header inconsistency on bypass route)
+
+## 2026-08-21 13:09:03 UTC
+- NEW forms.sparelabs.com static JS bundle rotated main.9f3ec6b6.js → main.7f821c2b.js (7.1MB, sha256 769f794a3c98a61549ccf82c2b7dc16ca8bcdaa5838ec7af3e5c5055243384f5); regression markers (ngrok/atlassian/m
+- CHANGED api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses — partial patch effect on auth-gated paths; mixed across fleet replicas
+- CHANGED api.sparelabs.com/v1/global/regions: 200 response now omits ACAO while retaining ACAC:true (partial header inconsistency on bypass route)
+- CHANGED api.sparelabs.com/v1/global/regions — 200 response now omits ACAO while retaining ACAC:true (partial CORS patch effect reached the bypass route; finding #3 exhibit must drop the ACAO-on-200 claim)
+- CHANGED api.sparelabs.com/v1/** — ACAO reflection absent on 401 responses on patched replicas (universal reflection claim narrowed; scope credentialed-CORS exhibit to OPTIONS preflight + public/200 paths)
+- NEW forms.sparelabs.com/static/js/main.7f821c2b.js — new rotation (7.1MB, sha256 769f794a…); ngrok/atlassian/metabase regression markers persist (refresh supporting exhibit)
+- CHANGED CORS exhibit scope finalized: 401-path reflection dead, but **org-key 200 still reflects arbitrary Origin into ACAO with ACAC:true** (`access-control-allow-origin: https://evil.example.com` captured i
