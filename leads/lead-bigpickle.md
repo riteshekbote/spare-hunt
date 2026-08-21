@@ -16242,3 +16242,47 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 5 — dead envoy 404 on all paths since 2026-08-07
 [RISK] forms.sparelabs.com: 38 — bundle regression chronic across 4 rotations (ngrok/atlassian/metabase markers in main.7f821c2b.js)
 [RISK] web (spare.com/sparelabs.com): 8 — static marketing apex, no dynamic surface
+## 2026-08-21 16:22:35 UTC [api] (model bigpickle)
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | priority=8.65 | attack_surface=9 | business_value=10 | tech_exposure=6 | gate_ease=10 | cloud_surface=5 | freshness=10
+[PRIO] api.sparelabs.com/v1/identity/workos/auth | priority=8.45 | attack_surface=8 | business_value=8 | tech_exposure=9 | gate_ease=10 | cloud_surface=6 | freshness=10
+[PRIO] api.sparelabs.com/v1/global/regions | priority=7.50 | attack_surface=7 | business_value=7 | tech_exposure=7 | gate_ease=9 | cloud_surface=6 | freshness=10
+[HYP] Unauthenticated organization enumeration + credentialed CORS on public key lookup
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 98
+reasoning: Pre-auth GET returns full tenant records (UUID, name, GCS bucket logoUrl, feature flags) for known keys with attacker-Origin echo + ACAC:true; closed-set enumeration {spare,grt,dallas,winnipeg,hsr}; byte-stable across deploy→revert cycle.
+evidence_needed: b_key_spare.json (sha256-exact), h1_orgkey.txt (ACAO+ACAC), control /key/cambus 404 — all captured this interval.
+verify_steps: curl -H 'Origin: https://evil.example.com' /v1/public/organizations/key/spare → 200+351B; /key/cambus → 404.
+impact: HIGH — cross-origin credentialed read of tenant metadata for all fleets.
+testability: single unauthenticated request.
+[HYP] Pre-auth WorkOS SSO tenant oracle leaking connection IDs
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 94
+reasoning: POST {"domain":X} yields 200+172B (client_id + per-tenant connection_id) vs 404+124B for non-tenants → binary oracle enumerating customer SSO adoption across ≥10 confirmed tenants; SURVIVOR class, never patched.
+evidence_needed: b_sso_spare.json (sha256-exact), b_sso_neg.json, headers captured this interval.
+verify_steps: two POSTs (spare.com vs not-a-tenant.example) → 200 vs 404 differential.
+impact: MEDIUM-HIGH — customer SSO footprint + connection identifiers pre-auth.
+testability: two unauthenticated requests.
+[HYP] Scheme-only Bearer bypass exposes internal region registry
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 95
+reasoning: Any Bearer-shaped token passes the auth gate → 200+751B registry (8 regions incl UAT apiUrl/routingHost); no-header 400, POST 401 prove read-only scheme check; partial CORS patch visible (no ACAO on 200, ACAC retained).
+evidence_needed: b_regions.json (sha256-exact), h3_regions.txt, controls captured this interval.
+verify_steps: curl -H 'Authorization: Bearer x' /v1/global/regions → 200; same without header → 400.
+impact: MEDIUM — internal infra topology incl. UAT endpoints disclosed pre-auth.
+testability: single unauthenticated request.
+[FINAL] IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: conf 98 prio 8.65
+[FINAL] IDOR @ api.sparelabs.com/v1/identity/workos/auth: conf 94 prio 8.45
+[FINAL] AUTH @ api.sparelabs.com/v1/global/regions: conf 95 prio 7.50
+[NEXT] HUMAN: submit now from `/tmp/opencode/p0821z/SUBMISSION_INDEX.md` — R1/R2/R3 as separate reports, R4 as supporting context; include churn note requesting coordinated retest given the ~2026-08-20 deploy→revert cycle.
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: tenth-interval re-stamp, sha256 exact-match post-revert — chronic exposure
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR reconfirmed, full canonical hash recorded (`5b170be7…4414`) — never patched
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-scheme gate alive, full canonical hash recorded (`27d83f3c…27b`); ACAO still absent on 200 while ACAC retained
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: credentialed-CORS reflection persists on public-200 responses and OPTIONS preflight (204 + write methods); 404s also reflect ACAO
+[RISK] api.sparelabs.com: 90 — three pre-auth data classes chronically live through a deploy→revert cycle plus credentialed CORS on public paths; triage-flip risk HIGH, submit immediately
+[RISK] platform.sparelabs.com: 42 — stable CSP infra leak (admin Vercel apps prod+staging, Metabase); MFE shell only
+[RISK] forms.sparelabs.com: 38 — bundle regression chronic across 4 rotations (ngrok/atlassian/metabase markers; CA→US routing)
+[RISK] routing.sparelabs.com: 5 — dead envoy 404 on all paths since 2026-08-07
+[RISK] web (spare.com/sparelabs.com): 8 — static marketing apex, no dynamic surface
