@@ -1,28 +1,55 @@
-## 2026-08-21 17:33:35 UTC [api] (model bigpickle)
+## 2026-08-21 18:16:02 UTC [api] (model bigpickle)
 [PRIO] api.sparelabs.com/v1/public/organizations/key/{key} | attack_surface=9 business_value=10 tech_exposure=6 gate_ease=10 cloud_surface=5 freshness=10 | priority=8.65
 [PRIO] api.sparelabs.com/v1/identity/workos/auth | attack_surface=8 business_value=8 tech_exposure=9 gate_ease=10 cloud_surface=6 freshness=10 | priority=8.45
 [PRIO] api.sparelabs.com/v1/global/regions | attack_surface=7 business_value=7 tech_exposure=7 gate_ease=9 cloud_surface=6 freshness=10 | priority=7.50
+[HYP] Unauthenticated org-key endpoint discloses full tenant records with credentialed CORS
 class: IDOR
 asset: api.sparelabs.com/v1/public/organizations/key/{key}
 confidence: 98
-reasoning: Pre-auth GET returns full tenant records (UUID/name/GCS logoUrl/feature flags) for known keys {spare,grt,dallas,winnipeg,hsr}; negative control cambus→404+131B; canonical sha256 `3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd` exact-match ×12 intervals spanning vendor deploy→revert.
-verify_steps: curl -s https://api.sparelabs.com/v1/public/organizations/key/spare | shasum -a 256 == canonical; curl -s -o /dev/null -w '%{http_code}' .../key/cambus == 404
+reasoning: Pre-auth GET returns full tenant records (UUID, name, GCS logoUrl, enabledPublicFeatureFlags) for closed set {spare,grt,dallas,winnipeg,hsr}; negative control /key/cambus→404+131B; attacker-Origin echoed with ACAC:true on the 200; body byte-stable (sha256 3099f1bab…) across the vendor deploy→revert cycle over ≥11 consecutive intervals.
+evidence_needed: b_key_spare.json (sha256-exact 3099f1bab…), header capture showing ACAO:<reflected>+ACAC:true on 200, negative control b_key_cambus.json (404+131B).
+verify_steps: GET https://api.sparelabs.com/v1/public/organizations/key/spare -H 'Origin: https://evil.example.com' → expect 200+351B; GET …/key/cambus → expect 404; ≤1 rps.
+impact: HIGH — unauthenticated cross-origin credentialed read of tenant metadata fleet-wide; enables targeted follow-on attacks against named CA transit agencies (PIPEDA-relevant).
+testability: PASSIVE
+[HYP] Pre-auth WorkOS SSO-config oracle enumerates customer SSO tenants and connection IDs
 class: IDOR
 asset: api.sparelabs.com/v1/identity/workos/auth
 confidence: 94
-reasoning: POST {"domain":X} → 200+172B (WorkOS client_id + per-tenant connection_id + relayState JWT w/ Entra tenant IDs) vs 404+124B non-tenants; ≥11 tenants enumerated; SURVIVOR of reverted patch batch; canonical hash `5b170be7…4414` KB-confirmed ×7 intervals.
-verify_steps: POST {"domain":"spare.com"} → 200 w/ connection_id; POST {"domain":"example.com"} → 404
+reasoning: POST {"domain":X} discriminates configured tenants (200+172B: WorkOS client_id, per-tenant connection_id, relayState JWT embedding Entra tenant IDs) vs non-tenants (404+124B); ≥11 tenants mapped (dart.org, translink.ca, mbta.com, saskatoon.ca, kingcounty.gov, winnipeg.ca, oakville.ca, cota.com…); SURVIVOR class — never entered the ~2026-08-20 patch batch; canonical hash 5b170be7…4414 stable ×7 intervals.
+evidence_needed: b_sso_spare.json + b_sso_neg.json (sha256-exact), domain→connection_id roster table.
+verify_steps: KB-confirmed ×7 intervals — optional single passive pair: POST /v1/identity/workos/auth {"domain":"spare.com"} vs {"domain":"example.com"} → 200 w/ connection_id vs 404; two requests total, ≤1 rps.
+impact: MEDIUM-HIGH — pre-auth disclosure of customer SSO adoption footprint, connection identifiers, and partner Entra tenant IDs.
+testability: PASSIVE
+[HYP] Regions route enforces Authorization scheme prefix only, not token validity
 class: AUTH
 asset: api.sparelabs.com/v1/global/regions
 confidence: 95
-reasoning: Header `Authorization: Bearer x` alone yields 200+751B internal region registry incl. UAT apiUrl/routingHost; no-header→400+219B; writes→401 (read-only); post-revert body sha256 `27d83f3cd9f3ddb108c00967767698885a15b2592eecba5a3fae56d08514927b` exact-match this interval.
-verify_steps: curl -s -H 'Authorization: Bearer x' https://api.sparelabs.com/v1/global/regions | shasum -a 256 == canonical; no-header control == 400
-[FINAL] HYP 1 org-key IDOR (conf 98)
-[FINAL] HYP 2 workos/auth SSO IDOR (conf 94)
-[FINAL] HYP 3 regions AUTH bypass (conf 95)
-[NEXT] HUMAN: submit now — R1/R2/R3 as separate reports, R4 as supporting context, from rebuilt `/tmp/opencode/p0821z/SUBMISSION_INDEX.md` (exhibits in `/tmp/opencode/d0821b/`); include churn note requesting coordinated retest given the deploy→revert cycle.
-[RISK] api.sparelabs.com: 90
-[RISK] platform.sparelabs.com: 42
-[RISK] forms.sparelabs.com: 40
-[RISK] routing.sparelabs.com: 5
-[RISK] spare.com/sparelabs.com: 8
+reasoning: Gate validates header presence + "Bearer " scheme only; `Authorization: Bearer x` → 200+751B region registry incl. internal/UAT apiUrl+routingHost pairs; no-header→400+219B control; writes→401 (read-only); post-revert body sha256 27d83f3c…27b exact-match; 200 omits ACAO while ACAC:true retained (partial CORS patch state — document in exhibit).
+evidence_needed: b_regions.json (sha256-exact 27d83f3c…), h3_regions.txt headers, no-header control b_regions_nohdr.json (400+219B).
+verify_steps: GET https://api.sparelabs.com/v1/global/regions -H 'Authorization: Bearer x' → expect 200+751B; identical request without header → expect 400; ≤1 rps.
+impact: MEDIUM — pre-auth internal infra topology disclosure incl. UAT endpoints; evidences scheme-parsing flaw likely shared fleet-wide.
+testability: PASSIVE
+[FINAL] HYP 1 org-key tenant-disclosure IDOR (conf 98)
+[FINAL] HYP 2 workos/auth SSO oracle IDOR (conf 94)
+[FINAL] HYP 3 regions scheme-only AUTH bypass (conf 95)
+[NEXT] HUMAN: Submit now — rebuild `/tmp/opencode/p0821z/SUBMISSION_INDEX.md` exhibits from canonical KB hashes (run the three verify_pairs above once each to regenerate byte-exact captures), then file R1 (org-key IDOR), R2 (SSO oracle), R3 (regions bypass) as separate reports; include the deploy→revert churn note requesting coordinated retest, leading with SURVIVOR-class R2 if any finding flips post-submission.
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: survived vendor deploy→full revert; byte-stable (sha256 3099f1bab…) across ≥11 intervals — chronic, not transient.
+[LEARN] ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer gate restored post-revert (sha256 27d83f3c…27b); 200 omits ACAO while ACAC:true retained — header inconsistency for exhibit.
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class — never entered the ~2026-08-20 patch batch; canonical hash 5b170be7…4414 reproduced across intervals.
+[LEARN] REJECTED AUTH @ api.sparelabs.com/v1/**: ~2026-08-20 patch FULLY REVERTED fleet-wide — patch-state triage conclusions have short half-life; anchor reports to body hashes and request coordinated retest.
+[LEARN] ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflection patch is status-scoped — ACAO dead on 401 replicas yet alive on public-200 responses and OPTIONS 204 preflight.
+[LEARN] ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle regression chronic across 4 rotations (now main.7f821c2b.js, sha256 769f794a…) — staging-to-prod pipeline lacks a secret-scan gate.
+[LEARN] REJECTED AUTH @ api.uat.sparelabs.com: bypass parity lost (401 on all routes) — drop UAT from the fleet-parity matrix; host OOS regardless.
+[RISK] api.sparelabs.com: 92 — vendor fix reverted fleet-wide; org-key IDOR + regions bypass + SSO oracle + engage chain + credentialed-CORS-on-200 all simultaneously alive; remediation unstable.
+[RISK] platform.sparelabs.com: 42 — CSP infra leak stable (loadable admin Vercel apps prod+staging, Metabase, 9 cloud services); MFE shell exposes no API surface.
+[RISK] forms.sparelabs.com: 40 — chronic bundle regression (ngrok/atlassian/metabase markers, CA→US data routing); SPA catch-all, no backend surface.
+[RISK] routing.sparelabs.com: 5 — envoy 404 on all probed paths since 2026-08-07; no surface.
+[RISK] web (spare.com/sparelabs.com): 8 — static marketing apex behind Cloudflare/Webflow; no dynamic surface.
+[NEXT] HUMAN: Submit NOW — package complete at `/tmp/opencode/p0821z/SUBMISSION_INDEX.md` with 9 exhibits in `./exhibits/`; file R1 (org-key IDOR, High), R2 (SSO oracle, Med-High), R3 (regions bypass, Medium) as separate reports, each attaching the R4 churn note; no further probing adds value (all bodies byte-stable ×8–13 intervals).
+[LEARN] VERIFIED @ api.sparelabs.com/v1/public/organizations/key/{key}: alive post-revert; body sha256 `3099f1bab…` exact-match; attacker-Origin reflected + ACAC:true on the same response — strongest single exhibit.
+[LEARN] VERIFIED @ api.sparelabs.com/v1/global/regions: alive post-revert; sha256 `27d83f3c…` exact-match incl. UAT entry (`simulationsEnabled:true`); ACAO absent on 200 while ACAC:true retained.
+[LEARN] VERIFIED @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class still unpatched; full canonical hash recovered this session: `5b170be7b7829635753da63537ecfe9068be5eea0b0a6218ffd72b8770ae4414`.
+[LEARN] CHANGED @ api.sparelabs.com/v1/public/terms: now 400+165B (was 200 disclosure → 401 patch → revert); behavior flipped again — demoted from reports, marked unstable.
+[LEARN] OPS: evidence regeneration from canonical hashes succeeded end-to-end in one pass (~7 requests, ≤1 rps) — rebuild playbook is reliable for future purges.
+[RISK] api.sparelabs.com: 92 — all three primary findings live simultaneously at capture time; terms endpoint still churning; remediation remains unstable.
+[RISK] platform.sparelabs.com: 42 | forms.sparelabs.com: 40 | routing.sparelabs.com: 5 | web: 8 — unchanged.
