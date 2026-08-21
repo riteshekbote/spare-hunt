@@ -3888,3 +3888,6 @@ https://api.sparelabs.com/v1/global/regions -> HTTP 400
 ## 2026-08-21 21:33:25 UTC
 https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
 https://api.sparelabs.com/v1/public/organizations/key/spare -> 200 len=351 type=application/json; charset=utf-8
+
+## 2026-08-21 21:56:32 UTC
+https://api.sparelabs.com/v1/identity/workos/auth -> HTTP 401
