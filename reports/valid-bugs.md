@@ -593,3 +593,14 @@
   - | 3 | Regions Topology + Bearer-x Bypass | **VALID** | Scheme-only bypass + infra disclosure. Report. |
   - | 4 | CORS Reflect-Any-Origin + Credentials | **VALID** | Report as-is. The ACAC:true + Authorization in ACAM is the finding regardless of cookie auto-attach. Downgrade severity if Bearer-only confirm
   - | 5 | Zero-Header Organizations Bypass | **VALID** | Empty payload is a liability, not an exoneration. Report the pattern (auth omission + write CORS surface). Severity low today, escalates if data-be
+
+- 9 lead(s) marked VALID at 2026-08-22 04:03:20 UTC
+  - ### Verdict: **VALID**
+  - ### Verdict: **VALID**
+  - ### Verdict: **VALID**
+  - | Q3 Real impact? | **YES** — unauthenticated case creation endpoint; with valid caseTypeId and contactInfo could create cases in any customer's environment |
+  - ### Verdict: **VALID**
+  - | 1 | SSO Tenant Enumeration (WorkOS Oracle) | **VALID** | 7.5 | Unauthenticated SSO secret leak → targeted phishing |
+  - | 2 | Org-Key Tenant Disclosure | **VALID** | 6.5 | Unauthenticated customer enumeration + internal feature-flag inventory |
+  - | 3 | Regions Topology + Bearer-x Auth Bypass | **VALID** | 7.5 | Auth bypass + full infrastructure disclosure |
+  - | 5 | Engage Cases POST Auth Gate Absent | **VALID** | 6.5 | Unauthenticated write-path bypass |
