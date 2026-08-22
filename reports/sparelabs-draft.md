@@ -50,3 +50,29 @@ curl -s -H "Authorization: Bearer x" "https://api.sparelabs.com/v1/global/region
 curl -s -o /dev/null -w '%{http_code}' "https://api.sparelabs.com/v1/global/regions"                      # 400
 curl -I -H "Origin: https://attacker.example" "https://api.sparelabs.com/v1/public/organizations/key/spare" | grep -i access-control
 ```
+
+
+---
+
+# TRIAGER'S FINAL VERDICT (2026-08-22 deep-dive pass)
+
+## Severity corrections (bot rank vs reality)
+| Finding | Bot rank | Post-dig verdict | Why |
+|---|---|---|---|
+| Org-key oracle | 98 | **REPORTABLE — Medium 5.3** (High only if chained) | Sweep of 20 agency-name keys: ONLY the 5 known keys resolve (spare/grt/dallas/winnipeg/hsr). Not platform-wide; key namespace not naive-guessable. UUID path /v1/public/organizations/{uuid} mirrors same record — same finding, not two. |
+| Bearer scheme bypass | 95 | **REPORTABLE — Medium** (downgraded from High) | Battery of 11 sensitive endpoints (users/journeys/riders/vehicles/organizations...) with `Bearer x`: ALL properly 401. Gate flaw is SINGLE-ENDPOINT, not systemic. Topology values are DNS-discoverable public hosts; UAT inclusion is the strongest remaining argument. |
+| CORS reflector | - | **DO NOT SUBMIT standalone** (never-submit list) | No credentialed cross-origin read demonstrated; no cookie-authenticated sensitive endpoint identified behind reflection. Mention only as amplifier inside Finding 1 narrative. |
+| Fail-open organizations | - | One-liner in same report | {"data":[]} empty; zero standalone value |
+
+## What survives as THE reportable package (one submission)
+Combined Medium-High report: unauthenticated tenant inventory of REAL transit agencies
+(DART GoLink City of Dallas, Winnipeg Transit, Hamilton Street Railway, GRT) exposing
+per-tenant authentication-posture flags (riderPhonePin, riderLoginless,
+callForVerificationCode) + GCS bucket naming + UAT environment topology behind a
+broken token gate — ON A PLATFORM THAT PATCHED AND REVERTED THESE FIXES.
+That regression story is the strongest severity lever; lead with it.
+
+## Escalation leads NOT yet exhausted (would raise severity)
+1. organizationKey usage in rider-facing flows (booking/phone-pin) — could turn flags into auth-bypass material. UNTESTED.
+2. WorkOS SSO oracle (/v1/identity/workos/auth) — bots claim alive fleet-parity. UNVERIFIED by human.
+3. Cookie-authenticated endpoint hunt for the CORS chain. BLOCKED on having an agency/staff session.
