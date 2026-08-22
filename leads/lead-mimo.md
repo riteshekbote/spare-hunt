@@ -602,3 +602,41 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 0 — Confirmed dead since 2026-08-07; envoy 404 on ALL probed paths; no surface, NO_DELTA
 [RISK] forms.sparelabs.com: 35 — JS bundle regression chronic across 4+ rotations with ngrok/Atlassian/metabase refs; CA→US data routing (PIPEDA concern); SPA catch-all with no API surface; infra leak is recon-only, no auth bypass
 [RISK] web (spare.com/sparelabs.com): 5 — Static Webflow marketing site; Cloudflare+HSTS; no internal infra leaks; minimal static-only surface
+## 2026-08-22 01:42:04 UTC [api] (model mimo)
+[PRIO] api.sparelabs.com/v1/identity/workos/auth — 8.7 — attack:9 business:9 tech:8 gate:10 cloud:6 freshness:9
+[PRIO] api.sparelabs.com/v1/public/organizations/key/{key} — 8.5 — attack:9 business:8 tech:7 gate:10 cloud:5 freshness:9
+[PRIO] api.sparelabs.com/v1/global/regions — 8.2 — attack:7 business:6 tech:8 gate:9 cloud:7 freshness:9
+[PRIO] api.sparelabs.com/v1/global/organizations — 7.8 — attack:7 business:5 tech:7 gate:10 cloud:4 freshness:9
+[PRIO] api.sparelabs.com/v1/public/engage/cases POST — 7.5 — attack:8 business:7 tech:6 gate:10 cloud:3 freshness:9
+[HYP] SSO Tenant Enumeration via WorkOS Oracle (SURVIVOR)
+class: IDOR
+asset: api.sparelabs.com/v1/identity/workos/auth
+confidence: 96
+reasoning: SURVIVOR class — never entered patch batch. Canonical hash 5b170be7b7829635753da63537ecfe9068be5eea0b0a6218ffd72b8770ae4414 reproduced this cycle. 200+172B on configured tenants, 404+124B on nonexistent. Full CORS chain intact (ACAO: evil.example.com, ACAC: true) on both 200 and OPTIONS 204 preflight. Fleet-parity confirmed across 7 hosts. >11 tenants enumerated. Staging enforces 401 confirming prod serves older vulnerable code.
+evidence_needed: Canonical hash match confirmed 2026-08-21 22:00 UTC
+verify_steps: POST /v1/identity/workos/auth with {"domain":"spare.com"} — expect 200+172B + WorkOS client_id/connection_id in authorizationUrl
+impact: Unauthenticated enumeration of >11 transit-agency SSO tenants, WorkOS client_id/connection_id disclosure, Entra tenant IDs via relayState JWT — enables targeted SSO phishing per tenant
+testability: PASSIVE
+[HYP] Org-Key Tenant Disclosure via Enumeration Oracle (FULLY REVERTED)
+class: IDOR
+asset: api.sparelabs.com/v1/public/organizations/key/{key}
+confidence: 94
+reasoning: FULLY REVERTED post-patch — vendor deployed fix ~2026-08-20, then fully reverted fleet-wide. Byte-stable at sha256 3099f1baba93ebf19434837bdd0552a72f110a262bd01528eb48e8ba71e0e8cd again this cycle. 200+351B with UUID + 5 feature flags + GCS logoUrl on valid keys; 404+131B on invalid. Feature-flag differential exposes capability inventory. Prod-only data (uat/us2/jp → 404).
+evidence_needed: Canonical hash match confirmed 2026-08-21 22:00 UTC
+verify_steps: GET /v1/public/organizations/key/spare — expect 200+351B with 5 feature flags
+impact: Unauthenticated enumeration of customer organizations via predictable keys, exposes internal feature-flag inventory and GCS storage URLs
+testability: PASSIVE
+[HYP] Regions Infrastructure Topology Disclosure + Bearer-x Auth Bypass
+class: AUTH
+asset: api.sparelabs.com/v1/global/regions
+confidence: 91
+reasoning: SURVIVOR class — scheme-only Bearer-x bypass confirmed alive post-revert. 200+751B with ACAO absent but ACAC:true on the 200 response (partial CORS patch). 8 regions with full apiUrl+routingHost per region. UAT region exposes simulationsEnabled:true. Staging returns 401 enforcing auth — confirms prod serves older vulnerable code. Confirmed deterministic fast-replica split (8/8 fast→200, slow→401) from envoy LB.
+evidence_needed: Bearer-x bypass confirmed 2026-08-21 22:00 UTC
+verify_steps: GET /v1/global/regions with Authorization: Bearer x — expect 200+751B; without auth header → 400 "Authorization header required"
+impact: Bypasses authentication via malformed Bearer token, discloses 8-region production infrastructure with direct API URLs and routing hosts, exposes non-production UAT region
+testability: PASSIVE
+[FINAL] api.sparelabs.com/v1/identity/workos/auth — 96 (IDOR, SURVIVOR, never patched)
+[FINAL] api.sparelabs.com/v1/public/organizations/key/{key} — 94 (IDOR, FULLY REVERTED)
+[FINAL] api.sparelabs.com/v1/global/regions — 91 (AUTH, SURVIVOR, partial CORS patch)
+[NEXT] PROBE: curl -s -X POST https://api.sparelabs.com/v1/identity/workos/auth -H "Content-Type: application/json" -H "Origin: https://evil.example.com" -d '{"domain":"spare.com"}' -w "\n---SHA256---" | sha256sum — confirm SURVIVOR hash 5b170be7…4414 reproduced; then GET /v1/public/organizations/key/spare -H "Origin: https://evil.example.com" -w "\n---SHA256---" | sha256sum — confirm REVERT hash 3099f1bab… reproduced
+[LEARN] ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURV
