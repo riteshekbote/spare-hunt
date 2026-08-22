@@ -771,3 +771,4 @@ testability: PASSIVE
 [RISK] routing.sparelabs.com: 0 — Confirmed dead since 2026-08-07; envoy 404 on ALL probed paths; no surface, NO_DELTA
 [RISK] forms.sparelabs.com: 35 — JS bundle regression chronic across 4+ rotations with ngrok/Atlassian/metabase refs; CA→US data routing (PIPEDA concern); SPA catch-all with no API surface; infra leak is recon-only, no auth bypass
 [RISK] web (spare.com/sparelabs.com): 5 — Static Webflow marketing site; Cloudflare+HSTS; no internal infra leaks; minimal static-only surface
+## 2026-08-22 04:08:44 UTC [api] (model mimo)
