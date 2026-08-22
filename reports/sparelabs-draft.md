@@ -76,3 +76,27 @@ That regression story is the strongest severity lever; lead with it.
 1. organizationKey usage in rider-facing flows (booking/phone-pin) — could turn flags into auth-bypass material. UNTESTED.
 2. WorkOS SSO oracle (/v1/identity/workos/auth) — bots claim alive fleet-parity. UNVERIFIED by human.
 3. Cookie-authenticated endpoint hunt for the CORS chain. BLOCKED on having an agency/staff session.
+
+
+---
+
+# ADDENDUM 2 (2026-08-22): WorkOS SSO Oracle VERIFIED LIVE — strongest single finding
+
+## Finding 0 - MEDIUM-HIGH - Unauthenticated SSO Tenant Enumeration Oracle
+Endpoint: POST /v1/identity/workos/auth {"domain": "<customer-domain>"} — NO auth.
+Live results:
+- {"domain":"spare.com"}   -> 200: authorizationUrl containing client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01GRW7M1CJEJGYKMEMPBCQEZHY
+- {"domain":"winnipeg.ca"} -> 200: SAME client_id, DISTINCT connection=conn_01HP76PPV8CMRJH6RYRTWEPSGS (per-tenant connection identifier)
+- non-existent domain      -> 404 (clean enumeration discriminator)
+Impact: pre-auth mapping of which public transit agencies use SSO + their WorkOS connection IDs. Enables crafted, authentic-looking WorkOS SSO phishing flows targeting named agencies (login pages that pass visual scrutiny because client_id/connection are REAL). Bot telemetry claims >=11 tenants incl dart.org, translink.ca, mbta.com, kingcounty.gov.
+CVSS 3.1: AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N = 5.3 standalone; rises with demonstrated phishing chain.
+Note: state parameter reflected in authorizationUrl (currently empty in probes); redirect_uri reportedly dropped silently per pipeline logs.
+
+## FINAL PACKAGE ORDER (lead with this)
+1. WorkOS SSO oracle (phishing-enabler, real agencies named)
+2. Org-key tenant inventory (DART/Winnipeg/HSR/GRT)
+3. Regions scheme-gate -> UAT topology
+4. Context: patch-revert regression + CORS reflector amplifier + fail-open default
+
+## WORTH-REPORTING VERDICT
+YES - as ONE combined Medium-High disclosure. No bounty program exists => payout unlikely; value is responsibility (real agency phishing material + regression) + reputation. Channel: security@sparelabs.com + site contact form in parallel. If bounty-$ is the goal instead, deprioritize and move to threema/duocircle leads.
