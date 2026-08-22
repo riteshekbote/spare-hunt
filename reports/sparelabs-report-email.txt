@@ -1,0 +1,155 @@
+To:      security@sparelabs.com
+Cc:      [via website contact form — reference this same subject line]
+Subject: Security Report — Unauthenticated API endpoints expose customer SSO configuration, tenant inventory, and internal environment topology on api.sparelabs.com
+
+Hello Spare Labs Security Team,
+
+I am a security researcher reporting three unauthenticated vulnerabilities I
+verified against api.sparelabs.com on 2026-08-22. Everything below was tested
+read-only, with no accounts created, no data modified, and at most one request
+per second. A ready-to-run proof-of-concept script is attached
+(sparelabs-poc.sh) so your team can reproduce every result in under a minute.
+
+--------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------
+#1  WorkOS SSO tenant enumeration oracle   -> Medium-High (phishing enabler)
+#2  Unauthenticated tenant inventory       -> Medium
+#3  Broken token validation exposes UAT/internal topology -> Medium
+Also observed: permissive CORS reflection and a fail-open endpoint (context).
+Evidence suggests these issues may have been fixed recently and then regressed
+during a deployment rollback — details in Finding 4.
+
+--------------------------------------------------------------------
+FINDING 1 — Anyone can enumerate which agencies use SSO and obtain their
+WorkOS connection identifiers (phishing material)
+--------------------------------------------------------------------
+What is wrong:
+An unauthenticated POST request tells me whether a domain is a Spare customer
+configured for SSO, and returns that customer's real WorkOS client_id and
+per-tenant connection ID.
+
+How to reproduce (copy-paste):
+  curl -s -X POST https://api.sparelabs.com/v1/identity/workos/auth \
+    -H "Content-Type: application/json" \
+    -d '{"domain":"winnipeg.ca"}'
+
+What I saw:
+  HTTP 200
+  {"authorizationUrl":"https://api.workos.com/sso/authorize?client_id=client_01F5KHYX32TCKB1E7YEAPE0H17&connection=conn_01HP76PPV8CMRJH6RYRTWEPSGS&response_type=code&state="}
+
+Control test proving it is an enumeration oracle:
+  {"domain":"this-domain-is-not-a-customer.example"}  ->  HTTP 404
+
+Why it matters:
+Each agency gets a DIFFERENT connection ID (spare.com returned
+conn_01GRW7M1CJEJGYKMEMPBCQEZHY; winnipeg.ca returned
+conn_01HP76PPV8CMRJH6RYRTWEPSGS). An attacker can script this endpoint across
+a dictionary of transit-agency domains, build a list of who uses SSO, and then
+craft SSO login phishing pages that use REAL WorkOS client/connection values —
+these look completely legitimate to agency staff and are very hard to spot.
+My testing confirmed Winnipeg Transit; automated scans suggest further
+customers incl. dart.org, translink.ca, mbta.com, kingcounty.gov.
+
+--------------------------------------------------------------------
+FINDING 2 — Anyone can download the customer/tenant inventory
+--------------------------------------------------------------------
+What is wrong:
+A single unauthenticated GET returns full internal records for customer
+organizations, including internal UUIDs, organization keys, feature flags
+(some related to rider authentication), and storage bucket paths.
+
+How to reproduce (copy-paste):
+  curl -s https://api.sparelabs.com/v1/public/organizations/key/winnipeg
+  curl -s https://api.sparelabs.com/v1/public/organizations/key/dallas
+  curl -s https://api.sparelabs.com/v1/public/organizations/key/hsr
+
+What I saw (example, key=dallas):
+  HTTP 200 — name "DART GoLink - City of Dallas", plus organization UUID,
+  logoUrl on Google Cloud Storage, organizationKey, and enabledPublicFeatureFlags
+  such as "riderPhonePin", "riderLoginless", "callForVerificationCode".
+  A non-existent key returns 404, which makes this a clean enumeration oracle.
+  The same records are also served by /v1/public/organizations/{uuid}.
+
+Confirmed customers exposed this way: DART GoLink (City of Dallas),
+Winnipeg Transit, Hamilton Street Railway, Grand River Transit, Spare itself.
+
+Why it matters:
+This hands attackers a targeting map of your public-sector customers, their
+internal identifiers, and their authentication posture — useful for phishing,
+credential attacks, and API abuse against agencies that serve elderly and
+disabled riders.
+
+--------------------------------------------------------------------
+FINDING 3 — Garbage API tokens are accepted; internal/UAT topology disclosed
+--------------------------------------------------------------------
+What is wrong:
+GET /v1/global/regions appears to check only that an Authorization header
+LOOKS like a Bearer token — the value is never validated.
+
+How to reproduce (copy-paste):
+  curl -s -H "Authorization: Bearer totally-fake-token" \
+       https://api.sparelabs.com/v1/global/regions
+
+What I saw:
+  HTTP 200 with all 7 regional environments, including the non-production
+  UAT system marked simulationsEnabled:true:
+    api/routing .sparelabs.com, .us., .us2., .us3., .jp., .eu., and uat.
+  Without the header the same request returns 400 — so the fake token is what
+  unlocks the response.
+
+Why it matters:
+Authentication that accepts any string is broken authentication. It also hands
+out an internal environment map (including UAT systems that often have weaker
+controls) to anyone who asks.
+
+--------------------------------------------------------------------
+FINDING 4 — Additional observations (context)
+--------------------------------------------------------------------
+a) CORS reflection: api.sparelabs.com reflects any attacker Origin together
+   with Access-Control-Allow-Credentials: true — even on 401 error responses.
+     curl -I -H "Origin: https://attacker.example" \
+       https://api.sparelabs.com/v1/public/organizations/key/spare
+b) Fail-open endpoint: GET /v1/global/organizations with NO credentials
+   returns 200 {"data":[]} instead of 401/403.
+c) Possible fix regression: automated monitoring over multiple days indicates
+   some of these issues received fixes that later disappeared (responses
+   changed, then returned byte-for-byte identical to the unfixed state).
+   If a deploy rollback occurred around 2026-08-20, that would explain it —
+   worth checking your release pipeline so fixes stick.
+
+--------------------------------------------------------------------
+IMPACT SUMMARY
+--------------------------------------------------------------------
+- Phishing enablement against named public-transit agencies using real SSO
+  parameters (Finding 1)
+- Full customer/tenant inventory incl. authentication-posture flags (Finding 2)
+- Broken authentication on production API + exposure of UAT topology (Finding 3)
+
+--------------------------------------------------------------------
+SUGGESTED REMEDIATION
+--------------------------------------------------------------------
+1. Require server-side authorization before answering /v1/identity/workos/auth;
+   rate-limit it; never disclose connection IDs pre-authentication.
+2. Return only genuinely public fields (name/logo) from /v1/public/* lookups;
+   never UUIDs, keys, or feature flags.
+3. Cryptographically validate Bearer tokens and return 401 for invalid ones.
+4. Restrict CORS reflection to an allowlist; never send
+   Allow-Credentials:true with reflected origins.
+5. Add authorization regression tests so a rollback cannot silently re-expose
+   fixed endpoints.
+
+--------------------------------------------------------------------
+DISCLOSURE
+--------------------------------------------------------------------
+I have not accessed customer data beyond what these unauthenticated responses
+themselves return, created no accounts, and performed read-only checks at
+minimal request rates. I ask only for acknowledgment of this report and will
+keep details private for 90 days to give you time to remediate. I'm glad to
+re-test after your fix deploys — just reply to this email.
+
+Attached: sparelabs-poc.sh (runs every check above and prints PASS/evidence)
+
+Best regards,
+Ritesh Ekbote
+riteshekbote@gmail.com
