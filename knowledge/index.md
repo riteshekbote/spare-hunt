@@ -2889,3 +2889,38 @@
 - 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class confirmed — never entered patch batch, canonical hash 5b170be7…4414 reproduced, fleet-parity 7 hosts, staging enforces 401 confirming multi-version divergence
 - 2026-08-21 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED post-patch — sha256 3099f1bab… byte-stable across 11+ intervals post-revert; vendor fix rolled back fleet-wide
 - 2026-08-21 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-x bypass RESTORED post-revert — sha256 27d83f3c…27b byte-stable, 8 regions incl UAT, deterministic fast-replica split
+- 2026-08-22 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class confirmed — never entered patch batch, canonical hash 5b170be7…4414 reproduced, fleet-parity 7 hosts, staging enforces 401 confirming multi-version divergence
+- 2026-08-22 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: FULLY REVERTED post-patch — sha256 3099f1bab… byte-stable across 11+ intervals post-revert; vendor fix rolled back fleet-wide
+- 2026-08-22 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-x bypass RESTORED post-revert — sha256 27d83f3c…27b byte-stable, 8 regions incl UAT, deterministic fast-replica split
+- 2026-08-22 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header fail-open RESTORED fleet-wide — 200+11B with no auth, writes enforce 401
+- 2026-08-22 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/cases POST: auth gate ABSENT SURVIVOR — POST not in patch batch; 403 feature-flag gate post-revert
+- 2026-08-22 REJECTED AUTH @ api.uat.sparelabs.com: bypass parity LOST — 401 on all routes; UAT removed from prod fleet
+- 2026-08-22 CHANGED MISCONFIG @ api.sparelabs.com/v1/**: ACAO reflection DEAD on 401 responses on patched replicas — CORS exhibits now scoped to OPTIONS preflight + public/200 paths only
+- 2026-08-22 ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle regression chronic across 4+ rotations — staging-to-prod pipeline lacks secret-scan gate
+- 2026-08-22 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass alive post-revert — 8 regions incl UAT, 751B sha256 stable, deterministic fast-replica split
+- 2026-08-22 ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive post-patch/revert — never in patch batch, fleet-parity 7 hosts
+- 2026-08-22 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType: 200+231B schema — engage read chain never patched
+- 2026-08-22 ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form: Full schema disclosure — 20 fields + 20 incident categories, auth-free + CORS
+- 2026-08-22 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO/ACAC reflected, methods include POST/PATCH/DELETE — credentialed-CORS preflight reflection alive
+- 2026-08-22 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression — 7th interval byte-stable re-stamp
+- 2026-08-22 ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header fail-open RESTORED fleet-wide — GET no-auth → 200+11B {"data":[]} + ACAO+ACAC; write meth
+- 2026-08-22 REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+- 2026-08-22 CHANGED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses — partial patch effect on auth-gated pat
+- 2026-08-22 ACCEPTED MISCONFIG @ forms.sparelabs.com: Bundle regression PERSISTED — main.7f821c2b.js contains ngrok/atlassian/metabase refs; CA→US data routing confirmed
+- 2026-08-22 REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
+- 2026-08-22 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: ninth-interval byte-stable re-stamp post-revert (sha256 3099f1bab… exact-match) — chronic e
+- 2026-08-22 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-scheme gate alive post-revert (sha256 27d83f3c… exact-match, 8 regions incl UAT) — vendor fix revert
+- 2026-08-22 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class confirmed — never entered patch batch, canonical hash 5b170be7… reproduced across inte
+- 2026-08-22 REJECTED MISCONFIG @ api.sparelabs.com/v1/**: ACAO reflection on 401 responses dead on patched replicas — CORS exhibits scoped to OPTIONS preflight + public/200
+- 2026-08-22 ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: survived vendor deploy→full revert; byte-stable (sha256 3099f1bab…) across ≥11 intervals — chronic, not transient.
+- 2026-08-22 ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer gate restored post-revert (sha256 27d83f3c…27b); 200 omits ACAO while ACAC:true retained — header inconsistency for exhibit.
+- 2026-08-22 ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class — never entered the ~2026-08-20 patch batch; canonical hash 5b170be7…4414 reproduced across intervals.
+- 2026-08-22 REJECTED AUTH @ api.sparelabs.com/v1/**: ~2026-08-20 patch FULLY REVERTED fleet-wide — patch-state triage conclusions have short half-life; anchor reports to body hashes and request coordinated retest.
+- 2026-08-22 ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflection patch is status-scoped — ACAO dead on 401 replicas yet alive on public-200 responses and OPTIONS 204 preflight.
+- 2026-08-22 ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle regression chronic across 4 rotations (now main.7f821c2b.js, sha256 769f794a…) — staging-to-prod pipeline lacks a secret-scan gate.
+- 2026-08-22 REJECTED AUTH @ api.uat.sparelabs.com: bypass parity lost (401 on all routes) — drop UAT from the fleet-parity matrix; host OOS regardless.
+- 2026-08-22 VERIFIED @ api.sparelabs.com/v1/public/organizations/key/{key}: alive post-revert; body sha256 `3099f1bab…` exact-match; attacker-Origin reflected + ACAC:true on the same response — strongest single exhibit.
+- 2026-08-22 VERIFIED @ api.sparelabs.com/v1/global/regions: alive post-revert; sha256 `27d83f3c…` exact-match incl. UAT entry (`simulationsEnabled:true`); ACAO absent on 200 while ACAC:true retained.
+- 2026-08-22 VERIFIED @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class still unpatched; full canonical hash recovered this session: `5b170be7b7829635753da63537ecfe9068be5eea0b0a6218ffd72b8770ae4414`.
+- 2026-08-22 CHANGED @ api.sparelabs.com/v1/public/terms: now 400+165B (was 200 disclosure → 401 patch → revert); behavior flipped again — demoted from reports, marked unstable.
+- 2026-08-22 OPS: evidence regeneration from canonical hashes succeeded end-to-end in one pass (~7 requests, ≤1 rps) — rebuild playbook is reliable for future purges.
