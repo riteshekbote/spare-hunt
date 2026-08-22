@@ -580,3 +580,16 @@
   - | A8 | 3-way UUID oracle /v1/public/organizations/{id} | **VALID** (reconf) | CVSS 5.3 — STABLE (new 2026-08-11) |
   - | L6 | Valid-token org registry data-bearing | **HOLD** | Needs program test token |
   - | — | **No new VALID findings this cycle** | — | — |
+
+- 11 lead(s) marked VALID at 2026-08-22 00:37:01 UTC
+  - **Verdict: VALID**
+  - **Verdict: VALID**
+  - **Verdict: VALID**
+  - **Verdict: VALID**
+  - **Verdict: VALID**
+  - **Verdict: HOLD** — The 3-way differential is confirmed but no real UUID → 200 has been captured. Needs a known valid org UUID to prove the 200 branch.
+  - | 1 | SSO Tenant Enumeration (WorkOS) | **VALID** | Clean unauth oracle with credential leak. Report. |
+  - | 2 | Org-Key Tenant Disclosure | **VALID** | Feature-flag differential is real intel. Report. |
+  - | 3 | Regions Topology + Bearer-x Bypass | **VALID** | Scheme-only bypass + infra disclosure. Report. |
+  - | 4 | CORS Reflect-Any-Origin + Credentials | **VALID** | Report as-is. The ACAC:true + Authorization in ACAM is the finding regardless of cookie auto-attach. Downgrade severity if Bearer-only confirm
+  - | 5 | Zero-Header Organizations Bypass | **VALID** | Empty payload is a liability, not an exoneration. Report the pattern (auth omission + write CORS surface). Severity low today, escalates if data-be
