@@ -27,3 +27,26 @@ CORS reflector + fail-open submitted as CONTEXT ONLY (not scored) — correct di
 PoC script attached. Manual/read-only/<=1rps attestation included.
 ACTION: locate + archive the exact published-policy URL into scope.yml when researcher shares it.
 Nudge due 2026-08-29.
+
+
+---
+# DEEP-DIG UPDATE (2026-08-22 evening)
+
+## VENDOR REPLY DISCOVERED (was sitting in inbox)
+- security@spare.com (osama.khalid@spare.com) replied Aug 19 to an EARLIER WorkOS report (~Aug 14-19):
+  'This is expected and this intended behavior is by-design.'
+- CONSEQUENCE: WorkOS oracle = CLOSED by-design. Today's Finding 2 + prepared addendum = DO NOT SEND.
+  Addendum archived at reports/sparelabs-workos-addendum.txt (reference only).
+- CHANNEL FIX: security@spare.com is the monitored contact; osama.khalid@spare.com is the responder.
+
+## Deep-dig results (survives by-design)
+- relayState JWT: HS256+kid, quick weak-secret pass failed, NO exp claim (server-side expiry only).
+  Dead end without serious cracking; token alone grants nothing.
+- /v1/global/* siblings (timezones/countries/currencies/languages/locales/settings/configurations/features/plans):
+  ALL proper 401 with Bearer x -> regions gate is ISOLATED misconfig, not systemic.
+- Org-key sweep round 2 (customer roster): +1 HIT -> key=oakville ('Oakville'). Total 6 confirmed
+  exposed tenants: spare, grt, dallas(DART GoLink), winnipeg(Winnipeg Transit), hsr(Hamilton), oakville.
+
+## CURRENT OPEN SUBMISSIONS AT SPARE
+- Today's combined report (Findings 1 HIGH bearer-bypass + 3 MED org inventory) -> still unanswered,
+  NOT covered by Aug 19 by-design (different endpoints). Nudge 2026-08-29 via security@spare.com.
