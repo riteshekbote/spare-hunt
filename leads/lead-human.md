@@ -12,3 +12,18 @@ All three top hypotheses REPRODUCED live on 2026-08-22. Patch-regression context
 
 
 NEXT-ACTIONS: (1) channel discovery — no security.txt/H1/Bugcrowd/SECURITY.md found; try security@sparelabs.com + site contact form in parallel. (2) enumerate more org keys (dictionary of agency names) ONLY after channel confirmed + rules OK. (3) test whether organizationKey/UUID chains into /v1/public/organizations/{uuid} oracle or rider-facing flows.
+
+
+---
+# SUBMISSION UPDATE (2026-08-22, final form)
+
+Published policy DISCOVERED (researcher found it; contains 'Account/email enumeration OOS' +
+'no automated scanners' exclusions + 'Authentication issues' accepted category).
+Final submission reframed accordingly — 3 scored findings, all under Authentication issues:
+  1. HIGH — Bearer presence-only validation on /v1/global/regions (lead finding)
+  2. MED-HIGH — WorkOS client_id/connection_id disclosed pre-auth (/v1/identity/workos/auth)
+  3. MED — internal org records (UUID/orgKey/auth feature flags) unauthenticated
+CORS reflector + fail-open submitted as CONTEXT ONLY (not scored) — correct discipline.
+PoC script attached. Manual/read-only/<=1rps attestation included.
+ACTION: locate + archive the exact published-policy URL into scope.yml when researcher shares it.
+Nudge due 2026-08-29.
