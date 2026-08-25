@@ -18314,3 +18314,36 @@
 - LEARN: VERIFIED @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class still unpatched; full canonical hash recovered this session: `5b170be7b7829635753da63537ecf
 - LEARN: CHANGED @ api.sparelabs.com/v1/public/terms: now 400+165B (was 200 disclosure → 401 patch → revert); behavior flipped again — demoted from reports, marked unsta
 - LEARN: OPS: evidence regeneration from canonical hashes succeeded end-to-end in one pass (~7 requests, ≤1 rps) — rebuild playbook is reliable for future purges.
+
+## RANKED HYPOTHESES 2026-08-25 21:46:57 UTC
+- [98] api.sparelabs.com/v1/public/organizations/key/{key}: Unauthenticated org-key endpoint discloses full tenant records with credentialed CORS (from reports/hypotheses-bigpickle.txt)
+- [98] api.sparelabs.com/v1/public/organizations/key/{key}: Full tenant disclosure via unauthenticated org-key enumeration (from reports/hypotheses-nemotron3.txt)
+- NEXT(hypotheses-nemotron3.txt): PROBE: curl -X GET https://api.sparelabs.com/v1/public/organizations/key/spare -H "Origin: https://evil.example.com" -v — confirm 200+351B with org details (UUI
+- NEXT(hypotheses-bigpickle.txt): HUMAN: Submit now — rebuild `/tmp/opencode/p0821z/SUBMISSION_INDEX.md` exhibits from canonical KB hashes (run the three verify_pairs above once each to regenera
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Scheme-only Bearer bypass alive post-revert — 8 regions incl UAT, 751B sha256 stable, deterministic fast-re
+- LEARN: ACCEPTED OATH @ api.sparelabs.com/v1/identity/workos/auth: SSO oracle CONSISTENTLY alive post-patch/revert — never in patch batch, fleet-parity 7 hosts
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/caseType: 200+231B schema — engage read chain never patched
+- LEARN: ACCEPTED BUSLOGIC @ api.sparelabs.com/v1/public/engage/form: Full schema disclosure — 20 fields + 20 incident categories, auth-free + CORS
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/journeys OPTIONS: 204 + ACAO/ACAC reflected, methods include POST/PATCH/DELETE — credentialed-CORS preflight reflectio
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: Org-key oracle FULLY REVERTED post-patch-regression — 7th interval byte-stable re-stamp
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/organizations: zero-header fail-open RESTORED fleet-wide — GET no-auth → 200+11B {"data":[]} + ACAO+ACAC; write meth
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: UAT bypass parity LOST — returns 401 on both /regions and /organizations; removed from prod fleet
+- LEARN: CHANGED MISCONFIG @ api.sparelabs.com/v1/**: CORS credential reflection no longer reflects ACAO header on 401 responses — partial patch effect on auth-gated pat
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: Bundle regression PERSISTED — main.7f821c2b.js contains ngrok/atlassian/metabase refs; CA→US data routing confirmed
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/**: Patch from ~2026-08-20 FULLY REVERTED across all fleet replicas
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: ninth-interval byte-stable re-stamp post-revert (sha256 3099f1bab… exact-match) — chronic e
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: Bearer-scheme gate alive post-revert (sha256 27d83f3c… exact-match, 8 regions incl UAT) — vendor fix revert
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class confirmed — never entered patch batch, canonical hash 5b170be7… reproduced across inte
+- LEARN: REJECTED MISCONFIG @ api.sparelabs.com/v1/**: ACAO reflection on 401 responses dead on patched replicas — CORS exhibits scoped to OPTIONS preflight + public/200
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/public/organizations/key/{key}: survived vendor deploy→full revert; byte-stable (sha256 3099f1bab…) across ≥11 intervals — 
+- LEARN: ACCEPTED AUTH @ api.sparelabs.com/v1/global/regions: scheme-only Bearer gate restored post-revert (sha256 27d83f3c…27b); 200 omits ACAO while ACAC:true retained
+- LEARN: ACCEPTED IDOR @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class — never entered the ~2026-08-20 patch batch; canonical hash 5b170be7…4414 reproduced a
+- LEARN: REJECTED AUTH @ api.sparelabs.com/v1/**: ~2026-08-20 patch FULLY REVERTED fleet-wide — patch-state triage conclusions have short half-life; anchor reports to bo
+- LEARN: ACCEPTED MISCONFIG @ api.sparelabs.com/v1/**: CORS reflection patch is status-scoped — ACAO dead on 401 replicas yet alive on public-200 responses and OPTIONS 2
+- LEARN: ACCEPTED MISCONFIG @ forms.sparelabs.com: bundle regression chronic across 4 rotations (now main.7f821c2b.js, sha256 769f794a…) — staging-to-prod pipeline lacks
+- LEARN: REJECTED AUTH @ api.uat.sparelabs.com: bypass parity lost (401 on all routes) — drop UAT from the fleet-parity matrix; host OOS regardless.
+- LEARN: VERIFIED @ api.sparelabs.com/v1/public/organizations/key/{key}: alive post-revert; body sha256 `3099f1bab…` exact-match; attacker-Origin reflected + ACAC:true o
+- LEARN: VERIFIED @ api.sparelabs.com/v1/global/regions: alive post-revert; sha256 `27d83f3c…` exact-match incl. UAT entry (`simulationsEnabled:true`); ACAO absent on 20
+- LEARN: VERIFIED @ api.sparelabs.com/v1/identity/workos/auth: SURVIVOR class still unpatched; full canonical hash recovered this session: `5b170be7b7829635753da63537ecf
+- LEARN: CHANGED @ api.sparelabs.com/v1/public/terms: now 400+165B (was 200 disclosure → 401 patch → revert); behavior flipped again — demoted from reports, marked unsta
+- LEARN: OPS: evidence regeneration from canonical hashes succeeded end-to-end in one pass (~7 requests, ≤1 rps) — rebuild playbook is reliable for future purges.
